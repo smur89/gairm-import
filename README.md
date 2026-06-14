@@ -16,13 +16,13 @@ template, not here.
 ## Install
 
 ```typst
-#import "@preview/json-resume:0.0.0": read-resume, parse-resume
+#import "@preview/json-resume:0.0.1": read-resume, parse-resume
 ```
 
 ## Usage
 
 ```typst
-#import "@preview/json-resume:0.0.0": read-resume, parse-resume
+#import "@preview/json-resume:0.0.1": read-resume, parse-resume
 
 // File on disk → normalised dict.
 #let resume = read-resume("resume.json")
@@ -38,7 +38,7 @@ Typst CV template — e.g. `altacv`:
 
 ```typst
 #import "@preview/altacv:1.x": alta
-#import "@preview/json-resume:0.0.0": read-resume
+#import "@preview/json-resume:0.0.1": read-resume
 
 #alta(..read-resume("resume.json"), preferences: (...), labels: (...))
 ```
