@@ -7,8 +7,9 @@
 //
 // The validate / coerce engines under internal/ are pure (schema,
 // value) functions; only the public symbols below pre-bind the
-// canonical resume-schema. See tests/engine_byo_schema.typ for the
-// architectural-readiness fixture covering JSON-Resume+ extensions.
+// canonical resume-schema. See tests/engine_schema_agnostic.typ for
+// the architectural-readiness fixture covering JSON-Resume+
+// extensions.
 
 #import "internal/schema.typ": resume-schema
 #import "internal/validate.typ": _validate

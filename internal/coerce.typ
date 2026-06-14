@@ -10,28 +10,31 @@
 // the value type doesn't match the schema kind, so direct callers who
 // skipped validate-resume get a friendly diagnostic on shape
 // mismatches (e.g. a string where an object was expected) instead of
-// a Typst method-resolution panic from .pairs() / .map().
+// a Typst method-resolution panic from .pairs() / .map(). Errors are
+// surfaced via `assert(false, message: …)` rather than `panic(…)` so
+// future multi-line messages render correctly (Typst's panic
+// diagnostic repr-escapes newlines; assert preserves them).
+
+#import "errors.typ": _type-name-of
 
 #let _coerce(schema, value) = {
   let kind = schema.kind
   if kind == "content" { return [#value] }
   if kind in ("str", "number") { return value }
   if kind == "array" {
-    if type(value) != array {
-      panic(
-        "json-resume: coerce-resume expected an array, got " +
-          repr(type(value)) + ". Run validate-resume first.",
-      )
-    }
+    assert(
+      type(value) == array,
+      message: "json-resume: coerce-resume expected an array, got " +
+        _type-name-of(value) + ". Run validate-resume first.",
+    )
     return value.map(elem => _coerce(schema.elem, elem))
   }
   if kind == "object" {
-    if type(value) != dictionary {
-      panic(
-        "json-resume: coerce-resume expected an object, got " +
-          repr(type(value)) + ". Run validate-resume first.",
-      )
-    }
+    assert(
+      type(value) == dictionary,
+      message: "json-resume: coerce-resume expected an object, got " +
+        _type-name-of(value) + ". Run validate-resume first.",
+    )
     return value.pairs()
       .filter(((key, _)) => key in schema.shape)
       .map(((key, sub-value)) => (key, _coerce(schema.shape.at(key), sub-value)))

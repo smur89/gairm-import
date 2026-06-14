@@ -56,3 +56,25 @@
 #assert.eq(errs.len(), 2)
 #assert.eq(errs.at(0).path, ("greeting",))
 #assert.eq(errs.at(1).path, ("rating",))
+
+// required-keys flows through end-to-end against an extension schema:
+// missing-required errors interleave with type and unknown-key
+// errors, all in one report. resume-schema itself declares no
+// required keys (v0.1 strict-but-optional), so this is the only path
+// that exercises the architectural hook.
+#let strict-schema = object(
+  (title: str-type, body: content-type),
+  required-keys: ("title", "body"),
+)
+#assert.eq(_validate(strict-schema, (title: "hi", body: "ok"), ()), ())
+
+#let missing-errs = _validate(strict-schema, (title: "hi"), ())
+#assert.eq(missing-errs.len(), 1)
+#assert.eq(missing-errs.at(0).path, ("body",))
+#assert(missing-errs.at(0).message.contains("missing required key"))
+
+// Coercer still produces a model for the present keys when one
+// required key is missing — coercion is shape-blind and trusts the
+// caller to have run validation first.
+#let partial = _coerce(strict-schema, (title: "hi",))
+#assert.eq(partial.keys(), ("title",))
