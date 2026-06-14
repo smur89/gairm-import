@@ -4,6 +4,16 @@ Thanks for taking the time to look. This is a small library package; almost
 any thoughtful contribution will be welcome — but a couple of conventions
 keep the release pipeline (release-please + Typst Universe) running smoothly.
 
+## Submitting a PR
+
+1. Fork the repository on GitHub.
+2. Clone your fork locally and create a branch for your change.
+3. Make the changes, commit, and push to your fork.
+4. Open a Pull Request against `main` on this repository.
+
+Security issues should be reported privately per [`SECURITY.md`](SECURITY.md)
+instead of as a PR or issue.
+
 ## Scope
 
 `json-resume` implements **only** the canonical [JSON Resume schema](https://jsonresume.org/schema).
