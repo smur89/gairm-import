@@ -8,7 +8,7 @@
 
 #let model = coerce-resume(raw)
 #assert.eq(type(model), dictionary)
-#assert.eq(model.basics.name, "Alice")
+#assert.eq(model.basics.name, "Seán Ó Murchú")
 #assert.eq(type(model.basics.summary), content)
 
 #let model2 = parse-resume(raw)
