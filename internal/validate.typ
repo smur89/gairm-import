@@ -1,60 +1,47 @@
 // Pure validator. Returns a flat list of {path, message} records for
-// every shape/type mismatch found. Empty list = valid. Path is a
-// tuple of dict keys and array indices; rendering lives in errors.typ.
+// every shape/type mismatch found. Empty list = valid. Path is a tuple
+// of dict keys and array indices; rendering lives in errors.typ.
+//
+// Note: when a key is unknown, the unknown-key error is reported but
+// its subtree is not walked — the subtree's expected shape is, by
+// definition, undefined.
+
+#import "errors.typ": _type-name-of
+
+#let _type-error(path, expected, value) = ((
+  path: path,
+  message: "expected " + expected + ", got " + _type-name-of(value) + ".",
+),)
 
 #let _validate(schema, value, path) = {
   let kind = schema.kind
-  if kind == "str" or kind == "content" {
-    if type(value) != str {
-      return ((
-        path: path,
-        message: "expected string, got " + repr(type(value)) + ".",
-      ),)
-    }
+  if kind in ("str", "content") {
+    if type(value) != str { return _type-error(path, "string", value) }
     return ()
   }
   if kind == "number" {
-    if type(value) != int and type(value) != float {
-      return ((
-        path: path,
-        message: "expected number, got " + repr(type(value)) + ".",
-      ),)
-    }
+    if type(value) not in (int, float) { return _type-error(path, "number", value) }
     return ()
   }
   if kind == "array" {
-    if type(value) != array {
-      return ((
-        path: path,
-        message: "expected array, got " + repr(type(value)) + ".",
-      ),)
-    }
-    let errs = ()
-    for (i, elem) in value.enumerate() {
-      errs += _validate(schema.elem, elem, path + (i,))
-    }
-    return errs
+    if type(value) != array { return _type-error(path, "array", value) }
+    return value.enumerate()
+      .map(((i, elem)) => _validate(schema.elem, elem, path + (i,)))
+      .flatten()
   }
   if kind == "object" {
-    if type(value) != dictionary {
-      return ((
-        path: path,
-        message: "expected object, got " + repr(type(value)) + ".",
-      ),)
-    }
-    let errs = ()
-    let valid-keys = schema.shape.keys()
-    for (key, sub-value) in value.pairs() {
+    if type(value) != dictionary { return _type-error(path, "object", value) }
+    let valid-keys-str = schema.shape.keys().join(", ")
+    return value.pairs().map(((key, sub-value)) => {
       if key in schema.shape {
-        errs += _validate(schema.shape.at(key), sub-value, path + (key,))
+        _validate(schema.shape.at(key), sub-value, path + (key,))
       } else {
-        errs += ((
+        ((
           path: path + (key,),
-          message: "unknown key \"" + key + "\". Valid keys: " + valid-keys.join(", ") + ".",
+          message: "unknown key " + repr(key) + ". Valid keys: " + valid-keys-str + ".",
         ),)
       }
-    }
-    return errs
+    }).flatten()
   }
-  return ()
+  panic("json-resume: internal — unknown schema kind " + repr(kind))
 }

@@ -24,6 +24,12 @@
 //     #let raw = json("resume.json")
 //     #let model = parse-resume(raw)
 #let read-resume(path) = {
+  if type(path) != str {
+    panic(
+      "json-resume: read-resume expected a string path, got " +
+        repr(path) + ".",
+    )
+  }
   if not path.starts-with("/") {
     panic(
       "json-resume: read-resume requires a path starting with \"/\" " +
