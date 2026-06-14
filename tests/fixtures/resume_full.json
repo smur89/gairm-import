@@ -1,0 +1,132 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Ada Lovelace",
+    "label": "Computing Pioneer",
+    "image": "https://example.com/ada.png",
+    "email": "ada@example.com",
+    "phone": "+44 20 7946 0958",
+    "url": "https://example.com/ada",
+    "summary": "Mathematician, writer, and the first computer programmer.",
+    "location": {
+      "address": "12 St James's Square",
+      "postalCode": "SW1Y 4LB",
+      "city": "London",
+      "countryCode": "GB",
+      "region": "England"
+    },
+    "profiles": [
+      {
+        "network": "GitHub",
+        "username": "ada",
+        "url": "https://github.example.com/ada"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Analytical Engine Co.",
+      "location": "London, UK",
+      "description": "Mechanical computing research lab",
+      "position": "Lead Programmer",
+      "url": "https://example.com/aec",
+      "startDate": "1842-01",
+      "endDate": "1843-12",
+      "summary": "Designed the first algorithm intended to be carried out by a machine.",
+      "highlights": [
+        "Translated Menabrea's article and added the Notes",
+        "Wrote algorithms for Bernoulli numbers"
+      ]
+    }
+  ],
+  "volunteer": [
+    {
+      "organization": "Royal Society",
+      "position": "Honorary Lecturer",
+      "url": "https://example.com/royal-society",
+      "startDate": "1844",
+      "endDate": "1845",
+      "summary": "Presented papers on computing theory.",
+      "highlights": ["Two lectures delivered to Fellows"]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University of London",
+      "url": "https://example.com/uol",
+      "area": "Mathematics",
+      "studyType": "Independent Study",
+      "startDate": "1833",
+      "endDate": "1840",
+      "score": "First Class",
+      "courses": ["MATH-101 Analysis", "LOGIC-201 Symbolic Logic"]
+    }
+  ],
+  "awards": [
+    {
+      "title": "Royal Medal",
+      "date": "1843",
+      "awarder": "Royal Society",
+      "summary": "For contributions to computing theory."
+    }
+  ],
+  "certificates": [
+    {
+      "name": "Certified Analytical Engineer",
+      "date": "1842",
+      "url": "https://example.com/cae",
+      "issuer": "Analytical Engine Co."
+    }
+  ],
+  "publications": [
+    {
+      "name": "Notes on the Analytical Engine",
+      "publisher": "Scientific Memoirs",
+      "releaseDate": "1843",
+      "url": "https://example.com/notes",
+      "summary": "Includes what is recognised as the first algorithm."
+    }
+  ],
+  "skills": [
+    {
+      "name": "Algorithm Design",
+      "level": "Master",
+      "keywords": ["Loops", "Branching", "Recursion"]
+    }
+  ],
+  "languages": [
+    {"language": "English", "fluency": "Native"},
+    {"language": "French", "fluency": "Fluent"}
+  ],
+  "interests": [
+    {"name": "Mathematics", "keywords": ["Number theory", "Calculus"]}
+  ],
+  "references": [
+    {
+      "name": "Charles Babbage",
+      "reference": "Ada is the enchantress of numbers — none more imaginative."
+    }
+  ],
+  "projects": [
+    {
+      "name": "Bernoulli Number Algorithm",
+      "description": "An algorithm for computing Bernoulli numbers on the Analytical Engine.",
+      "highlights": [
+        "Step-by-step trace of register state",
+        "Loop structure with conditional exit"
+      ],
+      "keywords": ["recursion", "tabulation"],
+      "startDate": "1842",
+      "endDate": "1843",
+      "url": "https://example.com/bernoulli",
+      "roles": ["Designer", "Author"],
+      "entity": "Analytical Engine Co.",
+      "type": "research"
+    }
+  ],
+  "meta": {
+    "canonical": "https://example.com/ada/resume.json",
+    "version": "v1.0.0",
+    "lastModified": "1843-09-12T10:00:00"
+  }
+}

@@ -9,38 +9,75 @@ the loader rejects unknown fields and coerces strings to `content` where
 renderers expect content. Renderer-specific extensions belong in the consuming
 template, not here.
 
-> **Status:** scaffolding only. `read-resume` / `parse-resume` are stubs that
-> panic with a tracking link. The first tagged release will ship the first
-> usable implementation.
-
 ## Install
 
 ```typst
-#import "@preview/json-resume:0.0.1": read-resume, parse-resume
+#import "@preview/json-resume:0.0.1": read-resume, validate-resume, coerce-resume, parse-resume
 ```
 
 ## Usage
 
+The loader is a three-step pipeline you can run end-to-end with `parse-resume`
+or step through individually:
+
 ```typst
-#import "@preview/json-resume:0.0.1": read-resume, parse-resume
+#import "@preview/json-resume:0.0.1": parse-resume
 
-// File on disk → normalised dict.
-#let resume = read-resume("resume.json")
-
-// Already-parsed dict → normalised dict.
+// Common case — Typst's built-in json() reads the file relative to your
+// document, parse-resume validates and coerces.
 #let resume = parse-resume(json("resume.json"))
 ```
 
-The returned dict matches the canonical JSON Resume schema, with string fields
-that downstream renderers consume as `content` (e.g. `summary`,
-`highlights[]`, `description`) already coerced. Pass it into any compatible
-Typst CV template — e.g. `altacv`:
+Step-by-step, if you want to handle validation errors yourself:
+
+```typst
+#import "@preview/json-resume:0.0.1": validate-resume, coerce-resume
+
+#let raw = json("resume.json")
+#let errors = validate-resume(raw)
+#if errors.len() > 0 [
+  // each error is `(path: (...), message: "...")`
+  Resume has #errors.len() issue(s).
+] else [
+  #let model = coerce-resume(raw)
+  ...
+]
+```
+
+`read-resume(path)` is also exported as a convenience, but Typst resolves
+paths against the file containing the call — so it requires a
+**root-relative path** (one starting with `/`):
+
+```typst
+#let resume = parse-resume(read-resume("/resume.json"))
+```
+
+For paths relative to your own document, prefer `json("…")` over
+`read-resume("/…")`.
+
+The returned dict matches the canonical JSON Resume schema, with free-text
+fields (`summary`, `description`, `highlights[]`, `reference`) coerced to
+Typst `content`. Pass it into any compatible renderer — e.g. `altacv`:
 
 ```typst
 #import "@preview/altacv:1.x": alta
-#import "@preview/json-resume:0.0.1": read-resume
+#import "@preview/json-resume:0.0.1": parse-resume
 
-#alta(..read-resume("resume.json"), preferences: (...), labels: (...))
+#alta(..parse-resume(json("resume.json")), preferences: (...), labels: (...))
+```
+
+## Errors
+
+`validate-resume` returns a list of `(path, message)` records — empty list
+means the input is valid. `parse-resume` calls `validate-resume` first and
+panics with a combined report on the first invocation that finds issues, so
+every problem in the document surfaces in one error:
+
+```
+json-resume: found 3 problems in the input:
+  - basics.email: expected string, got integer.
+  - work[0].positon: unknown key "positon". Valid keys: name, location, description, position, url, startDate, endDate, summary, highlights.
+  - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
 ```
 
 ## Scope
