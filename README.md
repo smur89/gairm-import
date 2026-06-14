@@ -10,18 +10,19 @@ renderers expect content. Renderer-specific extensions belong in the consuming
 template, not here.
 
 > **Status:** scaffolding only. `read-resume` / `parse-resume` are stubs that
-> panic with a tracking link. v0.1.0 will ship the first usable implementation.
+> panic with a tracking link. The first tagged release will ship the first
+> usable implementation.
 
 ## Install
 
 ```typst
-#import "@preview/json-resume:0.1.0": read-resume, parse-resume
+#import "@preview/json-resume:0.0.0": read-resume, parse-resume
 ```
 
 ## Usage
 
 ```typst
-#import "@preview/json-resume:0.1.0": read-resume, parse-resume
+#import "@preview/json-resume:0.0.0": read-resume, parse-resume
 
 // File on disk → normalised dict.
 #let resume = read-resume("resume.json")
@@ -37,7 +38,7 @@ Typst CV template — e.g. `altacv`:
 
 ```typst
 #import "@preview/altacv:1.x": alta
-#import "@preview/json-resume:0.1.0": read-resume
+#import "@preview/json-resume:0.0.0": read-resume
 
 #alta(..read-resume("resume.json"), preferences: (...), labels: (...))
 ```
