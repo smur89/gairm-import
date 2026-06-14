@@ -1,0 +1,35 @@
+name: Feature request
+description: A schema field to support, a validation rule to relax, or a new helper
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What does the canonical JSON Resume schema say (or not say) that the loader doesn't handle today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Sketch the API or behaviour you have in mind. For schema coverage, link the relevant section of https://jsonresume.org/schema and give a small example dict.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds you tried, or other shapes for the same idea.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Schema alignment
+      description: This package stays strictly aligned to the canonical JSON Resume schema. Renderer-specific extensions (theme, labels, decorations) belong in the consuming template, not here.
+      options:
+        - label: This request is covered by the canonical JSON Resume schema, or proposes a generic improvement to validation / coercion.
+          required: true

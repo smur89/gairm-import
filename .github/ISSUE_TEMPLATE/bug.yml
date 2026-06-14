@@ -1,0 +1,52 @@
+name: Bug report
+description: Something the loader panics on, validates wrongly, or coerces unexpectedly
+title: "fix: "
+labels: ["bug"]
+body:
+  - type: input
+    id: package-version
+    attributes:
+      label: json-resume version
+      description: From `typst.toml` or your `#import` line.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: typst-version
+    attributes:
+      label: Typst version
+      description: Output of `typst --version`.
+      placeholder: "typst 0.14.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: The smallest input + `read-resume` / `parse-resume` call that reproduces the issue. Inline it here; do not link an external gist.
+      render: typst
+    validations:
+      required: true
+
+  - type: textarea
+    id: input-json
+    attributes:
+      label: Input JSON
+      description: The `resume.json` (or fragment) that triggers the bug. Trim secrets, keep enough to reproduce.
+      render: json
+
+  - type: textarea
+    id: expected-vs-actual
+    attributes:
+      label: Expected vs. actual
+      description: What did you expect the loader to return / accept / reject, and what did it do instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Anything else
+      description: OS, locale, downstream renderer, anything else that might matter.

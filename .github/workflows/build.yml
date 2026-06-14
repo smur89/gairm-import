@@ -1,0 +1,247 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  # Single source of truth for the Typst version used across all jobs.
+  TYPST_VERSION: v0.14.2
+  # Package name as it appears in typst.toml's `package.name`. Surfaced
+  # here so branch names, tarball names, PR titles, and the supersede
+  # filter all derive from one place; rename the package by editing
+  # both this and typst.toml.
+  PACKAGE_NAME: json-resume
+
+jobs:
+  # Compile every tests/*.typ fixture against the local file tree.
+  # Same shape as `make test`; this is the gate every PR must pass.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install Typst
+        run: |
+          TARBALL=typst-x86_64-unknown-linux-musl.tar.xz
+          URL=https://github.com/typst/typst/releases/download/${TYPST_VERSION}/$TARBALL
+          curl -sSfL "$URL" | sudo tar -xJ \
+            --strip-components=1 \
+            -C /usr/local/bin \
+            typst-x86_64-unknown-linux-musl/typst
+
+      - name: Compile fixtures
+        run: make test
+
+  # release-please reads conventional-commit messages since the last
+  # tag, opens (or updates) a Release PR with the bumped version, and
+  # — when that PR is merged — cuts the tag + GitHub Release.
+  #
+  # The release-please-config.json declares typst.toml's
+  # `package.version` field as an extra-file, so the manifest version
+  # stays in lockstep with the released tag automatically.
+  release-please:
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.rp.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Runs only when release-please just created a release. Builds a
+  # `json-resume-<version>.tar.gz` containing the package files that
+  # should be submitted to typst/packages (typst.toml, lib.typ,
+  # LICENSE, README.md) and attaches it to the release.
+  #
+  # No template/, no thumbnail.png — this is a library package, not a
+  # template; the typst/packages directory for it contains only the
+  # compilable sources + LICENSE + README.
+  attach-release-artifacts:
+    needs: [release-please]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Build package tarball
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          tar czf "${PACKAGE_NAME}-${VERSION}.tar.gz" \
+            typst.toml lib.typ LICENSE README.md
+
+      - name: Attach tarball to release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: |
+            ${{ env.PACKAGE_NAME }}-*.tar.gz
+          make_latest: 'true'
+
+  # When release-please cuts a new tag, automatically open a PR on
+  # typst/packages submitting json-resume:<version> to Typst Universe.
+  # The PR is created from a maintainer-owned fork (smur89/packages),
+  # branched off the current typst/packages main so the diff is just
+  # the new package directory.
+  #
+  # NOTE: this workflow only handles version *updates*. The very first
+  # submission of json-resume to typst/packages must be opened manually
+  # so the maintainers can do a full new-package review. See
+  # CONTRIBUTING.md.
+  #
+  # Prerequisites (one-time setup):
+  #   1. Fork github.com/typst/packages to smur89/packages.
+  #   2. Create a fine-grained PAT at github.com/settings/personal-access-tokens
+  #      scoped to smur89/packages, with:
+  #        - Contents: Read and write    (push the branch)
+  #        - Pull requests: Read and write  (open the cross-repo PR)
+  #   3. Store the PAT as a repository secret named TYPST_UNIVERSE_TOKEN
+  #      on smur89/typst-json-resume.
+  #
+  # The job is idempotent: re-running for an already-submitted version
+  # detects the existing PR, captures its URL, and skips creation.
+  # Older `json-resume:*` PRs we own are then auto-closed with a
+  # supersede comment pointing at the current submission.
+  submit-to-typst-universe:
+    needs: [release-please, attach-release-artifacts]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    env:
+      VERSION: ${{ needs.release-please.outputs.version }}
+      TAG: ${{ needs.release-please.outputs.tag_name }}
+      FORK_REPO: smur89/packages
+      UPSTREAM_REPO: typst/packages
+      GH_TOKEN: ${{ secrets.TYPST_UNIVERSE_TOKEN }}
+    steps:
+      - name: Skip if a PR for this version is already open
+        id: check
+        run: |
+          existing=$(gh pr list \
+            --repo "$UPSTREAM_REPO" \
+            --head "${FORK_REPO%%/*}:${PACKAGE_NAME}-${VERSION}" \
+            --state open \
+            --json url --jq '.[0].url // empty')
+          if [ -n "$existing" ]; then
+            echo "PR already open: $existing — skipping submission"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "pr_url=$existing" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout PR body template
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/typst-universe-pr-body.md
+          sparse-checkout-cone-mode: false
+
+      - name: Configure git
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          gh auth setup-git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone fork (gh auto-adds upstream remote), branch off upstream/main
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          gh repo clone "$FORK_REPO" pkg -- --no-tags --depth=1
+          cd pkg
+          git checkout -b "${PACKAGE_NAME}-${VERSION}" upstream/main
+
+      - name: Add package files from the release tarball
+        if: steps.check.outputs.skip != 'true'
+        env:
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          cd pkg
+          PKG_DIR="packages/preview/${PACKAGE_NAME}/${VERSION}"
+          mkdir -p "$PKG_DIR"
+          curl -sSfL \
+            "${SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${TAG}/${PACKAGE_NAME}-${VERSION}.tar.gz" \
+            | tar xz -C "$PKG_DIR"
+          git add "$PKG_DIR"
+          git commit -m "${PACKAGE_NAME}:${VERSION}"
+
+      - name: Push branch to fork
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          cd pkg
+          git push --force origin "${PACKAGE_NAME}-${VERSION}"
+
+      - name: Open PR upstream
+        id: open
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          cd pkg
+          new_pr_url=$(envsubst '${VERSION} ${TAG} ${GITHUB_REPOSITORY}' \
+            < "$GITHUB_WORKSPACE/.github/typst-universe-pr-body.md" \
+            | gh pr create \
+                --repo "$UPSTREAM_REPO" \
+                --base main \
+                --head "${FORK_REPO%%/*}:${PACKAGE_NAME}-${VERSION}" \
+                --title "${PACKAGE_NAME}:${VERSION}" \
+                --body-file - \
+            | tail -n 1)
+          echo "Opened: $new_pr_url"
+          echo "pr_url=$new_pr_url" >> "$GITHUB_OUTPUT"
+
+      - name: Supersede earlier package PRs
+        env:
+          CURRENT_PR_URL: ${{ steps.check.outputs.pr_url || steps.open.outputs.pr_url }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          stale=$(gh pr list \
+            --repo "$UPSTREAM_REPO" \
+            --author "@me" \
+            --state open \
+            --limit 100 \
+            --json number,headRefName \
+            | jq -r --arg cur "${PACKAGE_NAME}-${VERSION}" --arg prefix "${PACKAGE_NAME}-" \
+                '.[] | select(.headRefName | startswith($prefix)) | select(.headRefName != $cur) | .number')
+          if [ -z "$stale" ]; then
+            echo "No older ${PACKAGE_NAME} submissions open — nothing to supersede."
+            exit 0
+          fi
+          release_notes="${SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+          body="Closing in favour of \`${PACKAGE_NAME}:${VERSION}\` at ${CURRENT_PR_URL}. The newer release supersedes this submission — see the [release notes](${release_notes}) for the cumulative changes."
+          for pr in $stale; do
+            if gh pr close "$pr" --repo "$UPSTREAM_REPO" --comment "$body"; then
+              echo "Superseded PR #$pr"
+            else
+              echo "::warning::Could not close PR #$pr (already closed, or transient error) — continuing"
+            fi
+          done

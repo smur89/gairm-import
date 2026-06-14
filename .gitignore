@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Typst build output
+target/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+*.swp
