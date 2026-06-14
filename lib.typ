@@ -5,15 +5,10 @@
 // belong in the consuming template, layered on top of the normalised
 // dict returned here.
 //
-// Architecture note. The validate / coerce engines under internal/
-// are pure functions of (schema, value); only the three public
-// symbols below pre-bind the canonical resume-schema. A future
-// iteration can support JSON-Resume+ schemas — where downstream
-// templates (e.g. alta-typst) add fields on top of the canonical
-// surface — by exposing the engines and combinators publicly, with
-// no change to the engine implementations themselves. See
-// tests/engine_byo_schema.typ for an architectural-readiness
-// fixture that exercises the engines against a custom schema.
+// The validate / coerce engines under internal/ are pure (schema,
+// value) functions; only the public symbols below pre-bind the
+// canonical resume-schema. See tests/engine_byo_schema.typ for the
+// architectural-readiness fixture covering JSON-Resume+ extensions.
 
 #import "internal/schema.typ": resume-schema
 #import "internal/validate.typ": _validate
@@ -66,8 +61,12 @@
     )
   }
   let errors = validate-resume(dict-data)
-  if errors.len() > 0 {
-    panic(_format-report(errors))
-  }
+  // `assert(false, message: …)` rather than `panic(…)` because Typst's
+  // panic-diagnostic repr-escapes the message — embedded newlines come
+  // out as literal `\n` and the multi-line report collapses to a
+  // single ugly line. `assert(false, message: …)` preserves newlines
+  // as real line breaks, so the per-error bullet list renders the way
+  // the README sample shows.
+  assert(errors.len() == 0, message: _format-report(errors))
   coerce-resume(dict-data)
 }

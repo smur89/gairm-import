@@ -31,11 +31,13 @@
   }
   if kind == "object" {
     if type(value) != dictionary { return _type-error(path, "object", value) }
-    let valid-keys-str = schema.shape.keys().join(", ")
     let per-key-errs = value.pairs().map(((key, sub-value)) => {
       if key in schema.shape {
         _validate(schema.shape.at(key), sub-value, path + (key,))
       } else {
+        // Valid-keys list is only assembled on the unknown-key branch
+        // so the happy path skips the join.
+        let valid-keys-str = schema.shape.keys().join(", ")
         ((
           path: path + (key,),
           message: "unknown key " + repr(key) + ". Valid keys: " + valid-keys-str + ".",

@@ -61,11 +61,11 @@ Typst `content`. Pass it into any compatible renderer — e.g. `altacv`:
 
 `validate-resume` returns a list of `(path, message)` records — empty list
 means the input is valid. `parse-resume` calls `validate-resume` first and
-panics with a combined report on the first invocation that finds issues, so
-every problem in the document surfaces in one error:
+aborts compilation with a combined report on the first invocation that finds
+issues, so every problem in the document surfaces in one error:
 
 ```
-json-resume: found 3 problems in the input:
+error: assertion failed: json-resume: found 3 problems in the input:
   - basics.email: expected string, got integer.
   - work[0].positon: unknown key "positon". Valid keys: name, location, description, position, url, startDate, endDate, summary, highlights.
   - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
