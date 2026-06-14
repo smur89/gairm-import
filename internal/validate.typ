@@ -22,6 +22,19 @@
     }
     return ()
   }
-  // array + object handled in later commits.
+  if kind == "array" {
+    if type(value) != array {
+      return ((
+        path: path,
+        message: "expected array, got " + repr(type(value)) + ".",
+      ),)
+    }
+    let errs = ()
+    for (i, elem) in value.enumerate() {
+      errs += _validate(schema.elem, elem, path + (i,))
+    }
+    return errs
+  }
+  // object handled in the next commit.
   return ()
 }
