@@ -1,0 +1,8 @@
+{
+  "basics": {
+    "name": "Seán Ó Murchú",
+    "label": "Senior Software Engineer",
+    "email": "sean@example.com",
+    "summary": "Backend engineer with eight years of experience designing distributed, event-driven systems."
+  }
+}

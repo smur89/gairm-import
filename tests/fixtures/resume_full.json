@@ -1,0 +1,188 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Seán Ó Murchú",
+    "label": "Senior Software Engineer",
+    "image": "https://example.com/sean.png",
+    "email": "sean@example.com",
+    "phone": "+353 1 555 0100",
+    "url": "https://seanomurchu.dev",
+    "summary": "Backend engineer with eight years of experience designing distributed, event-driven systems. Specialises in functional programming, observability, and developer experience.",
+    "location": {
+      "address": "1 Sample Street",
+      "postalCode": "D24 X123",
+      "city": "Tallaght",
+      "countryCode": "IE",
+      "region": "Dublin"
+    },
+    "profiles": [
+      {"network": "LinkedIn", "username": "seanomurchu", "url": "https://linkedin.com/in/seanomurchu"},
+      {"network": "GitHub", "username": "seanomurchu", "url": "https://github.com/seanomurchu"},
+      {"network": "GitLab", "username": "seanomurchu", "url": "https://gitlab.com/seanomurchu"},
+      {"network": "Bluesky", "username": "@seanomurchu", "url": "https://bsky.app/profile/seanomurchu"},
+      {"network": "Mastodon", "username": "@sean@fosstodon.org", "url": "https://fosstodon.org/@sean"},
+      {"network": "Medium", "username": "@seanomurchu", "url": "https://medium.com/@seanomurchu"},
+      {"network": "Stackoverflow", "username": "seanomurchu", "url": "https://stackoverflow.com/u/1"},
+      {"network": "X", "username": "@seanomurchu", "url": "https://x.com/seanomurchu"}
+    ]
+  },
+  "work": [
+    {
+      "name": "Acme Corp",
+      "location": "Dublin, Ireland",
+      "url": "https://acme.example.com",
+      "position": "Senior Software Engineer",
+      "startDate": "2022-01",
+      "summary": "Platform team lead. Owns the event-sourcing stack underpinning the wider product surface.",
+      "highlights": [
+        "Led the migration of a customer-facing monolith into a set of event-driven microservices, halving p99 latency.",
+        "Designed and rolled out an event-sourcing platform now used by four product teams.",
+        "Mentored three engineers from mid to senior level."
+      ]
+    },
+    {
+      "name": "Liffey Labs",
+      "location": "Remote",
+      "position": "Software Engineer",
+      "startDate": "2019-01",
+      "endDate": "2021-12",
+      "highlights": [
+        "Built and shipped the first version of a SaaS product from scratch alongside a two-person team.",
+        "Introduced the CI/CD pipeline and developer-onboarding flow that scaled the engineering org from 3 to 15."
+      ]
+    }
+  ],
+  "volunteer": [
+    {
+      "organization": "CoderDojo Dublin",
+      "position": "Mentor",
+      "startDate": "2020-09",
+      "highlights": [
+        "Weekly mentoring sessions for 10–14 year-olds learning to code.",
+        "Curate the Scala / functional-programming track."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Tallaght Institute of Technology",
+      "url": "https://example.edu/tit",
+      "studyType": "M.Sc. in Computer Science",
+      "startDate": "2017",
+      "endDate": "2019",
+      "score": "Distinction",
+      "courses": ["Distributed Systems", "Type Theory", "Concurrency"]
+    },
+    {
+      "institution": "Trinity College Dublin",
+      "area": "Computer Science",
+      "startDate": "2014",
+      "endDate": "2017"
+    }
+  ],
+  "awards": [
+    {
+      "title": "Best Paper Award",
+      "date": "2024-09",
+      "awarder": "ScalaConf",
+      "summary": "For Idempotent Kafka Consumers."
+    },
+    {
+      "title": "Dean's List"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "Certified Kubernetes Administrator",
+      "issuer": "CNCF",
+      "date": "2023-08",
+      "url": "https://www.cncf.io/training/certification/cka/"
+    },
+    {
+      "name": "Certified Kubernetes Application Developer",
+      "issuer": "CNCF",
+      "date": "2024-01",
+      "url": "https://www.cncf.io/training/certification/ckad/"
+    },
+    {
+      "name": "AWS Solutions Architect — Professional",
+      "issuer": "AWS",
+      "date": "2023-04"
+    },
+    {
+      "name": "Hashicorp Terraform Associate",
+      "issuer": "Hashicorp",
+      "date": "2022-11"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Event Sourcing in Practice",
+      "publisher": "Personal Blog",
+      "releaseDate": "2024-06",
+      "url": "https://example.com/posts/event-sourcing",
+      "summary": "A walk-through of idempotent Kafka consumers and the replay strategy that ships with them."
+    },
+    {
+      "name": "Idempotent Kafka Consumers at Scale",
+      "publisher": "EuroSys",
+      "releaseDate": "2024-04",
+      "url": "https://example.com/eurosys"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Languages",
+      "keywords": ["Scala", "Haskell", "Python", "Go", "Rust"]
+    },
+    {
+      "name": "Infra",
+      "keywords": ["Kafka", "AWS", "Terraform", "Docker", "Kubernetes"]
+    }
+  ],
+  "languages": [
+    {"language": "English", "fluency": "Native"},
+    {"language": "Irish", "fluency": "Professional Working"},
+    {"language": "French", "fluency": "Intermediate"}
+  ],
+  "interests": [
+    {"name": "Music", "keywords": ["Trad", "Jazz"]},
+    {"name": "Sport", "keywords": ["Hurling", "Climbing"]},
+    {"name": "Travel", "keywords": ["Japan", "Iceland"]}
+  ],
+  "references": [
+    {
+      "name": "Dr Ada Lovelace",
+      "reference": "Seán is a calm, methodical engineer who left every system he touched in a better state than he found it. Recommended without reservation."
+    },
+    {
+      "reference": "Pragmatic, curious, unfailingly kind — would hire again in a heartbeat."
+    }
+  ],
+  "projects": [
+    {
+      "name": "Hyperion",
+      "description": "Distributed task scheduler in Rust",
+      "highlights": [
+        "Handled 10k tasks/s on a single node.",
+        "Designed an idempotent retry protocol."
+      ],
+      "keywords": ["Rust", "Tokio", "gRPC"],
+      "startDate": "2023-09",
+      "endDate": "2024-04",
+      "url": "https://github.com/seanomurchu/hyperion",
+      "roles": ["Designer", "Author"]
+    },
+    {
+      "name": "Crucible",
+      "description": "Migration tool for legacy databases",
+      "highlights": ["Schema diffing across PostgreSQL and MySQL."],
+      "startDate": "2024-09"
+    }
+  ],
+  "meta": {
+    "canonical": "https://seanomurchu.dev/cv.json",
+    "version": "v1.0.0",
+    "lastModified": "2026-06-15T10:00:00"
+  }
+}
