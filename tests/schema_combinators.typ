@@ -18,3 +18,9 @@
   object((name: str-type), required-keys: ("name",)),
   (kind: "object", shape: (name: (kind: "str")), required-keys: ("name",)),
 )
+
+// Multiple required keys, all present in shape.
+#assert.eq(
+  object((a: str-type, b: str-type), required-keys: ("a", "b")).required-keys,
+  ("a", "b"),
+)

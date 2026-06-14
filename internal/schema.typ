@@ -9,12 +9,22 @@
 
 // Default `()` preserves the canonical schema's all-optional stance.
 // Extension schemas opt in per-section; the validator emits
-// "missing required key" when an absent key is required.
-#let object(shape, required-keys: ()) = (
-  kind: "object",
-  shape: shape,
-  required-keys: required-keys,
-)
+// "missing required key" when an absent key is required. Reject
+// required-keys that don't appear in shape so a schema typo fails at
+// schema-construction time instead of as a phantom validation error.
+#let object(shape, required-keys: ()) = {
+  let unknown = required-keys.filter(k => k not in shape)
+  assert(
+    unknown.len() == 0,
+    message: "json-resume: object() required-keys references keys not in shape: " +
+      unknown.join(", ") + ".",
+  )
+  (
+    kind: "object",
+    shape: shape,
+    required-keys: required-keys,
+  )
+}
 
 // Canonical JSON Resume schema (https://jsonresume.org/schema).
 // All fields optional, types checked when present. Format checks for
