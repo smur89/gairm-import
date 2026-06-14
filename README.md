@@ -115,7 +115,7 @@ means the input is valid. `parse-resume` calls `validate-resume` first and
 aborts compilation with a combined report on the first invocation that finds
 issues, so every problem in the document surfaces in one error:
 
-```
+```text
 error: assertion failed: json-resume: found 3 problems in the input:
   - basics.email: expected string, got integer.
   - work[0].positon: unknown key "positon". Valid keys: name, location, description, position, url, startDate, endDate, summary, highlights.
