@@ -1,25 +1,45 @@
-// json-resume — load and validate canonical JSON Resume data for any
-// Typst CV template. Strict to the published schema at
-// https://jsonresume.org/schema. Renderer-specific extensions (labels,
-// theme preferences, header decorations, …) are out of scope — they
-// belong in the consuming template, layered on top of the normalised
-// dict returned here.
+// Strict loader for canonical JSON Resume data
+// (https://jsonresume.org/schema). The engines under internal/ are
+// pure (schema, value) functions; the public symbols below pre-bind
+// resume-schema. See tests/engine_schema_agnostic.typ.
 
-// Read `path` as a JSON Resume document and return the validated,
-// content-coerced dict.
-#let read-resume(path) = {
-  panic(
-    "json-resume: read-resume is not yet implemented — track progress at " +
-      "https://github.com/smur89/typst-json-resume",
-  )
-}
+#import "internal/schema.typ": resume-schema
+#import "internal/validate.typ": _validate
+#import "internal/coerce.typ": _coerce
+#import "internal/errors.typ": _format-report
 
-// Validate `data` against the canonical JSON Resume schema and coerce
-// string fields that renderers consume as `content` (e.g. `summary`,
-// `highlights[]`, `description`).
+// Returns a list of {path, message} records; empty = valid.
+#let validate-resume(data) = _validate(resume-schema, data, ())
+
+// Assumes data has passed validate-resume. Unknown keys are dropped
+// silently rather than panicking on direct callers.
+#let coerce-resume(data) = _coerce(resume-schema, data)
+
+// String paths must start with "/" because Typst resolves relative
+// paths against the file containing the call — for this package
+// that's the @preview cache, which is not what callers want.
 #let parse-resume(data) = {
-  panic(
-    "json-resume: parse-resume is not yet implemented — track progress at " +
-      "https://github.com/smur89/typst-json-resume",
-  )
+  let dict-data = if type(data) == str {
+    if not data.starts-with("/") {
+      panic(
+        "json-resume: parse-resume with a string path requires the path " +
+          "to start with \"/\" (resolved from the typst root). Got: " + repr(data) + ". " +
+          "To use a path relative to your own .typ file, call json() " +
+          "directly: parse-resume(json(" + repr(data) + ")).",
+      )
+    }
+    json(data)
+  } else if type(data) == dictionary {
+    data
+  } else {
+    panic(
+      "json-resume: parse-resume expected a dict or a string path, got " +
+        repr(type(data)) + ".",
+    )
+  }
+  let errors = validate-resume(dict-data)
+  // assert preserves newlines in the diagnostic; panic repr-escapes
+  // them and collapses the bullet list onto one line.
+  assert(errors.len() == 0, message: _format-report(errors))
+  coerce-resume(dict-data)
 }
