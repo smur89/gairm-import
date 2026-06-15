@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/smur89/typst-json-resume/compare/v0.4.0...v0.5.0) (2026-06-15)
+
+
+### Features
+
+* set-required lens companion for editing object required-keys ([#48](https://github.com/smur89/typst-json-resume/issues/48)) ([7dc58b1](https://github.com/smur89/typst-json-resume/commit/7dc58b14a578f822bd7c4d3be37022ac92b0afa9))
+
 ## [0.4.0](https://github.com/smur89/typst-json-resume/compare/v0.3.0...v0.4.0) (2026-06-15)
 
 
