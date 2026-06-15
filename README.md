@@ -17,7 +17,7 @@ one `resume.json` file rendered by many themes across many output formats.
 This package brings that ecosystem to Typst: load and validate a canonical
 `resume.json`, then hand the normalised dict to any compatible Typst CV
 template. Strict to the published [schema](https://jsonresume.org/schema)
-(canonical source at [jsonresume/resume-schema](https://github.com/jsonresume/resume-schema/blob/master/schema.json)):
+(canonical source at [jsonresume/resume-schema](https://github.com/jsonresume/resume-schema/blob/v1.0.0/schema.json)):
 unknown fields are rejected, free-text fields are coerced to Typst `content`,
 and renderer-specific extensions belong in the consuming template — not here.
 
@@ -26,7 +26,7 @@ Motivated by [smur89/alta-typst#48](https://github.com/smur89/alta-typst/issues/
 ## Install
 
 ```typst
-#import "@preview/json-resume:0.0.1": validate-resume, coerce-resume, parse-resume
+#import "@preview/json-resume:0.1.0": validate-resume, coerce-resume, parse-resume // x-release-please-version
 ```
 
 ## A minimal `resume.json`
@@ -62,7 +62,7 @@ The full canonical schema covers thirteen sections:
 or a Typst-root-relative path string:
 
 ```typst
-#import "@preview/json-resume:0.0.1": parse-resume
+#import "@preview/json-resume:0.1.0": parse-resume // x-release-please-version
 
 // Path relative to your own .typ — let Typst's json() resolve it.
 #let resume = parse-resume(json("resume.json"))
@@ -75,37 +75,46 @@ The returned dict mirrors the canonical schema. Free-text fields (`summary`,
 `description`, `highlights[]`, `reference`) are coerced to Typst `content`;
 everything else stays as JSON-native types. For example:
 
-```typst
-resume.basics.name            // str — "Seán Ó Murchú"
-resume.basics.summary         // content — wrapped for direct rendering
-resume.work.at(0).position    // str
-resume.work.at(0).highlights  // (content, content, …)
-resume.skills.at(0).keywords  // (str, str, …) — tag-like, not coerced
+```text
+resume.basics.name            str ("Seán Ó Murchú")
+resume.basics.summary         content (wrapped for direct rendering)
+resume.work.at(0).position    str
+resume.work.at(0).highlights  array of content
+resume.skills.at(0).keywords  array of str (tag-like, not coerced)
 ```
 
-Pass the model into any compatible renderer — e.g. `altacv`:
+Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.app/universe/package/altacv):
 
 ```typst
-#import "@preview/altacv:1.1.1": alta
-#import "@preview/json-resume:0.0.1": parse-resume
+#import "@preview/altacv:1.1.1": alta, palettes // x-release-please-version
+#import "@preview/json-resume:0.1.0": parse-resume // x-release-please-version
 
-#alta(parse-resume(json("resume.json")), preferences: (...), labels: (...))
+#alta(
+  parse-resume(json("resume.json")),
+  preferences: (accent: palettes.navy),
+)
 ```
+
+`alta(cv, labels: (:), preferences: (:))` takes the JSON-Resume-shaped dict
+positionally; `labels` and `preferences` are optional dicts merged over the
+template defaults. See the [altacv README](https://github.com/smur89/alta-typst#readme)
+for the full surface.
 
 ### Handling validation errors yourself
 
+Each error is a record `(path: ("basics", "email"), message: "expected string, got integer.")`. A typical step-by-step is:
+
 ```typst
-#import "@preview/json-resume:0.0.1": validate-resume, coerce-resume
+#import "@preview/json-resume:0.1.0": validate-resume, coerce-resume // x-release-please-version
 
 #let raw = json("resume.json")
 #let errors = validate-resume(raw)
-#if errors.len() > 0 [
-  // each error is `(path: (...), message: "...")`
-  Resume has #errors.len() issue(s).
-] else [
-  #let model = coerce-resume(raw)
-  ...
-]
+#if errors.len() > 0 {
+  [Resume has #errors.len() issue(s).]
+} else {
+  let model = coerce-resume(raw)
+  // render model …
+}
 ```
 
 ## Errors
