@@ -45,10 +45,9 @@
     assert(type(value) in (int, float), message: _expect("a number", value))
     return value
   }
-  // Enum members can be any JSON-native type — no single type to
-  // assert. Mirror the validator's membership check so a direct
-  // caller who skipped validation gets a fail-loud assertion rather
-  // than silently passing through garbage.
+  // No single type to gate on — members are polymorphic. Mirror the
+  // validator's membership check so callers skipping validate get
+  // the same fail-loud diagnostic.
   if kind == "enum" {
     assert(
       value in schema.values,

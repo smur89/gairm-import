@@ -1,7 +1,7 @@
-// enum-of / const-of: value must equal one of the listed members.
-// const is the singleton-enum case. Members can be any JSON-native
-// type — the validator gates on `in`-equality, not on type. Coercion
-// is pass-through (validator did the work).
+// Mixed-type members allowed — `in`-equality gates membership, not
+// type. const is the singleton-enum case. Coerce mirrors the check
+// so direct-coerce callers fail loud rather than silently passing
+// non-members through.
 
 #import "../lib.typ": enum-of, const-of, object, validate, coerce
 

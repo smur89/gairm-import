@@ -68,9 +68,8 @@
       )
     }
   }
-  // enum / const take precedence over `type`: the enum's members
-  // already constrain shape, and the type keyword (if present) is
-  // redundant. const is the singleton-enum case.
+  // enum / const take precedence over `type` — membership constrains
+  // shape on its own, so any accompanying type keyword is redundant.
   if "enum" in js {
     let values = js.at("enum")
     if type(values) != array {

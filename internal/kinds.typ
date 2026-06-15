@@ -15,9 +15,8 @@
 
 #let array-of(elem) = (kind: "array", elem: elem)
 
-// Enum: value must equal one of the listed members. Members are
-// stored as-is — any JSON-native type works (str, int, float, even
-// nested dict/array). `const` is a singleton enum.
+// Mixed-type members allowed — the validator's `in` check gates on
+// equality, not type. `const` is a singleton enum.
 #let enum-of(values) = (kind: "enum", values: values)
 #let const-of(value) = enum-of((value,))
 
