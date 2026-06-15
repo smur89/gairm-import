@@ -1,19 +1,13 @@
-// schema-from-json-schema turns a parsed JSON Schema dict into a
-// Typst schema dict consumable by validate / coerce. Unit-test each
-// mapping row plus the unsupported-keyword panics by source-reading.
-
 #import "../lib.typ": (
   schema-from-json-schema,
   str-type, number-type, array-of, object,
 )
 
-// Primitive types.
 #assert.eq(schema-from-json-schema((type: "string")), str-type)
 #assert.eq(schema-from-json-schema((type: "number")), number-type)
 #assert.eq(schema-from-json-schema((type: "integer")), number-type)
 
-// Strings with format degrade to str-type for now — once #10
-// (format validation) lands, format-aware combinators kick in.
+// Format degrades to str-type until #10 wires format-aware combinators.
 #assert.eq(
   schema-from-json-schema((type: "string", format: "uri")),
   str-type,
@@ -27,13 +21,11 @@
   str-type,
 )
 
-// Array.
 #assert.eq(
   schema-from-json-schema((type: "array", items: (type: "string"))),
   array-of(str-type),
 )
 
-// Nested array.
 #assert.eq(
   schema-from-json-schema((
     type: "array",
@@ -42,7 +34,6 @@
   array-of(array-of(number-type)),
 )
 
-// Object: properties + required.
 #let person-js = (
   type: "object",
   properties: (
@@ -57,21 +48,18 @@
 #assert.eq(person-typst.shape.age, number-type)
 #assert.eq(person-typst.required-keys, ("name",))
 
-// Object without "required" → empty required list.
 #let loose = schema-from-json-schema((
   type: "object",
   properties: (a: (type: "string")),
 ))
 #assert.eq(loose.required-keys, ())
 
-// Object with explicit empty properties — accepts only an empty dict.
-// (Missing `properties` panics as an open-object schema; this is the
-// strict-empty form.)
+// Missing `properties` is rejected (open object); explicit `(:)` is
+// the strict-empty form.
 #let empty = schema-from-json-schema((type: "object", properties: (:)))
 #assert.eq(empty.kind, "object")
 #assert.eq(empty.shape, (:))
 
-// Internal $ref resolution against the document root.
 #let with-ref = (
   definitions: (iso8601: (type: "string")),
   type: "object",
@@ -84,7 +72,6 @@
 #assert.eq(resolved.shape.startDate, str-type)
 #assert.eq(resolved.shape.summary, str-type)
 
-// Nested $ref inside an array.
 #let array-of-refs = schema-from-json-schema((
   "$defs": (item: (type: "string")),
   type: "array",
@@ -92,8 +79,7 @@
 ))
 #assert.eq(array-of-refs, array-of(str-type))
 
-// Chained $ref: alias → real definition. Both hops resolve and the
-// final type comes through.
+// alias → real def: chained $refs resolve to the final type.
 #let chained = schema-from-json-schema((
   definitions: (
     alias: ("$ref": "#/definitions/iso8601"),
@@ -106,7 +92,7 @@
 ))
 #assert.eq(chained.shape.startDate, str-type)
 
-// Trailing slash in $ref is tolerated — empty segments dropped.
+// Trailing-slash $ref tolerated — empty path segments dropped.
 #let trailing = schema-from-json-schema((
   definitions: (foo: (type: "string")),
   type: "object",

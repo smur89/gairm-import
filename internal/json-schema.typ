@@ -1,24 +1,15 @@
-// JSON Schema → Typst-schema translator. Mechanical mapping for the
-// draft-7 subset the canonical JSON Resume document actually uses;
-// unsupported keywords and shapes panic with an explicit message
-// rather than silently dropping constraints.
-//
-// Format-aware string kinds (date-string / uri-string / email-string)
-// land in #10 (feat/format-validation). Until they're on main this
-// translator degrades all `format`s to `str-type` with a TODO note;
-// a one-line follow-up swap will wire them up.
+// JSON Schema (draft 7 subset) → Typst-schema translator. Anything
+// not supported panics rather than silently dropping the constraint.
 
 #import "schema.typ": str-type, content-type, number-type, array-of, object
 
-// Single source of truth for the panic prefix — every error in this
-// module is greppable by "schema-from-json-schema —".
+// One panic prefix so every diagnostic from this module is grep-able
+// by "schema-from-json-schema —".
 #let _bail(msg) = panic("json-resume: schema-from-json-schema — " + msg)
 
-// Resolve an internal $ref like "#/definitions/iso8601" against the
-// document root. `seen` is the chain of refs traversed so far; a
-// repeat indicates a cycle (e.g. definitions.alias → alias) and we
-// panic at the first repeat rather than letting Typst's recursion
-// limit fire deep in the stack.
+// `seen` is the chain of refs traversed so far; a repeat means a
+// cycle (e.g. `definitions.alias → alias`) — panic before Typst's
+// recursion limit fires deep in the stack.
 #let _resolve-ref(ref, root, seen) = {
   if not ref.starts-with("#/") {
     _bail("only internal $ref (starting with \"#/\") is supported, got: " + repr(ref) + ".")
@@ -38,7 +29,6 @@
   })
 }
 
-// Composition / advanced keywords that aren't in the v0.2 scope.
 #let _unsupported-keywords = (
   "allOf", "anyOf", "oneOf", "not",
   "enum", "const",
@@ -65,9 +55,8 @@
   }
   let t = js.at("type", default: none)
   if t == "string" {
-    // TODO(#10): dispatch on format to date-string/uri-string/email-string
-    // once feat/format-validation lands; for now `format` only gates the
-    // allow-list so unknown formats still panic.
+    // TODO(#10): once feat/format-validation lands, swap str-type for
+    // date-string / uri-string / email-string per `format`.
     let fmt = js.at("format", default: none)
     if fmt != none and fmt not in ("uri", "email", "date", "date-time") {
       _bail("unsupported string format: " + repr(fmt) + ".")
@@ -83,10 +72,8 @@
     return array-of(_from-json-schema(items, root, seen))
   }
   if t == "object" {
-    // The validator engine is strict by design and can't represent open
-    // objects, so refuse to translate `{ "type": "object" }` without
-    // `properties` rather than silently producing a validator that
-    // rejects every key.
+    // Engine is strict by design — can't represent open objects. A
+    // missing `properties` would silently invert the schema's intent.
     if "properties" not in js {
       _bail(
         "open object schemas (`type: \"object\"` with no `properties`) " +
@@ -104,9 +91,8 @@
     _bail("unsupported JSON Schema type: " + repr(t) + ".")
   }
   if type(t) == array {
-    // JSON Schema allows `type` as an array (e.g. `["string", "null"]`
-    // for nullable). Union types are out of scope; the null-as-absent
-    // policy already covers the nullable case at the validator level.
+    // null-as-absent already covers the common `["string", "null"]`
+    // nullable case at the validator level, so unions aren't needed.
     _bail("union `type` arrays are unsupported, got: " + repr(t) + ".")
   }
   _bail("unrecognised JSON Schema fragment (no recognised \"type\" or \"$ref\"); keys: " + repr(js.keys()) + ".")
