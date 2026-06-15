@@ -53,8 +53,5 @@
 #assert.eq(schema.shape.basics.required-keys, ())
 #assert.eq(strict.shape.basics.required-keys, ("name", "email"))
 
-// ---- source-level panic pins (Typst can't catch panics) ------------
-
-#let src = read("../internal/lens.typ")
-#assert(src.contains("set-required keys not in object shape"))
-#assert(src.contains("_require-object(parent, \"set-required\")"))
+// Panic-message pins live in lens_panic_messages.typ alongside the
+// add-field / remove-field counterparts.
