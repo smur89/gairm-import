@@ -117,9 +117,8 @@
   },
 )
 
-// Symmetric to set-required: relax specific keys without re-specifying
-// the whole required list. Absent-key panics (rather than silent no-op)
-// so a stale mental model — "I know that's still required" — surfaces.
+// Symmetric to set-required — relax specific keys without re-listing.
+// Absent-key panics so a stale "still required" assumption surfaces.
 #let unset-required(schema, parent-lens, keys) = lens-over(
   parent-lens,
   schema,
