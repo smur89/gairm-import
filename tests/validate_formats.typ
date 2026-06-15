@@ -48,7 +48,8 @@
 // are also rejected.
 #assert(date-fail("2024-13-15", ("d",)).contains("ISO-8601"))  // month > 12
 #assert(date-fail("2024-00-15", ("d",)).contains("ISO-8601"))  // month = 00
-#assert(date-fail("2024-01-32", ("d",)).contains("ISO-8601"))  // day > 31
+#assert(date-fail("2024-01-00", ("d",)).contains("ISO-8601"))  // day   = 00
+#assert(date-fail("2024-01-32", ("d",)).contains("ISO-8601"))  // day  > 31
 
 // Wrong type yields a type-error, not a format-error — the format gate
 // only fires once we know we have a string.
