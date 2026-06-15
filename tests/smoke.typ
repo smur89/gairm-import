@@ -6,4 +6,5 @@
   validate, coerce, parse, format-errors,
   resume-schema, object, array-of, str-type, content-type, number-type,
   schema-from-json-schema,
+  lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
 )

@@ -8,6 +8,7 @@
 #import "internal/coerce.typ": _coerce
 #import "internal/errors.typ": _format-report
 #import "internal/json-schema.typ": schema-from-json-schema
+#import "internal/lens.typ": lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field
 
 // Engines treat `none` at any value position as "key absent" — right
 // for leaves inside a document, but a null root is always invalid
