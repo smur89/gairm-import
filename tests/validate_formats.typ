@@ -1,22 +1,16 @@
-// Format-specialised string combinators reject malformed values with
-// path-qualified error messages that name the expected format and
-// give a canonical example. Coverage:
+// Format-specialised string combinators reject malformed values and
+// surface path-qualified messages with a canonical example. Coverage:
 //
 //  - date-string  → iso8601 (YYYY / YYYY-MM / YYYY-MM-DD)
 //  - uri-string   → scheme://rest (permissive)
 //  - email-string → local@domain.tld (permissive)
-//
-// Each format has positive cases (errors list empty), negative cases
-// (one path-qualified error), and a spot-check that the message
-// names the format and includes the canonical example.
 
 #import "../internal/validate.typ": _validate
 #import "../internal/schema.typ": date-string, uri-string, email-string, object, array-of
 
 // ---- date-string ----------------------------------------------------
 
-// Year only, year-month, year-month-day — all three iso8601 shapes
-// the canonical JSON Resume schema accepts.
+// All three iso8601 shapes the canonical schema accepts.
 #assert.eq(_validate(date-string, "2024",       ("d",)), ())
 #assert.eq(_validate(date-string, "2024-01",    ("d",)), ())
 #assert.eq(_validate(date-string, "2024-01-15", ("d",)), ())

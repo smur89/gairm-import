@@ -17,14 +17,11 @@
   message: "expected " + expected + ", got " + _type-name-of(value) + ".",
 ),)
 
-// Tightened over the canonical JSON Resume regexes — the upstream
-// forms accept impossible months (13-19) and days (32-39) because
-// they use [0-1][0-9] / [0-3][0-9]. Anchored ^…$ so value.match()
-// succeeds iff the whole string conforms. The patterns are
-// deliberately permissive: they reject obvious malformations without
-// claiming full RFC compliance. Message omits the offending value
-// since the path already names the field and the canonical example
-// in `expected` is the actionable hint.
+// Tightened over the upstream JSON Resume regexes, which accept
+// impossible months / days because they use [0-1][0-9] / [0-3][0-9].
+// Deliberately permissive (no full RFC compliance). Message omits the
+// offending value — the path already names the field, the canonical
+// example in `expected` is the actionable hint.
 #let _format-specs = (
   "date-string": (
     pattern: regex("^([0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[0-9]{4}-(0[1-9]|1[0-2])|[0-9]{4})$"),

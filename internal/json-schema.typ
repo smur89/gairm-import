@@ -6,13 +6,9 @@
   date-string, uri-string, email-string,
 )
 
-// Standard JSON Schema `format` keywords mapped to the package's
-// format-specialised string kinds. iso8601 fields in JSON Resume use
-// a `$ref` instead of `format` — those are picked up in
-// internal/schema.typ via lens-override. `date-time` is intentionally
-// absent: the date-string regex is date-only, so accepting a
-// `format: "date-time"` annotation would label values date-string
-// then reject the actual datetime strings.
+// `date-time` is intentionally absent: the date-string regex is
+// date-only, so labelling a datetime field then rejecting its values
+// is worse than the up-front "unsupported format" panic.
 #let _format-kinds = (
   "uri": uri-string,
   "email": email-string,

@@ -7,10 +7,8 @@
 #let content-type = (kind: "content")
 #let number-type  = (kind: "number")
 
-// Format-specialised string kinds — coerce identically to `str`
-// (pass-through), but `_validate` adds a regex gate. Patterns are
-// deliberately permissive; they reject obvious malformations without
-// claiming full RFC compliance.
+// Format-specialised string kinds — regex-gated in _validate;
+// deliberately permissive (reject obvious malformations, not full RFC).
 #let date-string  = (kind: "date-string")
 #let uri-string   = (kind: "uri-string")
 #let email-string = (kind: "email-string")

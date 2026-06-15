@@ -1,13 +1,7 @@
 // Canonical JSON Resume schema (https://jsonresume.org/schema).
-//
-// `resume-schema` is a faithful translation of the vendored upstream
-// JSON Schema document — every kind comes from the source, nothing
-// is rewritten. `resume-schema-strict` layers two opinions on top
-// via the lens API for callers who want them: free-text fields
-// wrapped as Typst `content` for inline rendering, and iso8601
-// `$ref` fields lifted to `date-string` for regex validation. Both
-// schemas are exported; pick via the `schema:` keyword on
-// `parse` / `validate` / `coerce`.
+// `resume-schema` is a faithful derivation of the upstream document;
+// `resume-schema-strict` layers content + date opinions via lens.
+// See README "Two schemas" for the trade-off.
 
 #import "kinds.typ": (
   str-type, content-type, number-type, array-of, object,
@@ -18,9 +12,8 @@
 
 #let resume-schema = schema-from-json-schema(json("assets/jsonresume-schema.json"))
 
-// Free-text fields the strict variant wraps as Typst `content` for
-// inline rendering. Canonical schema types these as `string`; the
-// override is the package's Typst-renderer opinion, not validation.
+// Free-text fields wrapped as Typst `content` in the strict variant.
+// Renderer ergonomics, not validation.
 #let _content-paths = (
   ("basics", "summary"),
   ("work", "items", "summary"),
@@ -34,10 +27,8 @@
   ("projects", "items", "highlights", "items"),
 )
 
-// Date fields whose upstream uses `$ref: "#/definitions/iso8601"`
-// rather than `format: "date"` — the translator can't pick those up
-// from a $ref alone. Also includes meta.lastModified, which has no
-// format annotation despite an ISO-8601 description.
+// iso8601 `$ref` fields (translator can't pick formats up from a $ref
+// alone) plus meta.lastModified (no format annotation in upstream).
 #let _date-paths = (
   ("work", "items", "startDate"),
   ("work", "items", "endDate"),
@@ -53,9 +44,8 @@
 )
 
 // Pre-condition guard turns silent upstream drift into a load-time
-// panic: if a future schema bump changes one of these fields away
-// from the expected source kind, the override would otherwise mask
-// the shape change. The guard fires instead.
+// panic — an override that ran unconditionally would mask the shape
+// change instead of surfacing it.
 #let _override-fold(schema, paths, expected-source, replacement, list-name) = {
   paths.fold(schema, (s, p) => {
     let l = lens(p)
