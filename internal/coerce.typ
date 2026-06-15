@@ -23,7 +23,7 @@
 
 #let _expect(expected, value) = (
   "json-resume: coerce expected " + expected + ", got " +
-    _type-name-of(value) + ". Run validate(schema, data) first."
+    _type-name-of(value) + ". Run validate(data) first."
 )
 
 #let _coerce(schema, value) = {

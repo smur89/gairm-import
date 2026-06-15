@@ -149,8 +149,9 @@ document itself.
 `parse` is strict against the canonical schema by design — unknown keys
 are rejected. Renderers that need their own fields (alta-typst's
 `preferences`, `labels`, `focusAreas`; numeric language `rating`; publication
-`type` grouping; …) can build a JSON-Resume+ schema on top using the public
-combinators and the generic engines:
+`type` grouping; …) can build a JSON-Resume+ schema with the public
+combinators and pass it to `parse` / `validate` / `coerce` via the
+`schema:` keyword:
 
 ```typst
 #import "@preview/json-resume:0.1.1": ( // x-release-please-version
@@ -181,11 +182,8 @@ When to reach for which API:
   validation issues. Defaults to the canonical schema; pass `schema: …` to use
   an extension.
 - **`validate(data)` / `coerce(data)`** — return data instead of aborting, so
-  you can present errors yourself. Same `schema:` default.
-- **`parse(data)` / `validate(data)` / `coerce(data)`** —
-  legacy aliases for the canonical-only forms. Equivalent to the unified names
-  with the default schema; kept for backward compatibility. Same shape as the [step-by-step above](#handling-validation-errors-yourself),
-  with `(schema, data)` in place of the canonical wrappers.
+  you can present errors yourself (see the [step-by-step above](#handling-validation-errors-yourself)).
+  Same `schema:` default.
 
 `resume-schema.shape` is a plain dict, so `..resume-schema.shape` is the only
 operator you need to extend it. Per-section combinators (`work-item`,

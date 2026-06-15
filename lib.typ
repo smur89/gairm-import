@@ -9,17 +9,20 @@
 #import "internal/errors.typ": _format-report
 #import "internal/json-schema.typ": schema-from-json-schema
 
+// Engines treat `none` at any value position as "key absent" — right
+// for leaves inside a document, but a null root is always invalid
+// (no schema can validate "missing document"). One source of truth
+// for the message so docs and tests have something stable to pin.
+#let _reject-none-root(data) = {
+  if data == none { panic("json-resume: input must be a dict, got null.") }
+}
+
 // Combined-report formatter, for callers handling errors themselves
 // instead of letting `parse` abort.
 #let format-errors(errors) = _format-report(errors)
 
-// Engines treat `none` at any value position as "key absent" — right
-// for leaves inside a document, but a null root is always invalid
-// (no schema can validate "missing document"). Each entry rejects
-// root null explicitly.
-
 #let validate(data, schema: resume-schema) = {
-  if data == none { panic("json-resume: input must be a dict, got null.") }
+  _reject-none-root(data)
   _validate(schema, data, ())
 }
 
@@ -27,7 +30,7 @@
 // callers who skip validation don't get a Typst dictionary-access
 // panic.
 #let coerce(data, schema: resume-schema) = {
-  if data == none { panic("json-resume: input must be a dict, got null.") }
+  _reject-none-root(data)
   _coerce(schema, data)
 }
 
@@ -40,6 +43,7 @@
 // @preview cache. For paths relative to the caller's own .typ, pass
 // `json("…")` instead.
 #let parse(data, schema: resume-schema) = {
+  _reject-none-root(data)
   let dict-data = if type(data) == str {
     if not data.starts-with("/") {
       panic(
@@ -58,10 +62,9 @@
         repr(type(data)) + ".",
     )
   }
-  let errors = validate(dict-data, schema: schema)
+  let errors = _validate(schema, dict-data, ())
   // assert preserves newlines in the diagnostic; panic repr-escapes
   // them and collapses the bullet list onto one line.
   assert(errors.len() == 0, message: format-errors(errors))
-  coerce(dict-data, schema: schema)
+  _coerce(schema, dict-data)
 }
-
