@@ -1,13 +1,16 @@
 // End-to-end: a fixture exercising every JSON Resume section validates
 // cleanly and coerces into the expected shape.
 
-#import "../lib.typ": validate, parse
+// Routed through resume-schema-strict so the content-type and
+// date-string overrides fire — that's what pins the rich-rendering
+// behaviour. The default resume-schema is covered by schema_resume.typ.
+#import "../lib.typ": validate, parse, resume-schema-strict
 
 #let raw = json("fixtures/resume_full.json")
 
-#assert.eq(validate(raw), ())
+#assert.eq(validate(raw, schema: resume-schema-strict), ())
 
-#let model = parse(raw)
+#let model = parse(raw, schema: resume-schema-strict)
 
 // Every section is present.
 #assert("name" in model.basics)

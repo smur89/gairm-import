@@ -27,7 +27,7 @@ to the appropriate downstream template repo.
 ```text
 lib.typ                              # public entry — `parse`, `validate`, `coerce`, combinators, lenses
 internal/kinds.typ                   # schema-kind primitives (str-type, content-type, object, array-of, …)
-internal/schema.typ                  # canonical resume-schema (derived from the vendored JSON Schema)
+internal/schema.typ                  # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
 internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.0.0
 internal/validate.typ                # validation engine (path-typed errors)
 internal/coerce.typ                  # coercion engine (content wrapping, null absorption)
@@ -50,11 +50,15 @@ upstream document is the source of truth. To pull a newer upstream version:
    objects, type unions, external `$ref`) panic with an "unsupported" message.
    If a panic surfaces, extend `internal/json-schema.typ` rather than
    silently dropping the constraint.
-3. Audit `_content-paths` in `internal/schema.typ` against any new free-text
-   fields. The override list is the single point of "this string should be
-   coerced to Typst `content` for inline rendering" — see issue #32 for the
-   open question on whether `content-type` should exist at all, or move to
-   config; the override list is the temporary home until that decision.
+3. Audit `_content-paths` and `_date-paths` in `internal/schema.typ` against
+   the bumped document. These lists are the opt-in `resume-schema-strict`
+   variant's opinions — `_content-paths` lifts free-text `string` fields to
+   Typst `content` for inline rendering; `_date-paths` lifts iso8601 `$ref`
+   fields (which the translator can't pick up from a `$ref` alone) to
+   `date-string` for regex validation. If a new free-text or iso8601-referenced
+   field lands in the upstream document, add its path here. The drift guard
+   in `_override-fold` will panic at module-load if an existing path's source
+   kind changes, so you'll see the audit prompt automatically.
 
 `feat:` commit if the bump introduces new fields or behaviour;
 `chore(deps):` if it's a no-op refresh.

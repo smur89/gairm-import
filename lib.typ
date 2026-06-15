@@ -4,7 +4,7 @@
 // tests/engine_schema_agnostic.typ for the BYO-schema contract.
 
 #import "internal/schema.typ": (
-  resume-schema,
+  resume-schema, resume-schema-strict,
   str-type, content-type, number-type, array-of, object,
   date-string, uri-string, email-string,
 )

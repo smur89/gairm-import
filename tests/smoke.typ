@@ -4,7 +4,9 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, format-errors,
-  resume-schema, object, array-of, str-type, content-type, number-type,
+  resume-schema, resume-schema-strict,
+  object, array-of, str-type, content-type, number-type,
+  date-string, uri-string, email-string,
   schema-from-json-schema,
   lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
 )

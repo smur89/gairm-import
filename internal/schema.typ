@@ -1,12 +1,13 @@
 // Canonical JSON Resume schema (https://jsonresume.org/schema).
-// Derived from the vendored upstream document; see CONTRIBUTING for
-// the bump procedure.
 //
-// `_content-paths` is the deliberate divergence from the source: the
-// canonical schema types these free-text fields as `string`, but the
-// package wraps them in Typst `content` during coercion for ergonomic
-// inline rendering. Open question tracked in #32 — either the
-// override earns its keep or it moves to config / disappears.
+// `resume-schema` is a faithful translation of the vendored upstream
+// JSON Schema document — every kind comes from the source, nothing
+// is rewritten. `resume-schema-strict` layers two opinions on top
+// via the lens API for callers who want them: free-text fields
+// wrapped as Typst `content` for inline rendering, and iso8601
+// `$ref` fields lifted to `date-string` for regex validation. Both
+// schemas are exported; pick via the `schema:` keyword on
+// `parse` / `validate` / `coerce`.
 
 #import "kinds.typ": (
   str-type, content-type, number-type, array-of, object,
@@ -15,6 +16,11 @@
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
 
+#let resume-schema = schema-from-json-schema(json("assets/jsonresume-schema.json"))
+
+// Free-text fields the strict variant wraps as Typst `content` for
+// inline rendering. Canonical schema types these as `string`; the
+// override is the package's Typst-renderer opinion, not validation.
 #let _content-paths = (
   ("basics", "summary"),
   ("work", "items", "summary"),
@@ -28,12 +34,10 @@
   ("projects", "items", "highlights", "items"),
 )
 
-// Date fields whose upstream JSON uses `$ref: "#/definitions/iso8601"`
-// rather than `format: "date"` — the translator can't pick them up
-// from a $ref alone, so they need a lens override. Also includes
-// meta.lastModified, which has no format annotation despite an
-// ISO-8601 description. Paths with an explicit `format: "date"` are
-// translator-emitted and would fail the drift guard if listed here.
+// Date fields whose upstream uses `$ref: "#/definitions/iso8601"`
+// rather than `format: "date"` — the translator can't pick those up
+// from a $ref alone. Also includes meta.lastModified, which has no
+// format annotation despite an ISO-8601 description.
 #let _date-paths = (
   ("work", "items", "startDate"),
   ("work", "items", "endDate"),
@@ -51,8 +55,7 @@
 // Pre-condition guard turns silent upstream drift into a load-time
 // panic: if a future schema bump changes one of these fields away
 // from the expected source kind, the override would otherwise mask
-// the shape change. The guard fires instead, prompting maintainer
-// review. Same pattern as _content-paths.
+// the shape change. The guard fires instead.
 #let _override-fold(schema, paths, expected-source, replacement, list-name) = {
   paths.fold(schema, (s, p) => {
     let l = lens(p)
@@ -67,8 +70,11 @@
   })
 }
 
-#let resume-schema = {
-  let base = schema-from-json-schema(json("assets/jsonresume-schema.json"))
-  let with-content = _override-fold(base, _content-paths, str-type, content-type, "_content-paths")
-  _override-fold(with-content, _date-paths, str-type, date-string, "_date-paths")
+#let resume-schema-strict = {
+  let with-content = _override-fold(
+    resume-schema, _content-paths, str-type, content-type, "_content-paths",
+  )
+  _override-fold(
+    with-content, _date-paths, str-type, date-string, "_date-paths",
+  )
 }

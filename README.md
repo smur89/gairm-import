@@ -71,17 +71,23 @@ or a Typst-root-relative path string:
 #let resume = parse("/resume.json")
 ```
 
-The returned dict mirrors the canonical schema. Free-text fields (`summary`,
-`description`, `highlights[]`, `reference`) are coerced to Typst `content`;
-everything else stays as JSON-native types. For example:
+The returned dict is a 1:1 mirror of the canonical schema — every kind comes
+from the upstream JSON Schema document. Format-annotated fields are gated by
+a regex (see [Format validation](#format-validation)); everything else
+passes through as JSON-native types. For example:
 
 ```text
-resume.basics.name            str ("Seán Ó Murchú")
-resume.basics.summary         content (wrapped for direct rendering)
+resume.basics.name            str
+resume.basics.summary         str
+resume.basics.email           str (gated as email)
 resume.work.at(0).position    str
-resume.work.at(0).highlights  array of content
-resume.skills.at(0).keywords  array of str (tag-like, not coerced)
+resume.work.at(0).highlights  array of str
+resume.skills.at(0).keywords  array of str
 ```
+
+For renderer-friendly opinions (free-text fields wrapped as Typst `content`,
+iso8601 `$ref` fields validated as dates), import `resume-schema-strict`
+instead and pass it via the `schema:` keyword — see [Two schemas](#two-schemas).
 
 Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.app/universe/package/altacv):
 
@@ -144,27 +150,60 @@ Root null is rejected: if the entire input document is `null`,
 policy applies to leaf positions inside a document, not to the
 document itself.
 
+## Two schemas
+
+The package exports two values of the canonical schema:
+
+- **`resume-schema`** — a faithful 1:1 translation of the vendored
+  upstream JSON Schema document. Every kind comes from the source;
+  nothing is rewritten. This is the default when you call
+  `parse(data)` / `validate(data)` / `coerce(data)`.
+- **`resume-schema-strict`** — adds two layered opinions on top via
+  the lens API:
+  - free-text fields (`basics.summary`, `work[].summary`,
+    `work[].highlights[]`, etc.) are typed as Typst `content` so
+    they splice directly into markup
+  - iso8601 `$ref` fields (`startDate`, `endDate`, …) are validated
+    as ISO-8601 dates (the upstream document doesn't carry a
+    `format` annotation on them, just a regex inside a definition)
+
+Pass `schema: resume-schema-strict` to opt in:
+
+```typst
+#import "@preview/json-resume:0.1.1": parse, resume-schema-strict // x-release-please-version
+
+#let resume = parse(json("resume.json"), schema: resume-schema-strict)
+```
+
+The faithful default is the source-of-truth view; the strict variant
+is a renderer-ergonomics overlay. If you want a different mix, build
+your own by lensing over `resume-schema` — see
+[Targeted edits with lenses](#targeted-edits-with-lenses).
+
 ## Format validation
 
 Fields the canonical schema annotates with `format: "uri"`,
-`format: "email"`, `format: "date"`, or `$ref: "#/definitions/iso8601"`
-are gated by a regex during `validate` / `parse`. The patterns are
-deliberately permissive — they reject obvious malformations without
-claiming full RFC compliance — and each emits a path-qualified message
-with a canonical example:
+`format: "email"`, or `format: "date"` are gated by a regex during
+`validate` / `parse`. The patterns are deliberately permissive — they
+reject obvious malformations without claiming full RFC compliance —
+and each emits a path-qualified message with a canonical example:
 
 ```text
-basics.email:    expected an email (e.g. "name@example.com").
-basics.url:      expected a URI (e.g. "https://example.com").
-work[0].startDate: expected an ISO-8601 date (e.g. "2024-01-15").
+basics.email:           expected an email (e.g. "name@example.com").
+basics.url:             expected a URI (e.g. "https://example.com").
+certificates[0].date:   expected an ISO-8601 date (e.g. "2024-01-15").
 ```
+
+Most date fields in JSON Resume (`work[].startDate`, `awards[].date`,
+`meta.lastModified`, …) use `$ref: "#/definitions/iso8601"` rather
+than `format: "date"`. The translator can't pick formats up from a
+`$ref` alone, so those fields stay as plain `str` in `resume-schema`.
+Switch to `resume-schema-strict` to validate them as dates, or build
+your own override list with `lens-put(lens(path), schema, date-string)`.
 
 Coercion is pass-through: format-checked values flow through to the
 model as plain strings, so renderers receive
-`model.basics.email == "name@example.com"` unchanged. Use lens-overrides
-to relax or strengthen specific fields in an extension schema —
-`lens-put(lens(("basics", "email")), my-schema, str-type)` drops the
-gate on email, for example.
+`model.basics.email == "name@example.com"` unchanged.
 
 ## Building an extension schema
 

@@ -3,14 +3,17 @@
 // Mirrors the convention used by most JSON Resume emitters, where
 // "summary": null is semantically equivalent to omitting the key.
 
-#import "../lib.typ": validate, parse
+// Routed through resume-schema-strict so highlights coerce to content
+// — the null-as-absent test is more discriminating when the array
+// element kind is non-trivial.
+#import "../lib.typ": validate, parse, resume-schema-strict
 
 #let raw = json("fixtures/resume_with_nulls.json")
 
 // No validation errors — null is treated as "key absent".
-#assert.eq(validate(raw), ())
+#assert.eq(validate(raw, schema: resume-schema-strict), ())
 
-#let model = parse(raw)
+#let model = parse(raw, schema: resume-schema-strict)
 
 // Present scalars survive the coercion.
 #assert.eq(model.basics.name, "Seán Ó Murchú")
