@@ -1,7 +1,5 @@
-// Mixed-type members allowed — `in`-equality gates membership, not
-// type. const is the singleton-enum case. Coerce mirrors the check
-// so direct-coerce callers fail loud rather than silently passing
-// non-members through.
+// Pins the enum-of / const-of contract: membership gates validation;
+// coerce mirrors the check; null-as-absent absorbs enum-member none.
 
 #import "../lib.typ": enum-of, const-of, object, validate, coerce
 
@@ -40,9 +38,8 @@
 #assert.eq(validate((zoom: "auto"), schema: mixed-schema), ())
 #assert.eq(validate((zoom: 0), schema: mixed-schema), ())
 #assert.eq(validate((zoom: 100), schema: mixed-schema), ())
-// `none` is absorbed by the null-as-absent early-return in _validate,
-// so a `zoom: none` is treated as "key absent", not as "matches the
-// enum member none". This is consistent with the rest of the engine.
+// `none` is absorbed by validate's null-as-absent early-return —
+// `zoom: none` reads as "key absent", not "matches the none member".
 #assert.eq(validate((zoom: none), schema: mixed-schema), ())
 
 #let mixed-errs = validate((zoom: "max"), schema: mixed-schema)

@@ -45,9 +45,8 @@
     assert(type(value) in (int, float), message: _expect("a number", value))
     return value
   }
-  // No single type to gate on — members are polymorphic. Mirror the
-  // validator's membership check so callers skipping validate get
-  // the same fail-loud diagnostic.
+  // Members are polymorphic — no single type to assert. Mirror the
+  // validator's membership check so direct-coerce callers fail loud.
   if kind == "enum" {
     assert(
       value in schema.values,
