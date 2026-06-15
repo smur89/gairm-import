@@ -196,6 +196,33 @@ operator you need to extend it. Per-section combinators (`work-item`,
 `volunteer-item`, …) are intentionally not exposed yet — splice the canonical
 top-level fields whole and add your own siblings.
 
+### Starting from a JSON Schema document
+
+`schema-from-json-schema(parsed-schema)` translates a JSON Schema (draft 7
+subset) into a Typst schema dict. Use it when you already have an authoritative
+`.json` schema and don't want to keep a parallel Typst copy in sync:
+
+```typst
+#import "@preview/json-resume:0.1.1": ( // x-release-please-version
+  schema-from-json-schema, validate, coerce, object, array-of, str-type, content-type,
+)
+
+#let canonical = schema-from-json-schema(json("resume-schema.json"))
+#let altacv-schema = object((
+  ..canonical.shape,
+  focusAreas: array-of(content-type),
+))
+
+#let model = coerce(altacv-schema, json("resume.json"))
+```
+
+Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
+`object`), `format` (`uri`/`email`/`date`/`date-time` — currently degraded to
+plain string until format-aware combinators land), `properties`, `required`,
+`items`, internal `$ref` (`#/definitions/…` / `#/$defs/…`). Out of scope:
+`allOf` / `anyOf` / `oneOf` / `enum` / external `$ref` — those panic with a
+clear "unsupported" message.
+
 ## Scope
 
 The canonical surface — `parse-resume`, `validate-resume`, `coerce-resume` —
