@@ -23,3 +23,8 @@
 #assert(src.contains("already in object shape"))
 #assert(src.contains("remove-field key "))
 #assert(src.contains("not in object shape"))
+
+// set-required uses the same _require-object helper for the
+// kind-mismatch case + its own message for the unknown-keys case.
+#assert(src.contains("_require-object(parent, \"set-required\")"))
+#assert(src.contains("set-required keys not in object shape"))

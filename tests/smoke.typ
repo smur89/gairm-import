@@ -9,5 +9,6 @@
   date-string, uri-string, email-string,
   enum-of, const-of,
   schema-from-json-schema,
-  lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
+  lens, lens-get, lens-put, lens-over, lens-then,
+  add-field, remove-field, set-required,
 )

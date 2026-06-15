@@ -261,7 +261,7 @@ replaced or transformed:
 
 ```typst
 #import "@preview/json-resume:0.4.0": ( // x-release-please-version
-  resume-schema, lens, lens-put, lens-over, add-field,
+  resume-schema, lens, lens-put, lens-over, add-field, set-required,
   str-type, content-type, number-type, object,
 )
 
@@ -283,6 +283,12 @@ replaced or transformed:
   resume-schema,
   meta => object((..meta.shape, source: str-type)),
 )
+
+// Make basics.name and basics.email required for your template
+// (canonical schema declares no required keys):
+#let strict-basics = set-required(
+  resume-schema, lens(("basics",)), ("name", "email"),
+)
 ```
 
 Path segments: object keys as strings, the literal `"items"` to enter an
@@ -302,9 +308,10 @@ Operations:
 | `lens-then(a, b)` | `lens, lens → lens` | Compose two lenses (path concatenation) |
 | `add-field(schema, parent, key, sub)` | … → schema | Add a key to the object at `parent` |
 | `remove-field(schema, parent, key)` | … → schema | Remove a key from the object at `parent` |
+| `set-required(schema, parent, keys)` | … → schema | Replace the object's `required-keys` list at `parent` |
 
 Operations are functional — every `lens-put` / `lens-over` / `add-field` /
-`remove-field` returns a NEW schema and leaves the input untouched, so you
+`remove-field` / `set-required` returns a NEW schema and leaves the input untouched, so you
 can build an extension schema by chaining edits without disturbing the
 canonical one. (Operations are top-level functions rather than methods because
 Typst parses `lens.put(…)` as a type-method lookup, not a closure call.)
