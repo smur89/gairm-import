@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/smur89/typst-json-resume/compare/v0.1.1...v0.2.0) (2026-06-15)
+
+
+### Features
+
+* expose validate / coerce engines and schema combinators publicly ([#17](https://github.com/smur89/typst-json-resume/issues/17)) ([a37b8e0](https://github.com/smur89/typst-json-resume/commit/a37b8e0279d64f139eae32f3b3d8fb636673c5ce))
+* treat JSON null as if the key were absent ([#20](https://github.com/smur89/typst-json-resume/issues/20)) ([e9e8cbe](https://github.com/smur89/typst-json-resume/commit/e9e8cbe66a6e1931b738d6089ec1f66a1d73dcf3))
+
 ## [0.1.1](https://github.com/smur89/typst-json-resume/compare/v0.1.0...v0.1.1) (2026-06-15)
 
 
