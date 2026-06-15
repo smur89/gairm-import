@@ -5,7 +5,7 @@
 // Unknown keys are still flagged even when their value is null,
 // because silently swallowing typos would defeat strict validation.
 
-#import "../lib.typ": validate-resume
+#import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
 #import "../internal/schema.typ": str-type, content-type, number-type, array-of, object
 
@@ -84,7 +84,7 @@
   skills: none,
   meta: none,
 )
-#assert.eq(validate-resume(raw), ())
+#assert.eq(validate(raw), ())
 
 // The engine still treats `none` as "key absent" at any value
 // position — that's the right rule for LEAVES inside a document.
@@ -101,7 +101,7 @@
 // usage and by the source assertion below. The empty-dict input is
 // the closest non-panicking sibling — it should still succeed,
 // confirming the guard fires only on `none`.
-#assert.eq(validate-resume((:)), ())
+#assert.eq(validate((:)), ())
 
 // Source-level assertion: the friendly panic message is present in
 // lib.typ. Compile-time pin so a future refactor that drops the

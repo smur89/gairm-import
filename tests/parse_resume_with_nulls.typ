@@ -3,14 +3,14 @@
 // Mirrors the convention used by most JSON Resume emitters, where
 // "summary": null is semantically equivalent to omitting the key.
 
-#import "../lib.typ": validate-resume, parse-resume
+#import "../lib.typ": validate, parse
 
 #let raw = json("fixtures/resume_with_nulls.json")
 
 // No validation errors — null is treated as "key absent".
-#assert.eq(validate-resume(raw), ())
+#assert.eq(validate(raw), ())
 
-#let model = parse-resume(raw)
+#let model = parse(raw)
 
 // Present scalars survive the coercion.
 #assert.eq(model.basics.name, "Seán Ó Murchú")

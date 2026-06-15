@@ -26,7 +26,7 @@ Motivated by [smur89/alta-typst#48](https://github.com/smur89/alta-typst/issues/
 ## Install
 
 ```typst
-#import "@preview/json-resume:0.1.1": validate-resume, coerce-resume, parse-resume // x-release-please-version
+#import "@preview/json-resume:0.1.1": validate, coerce, parse // x-release-please-version
 ```
 
 ## A minimal `resume.json`
@@ -58,17 +58,17 @@ The full canonical schema covers thirteen sections:
 
 ## Usage
 
-`parse-resume` is the one-call entry point. It accepts either a parsed dict
+`parse` is the one-call entry point. It accepts either a parsed dict
 or a Typst-root-relative path string:
 
 ```typst
-#import "@preview/json-resume:0.1.1": parse-resume // x-release-please-version
+#import "@preview/json-resume:0.1.1": parse // x-release-please-version
 
 // Path relative to your own .typ — let Typst's json() resolve it.
-#let resume = parse-resume(json("resume.json"))
+#let resume = parse(json("resume.json"))
 
-// Or a Typst-root-relative path string, resolved by parse-resume itself.
-#let resume = parse-resume("/resume.json")
+// Or a Typst-root-relative path string, resolved by parse itself.
+#let resume = parse("/resume.json")
 ```
 
 The returned dict mirrors the canonical schema. Free-text fields (`summary`,
@@ -87,10 +87,10 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 
 ```typst
 #import "@preview/altacv:1.1.1": alta, palettes
-#import "@preview/json-resume:0.1.1": parse-resume // x-release-please-version
+#import "@preview/json-resume:0.1.1": parse // x-release-please-version
 
 #alta(
-  parse-resume(json("resume.json")),
+  parse(json("resume.json")),
   preferences: (accent: palettes.navy),
 )
 ```
@@ -105,22 +105,22 @@ for the full surface.
 Each error is a record `(path: ("basics", "email"), message: "expected string, got integer.")`. A typical step-by-step is:
 
 ```typst
-#import "@preview/json-resume:0.1.1": validate-resume, coerce-resume // x-release-please-version
+#import "@preview/json-resume:0.1.1": validate, coerce // x-release-please-version
 
 #let raw = json("resume.json")
-#let errors = validate-resume(raw)
+#let errors = validate(raw)
 #if errors.len() > 0 {
   [Resume has #errors.len() issue(s).]
 } else {
-  let model = coerce-resume(raw)
+  let model = coerce(raw)
   // render model …
 }
 ```
 
 ## Errors
 
-`validate-resume` returns a list of `(path, message)` records — empty list
-means the input is valid. `parse-resume` validates first and aborts compilation
+`validate` returns a list of `(path, message)` records — empty list
+means the input is valid. `parse` validates first and aborts compilation
 with a combined report on the first invocation that finds issues, so every
 problem in the document surfaces in one error:
 
@@ -139,14 +139,14 @@ equivalent to omitting the key. Unknown keys are still flagged even
 when their value is `null`, so typos do not slip through silently.
 
 Root null is rejected: if the entire input document is `null`,
-`validate-resume`, `coerce-resume`, and `parse-resume` panic with
+`validate`, `coerce`, and `parse` panic with
 `json-resume: input must be a dict, got null.` The null-as-absent
 policy applies to leaf positions inside a document, not to the
 document itself.
 
 ## Building an extension schema
 
-`parse-resume` is strict against the canonical schema by design — unknown keys
+`parse` is strict against the canonical schema by design — unknown keys
 are rejected. Renderers that need their own fields (alta-typst's
 `preferences`, `labels`, `focusAreas`; numeric language `rating`; publication
 `type` grouping; …) can build a JSON-Resume+ schema on top using the public
@@ -171,18 +171,20 @@ combinators and the generic engines:
   focusAreas: array-of(content-type),
 ))
 
-#let model = parse(altacv-schema, json("resume.json"))
+#let model = parse(json("resume.json"), schema: altacv-schema)
 // render model with the renderer's own theme…
 ```
 
 When to reach for which API:
 
-- **`parse-resume(data)` / `parse(schema, data)`** — one call, aborts compilation
-  with a combined report on validation issues. `parse-resume` is the canonical
-  shortcut; `parse` is the generic form.
-- **`validate-resume` / `coerce-resume`** (canonical) or **`validate` / `coerce`**
-  (generic) — return data instead of aborting, so you can present errors
-  yourself. Same shape as the [step-by-step above](#handling-validation-errors-yourself),
+- **`parse(data)`** — one call, aborts compilation with a combined report on
+  validation issues. Defaults to the canonical schema; pass `schema: …` to use
+  an extension.
+- **`validate(data)` / `coerce(data)`** — return data instead of aborting, so
+  you can present errors yourself. Same `schema:` default.
+- **`parse(data)` / `validate(data)` / `coerce(data)`** —
+  legacy aliases for the canonical-only forms. Equivalent to the unified names
+  with the default schema; kept for backward compatibility. Same shape as the [step-by-step above](#handling-validation-errors-yourself),
   with `(schema, data)` in place of the canonical wrappers.
 
 `resume-schema.shape` is a plain dict, so `..resume-schema.shape` is the only
@@ -207,7 +209,7 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
   focusAreas: array-of(content-type),
 ))
 
-#let model = coerce(altacv-schema, json("resume.json"))
+#let model = coerce(json("resume.json"), schema: altacv-schema)
 ```
 
 Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
@@ -223,7 +225,7 @@ other than the four listed above — every one of these panics with a clear
 
 ## Scope
 
-The canonical surface — `parse-resume`, `validate-resume`, `coerce-resume` —
+The canonical surface — `parse`, `validate`, `coerce` —
 implements **only** the [JSON Resume schema](https://jsonresume.org/schema) and
 rejects unknown fields. Renderer-specific extensions are layered on top by the
 consuming template via the BYO API above; requests for renderer-specific

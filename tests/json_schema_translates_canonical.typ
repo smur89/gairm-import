@@ -39,4 +39,4 @@
 // accepts this fixture; the derived schema must too, or we've lost
 // shape in translation.
 #let raw = json("fixtures/resume_full.json")
-#assert.eq(validate(canonical, raw), ())
+#assert.eq(validate(raw, schema: canonical), ())

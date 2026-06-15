@@ -1,13 +1,13 @@
 // End-to-end: a fixture exercising every JSON Resume section validates
 // cleanly and coerces into the expected shape.
 
-#import "../lib.typ": validate-resume, parse-resume
+#import "../lib.typ": validate, parse
 
 #let raw = json("fixtures/resume_full.json")
 
-#assert.eq(validate-resume(raw), ())
+#assert.eq(validate(raw), ())
 
-#let model = parse-resume(raw)
+#let model = parse(raw)
 
 // Every section is present.
 #assert("name" in model.basics)
