@@ -154,7 +154,7 @@ combinators and the generic engines:
 
 ```typst
 #import "@preview/json-resume:0.1.1": ( // x-release-please-version
-  resume-schema, validate, coerce,
+  resume-schema, validate, coerce, format-errors,
   object, array-of, str-type, content-type, number-type,
 )
 
@@ -174,9 +174,9 @@ combinators and the generic engines:
 
 #let raw = json("resume.json")
 #let errors = validate(altacv-schema, raw)
-#if errors.len() > 0 {
-  panic("resume has " + str(errors.len()) + " issue(s)")
-}
+// assert preserves the multi-line bullet report; panic would collapse
+// it onto one line.
+#assert(errors.len() == 0, message: format-errors(errors))
 #let model = coerce(altacv-schema, raw)
 // render model with the renderer's own theme…
 ```

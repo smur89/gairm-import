@@ -1,11 +1,6 @@
 // Strict loader for canonical JSON Resume data
 // (https://jsonresume.org/schema). The engines under internal/ are
-// pure (schema, value) functions; `validate-resume` / `coerce-resume`
-// / `parse-resume` pre-bind resume-schema for strict-mode callers,
-// while the re-exported `validate` / `coerce` engines and combinators
-// (`str-type`, `content-type`, `number-type`, `array-of`, `object`)
-// let downstream renderers build JSON-Resume+ extension schemas
-// without reaching into `internal/`. See
+// pure functions of (schema, value); see
 // tests/engine_schema_agnostic.typ for the BYO-schema contract.
 
 #import "internal/schema.typ": resume-schema, str-type, content-type, number-type, array-of, object
@@ -13,8 +8,9 @@
 #import "internal/coerce.typ": _coerce
 #import "internal/errors.typ": _format-report
 
-// Public formatter — BYO callers can render their own validate()
-// output with the same diagnostic shape parse-resume uses.
+// Format a list of `(path, message)` records into the same combined
+// report `parse-resume` produces — for BYO consumers calling
+// `validate(schema, data)` themselves.
 #let format-errors(errors) = _format-report(errors)
 
 // Generic engines bound to a caller-supplied schema. Returns a list
