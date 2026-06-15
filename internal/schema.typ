@@ -10,7 +10,7 @@
 
 #import "kinds.typ": str-type, content-type, number-type, array-of, object
 #import "json-schema.typ": schema-from-json-schema
-#import "lens.typ": lens, lens-put
+#import "lens.typ": lens, lens-get, lens-put
 
 #let _content-paths = (
   ("basics", "summary"),
@@ -25,7 +25,20 @@
   ("projects", "items", "highlights", "items"),
 )
 
+// The pre-condition `lens-get == str-type` turns silent drift into a
+// load-time panic: if a future schema bump changes one of these
+// fields away from `string`, the override would otherwise mask the
+// shape change. The guard fires instead, prompting maintainer review.
 #let resume-schema = _content-paths.fold(
   schema-from-json-schema(json("assets/jsonresume-schema.json")),
-  (s, p) => lens-put(lens(p), s, content-type),
+  (s, p) => {
+    let l = lens(p)
+    assert(
+      lens-get(l, s) == str-type,
+      message: "json-resume: _content-paths must target string leaves only — " +
+        repr(p) + " is now " + repr(lens-get(l, s).kind) +
+        ". Audit upstream schema bump.",
+    )
+    lens-put(l, s, content-type)
+  },
 )
