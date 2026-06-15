@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/smur89/typst-json-resume/compare/v0.2.0...v0.3.0) (2026-06-15)
+
+
+### Features
+
+* split resume-schema into faithful default + opt-in strict variant ([#35](https://github.com/smur89/typst-json-resume/issues/35)) ([908d628](https://github.com/smur89/typst-json-resume/commit/908d62888201a7203a8226f6c2a5ace081a4dca2))
+
 ## [0.2.0](https://github.com/smur89/typst-json-resume/compare/v0.1.1...v0.2.0) (2026-06-15)
 
 
