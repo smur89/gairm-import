@@ -18,11 +18,16 @@
 // Descending past a leaf is explicitly disallowed.
 #assert(src.contains("lens cannot descend into a leaf schema"))
 
-// add-field / remove-field reject non-object targets and key
-// collisions / absences with named messages.
-#assert(src.contains("add-field expects an object schema"))
+// add-field / remove-field reject non-object targets via a shared
+// helper, so the kind-mismatch diagnostic is one templated string
+// with the op name spliced in. Pin the template plus each call site
+// so the op name in the panic survives refactors.
+#assert(src.contains("expects an object schema at the lens target"))
+#assert(src.contains("_require-object(parent, \"add-field\")"))
+#assert(src.contains("_require-object(parent, \"remove-field\")"))
+
+// Key collision / absence messages stay literal in source.
 #assert(src.contains("add-field key "))
 #assert(src.contains("already in object shape"))
-#assert(src.contains("remove-field expects an object schema"))
 #assert(src.contains("remove-field key "))
 #assert(src.contains("not in object shape"))

@@ -201,12 +201,14 @@ replaced or transformed:
 ```typst
 #import "@preview/json-resume:0.1.1": ( // x-release-please-version
   resume-schema, lens, lens-put, lens-over, add-field,
-  str-type, number-type, object,
+  str-type, content-type, number-type, object,
 )
 
-// Loosen basics.email from str-type to something looser (e.g. a future
-// email-format type, or just str-type itself if you started stricter):
-#let loose-email = lens-put(lens(("basics", "email")), resume-schema, str-type)
+// Widen basics.summary from content (rich) to str (plain) — useful if
+// you want the summary rendered as plain text instead of formatted:
+#let plain-summary = lens-put(
+  lens(("basics", "summary")), resume-schema, str-type,
+)
 
 // Add a numeric `rating` to every language entry — touches
 // resume-schema.shape.languages.elem.shape without re-spelling the wrapper:

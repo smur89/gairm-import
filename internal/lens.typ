@@ -19,6 +19,24 @@
 
 #let _bail(msg) = panic("json-resume: " + msg)
 
+#let _require-object(parent, op) = {
+  if parent.kind != "object" {
+    _bail(
+      op + " expects an object schema at the lens target, got kind=" +
+        repr(parent.kind) + ".",
+    )
+  }
+}
+
+// Rebuild a parent object schema with one shape key set to `value`.
+// Typst dicts are value types so `let new-shape = parent.shape` is a
+// copy; the `.insert` mutates that local without touching parent.
+#let _with-shape-set(parent, key, value) = {
+  let new-shape = parent.shape
+  new-shape.insert(key, value)
+  (..parent, shape: new-shape)
+}
+
 #let _descend(schema, segment) = {
   if schema.kind == "object" {
     if segment not in schema.shape {
@@ -50,28 +68,15 @@
   cursor
 }
 
-// Rebuild the schema by walking the path with _descend (so an invalid
-// segment surfaces the same diagnostic as a get), then rebuilding
-// outward from the leaf with the replacement value.
+// Recursive walk-and-rebuild: descend one segment, recurse for the
+// rest, then re-wrap with the returned sub-value. _descend handles
+// invalid segments with the same diagnostics get uses.
 #let _set-at(schema, path, value) = {
   if path.len() == 0 { return value }
-  let cursors = (schema,)
-  for segment in path { cursors.push(_descend(cursors.last(), segment)) }
-  let new = value
-  let i = path.len()
-  while i > 0 {
-    i -= 1
-    let parent = cursors.at(i)
-    let segment = path.at(i)
-    if parent.kind == "object" {
-      let new-shape = parent.shape
-      new-shape.insert(segment, new)
-      new = (..parent, shape: new-shape)
-    } else {
-      new = (..parent, elem: new)
-    }
-  }
-  new
+  let (head, ..rest) = path
+  let new-sub = _set-at(_descend(schema, head), rest, value)
+  if schema.kind == "object" { _with-shape-set(schema, head, new-sub) }
+  else { (..schema, elem: new-sub) }
 }
 
 // Lens-as-value. The lens itself only carries a path; operations are
@@ -80,8 +85,8 @@
 
 #let lens-get(l, schema) = _get-at(schema, l.path)
 
-// `lens-put` is the lens-`set` operation. Named `put` because `set` is
-// a Typst keyword and can't appear as a function name in this position.
+// `lens-put` is the lens-`set` operation. Renamed because `set` is a
+// Typst keyword and can't appear as a function name in this position.
 #let lens-put(l, schema, value) = _set-at(schema, l.path, value)
 
 #let lens-over(l, schema, fn) = _set-at(schema, l.path, fn(_get-at(schema, l.path)))
@@ -97,21 +102,14 @@
   parent-lens,
   schema,
   parent => {
-    if parent.kind != "object" {
-      _bail(
-        "add-field expects an object schema at the lens target, " +
-          "got kind=" + repr(parent.kind) + ".",
-      )
-    }
+    _require-object(parent, "add-field")
     if key in parent.shape {
       _bail(
         "add-field key " + repr(key) + " already in object shape. " +
           "Use lens-put / lens-over to replace an existing field.",
       )
     }
-    let new-shape = parent.shape
-    new-shape.insert(key, sub-schema)
-    (..parent, shape: new-shape)
+    _with-shape-set(parent, key, sub-schema)
   },
 )
 
@@ -121,12 +119,7 @@
   parent-lens,
   schema,
   parent => {
-    if parent.kind != "object" {
-      _bail(
-        "remove-field expects an object schema at the lens target, " +
-          "got kind=" + repr(parent.kind) + ".",
-      )
-    }
+    _require-object(parent, "remove-field")
     if key not in parent.shape {
       _bail(
         "remove-field key " + repr(key) + " not in object shape. " +
