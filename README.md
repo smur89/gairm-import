@@ -261,7 +261,8 @@ replaced or transformed:
 
 ```typst
 #import "@preview/json-resume:0.4.0": ( // x-release-please-version
-  resume-schema, lens, lens-put, lens-over, add-field, set-required,
+  resume-schema, lens, lens-put, lens-over, add-field,
+  set-required, unset-required,
   str-type, content-type, number-type, object,
 )
 
@@ -289,6 +290,11 @@ replaced or transformed:
 #let strict-basics = set-required(
   resume-schema, lens(("basics",)), ("name", "email"),
 )
+
+// Relax email back without re-spelling the rest of the required list:
+#let mixed-basics = unset-required(
+  strict-basics, lens(("basics",)), ("email",),
+)
 ```
 
 Path segments: object keys as strings, the literal `"items"` to enter an
@@ -309,9 +315,10 @@ Operations:
 | `add-field(schema, parent, key, sub)` | … → schema | Add a key to the object at `parent` |
 | `remove-field(schema, parent, key)` | … → schema | Remove a key from the object at `parent` |
 | `set-required(schema, parent, keys)` | … → schema | Replace the object's `required-keys` list at `parent` |
+| `unset-required(schema, parent, keys)` | … → schema | Drop specific entries from the object's `required-keys` list at `parent` |
 
 Operations are functional — every `lens-put` / `lens-over` / `add-field` /
-`remove-field` / `set-required` returns a NEW schema and leaves the input untouched, so you
+`remove-field` / `set-required` / `unset-required` returns a NEW schema and leaves the input untouched, so you
 can build an extension schema by chaining edits without disturbing the
 canonical one. (Operations are top-level functions rather than methods because
 Typst parses `lens.put(…)` as a type-method lookup, not a closure call.)
