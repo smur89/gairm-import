@@ -16,6 +16,6 @@
 
 #assert.eq(lens-over(identity, resume-schema, _ => str-type), str-type)
 
-#let email = lens(("basics", "email"))
-#assert.eq(lens-then(identity, email).path, email.path)
-#assert.eq(lens-then(email, identity).path, email.path)
+#let name = lens(("basics", "name"))
+#assert.eq(lens-then(identity, name).path, name.path)
+#assert.eq(lens-then(name, identity).path, name.path)

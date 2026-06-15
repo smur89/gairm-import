@@ -16,9 +16,10 @@
 // added that violates this shape, this assertion surfaces it.
 #for (key, sub-schema) in resume-schema.shape.pairs() {
   if key == "$schema" {
+    // $schema is a URI in JSON Schema (carries the format: "uri" hint).
     assert.eq(
-      sub-schema.kind, "str",
-      message: "$schema must be str-typed; got " + sub-schema.kind,
+      sub-schema.kind, "uri-string",
+      message: "$schema must be uri-string; got " + sub-schema.kind,
     )
   } else {
     let kind = sub-schema.kind
@@ -49,18 +50,42 @@
   )
 }
 
-// Spot-checks on content-coerced fields the issue called out.
-#assert.eq(resume-schema.shape.basics.shape.summary.kind, "content")
-#assert.eq(resume-schema.shape.work.elem.shape.summary.kind, "content")
-#assert.eq(resume-schema.shape.work.elem.shape.highlights.elem.kind, "content")
-#assert.eq(resume-schema.shape.projects.elem.shape.description.kind, "content")
-#assert.eq(resume-schema.shape.references.elem.shape.reference.kind, "content")
+// Spot-checks pinning the package's faithful-to-source policy: fields
+// the upstream JSON Schema types as plain `string` come through as
+// `str`, not as content or date kinds. Callers wanting renderer
+// ergonomics or stricter date validation reach for
+// `resume-schema-strict` (see tests/schema_strict.typ).
+#assert.eq(resume-schema.shape.basics.shape.summary.kind, "str")
+#assert.eq(resume-schema.shape.work.elem.shape.summary.kind, "str")
+#assert.eq(resume-schema.shape.work.elem.shape.highlights.elem.kind, "str")
+#assert.eq(resume-schema.shape.projects.elem.shape.description.kind, "str")
+#assert.eq(resume-schema.shape.references.elem.shape.reference.kind, "str")
 
 // Plain-string identifiers stay str-typed.
 #assert.eq(resume-schema.shape.basics.shape.name.kind, "str")
-#assert.eq(resume-schema.shape.basics.shape.email.kind, "str")
-#assert.eq(resume-schema.shape.work.elem.shape.url.kind, "str")
+
+// Format-specialised string fields carry their format kind. Coercion
+// is still pass-through (see coerce_primitives.typ); _validate adds a
+// regex gate for these kinds.
+// Format-specialised kinds come from upstream `format` keywords. The
+// canonical document annotates email + uri fields and one date field
+// (certificates.date); other date fields use a `$ref` to iso8601 that
+// the translator can't pick up from the ref alone, so they stay as
+// `str` in the faithful default and only the strict variant lifts
+// them to date-string.
+#assert.eq(resume-schema.shape.basics.shape.email.kind, "email-string")
+#assert.eq(resume-schema.shape.basics.shape.url.kind, "uri-string")
+// basics.image is described as a URL in prose but not annotated with
+// `format: "uri"` upstream. Honour the source.
+#assert.eq(resume-schema.shape.basics.shape.image.kind, "str")
+#assert.eq(resume-schema.shape.work.elem.shape.url.kind, "uri-string")
 #assert.eq(resume-schema.shape.work.elem.shape.startDate.kind, "str")
+#assert.eq(resume-schema.shape.work.elem.shape.endDate.kind, "str")
+#assert.eq(resume-schema.shape.awards.elem.shape.date.kind, "str")
+#assert.eq(resume-schema.shape.certificates.elem.shape.date.kind, "date-string")
+#assert.eq(resume-schema.shape.publications.elem.shape.releaseDate.kind, "str")
+#assert.eq(resume-schema.shape.meta.shape.canonical.kind, "uri-string")
+#assert.eq(resume-schema.shape.meta.shape.lastModified.kind, "str")
 
 // Array-of-string fields (tags / lists).
 #assert.eq(resume-schema.shape.skills.elem.shape.keywords.kind, "array")

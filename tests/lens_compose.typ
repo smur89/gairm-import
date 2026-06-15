@@ -8,9 +8,9 @@
 )
 
 #let basics = lens(("basics",))
-#let just-email = lens(("email",))
-#let composed = lens-then(basics, just-email)
-#let direct = lens(("basics", "email"))
+#let just-name = lens(("name",))
+#let composed = lens-then(basics, just-name)
+#let direct = lens(("basics", "name"))
 
 #assert.eq(composed.path, direct.path)
 #assert.eq(lens-get(composed, resume-schema), lens-get(direct, resume-schema))

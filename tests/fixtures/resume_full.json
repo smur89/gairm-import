@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
   "basics": {
-    "name": "Seán Ó Murchú",
+    "name": "Se\u00e1n \u00d3 Murch\u00fa",
     "label": "Senior Software Engineer",
     "image": "https://example.com/sean.png",
     "email": "sean@example.com",
@@ -16,14 +16,46 @@
       "region": "Dublin"
     },
     "profiles": [
-      {"network": "LinkedIn", "username": "seanomurchu", "url": "https://linkedin.com/in/seanomurchu"},
-      {"network": "GitHub", "username": "seanomurchu", "url": "https://github.com/seanomurchu"},
-      {"network": "GitLab", "username": "seanomurchu", "url": "https://gitlab.com/seanomurchu"},
-      {"network": "Bluesky", "username": "@seanomurchu", "url": "https://bsky.app/profile/seanomurchu"},
-      {"network": "Mastodon", "username": "@sean@fosstodon.org", "url": "https://fosstodon.org/@sean"},
-      {"network": "Medium", "username": "@seanomurchu", "url": "https://medium.com/@seanomurchu"},
-      {"network": "Stackoverflow", "username": "seanomurchu", "url": "https://stackoverflow.com/u/1"},
-      {"network": "X", "username": "@seanomurchu", "url": "https://x.com/seanomurchu"}
+      {
+        "network": "LinkedIn",
+        "username": "seanomurchu",
+        "url": "https://linkedin.com/in/seanomurchu"
+      },
+      {
+        "network": "GitHub",
+        "username": "seanomurchu",
+        "url": "https://github.com/seanomurchu"
+      },
+      {
+        "network": "GitLab",
+        "username": "seanomurchu",
+        "url": "https://gitlab.com/seanomurchu"
+      },
+      {
+        "network": "Bluesky",
+        "username": "@seanomurchu",
+        "url": "https://bsky.app/profile/seanomurchu"
+      },
+      {
+        "network": "Mastodon",
+        "username": "@sean@fosstodon.org",
+        "url": "https://fosstodon.org/@sean"
+      },
+      {
+        "network": "Medium",
+        "username": "@seanomurchu",
+        "url": "https://medium.com/@seanomurchu"
+      },
+      {
+        "network": "Stackoverflow",
+        "username": "seanomurchu",
+        "url": "https://stackoverflow.com/u/1"
+      },
+      {
+        "network": "X",
+        "username": "@seanomurchu",
+        "url": "https://x.com/seanomurchu"
+      }
     ]
   },
   "work": [
@@ -58,7 +90,7 @@
       "position": "Mentor",
       "startDate": "2020-09",
       "highlights": [
-        "Weekly mentoring sessions for 10–14 year-olds learning to code.",
+        "Weekly mentoring sessions for 10\u201314 year-olds learning to code.",
         "Curate the Scala / functional-programming track."
       ]
     }
@@ -71,7 +103,11 @@
       "startDate": "2017",
       "endDate": "2019",
       "score": "Distinction",
-      "courses": ["Distributed Systems", "Type Theory", "Concurrency"]
+      "courses": [
+        "Distributed Systems",
+        "Type Theory",
+        "Concurrency"
+      ]
     },
     {
       "institution": "Trinity College Dublin",
@@ -105,7 +141,7 @@
       "url": "https://www.cncf.io/training/certification/ckad/"
     },
     {
-      "name": "AWS Solutions Architect — Professional",
+      "name": "AWS Solutions Architect \u2014 Professional",
       "issuer": "AWS",
       "date": "2023-04"
     },
@@ -133,30 +169,69 @@
   "skills": [
     {
       "name": "Languages",
-      "keywords": ["Scala", "Haskell", "Python", "Go", "Rust"]
+      "keywords": [
+        "Scala",
+        "Haskell",
+        "Python",
+        "Go",
+        "Rust"
+      ]
     },
     {
       "name": "Infra",
-      "keywords": ["Kafka", "AWS", "Terraform", "Docker", "Kubernetes"]
+      "keywords": [
+        "Kafka",
+        "AWS",
+        "Terraform",
+        "Docker",
+        "Kubernetes"
+      ]
     }
   ],
   "languages": [
-    {"language": "English", "fluency": "Native"},
-    {"language": "Irish", "fluency": "Professional Working"},
-    {"language": "French", "fluency": "Intermediate"}
+    {
+      "language": "English",
+      "fluency": "Native"
+    },
+    {
+      "language": "Irish",
+      "fluency": "Professional Working"
+    },
+    {
+      "language": "French",
+      "fluency": "Intermediate"
+    }
   ],
   "interests": [
-    {"name": "Music", "keywords": ["Trad", "Jazz"]},
-    {"name": "Sport", "keywords": ["Hurling", "Climbing"]},
-    {"name": "Travel", "keywords": ["Japan", "Iceland"]}
+    {
+      "name": "Music",
+      "keywords": [
+        "Trad",
+        "Jazz"
+      ]
+    },
+    {
+      "name": "Sport",
+      "keywords": [
+        "Hurling",
+        "Climbing"
+      ]
+    },
+    {
+      "name": "Travel",
+      "keywords": [
+        "Japan",
+        "Iceland"
+      ]
+    }
   ],
   "references": [
     {
       "name": "Dr Ada Lovelace",
-      "reference": "Seán is a calm, methodical engineer who left every system he touched in a better state than he found it. Recommended without reservation."
+      "reference": "Se\u00e1n is a calm, methodical engineer who left every system he touched in a better state than he found it. Recommended without reservation."
     },
     {
-      "reference": "Pragmatic, curious, unfailingly kind — would hire again in a heartbeat."
+      "reference": "Pragmatic, curious, unfailingly kind \u2014 would hire again in a heartbeat."
     }
   ],
   "projects": [
@@ -167,22 +242,31 @@
         "Handled 10k tasks/s on a single node.",
         "Designed an idempotent retry protocol."
       ],
-      "keywords": ["Rust", "Tokio", "gRPC"],
+      "keywords": [
+        "Rust",
+        "Tokio",
+        "gRPC"
+      ],
       "startDate": "2023-09",
       "endDate": "2024-04",
       "url": "https://github.com/seanomurchu/hyperion",
-      "roles": ["Designer", "Author"]
+      "roles": [
+        "Designer",
+        "Author"
+      ]
     },
     {
       "name": "Crucible",
       "description": "Migration tool for legacy databases",
-      "highlights": ["Schema diffing across PostgreSQL and MySQL."],
+      "highlights": [
+        "Schema diffing across PostgreSQL and MySQL."
+      ],
       "startDate": "2024-09"
     }
   ],
   "meta": {
     "canonical": "https://seanomurchu.dev/cv.json",
     "version": "v1.0.0",
-    "lastModified": "2026-06-15T10:00:00"
+    "lastModified": "2026-06-15"
   }
 }

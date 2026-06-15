@@ -11,14 +11,14 @@
 #assert.eq(lens-get(basics, resume-schema).kind, "object")
 #assert("name" in lens-get(basics, resume-schema).shape)
 
-#let email = lens(("basics", "email"))
-#assert.eq(lens-get(email, resume-schema), str-type)
+#let name = lens(("basics", "name"))
+#assert.eq(lens-get(name, resume-schema), str-type)
 
-#let widened = lens-put(email, resume-schema, content-type)
-#assert.eq(lens-get(email, widened), content-type)
+#let widened = lens-put(name, resume-schema, content-type)
+#assert.eq(lens-get(name, widened), content-type)
 // Sibling sections must survive the put untouched.
 #assert.eq(widened.shape.work, resume-schema.shape.work)
-#assert.eq(widened.shape.basics.shape.name, str-type)
+#assert.eq(widened.shape.basics.shape.label, str-type)
 
 // Immutability of the original after put.
-#assert.eq(lens-get(email, resume-schema), str-type)
+#assert.eq(lens-get(name, resume-schema), str-type)
