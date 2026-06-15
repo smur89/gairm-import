@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/smur89/typst-json-resume/compare/v0.3.0...v0.4.0) (2026-06-15)
+
+
+### Features
+
+* translator + validator support for JSON Schema enum and const ([#46](https://github.com/smur89/typst-json-resume/issues/46)) ([8e6e2d8](https://github.com/smur89/typst-json-resume/commit/8e6e2d84e22fea652374edcc88ee61f3539d2068))
+
 ## [0.3.0](https://github.com/smur89/typst-json-resume/compare/v0.2.0...v0.3.0) (2026-06-15)
 
 
