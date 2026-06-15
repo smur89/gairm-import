@@ -4,7 +4,7 @@
 
 #import "../lib.typ": (
   validate-resume, coerce-resume, parse-resume,
-  validate, coerce, format-errors,
+  validate, coerce, parse, format-errors,
   resume-schema, object, array-of, str-type, content-type, number-type,
   schema-from-json-schema,
 )

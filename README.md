@@ -154,8 +154,7 @@ combinators and the generic engines:
 
 ```typst
 #import "@preview/json-resume:0.1.1": ( // x-release-please-version
-  resume-schema, validate, coerce, format-errors,
-  object, array-of, str-type, content-type, number-type,
+  resume-schema, parse, object, array-of, str-type, content-type,
 )
 
 // Splice the canonical shape and add renderer-specific fields.
@@ -172,24 +171,38 @@ combinators and the generic engines:
   focusAreas: array-of(content-type),
 ))
 
+#let model = parse(altacv-schema, json("resume.json"))
+// render model with the renderer's own theme…
+```
+
+To handle errors yourself instead of aborting, use `validate(schema, data)` +
+`coerce(schema, data)` directly — both return data, neither panics on validation
+issues:
+
+```typst
+#import "@preview/json-resume:0.1.1": ( // x-release-please-version
+  validate, coerce, format-errors,
+)
+
 #let raw = json("resume.json")
 #let errors = validate(altacv-schema, raw)
-// assert preserves the multi-line bullet report; panic would collapse
-// it onto one line.
-#assert(errors.len() == 0, message: format-errors(errors))
-#let model = coerce(altacv-schema, raw)
-// render model with the renderer's own theme…
+#if errors.len() > 0 {
+  // Surface them in the document, log them, render a placeholder, …
+  [Resume has #errors.len() issue(s).]
+} else {
+  #let model = coerce(altacv-schema, raw)
+  // …
+}
 ```
 
 When to reach for which API:
 
-- **`parse-resume`** — canonical JSON Resume, no extensions. One call, validation
-  errors abort compilation with a combined report.
-- **`validate-resume` / `coerce-resume`** — canonical JSON Resume, but you want
-  to handle errors yourself (e.g. surface them in the document instead of
-  aborting).
-- **`validate` / `coerce` + combinators** — JSON-Resume+ with renderer-specific
-  fields. You own the schema; this package owns the engine.
+- **`parse-resume(data)` / `parse(schema, data)`** — one call, aborts compilation
+  with a combined report on validation issues. `parse-resume` is the canonical
+  shortcut; `parse` is the generic form.
+- **`validate-resume` / `coerce-resume`** (canonical) or **`validate` / `coerce`**
+  (generic) — return data instead of aborting, so you can present errors
+  yourself.
 
 `resume-schema.shape` is a plain dict, so `..resume-schema.shape` is the only
 operator you need to extend it. Per-section combinators (`work-item`,
