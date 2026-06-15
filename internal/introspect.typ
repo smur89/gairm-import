@@ -95,12 +95,15 @@
   }
 }
 
+// Container kinds (`object`, `array`) are deliberately rejected — the
+// walker descends through them, so accepting them would silently
+// return () for every call and mask the typo.
 #let paths-of-kind(schema, kind-name) = {
   assert(
-    kind-name in _leaf-kinds or kind-name in ("object", "array"),
+    kind-name in _leaf-kinds,
     message: "json-resume: paths-of-kind kind-name " + repr(kind-name) +
-      " is not a recognised schema kind. Expected one of: " +
-      _leaf-kinds.join(", ") + ", object, array.",
+      " is not a recognised leaf kind. Expected one of: " +
+      _leaf-kinds.join(", ") + ".",
   )
   _walk-paths(schema, (), kind-name)
 }

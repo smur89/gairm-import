@@ -95,12 +95,24 @@ work[]:
 
 // Format kinds carry through to the strict schema from the faithful
 // base (translator-emitted `format: "uri"` / `format: "email"`).
-#let uri-paths = paths-of-kind(resume-schema-strict, "uri-string")
-#assert(uri-paths.len() >= 1)
-#assert(("basics", "url") in uri-paths)
+// Full URI path list pinned so a translator regression surfaces here.
+#assert.eq(paths-of-kind(resume-schema-strict, "uri-string"), (
+  ("$schema",),
+  ("basics", "profiles", "items", "url"),
+  ("basics", "url"),
+  ("certificates", "items", "url"),
+  ("education", "items", "url"),
+  ("meta", "canonical"),
+  ("projects", "items", "url"),
+  ("publications", "items", "url"),
+  ("volunteer", "items", "url"),
+  ("work", "items", "url"),
+))
 
-#let email-paths = paths-of-kind(resume-schema-strict, "email-string")
-#assert.eq(email-paths, (("basics", "email"),))
+#assert.eq(
+  paths-of-kind(resume-schema-strict, "email-string"),
+  (("basics", "email"),),
+)
 
 // Date kind: only the strict overlay lifts the iso8601 $ref fields.
 // The faithful base sees only certificates.date.
