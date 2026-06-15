@@ -36,3 +36,40 @@
   let lines = errors.map(e => "  - " + _format-path(e.path) + ": " + e.message)
   "gairm-import: found " + str(n) + " " + noun + " in the input:\n" + lines.join("\n")
 }
+
+// Classic two-row Levenshtein edit distance. We fold over the
+// characters of `a`, carrying the previous DP row and producing the
+// next. Each new row is itself built by folding over the characters
+// of `b`, since cell `(i, j)` depends on `(i-1, j)`, `(i, j-1)` and
+// `(i-1, j-1)`. The base row is `0..n` (cost of deleting `j` chars
+// from `b` to reach the empty prefix of `a`).
+#let _edit-distance(a, b) = {
+  let ac = a.clusters()
+  let bc = b.clusters()
+  let n = bc.len()
+  let base-row = range(0, n + 1)
+  let final-row = ac.enumerate().fold(base-row, (prev, pair) => {
+    let (i, ca) = pair
+    bc.enumerate().fold((i + 1,), (row, pair2) => {
+      let (j, cb) = pair2
+      let cost = if ca == cb { 0 } else { 1 }
+      let deletion = prev.at(j + 1) + 1
+      let insertion = row.at(j) + 1
+      let substitution = prev.at(j) + cost
+      row + (calc.min(deletion, insertion, substitution),)
+    })
+  })
+  final-row.at(n)
+}
+
+// Pure: rank candidates by edit distance, return the closest one
+// inside `max-distance`. Empty `candidates` → none. Ties resolved by
+// `sorted`'s stable order (i.e. input order).
+#let _closest-match(target, candidates, max-distance) = {
+  let ranked = candidates
+    .map(c => (key: c, distance: _edit-distance(target, c)))
+    .sorted(key: e => e.distance)
+  let best = ranked.at(0, default: none)
+  if best == none { return none }
+  if best.distance <= max-distance { best.key } else { none }
+}
