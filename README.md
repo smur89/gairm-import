@@ -330,14 +330,16 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 ```
 
 Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
-`object`), `format` (`uri`/`email`/`date`/`date-time` — currently degraded to
-plain string until format-aware combinators land), `properties`, `required`,
-`items`, internal `$ref` (`#/definitions/…` / `#/$defs/…`). Out of scope:
+`object`), `format` (`uri` → `uri-string`, `email` → `email-string`,
+`date` → `date-string`), `properties`, `required`, `items`, internal `$ref`
+(`#/definitions/…` / `#/$defs/…`). Out of scope:
 `allOf` / `anyOf` / `oneOf` / `not`, `enum` / `const`,
 `if` / `then` / `else`, `dependencies` (and the `dependentRequired` /
 `dependentSchemas` variants), open object schemas (`type: "object"` without
 `properties`), `type: [...]` union arrays, external `$ref`, and string formats
-other than the four listed above — every one of these panics with a clear
+other than the three listed above (notably `date-time`, which would need its
+own datetime-string kind to avoid labelling a datetime then rejecting its
+values against a date-only regex) — every one of these panics with a clear
 "unsupported" message rather than silently dropping the constraint.
 
 ## Scope
