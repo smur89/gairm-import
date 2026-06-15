@@ -1,7 +1,7 @@
 // JSON Schema (draft 7 subset) → Typst-schema translator. Anything
 // not supported panics rather than silently dropping the constraint.
 
-#import "schema.typ": str-type, content-type, number-type, array-of, object
+#import "kinds.typ": str-type, content-type, number-type, array-of, object
 
 // One panic prefix so every diagnostic from this module is grep-able
 // by "schema-from-json-schema —".

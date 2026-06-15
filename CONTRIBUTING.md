@@ -25,9 +25,39 @@ to the appropriate downstream template repo.
 ## Project layout
 
 ```text
-lib.typ           # public entry — `parse`, `validate`, `coerce`, combinators
-tests/            # fixtures — CI compiles each as a regression guard
+lib.typ                              # public entry — `parse`, `validate`, `coerce`, combinators, lenses
+internal/kinds.typ                   # schema-kind primitives (str-type, content-type, object, array-of, …)
+internal/schema.typ                  # canonical resume-schema (derived from the vendored JSON Schema)
+internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.0.0
+internal/validate.typ                # validation engine (path-typed errors)
+internal/coerce.typ                  # coercion engine (content wrapping, null absorption)
+internal/json-schema.typ             # JSON Schema → Typst-schema translator
+internal/lens.typ                    # path-based functional editing of schemas
+tests/                               # fixtures — CI compiles each as a regression guard
 ```
+
+## Bumping the vendored JSON Resume schema
+
+`internal/schema.typ` derives `resume-schema` from
+`internal/assets/jsonresume-schema.json` at module-load time, so the
+upstream document is the source of truth. To pull a newer upstream version:
+
+1. Replace `internal/assets/jsonresume-schema.json` with the chosen tag from
+   [jsonresume/resume-schema](https://github.com/jsonresume/resume-schema).
+2. Run `make test`. The translator handles the draft-04/-07 subset that the
+   canonical document uses; newer constructs (`allOf`/`anyOf`/`oneOf`,
+   `enum`/`const`, format-aware types beyond uri/email/date/date-time, open
+   objects, type unions, external `$ref`) panic with an "unsupported" message.
+   If a panic surfaces, extend `internal/json-schema.typ` rather than
+   silently dropping the constraint.
+3. Audit `_content-paths` in `internal/schema.typ` against any new free-text
+   fields. The override list is the single point of "this string should be
+   coerced to Typst `content` for inline rendering" — see issue #32 for the
+   open question on whether `content-type` should exist at all, or move to
+   config; the override list is the temporary home until that decision.
+
+`feat:` commit if the bump introduces new fields or behaviour;
+`chore(deps):` if it's a no-op refresh.
 
 ## Development loop
 

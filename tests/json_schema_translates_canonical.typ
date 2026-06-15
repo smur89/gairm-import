@@ -5,7 +5,7 @@
 
 #import "../lib.typ": schema-from-json-schema, validate, str-type
 
-#let canonical-js = json("fixtures/jsonresume-schema.json")
+#let canonical-js = json("../internal/assets/jsonresume-schema.json")
 #let canonical = schema-from-json-schema(canonical-js)
 
 #let expected-keys = (
