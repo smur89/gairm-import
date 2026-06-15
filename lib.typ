@@ -9,47 +9,48 @@
 #import "internal/errors.typ": _format-report
 #import "internal/json-schema.typ": schema-from-json-schema
 
-// Format a list of `(path, message)` records into the same combined
-// report `parse-resume` produces — for BYO consumers calling
-// `validate(schema, data)` themselves.
+// Engines treat `none` at any value position as "key absent" — right
+// for leaves inside a document, but a null root is always invalid
+// (no schema can validate "missing document"). One source of truth
+// for the message so docs and tests have something stable to pin.
+#let _reject-none-root(data) = {
+  if data == none { panic("json-resume: input must be a dict, got null.") }
+}
+
+// Combined-report formatter, for callers handling errors themselves
+// instead of letting `parse` abort.
 #let format-errors(errors) = _format-report(errors)
 
-// Generic engines bound to a caller-supplied schema. Returns a list
-// of {path, message} records; empty = valid.
-#let validate(schema, data) = _validate(schema, data, ())
-
-// Assumes data has passed `validate(schema, ...)`. Unknown keys are
-// dropped silently rather than panicking on direct callers.
-#let coerce(schema, data) = _coerce(schema, data)
-
-// Strict canonical wrappers — pre-bound to resume-schema. The engines
-// treat `none` at any value position as "key absent", which is the
-// right rule for leaves inside a document but would silently accept a
-// null root. These wrappers reject that explicitly so a caller passing
-// the wrong thing gets a friendly panic, not garbage. (`parse-resume`
-// rejects `none` via its own dict-or-string type check below.)
-
-#let validate-resume(data) = {
-  if data == none { panic("json-resume: input must be a dict, got null.") }
-  _validate(resume-schema, data, ())
+#let validate(data, schema: resume-schema) = {
+  _reject-none-root(data)
+  _validate(schema, data, ())
 }
 
-#let coerce-resume(data) = {
-  if data == none { panic("json-resume: input must be a dict, got null.") }
-  _coerce(resume-schema, data)
+// Unknown keys are dropped silently rather than panicking, so direct
+// callers who skip validation don't get a Typst dictionary-access
+// panic.
+#let coerce(data, schema: resume-schema) = {
+  _reject-none-root(data)
+  _coerce(schema, data)
 }
 
+// One-call composition. Accepts a parsed dict OR a Typst-root-relative
+// path string ("/…"); validates, aborts compilation with the combined
+// report on issues, otherwise coerces.
+//
 // String paths must start with "/" because Typst resolves relative
-// paths against the file containing the call — for this package
-// that's the @preview cache, which is not what callers want.
-#let parse-resume(data) = {
+// paths against the file containing the call — here that's the
+// @preview cache. For paths relative to the caller's own .typ, pass
+// `json("…")` instead.
+#let parse(data, schema: resume-schema) = {
+  _reject-none-root(data)
   let dict-data = if type(data) == str {
     if not data.starts-with("/") {
       panic(
-        "json-resume: parse-resume with a string path requires the path " +
+        "json-resume: parse with a string path requires the path " +
           "to start with \"/\" (resolved from the typst root). Got: " + repr(data) + ". " +
-          "To use a path relative to your own .typ file, call json() " +
-          "directly: parse-resume(json(" + repr(data) + ")).",
+          "To use a path relative to your own .typ file, pass " +
+          "json(" + repr(data) + ") in place of the path string.",
       )
     }
     json(data)
@@ -57,13 +58,13 @@
     data
   } else {
     panic(
-      "json-resume: parse-resume expected a dict or a string path, got " +
+      "json-resume: parse expected a dict or a string path, got " +
         repr(type(data)) + ".",
     )
   }
-  let errors = validate-resume(dict-data)
+  let errors = _validate(schema, dict-data, ())
   // assert preserves newlines in the diagnostic; panic repr-escapes
   // them and collapses the bullet list onto one line.
   assert(errors.len() == 0, message: format-errors(errors))
-  coerce-resume(dict-data)
+  _coerce(schema, dict-data)
 }

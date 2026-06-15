@@ -3,7 +3,7 @@
 // `none` value to special-case. This mirrors the validate-side
 // policy in tests/validate_null_handling.typ.
 
-#import "../lib.typ": coerce-resume
+#import "../lib.typ": coerce
 #import "../internal/coerce.typ": _coerce
 #import "../internal/schema.typ": str-type, content-type, number-type, array-of, object
 
@@ -66,7 +66,7 @@
   skills: none,
   meta: none,
 )
-#let model = coerce-resume(raw)
+#let model = coerce(raw)
 
 #assert.eq(model.basics.name, "Alice")
 #assert("summary" not in model.basics)
@@ -101,10 +101,10 @@
 // top-level resume whose only present section is itself all-null
 // coerces to `none` (consistent extension of the policy — every key
 // in the root coerced to absent, so the root is absent too).
-#let all-null-basics = coerce-resume((basics: (name: none, email: none, summary: none)))
+#let all-null-basics = coerce((basics: (name: none, email: none, summary: none)))
 #assert.eq(all-null-basics, none)
 
 // And a single live leaf anywhere keeps the chain intact.
-#let one-leaf = coerce-resume((basics: (name: "Alice", email: none)))
+#let one-leaf = coerce((basics: (name: "Alice", email: none)))
 #assert.eq(one-leaf.basics.name, "Alice")
 #assert("email" not in one-leaf.basics)

@@ -25,7 +25,7 @@ to the appropriate downstream template repo.
 ## Project layout
 
 ```text
-lib.typ           # public entry — `read-resume`, `parse-resume`
+lib.typ           # public entry — `parse`, `validate`, `coerce`, combinators
 tests/            # fixtures — CI compiles each as a regression guard
 ```
 
