@@ -94,12 +94,18 @@ jobs:
           persist-credentials: false
           ref: ${{ needs.release-please.outputs.tag_name }}
 
+      # The tarball MUST include every file the package needs at compile
+      # time + every file the README links to relatively, or Universe's
+      # package-check rejects with `compile/error` / `readme/link/file-
+      # not-found`. `internal/` is imported transitively from lib.typ;
+      # CONTRIBUTING.md is referenced from the README's Contributing
+      # section.
       - name: Build package tarball
         env:
           VERSION: ${{ needs.release-please.outputs.version }}
         run: |
           tar czf "${PACKAGE_NAME}-${VERSION}.tar.gz" \
-            typst.toml lib.typ LICENSE README.md
+            typst.toml lib.typ internal/ LICENSE README.md CONTRIBUTING.md
 
       - name: Attach tarball to release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
