@@ -26,7 +26,7 @@ Motivated by [smur89/alta-typst#48](https://github.com/smur89/alta-typst/issues/
 ## Install
 
 ```typst
-#import "@preview/json-resume:0.1.1": validate, coerce, parse // x-release-please-version
+#import "@preview/json-resume:0.2.0": validate, coerce, parse // x-release-please-version
 ```
 
 ## A minimal `resume.json`
@@ -62,7 +62,7 @@ The full canonical schema covers thirteen sections:
 or a Typst-root-relative path string:
 
 ```typst
-#import "@preview/json-resume:0.1.1": parse // x-release-please-version
+#import "@preview/json-resume:0.2.0": parse // x-release-please-version
 
 // Path relative to your own .typ — let Typst's json() resolve it.
 #let resume = parse(json("resume.json"))
@@ -87,7 +87,7 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 
 ```typst
 #import "@preview/altacv:1.1.1": alta, palettes
-#import "@preview/json-resume:0.1.1": parse // x-release-please-version
+#import "@preview/json-resume:0.2.0": parse // x-release-please-version
 
 #alta(
   parse(json("resume.json")),
@@ -105,7 +105,7 @@ for the full surface.
 Each error is a record `(path: ("basics", "email"), message: "expected string, got integer.")`. A typical step-by-step is:
 
 ```typst
-#import "@preview/json-resume:0.1.1": validate, coerce // x-release-please-version
+#import "@preview/json-resume:0.2.0": validate, coerce // x-release-please-version
 
 #let raw = json("resume.json")
 #let errors = validate(raw)
@@ -154,7 +154,7 @@ combinators and pass it to `parse` / `validate` / `coerce` via the
 `schema:` keyword:
 
 ```typst
-#import "@preview/json-resume:0.1.1": ( // x-release-please-version
+#import "@preview/json-resume:0.2.0": ( // x-release-please-version
   resume-schema, parse, object, array-of, str-type, content-type,
 )
 
@@ -199,7 +199,7 @@ a path inside the schema and return a new schema with the targeted node
 replaced or transformed:
 
 ```typst
-#import "@preview/json-resume:0.1.1": ( // x-release-please-version
+#import "@preview/json-resume:0.2.0": ( // x-release-please-version
   resume-schema, lens, lens-put, lens-over, add-field,
   str-type, content-type, number-type, object,
 )
@@ -255,7 +255,7 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 `.json` schema and don't want to keep a parallel Typst copy in sync:
 
 ```typst
-#import "@preview/json-resume:0.1.1": ( // x-release-please-version
+#import "@preview/json-resume:0.2.0": ( // x-release-please-version
   schema-from-json-schema, coerce, object, array-of, content-type,
 )
 
