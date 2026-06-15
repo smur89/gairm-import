@@ -7,6 +7,7 @@
 #import "internal/validate.typ": _validate
 #import "internal/coerce.typ": _coerce
 #import "internal/errors.typ": _format-report
+#import "internal/json-schema.typ": schema-from-json-schema
 
 // Format a list of `(path, message)` records into the same combined
 // report `parse-resume` produces — for BYO consumers calling
