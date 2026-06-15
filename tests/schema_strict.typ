@@ -21,16 +21,35 @@
 #assert.eq(resume-schema-strict.shape.projects.elem.shape.description, content-type)
 #assert.eq(resume-schema-strict.shape.projects.elem.shape.highlights.elem, content-type)
 
-// _date-paths: iso8601 $ref fields lifted to date-string.
+// _date-paths: iso8601 $ref fields lifted to date-string. Every path
+// in internal/schema.typ's _date-paths is pinned here so a stale or
+// missing override surfaces as a test failure, not as silent loss of
+// date validation.
 #assert.eq(resume-schema-strict.shape.work.elem.shape.startDate, date-string)
 #assert.eq(resume-schema-strict.shape.work.elem.shape.endDate, date-string)
+#assert.eq(resume-schema-strict.shape.volunteer.elem.shape.startDate, date-string)
+#assert.eq(resume-schema-strict.shape.volunteer.elem.shape.endDate, date-string)
+#assert.eq(resume-schema-strict.shape.education.elem.shape.startDate, date-string)
+#assert.eq(resume-schema-strict.shape.education.elem.shape.endDate, date-string)
 #assert.eq(resume-schema-strict.shape.awards.elem.shape.date, date-string)
 #assert.eq(resume-schema-strict.shape.publications.elem.shape.releaseDate, date-string)
+#assert.eq(resume-schema-strict.shape.projects.elem.shape.startDate, date-string)
+#assert.eq(resume-schema-strict.shape.projects.elem.shape.endDate, date-string)
 #assert.eq(resume-schema-strict.shape.meta.shape.lastModified, date-string)
 
 // Translator-emitted format kinds carry over from the faithful base.
+// Pinning every upstream-format-annotated path so a future schema
+// bump that drops a `format: "uri"` annotation surfaces here rather
+// than as silent loss of URI validation.
 #assert.eq(resume-schema-strict.shape.basics.shape.email, email-string)
 #assert.eq(resume-schema-strict.shape.basics.shape.url, uri-string)
+#assert.eq(resume-schema-strict.shape.work.elem.shape.url, uri-string)
+#assert.eq(resume-schema-strict.shape.volunteer.elem.shape.url, uri-string)
+#assert.eq(resume-schema-strict.shape.education.elem.shape.url, uri-string)
+#assert.eq(resume-schema-strict.shape.certificates.elem.shape.url, uri-string)
+#assert.eq(resume-schema-strict.shape.publications.elem.shape.url, uri-string)
+#assert.eq(resume-schema-strict.shape.projects.elem.shape.url, uri-string)
+#assert.eq(resume-schema-strict.shape.meta.shape.canonical, uri-string)
 #assert.eq(resume-schema-strict.shape.certificates.elem.shape.date, date-string)
 
 // Faithfulness: the strict overlay must NOT mutate the default
