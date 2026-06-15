@@ -28,3 +28,8 @@
 // kind-mismatch case + its own message for the unknown-keys case.
 #assert(src.contains("_require-object(parent, \"set-required\")"))
 #assert(src.contains("set-required keys not in object shape"))
+
+// unset-required mirrors set-required for the kind-mismatch case and
+// carries its own diagnostic for the absent-required-key case.
+#assert(src.contains("_require-object(parent, \"unset-required\")"))
+#assert(src.contains("unset-required keys not in required-keys"))
