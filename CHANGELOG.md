@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/smur89/typst-json-resume/compare/v0.1.0...v0.1.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* **release:** clear typst/packages submission errors and warnings ([#13](https://github.com/smur89/typst-json-resume/issues/13)) ([fc9c512](https://github.com/smur89/typst-json-resume/commit/fc9c5124911d088a86cf588771aae451b91a364d))
+
 ## [0.1.0](https://github.com/smur89/typst-json-resume/compare/v0.0.1...v0.1.0) (2026-06-14)
 
 

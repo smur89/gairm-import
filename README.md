@@ -26,7 +26,7 @@ Motivated by [smur89/alta-typst#48](https://github.com/smur89/alta-typst/issues/
 ## Install
 
 ```typst
-#import "@preview/json-resume:0.1.0": validate-resume, coerce-resume, parse-resume // x-release-please-version
+#import "@preview/json-resume:0.1.1": validate-resume, coerce-resume, parse-resume // x-release-please-version
 ```
 
 ## A minimal `resume.json`
@@ -62,7 +62,7 @@ The full canonical schema covers thirteen sections:
 or a Typst-root-relative path string:
 
 ```typst
-#import "@preview/json-resume:0.1.0": parse-resume // x-release-please-version
+#import "@preview/json-resume:0.1.1": parse-resume // x-release-please-version
 
 // Path relative to your own .typ — let Typst's json() resolve it.
 #let resume = parse-resume(json("resume.json"))
@@ -87,7 +87,7 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 
 ```typst
 #import "@preview/altacv:1.1.1": alta, palettes
-#import "@preview/json-resume:0.1.0": parse-resume // x-release-please-version
+#import "@preview/json-resume:0.1.1": parse-resume // x-release-please-version
 
 #alta(
   parse-resume(json("resume.json")),
@@ -105,7 +105,7 @@ for the full surface.
 Each error is a record `(path: ("basics", "email"), message: "expected string, got integer.")`. A typical step-by-step is:
 
 ```typst
-#import "@preview/json-resume:0.1.0": validate-resume, coerce-resume // x-release-please-version
+#import "@preview/json-resume:0.1.1": validate-resume, coerce-resume // x-release-please-version
 
 #let raw = json("resume.json")
 #let errors = validate-resume(raw)
