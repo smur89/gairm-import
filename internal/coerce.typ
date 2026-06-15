@@ -22,8 +22,8 @@
 #import "errors.typ": _type-name-of
 
 #let _expect(expected, value) = (
-  "json-resume: coerce-resume expected " + expected + ", got " +
-    _type-name-of(value) + ". Run validate-resume first."
+  "json-resume: coerce expected " + expected + ", got " +
+    _type-name-of(value) + ". Run validate(schema, data) first."
 )
 
 #let _coerce(schema, value) = {

@@ -144,12 +144,66 @@ Root null is rejected: if the entire input document is `null`,
 policy applies to leaf positions inside a document, not to the
 document itself.
 
+## Building an extension schema
+
+`parse-resume` is strict against the canonical schema by design — unknown keys
+are rejected. Renderers that need their own fields (alta-typst's
+`preferences`, `labels`, `focusAreas`; numeric language `rating`; publication
+`type` grouping; …) can build a JSON-Resume+ schema on top using the public
+combinators and the generic engines:
+
+```typst
+#import "@preview/json-resume:0.1.1": ( // x-release-please-version
+  resume-schema, validate, coerce, format-errors,
+  object, array-of, str-type, content-type, number-type,
+)
+
+// Splice the canonical shape and add renderer-specific fields.
+#let altacv-schema = object((
+  ..resume-schema.shape,
+  preferences: object((
+    accent: str-type,
+    headerLayout: str-type,
+  )),
+  labels: object((
+    work: str-type,
+    education: str-type,
+  )),
+  focusAreas: array-of(content-type),
+))
+
+#let raw = json("resume.json")
+#let errors = validate(altacv-schema, raw)
+// assert preserves the multi-line bullet report; panic would collapse
+// it onto one line.
+#assert(errors.len() == 0, message: format-errors(errors))
+#let model = coerce(altacv-schema, raw)
+// render model with the renderer's own theme…
+```
+
+When to reach for which API:
+
+- **`parse-resume`** — canonical JSON Resume, no extensions. One call, validation
+  errors abort compilation with a combined report.
+- **`validate-resume` / `coerce-resume`** — canonical JSON Resume, but you want
+  to handle errors yourself (e.g. surface them in the document instead of
+  aborting).
+- **`validate` / `coerce` + combinators** — JSON-Resume+ with renderer-specific
+  fields. You own the schema; this package owns the engine.
+
+`resume-schema.shape` is a plain dict, so `..resume-schema.shape` is the only
+operator you need to extend it. Per-section combinators (`work-item`,
+`volunteer-item`, …) are intentionally not exposed yet — splice the canonical
+top-level fields whole and add your own siblings.
+
 ## Scope
 
-This package implements **only** the canonical JSON Resume schema.
-Template-specific extensions (theme colours, header decorations, label
-overrides, …) are layered on top by the consuming renderer. Requests for
-renderer-specific fields will be redirected to the relevant template repo.
+The canonical surface — `parse-resume`, `validate-resume`, `coerce-resume` —
+implements **only** the [JSON Resume schema](https://jsonresume.org/schema) and
+rejects unknown fields. Renderer-specific extensions are layered on top by the
+consuming template via the BYO API above; requests for renderer-specific
+fields in the canonical schema itself will be redirected to the relevant
+template repo.
 
 ## Contributing
 
