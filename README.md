@@ -144,6 +144,28 @@ Root null is rejected: if the entire input document is `null`,
 policy applies to leaf positions inside a document, not to the
 document itself.
 
+## Format validation
+
+Fields the canonical schema annotates with `format: "uri"`,
+`format: "email"`, `format: "date"`, or `$ref: "#/definitions/iso8601"`
+are gated by a regex during `validate` / `parse`. The patterns are
+deliberately permissive — they reject obvious malformations without
+claiming full RFC compliance — and each emits a path-qualified message
+with a canonical example:
+
+```text
+basics.email:    expected an email (e.g. "name@example.com").
+basics.url:      expected a URI (e.g. "https://example.com").
+work[0].startDate: expected an ISO-8601 date (e.g. "2024-01-15").
+```
+
+Coercion is pass-through: format-checked values flow through to the
+model as plain strings, so renderers receive
+`model.basics.email == "name@example.com"` unchanged. Use lens-overrides
+to relax or strengthen specific fields in an extension schema —
+`lens-put(lens(("basics", "email")), my-schema, str-type)` drops the
+gate on email, for example.
+
 ## Building an extension schema
 
 `parse` is strict against the canonical schema by design — unknown keys

@@ -8,7 +8,10 @@
 // inline rendering. Open question tracked in #32 — either the
 // override earns its keep or it moves to config / disappears.
 
-#import "kinds.typ": str-type, content-type, number-type, array-of, object
+#import "kinds.typ": (
+  str-type, content-type, number-type, array-of, object,
+  date-string, uri-string, email-string,
+)
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
 
@@ -25,20 +28,47 @@
   ("projects", "items", "highlights", "items"),
 )
 
-// The pre-condition `lens-get == str-type` turns silent drift into a
-// load-time panic: if a future schema bump changes one of these
-// fields away from `string`, the override would otherwise mask the
-// shape change. The guard fires instead, prompting maintainer review.
-#let resume-schema = _content-paths.fold(
-  schema-from-json-schema(json("assets/jsonresume-schema.json")),
-  (s, p) => {
-    let l = lens(p)
-    assert(
-      lens-get(l, s) == str-type,
-      message: "json-resume: _content-paths must target string leaves only — " +
-        repr(p) + " is now " + repr(lens-get(l, s).kind) +
-        ". Audit upstream schema bump.",
-    )
-    lens-put(l, s, content-type)
-  },
+// Date fields whose upstream JSON uses `$ref: "#/definitions/iso8601"`
+// rather than `format: "date"` — the translator can't pick them up
+// from a $ref alone, so they need a lens override. Also includes
+// meta.lastModified, which has no format annotation despite an
+// ISO-8601 description. Paths with an explicit `format: "date"` are
+// translator-emitted and would fail the drift guard if listed here.
+#let _date-paths = (
+  ("work", "items", "startDate"),
+  ("work", "items", "endDate"),
+  ("volunteer", "items", "startDate"),
+  ("volunteer", "items", "endDate"),
+  ("education", "items", "startDate"),
+  ("education", "items", "endDate"),
+  ("awards", "items", "date"),
+  ("publications", "items", "releaseDate"),
+  ("projects", "items", "startDate"),
+  ("projects", "items", "endDate"),
+  ("meta", "lastModified"),
 )
+
+// Pre-condition guard turns silent upstream drift into a load-time
+// panic: if a future schema bump changes one of these fields away
+// from the expected source kind, the override would otherwise mask
+// the shape change. The guard fires instead, prompting maintainer
+// review. Same pattern as _content-paths.
+#let _override-fold(schema, paths, expected-source, replacement, list-name) = {
+  paths.fold(schema, (s, p) => {
+    let l = lens(p)
+    let current = lens-get(l, s)
+    assert(
+      current == expected-source,
+      message: "json-resume: " + list-name + " must target " +
+        repr(expected-source.kind) + " leaves only — " + repr(p) +
+        " is now " + repr(current.kind) + ". Audit upstream schema bump.",
+    )
+    lens-put(l, s, replacement)
+  })
+}
+
+#let resume-schema = {
+  let base = schema-from-json-schema(json("assets/jsonresume-schema.json"))
+  let with-content = _override-fold(base, _content-paths, str-type, content-type, "_content-paths")
+  _override-fold(with-content, _date-paths, str-type, date-string, "_date-paths")
+}

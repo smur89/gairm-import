@@ -7,6 +7,14 @@
 #let content-type = (kind: "content")
 #let number-type  = (kind: "number")
 
+// Format-specialised string kinds — coerce identically to `str`
+// (pass-through), but `_validate` adds a regex gate. Patterns are
+// deliberately permissive; they reject obvious malformations without
+// claiming full RFC compliance.
+#let date-string  = (kind: "date-string")
+#let uri-string   = (kind: "uri-string")
+#let email-string = (kind: "email-string")
+
 #let array-of(elem) = (kind: "array", elem: elem)
 
 // Reject required-keys that don't appear in shape so a schema typo

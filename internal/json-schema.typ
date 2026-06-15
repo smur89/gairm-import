@@ -1,7 +1,23 @@
 // JSON Schema (draft 7 subset) → Typst-schema translator. Anything
 // not supported panics rather than silently dropping the constraint.
 
-#import "kinds.typ": str-type, content-type, number-type, array-of, object
+#import "kinds.typ": (
+  str-type, content-type, number-type, array-of, object,
+  date-string, uri-string, email-string,
+)
+
+// Standard JSON Schema `format` keywords mapped to the package's
+// format-specialised string kinds. iso8601 fields in JSON Resume use
+// a `$ref` instead of `format` — those are picked up in
+// internal/schema.typ via lens-override. `date-time` is intentionally
+// absent: the date-string regex is date-only, so accepting a
+// `format: "date-time"` annotation would label values date-string
+// then reject the actual datetime strings.
+#let _format-kinds = (
+  "uri": uri-string,
+  "email": email-string,
+  "date": date-string,
+)
 
 // One panic prefix so every diagnostic from this module is grep-able
 // by "schema-from-json-schema —".
@@ -58,13 +74,12 @@
   }
   let t = js.at("type", default: none)
   if t == "string" {
-    // TODO(#10): once feat/format-validation lands, swap str-type for
-    // date-string / uri-string / email-string per `format`.
     let fmt = js.at("format", default: none)
-    if fmt != none and fmt not in ("uri", "email", "date", "date-time") {
+    if fmt == none { return str-type }
+    if fmt not in _format-kinds {
       _bail("unsupported string format: " + repr(fmt) + ".")
     }
-    return str-type
+    return _format-kinds.at(fmt)
   }
   if t == "number" or t == "integer" { return number-type }
   if t == "array" {

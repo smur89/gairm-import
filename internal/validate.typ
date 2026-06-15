@@ -17,6 +17,29 @@
   message: "expected " + expected + ", got " + _type-name-of(value) + ".",
 ),)
 
+// Tightened over the canonical JSON Resume regexes — the upstream
+// forms accept impossible months (13-19) and days (32-39) because
+// they use [0-1][0-9] / [0-3][0-9]. Anchored ^…$ so value.match()
+// succeeds iff the whole string conforms. The patterns are
+// deliberately permissive: they reject obvious malformations without
+// claiming full RFC compliance. Message omits the offending value
+// since the path already names the field and the canonical example
+// in `expected` is the actionable hint.
+#let _format-specs = (
+  "date-string": (
+    pattern: regex("^([1-2][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[1-2][0-9]{3}-(0[1-9]|1[0-2])|[1-2][0-9]{3})$"),
+    expected: "an ISO-8601 date (e.g. \"2024-01-15\")",
+  ),
+  "uri-string": (
+    pattern: regex("^[A-Za-z][A-Za-z0-9+.\-]*://\S+$"),
+    expected: "a URI (e.g. \"https://example.com\")",
+  ),
+  "email-string": (
+    pattern: regex("^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$"),
+    expected: "an email (e.g. \"name@example.com\")",
+  ),
+)
+
 #let _validate(schema, value, path) = {
   // Null at any value position is "key absent" — no error, no
   // recursion. Single early return handles every shape uniformly:
@@ -26,6 +49,14 @@
   let kind = schema.kind
   if kind in ("str", "content") {
     if type(value) != str { return _type-error(path, "string", value) }
+    return ()
+  }
+  if kind in _format-specs {
+    if type(value) != str { return _type-error(path, "string", value) }
+    let spec = _format-specs.at(kind)
+    if value.match(spec.pattern) == none {
+      return ((path: path, message: "expected " + spec.expected + "."),)
+    }
     return ()
   }
   if kind == "number" {

@@ -1,28 +1,25 @@
 #import "../lib.typ": (
   schema-from-json-schema,
   str-type, number-type, array-of, object,
+  date-string, uri-string, email-string,
 )
 
 #assert.eq(schema-from-json-schema((type: "string")), str-type)
 #assert.eq(schema-from-json-schema((type: "number")), number-type)
 #assert.eq(schema-from-json-schema((type: "integer")), number-type)
 
-// Format degrades to str-type until #10 wires format-aware combinators.
+// Format keywords map to format-specialised string kinds.
 #assert.eq(
   schema-from-json-schema((type: "string", format: "uri")),
-  str-type,
+  uri-string,
 )
 #assert.eq(
   schema-from-json-schema((type: "string", format: "email")),
-  str-type,
+  email-string,
 )
 #assert.eq(
   schema-from-json-schema((type: "string", format: "date")),
-  str-type,
-)
-#assert.eq(
-  schema-from-json-schema((type: "string", format: "date-time")),
-  str-type,
+  date-string,
 )
 
 #assert.eq(

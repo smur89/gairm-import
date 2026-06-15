@@ -16,9 +16,10 @@
 // added that violates this shape, this assertion surfaces it.
 #for (key, sub-schema) in resume-schema.shape.pairs() {
   if key == "$schema" {
+    // $schema is a URI in JSON Schema (carries the format: "uri" hint).
     assert.eq(
-      sub-schema.kind, "str",
-      message: "$schema must be str-typed; got " + sub-schema.kind,
+      sub-schema.kind, "uri-string",
+      message: "$schema must be uri-string; got " + sub-schema.kind,
     )
   } else {
     let kind = sub-schema.kind
@@ -58,9 +59,24 @@
 
 // Plain-string identifiers stay str-typed.
 #assert.eq(resume-schema.shape.basics.shape.name.kind, "str")
-#assert.eq(resume-schema.shape.basics.shape.email.kind, "str")
-#assert.eq(resume-schema.shape.work.elem.shape.url.kind, "str")
-#assert.eq(resume-schema.shape.work.elem.shape.startDate.kind, "str")
+
+// Format-specialised string fields carry their format kind. Coercion
+// is still pass-through (see coerce_primitives.typ); _validate adds a
+// regex gate for these kinds.
+#assert.eq(resume-schema.shape.basics.shape.email.kind, "email-string")
+#assert.eq(resume-schema.shape.basics.shape.url.kind, "uri-string")
+// basics.image is intentionally plain "str": the upstream JSON Schema
+// describes it as a URL in prose but never declares `format: "uri"`.
+// We honour the source rather than over-coercing.
+#assert.eq(resume-schema.shape.basics.shape.image.kind, "str")
+#assert.eq(resume-schema.shape.work.elem.shape.url.kind, "uri-string")
+#assert.eq(resume-schema.shape.work.elem.shape.startDate.kind, "date-string")
+#assert.eq(resume-schema.shape.work.elem.shape.endDate.kind, "date-string")
+#assert.eq(resume-schema.shape.awards.elem.shape.date.kind, "date-string")
+#assert.eq(resume-schema.shape.certificates.elem.shape.date.kind, "date-string")
+#assert.eq(resume-schema.shape.publications.elem.shape.releaseDate.kind, "date-string")
+#assert.eq(resume-schema.shape.meta.shape.canonical.kind, "uri-string")
+#assert.eq(resume-schema.shape.meta.shape.lastModified.kind, "date-string")
 
 // Array-of-string fields (tags / lists).
 #assert.eq(resume-schema.shape.skills.elem.shape.keywords.kind, "array")

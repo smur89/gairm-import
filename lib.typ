@@ -3,7 +3,11 @@
 // pure functions of (schema, value); see
 // tests/engine_schema_agnostic.typ for the BYO-schema contract.
 
-#import "internal/schema.typ": resume-schema, str-type, content-type, number-type, array-of, object
+#import "internal/schema.typ": (
+  resume-schema,
+  str-type, content-type, number-type, array-of, object,
+  date-string, uri-string, email-string,
+)
 #import "internal/validate.typ": _validate
 #import "internal/coerce.typ": _coerce
 #import "internal/errors.typ": _format-report
