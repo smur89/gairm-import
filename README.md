@@ -131,6 +131,13 @@ error: assertion failed: json-resume: found 3 problems in the input:
   - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
 ```
 
+JSON `null` is treated as if the key were absent — no validation
+error, dropped from the coerced model. Null elements inside arrays
+are dropped the same way. This matches the convention used by most
+JSON Resume emitters, where `"summary": null` is semantically
+equivalent to omitting the key. Unknown keys are still flagged even
+when their value is `null`, so typos do not slip through silently.
+
 ## Scope
 
 This package implements **only** the canonical JSON Resume schema.

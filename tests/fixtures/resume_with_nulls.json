@@ -1,0 +1,39 @@
+{
+  "basics": {
+    "name": "Seán Ó Murchú",
+    "label": "Senior Software Engineer",
+    "email": "sean@example.com",
+    "phone": null,
+    "url": null,
+    "summary": null,
+    "image": null,
+    "location": null,
+    "profiles": null
+  },
+  "work": [
+    {
+      "name": "Acme Corp",
+      "position": "Senior Software Engineer",
+      "startDate": "2022-01",
+      "endDate": null,
+      "summary": null,
+      "url": null,
+      "highlights": [
+        "Led the event-sourcing platform migration.",
+        null,
+        "Shipped the v2 settlement pipeline."
+      ]
+    }
+  ],
+  "skills": null,
+  "languages": null,
+  "interests": null,
+  "references": null,
+  "projects": null,
+  "volunteer": null,
+  "education": null,
+  "awards": null,
+  "certificates": null,
+  "publications": null,
+  "meta": null
+}

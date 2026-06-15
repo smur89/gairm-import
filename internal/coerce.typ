@@ -3,6 +3,12 @@
 // shape mismatches from direct callers who skipped validation.
 // assert(false, ...) over panic(...) for newline-preserving
 // diagnostics if these messages ever go multi-line.
+//
+// JSON `null` (Typst's `none`) at a value position is treated as if
+// the key were absent: it returns `none` from the per-value call so
+// the parent's object-pair filter or array-element filter drops it.
+// Downstream renderers see "key not in dict" instead of a stray
+// `none` value to special-case.
 
 #import "errors.typ": _type-name-of
 
@@ -12,6 +18,9 @@
 )
 
 #let _coerce(schema, value) = {
+  // Null at any value position is "key absent". The parent (object
+  // or array branch below) is responsible for filtering this out.
+  if value == none { return none }
   let kind = schema.kind
   if kind == "content" {
     assert(type(value) == str, message: _expect("a string", value))
@@ -27,13 +36,16 @@
   }
   if kind == "array" {
     assert(type(value) == array, message: _expect("an array", value))
-    return value.map(elem => _coerce(schema.elem, elem))
+    // Drop null elements: a null in an array of strings would
+    // otherwise surface as a stray `none` to downstream renderers.
+    return value.map(elem => _coerce(schema.elem, elem)).filter(e => e != none)
   }
   if kind == "object" {
     assert(type(value) == dictionary, message: _expect("an object", value))
     return value.pairs()
       .filter(((key, _)) => key in schema.shape)
       .map(((key, sub-value)) => (key, _coerce(schema.shape.at(key), sub-value)))
+      .filter(((_, coerced)) => coerced != none)
       .to-dict()
   }
   panic("json-resume: internal — unknown schema kind " + repr(kind))
