@@ -120,9 +120,9 @@ Each error is a record `(path: ("basics", "email"), message: "expected string, g
 ## Errors
 
 `validate-resume` returns a list of `(path, message)` records — empty list
-means the input is valid. `parse-resume` calls `validate-resume` first and
-aborts compilation with a combined report on the first invocation that finds
-issues, so every problem in the document surfaces in one error:
+means the input is valid. `parse-resume` validates first and aborts compilation
+with a combined report on the first invocation that finds issues, so every
+problem in the document surfaces in one error:
 
 ```text
 error: assertion failed: json-resume: found 3 problems in the input:
