@@ -86,7 +86,7 @@ resume.skills.at(0).keywords  array of str (tag-like, not coerced)
 Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.app/universe/package/altacv):
 
 ```typst
-#import "@preview/altacv:1.1.1": alta, palettes // x-release-please-version
+#import "@preview/altacv:1.1.1": alta, palettes
 #import "@preview/json-resume:0.1.0": parse-resume // x-release-please-version
 
 #alta(
