@@ -4,6 +4,7 @@
 #import "kinds.typ": (
   str-type, content-type, number-type, array-of, object,
   date-string, uri-string, email-string,
+  enum-of, const-of,
 )
 
 // `date-time` is intentionally absent: the date-string regex is
@@ -43,7 +44,6 @@
 
 #let _unsupported-keywords = (
   "allOf", "anyOf", "oneOf", "not",
-  "enum", "const",
   "if", "then", "else",
   "dependencies", "dependentRequired", "dependentSchemas",
 )
@@ -64,10 +64,20 @@
     if keyword in js {
       _bail(
         "unsupported JSON Schema keyword: " + repr(keyword) +
-          ". Composition keywords (allOf/anyOf/oneOf), enum, and conditional schemas are out of scope.",
+          ". Composition keywords (allOf/anyOf/oneOf) and conditional schemas are out of scope.",
       )
     }
   }
+  // enum / const take precedence over `type` — membership constrains
+  // shape on its own, so any accompanying type keyword is redundant.
+  if "enum" in js {
+    let values = js.at("enum")
+    if type(values) != array {
+      _bail("\"enum\" must be an array of values, got: " + repr(type(values)) + ".")
+    }
+    return enum-of(values)
+  }
+  if "const" in js { return const-of(js.at("const")) }
   let t = js.at("type", default: none)
   if t == "string" {
     let fmt = js.at("format", default: none)

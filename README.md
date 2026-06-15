@@ -331,9 +331,10 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 
 Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
 `object`), `format` (`uri` → `uri-string`, `email` → `email-string`,
-`date` → `date-string`), `properties`, `required`, `items`, internal `$ref`
+`date` → `date-string`), `enum` → `enum-of`, `const` → `const-of`,
+`properties`, `required`, `items`, internal `$ref`
 (`#/definitions/…` / `#/$defs/…`). Out of scope:
-`allOf` / `anyOf` / `oneOf` / `not`, `enum` / `const`,
+`allOf` / `anyOf` / `oneOf` / `not`,
 `if` / `then` / `else`, `dependencies` (and the `dependentRequired` /
 `dependentSchemas` variants), open object schemas (`type: "object"` without
 `properties`), `type: [...]` union arrays, external `$ref`, and string formats

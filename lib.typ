@@ -7,6 +7,7 @@
   resume-schema, resume-schema-strict,
   str-type, content-type, number-type, array-of, object,
   date-string, uri-string, email-string,
+  enum-of, const-of,
 )
 #import "internal/validate.typ": _validate
 #import "internal/coerce.typ": _coerce

@@ -7,6 +7,7 @@
   resume-schema, resume-schema-strict,
   object, array-of, str-type, content-type, number-type,
   date-string, uri-string, email-string,
+  enum-of, const-of,
   schema-from-json-schema,
   lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
 )

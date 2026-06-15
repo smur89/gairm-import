@@ -15,6 +15,11 @@
 
 #let array-of(elem) = (kind: "array", elem: elem)
 
+// Mixed-type members allowed — the validator's `in` check gates on
+// equality, not type. `const` is a singleton enum.
+#let enum-of(values) = (kind: "enum", values: values)
+#let const-of(value) = enum-of((value,))
+
 // Reject required-keys that don't appear in shape so a schema typo
 // fails at construction time, not as a phantom validation error.
 #let object(shape, required-keys: ()) = {

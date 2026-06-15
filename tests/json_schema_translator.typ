@@ -2,6 +2,7 @@
   schema-from-json-schema,
   str-type, number-type, array-of, object,
   date-string, uri-string, email-string,
+  enum-of, const-of,
 )
 
 #assert.eq(schema-from-json-schema((type: "string")), str-type)
@@ -102,3 +103,30 @@
   ),
 ))
 #assert.eq(trailing.shape.x, str-type)
+
+// enum maps to enum-of regardless of accompanying `type`. The values
+// array is preserved verbatim; the type keyword (if present) is
+// redundant because enum-membership already constrains shape.
+#assert.eq(
+  schema-from-json-schema((enum: ("a", "b", "c"))),
+  enum-of(("a", "b", "c")),
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", enum: ("a", "b"))),
+  enum-of(("a", "b")),
+)
+// Mixed-type enums round-trip too.
+#assert.eq(
+  schema-from-json-schema((enum: (1, "two", 3.0))),
+  enum-of((1, "two", 3.0)),
+)
+
+// const maps to const-of, the singleton-enum convenience.
+#assert.eq(
+  schema-from-json-schema((const: "v1.0.0")),
+  const-of("v1.0.0"),
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", const: "fixed")),
+  const-of("fixed"),
+)

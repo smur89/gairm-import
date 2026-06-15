@@ -6,6 +6,7 @@
 #import "kinds.typ": (
   str-type, content-type, number-type, array-of, object,
   date-string, uri-string, email-string,
+  enum-of, const-of,
 )
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put

@@ -48,6 +48,14 @@
     if type(value) != str { return _type-error(path, "string", value) }
     return ()
   }
+  if kind == "enum" {
+    if value in schema.values { return () }
+    return ((
+      path: path,
+      message: "expected one of " + schema.values.map(repr).join(", ") +
+        ", got " + repr(value) + ".",
+    ),)
+  }
   if kind in _format-specs {
     if type(value) != str { return _type-error(path, "string", value) }
     let spec = _format-specs.at(kind)

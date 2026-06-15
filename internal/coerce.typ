@@ -45,6 +45,18 @@
     assert(type(value) in (int, float), message: _expect("a number", value))
     return value
   }
+  // Members are polymorphic — no single type to assert. Mirror the
+  // validator's membership check so direct-coerce callers fail loud.
+  if kind == "enum" {
+    assert(
+      value in schema.values,
+      message: _expect(
+        "one of " + schema.values.map(repr).join(", "),
+        value,
+      ),
+    )
+    return value
+  }
   if kind == "array" {
     assert(type(value) == array, message: _expect("an array", value))
     // Drop null elements: a null in an array of strings would
