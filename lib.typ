@@ -8,12 +8,25 @@
 #import "internal/coerce.typ": _coerce
 #import "internal/errors.typ": _format-report
 
+// The engines treat `none` at any value position as "key absent", which
+// is the right rule for leaves inside a document but would silently
+// accept a null root. The public wrappers reject that explicitly so a
+// caller passing the wrong thing gets a friendly panic, not garbage.
+// (`parse-resume` already rejects `none` via its own dict-or-string
+// type check below.)
+
 // Returns a list of {path, message} records; empty = valid.
-#let validate-resume(data) = _validate(resume-schema, data, ())
+#let validate-resume(data) = {
+  if data == none { panic("json-resume: input must be a dict, got null.") }
+  _validate(resume-schema, data, ())
+}
 
 // Assumes data has passed validate-resume. Unknown keys are dropped
 // silently rather than panicking on direct callers.
-#let coerce-resume(data) = _coerce(resume-schema, data)
+#let coerce-resume(data) = {
+  if data == none { panic("json-resume: input must be a dict, got null.") }
+  _coerce(resume-schema, data)
+}
 
 // String paths must start with "/" because Typst resolves relative
 // paths against the file containing the call — for this package

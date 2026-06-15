@@ -131,6 +131,19 @@ error: assertion failed: json-resume: found 3 problems in the input:
   - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
 ```
 
+JSON `null` is treated as if the key were absent — no validation
+error, dropped from the coerced model. Null elements inside arrays
+are dropped the same way. This matches the convention used by most
+JSON Resume emitters, where `"summary": null` is semantically
+equivalent to omitting the key. Unknown keys are still flagged even
+when their value is `null`, so typos do not slip through silently.
+
+Root null is rejected: if the entire input document is `null`,
+`validate-resume`, `coerce-resume`, and `parse-resume` panic with
+`json-resume: input must be a dict, got null.` The null-as-absent
+policy applies to leaf positions inside a document, not to the
+document itself.
+
 ## Scope
 
 This package implements **only** the canonical JSON Resume schema.
