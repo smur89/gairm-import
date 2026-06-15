@@ -190,6 +190,64 @@ operator you need to extend it. Per-section combinators (`work-item`,
 `volunteer-item`, …) are intentionally not exposed yet — splice the canonical
 top-level fields whole and add your own siblings.
 
+### Targeted edits with lenses
+
+Splicing `..resume-schema.shape` works for top-level additions but is awkward
+when the field you want to touch is three or four levels deep (`work` items'
+`highlights` element schema, `basics.email`, …). For those cases, lenses target
+a path inside the schema and return a new schema with the targeted node
+replaced or transformed:
+
+```typst
+#import "@preview/json-resume:0.1.1": ( // x-release-please-version
+  resume-schema, lens, lens-put, lens-over, add-field,
+  str-type, content-type, number-type, object,
+)
+
+// Widen basics.summary from content (rich) to str (plain) — useful if
+// you want the summary rendered as plain text instead of formatted:
+#let plain-summary = lens-put(
+  lens(("basics", "summary")), resume-schema, str-type,
+)
+
+// Add a numeric `rating` to every language entry — touches
+// resume-schema.shape.languages.elem.shape without re-spelling the wrapper:
+#let with-rating = add-field(
+  resume-schema, lens(("languages", "items")), "rating", number-type,
+)
+
+// Transform an existing node with a function:
+#let with-extra-meta = lens-over(
+  lens(("meta",)),
+  resume-schema,
+  meta => object((..meta.shape, source: str-type)),
+)
+```
+
+Path segments: object keys as strings, the literal `"items"` to enter an
+array's element schema. Composition (`lens-then(a, b)`) concatenates paths,
+so `lens-then(lens(("work",)), lens(("items", "highlights")))` is the same
+lens as `lens(("work", "items", "highlights"))`. The empty path `lens(())`
+is the identity lens.
+
+Operations:
+
+| Function | Shape | Behaviour |
+|---|---|---|
+| `lens(path)` | `path → lens` | Construct a lens from a path tuple |
+| `lens-get(l, schema)` | `lens, schema → sub-schema` | Read the targeted node |
+| `lens-put(l, schema, value)` | `lens, schema, sub → schema` | Replace the targeted node |
+| `lens-over(l, schema, fn)` | `lens, schema, (sub → sub) → schema` | Apply a function to the targeted node |
+| `lens-then(a, b)` | `lens, lens → lens` | Compose two lenses (path concatenation) |
+| `add-field(schema, parent, key, sub)` | … → schema | Add a key to the object at `parent` |
+| `remove-field(schema, parent, key)` | … → schema | Remove a key from the object at `parent` |
+
+Operations are functional — every `lens-put` / `lens-over` / `add-field` /
+`remove-field` returns a NEW schema and leaves the input untouched, so you
+can build an extension schema by chaining edits without disturbing the
+canonical one. (Operations are top-level functions rather than methods because
+Typst parses `lens.put(…)` as a type-method lookup, not a closure call.)
+
 ### Starting from a JSON Schema document
 
 `schema-from-json-schema(parsed-schema)` translates a JSON Schema (draft 7
