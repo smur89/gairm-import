@@ -46,7 +46,10 @@
 // The "/…" string and pre-parsed dict are also accepted.
 #let parse(data, schema: resume-schema) = {
   _reject-none-root(data)
-  let dict-data = if type(data) == path {
+  // Compare against the type name as a string to dodge a Typst
+  // deprecation warning that fires on the bare `path` identifier
+  // (ambiguous with the deprecated `path` drawing function).
+  let dict-data = if str(type(data)) == "path" {
     json(data)
   } else if type(data) == str {
     if not data.starts-with("/") {

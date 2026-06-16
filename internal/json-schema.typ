@@ -145,7 +145,10 @@
 // diagnostic carries the standard schema-from-json-schema prefix
 // instead of failing deep inside _from-json-schema.
 #let schema-from-json-schema(js) = {
-  let parsed = if type(js) == path {
+  // Compare against the type name as a string to dodge a Typst
+  // deprecation warning that fires on the bare `path` identifier
+  // (ambiguous with the deprecated `path` drawing function).
+  let parsed = if str(type(js)) == "path" {
     json(js)
   } else if type(js) == dictionary {
     js
