@@ -128,10 +128,18 @@ jobs:
   #
   # Prerequisites (one-time setup):
   #   1. Fork github.com/typst/packages to smur89/packages.
-  #   2. Create a fine-grained PAT at github.com/settings/personal-access-tokens
-  #      scoped to smur89/packages, with:
-  #        - Contents: Read and write    (push the branch)
-  #        - Pull requests: Read and write  (open the cross-repo PR)
+  #   2. Create a classic PAT at github.com/settings/tokens with scopes:
+  #        - repo        (push the branch + open the cross-repo PR)
+  #        - workflow    (the branch is created off upstream/main, so it
+  #                       may carry .github/workflows/* updates the fork
+  #                       doesn't have yet — without `workflow` scope the
+  #                       push is rejected by GitHub).
+  #      Fine-grained PATs don't work here: they can only grant
+  #      permissions on repos you own, but `gh pr create` against
+  #      typst/packages (which we don't own) needs PR-write on that
+  #      upstream repo. Classic PATs sidestep this by acting as the
+  #      authenticated user, who has the standard public-repo
+  #      PR-opening capability.
   #   3. Store the PAT as a repository secret named TYPST_UNIVERSE_TOKEN
   #      on smur89/gairm-import.
   #
