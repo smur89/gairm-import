@@ -11,7 +11,7 @@
 
 #let _leaf-kinds = (
   "str", "content", "number",
-  "date-string", "uri-string", "email-string",
+  "date-string", "datetime-string", "uri-string", "email-string", "pattern-string",
   "enum",
 )
 

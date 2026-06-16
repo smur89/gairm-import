@@ -125,6 +125,15 @@ work[]:
   (("certificates", "items", "date"),),
 )
 
+// iso8601 $ref fields land as pattern-string in the faithful base
+// (translator picks up upstream's `definitions/iso8601` pattern). The
+// strict overlay rewrites them to date-string, so they vanish here.
+#let iso-paths-faithful = paths-of-kind(resume-schema, "pattern-string")
+#assert.eq(iso-paths-faithful.len(), 10)
+#assert(("work", "items", "startDate") in iso-paths-faithful)
+#assert(("publications", "items", "releaseDate") in iso-paths-faithful)
+#assert.eq(paths-of-kind(resume-schema-strict, "pattern-string"), ())
+
 // Empty schema yields an empty result.
 #assert.eq(paths-of-kind(object((:)), "str"), ())
 
