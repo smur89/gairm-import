@@ -13,7 +13,7 @@ concurrency:
 
 env:
   # Single source of truth for the Typst version used across all jobs.
-  TYPST_VERSION: v0.14.2
+  TYPST_VERSION: v0.15.0
   # Package name as it appears in typst.toml's `package.name`. Surfaced
   # here so branch names, tarball names, PR titles, and the supersede
   # filter all derive from one place; rename the package by editing
