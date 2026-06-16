@@ -17,13 +17,23 @@
 #assert.eq(errs.len(), 1)
 #assert(errs.at(0).message.contains("expected object"))
 
-// Unknown key.
+// Unknown key with a close-by valid key: surface a "Did you mean …?"
+// hint instead of the full Valid-keys dump. `agee` is one edit from
+// `age`, comfortably inside the distance-2 budget.
 #let errs2 = _validate(person, (name: "Alice", agee: 30), ("basics",))
 #assert.eq(errs2.len(), 1)
 #assert.eq(errs2.at(0).path, ("basics", "agee"))
 #assert(errs2.at(0).message.contains("unknown key"))
 #assert(errs2.at(0).message.contains("\"agee\""))
-#assert(errs2.at(0).message.contains("Valid keys"))
+#assert(errs2.at(0).message.contains("Did you mean \"age\"?"))
+#assert(not errs2.at(0).message.contains("Valid keys"))
+
+// Unknown key with no close match: fall back to the full Valid-keys
+// list. `xyz` is at distance 3 from every key in the shape.
+#let errs2b = _validate(person, (name: "Alice", xyz: 1), ("basics",))
+#assert.eq(errs2b.len(), 1)
+#assert(errs2b.at(0).message.contains("Valid keys: name, age."))
+#assert(not errs2b.at(0).message.contains("Did you mean"))
 
 // Recurse into known keys with wrong types.
 #let errs3 = _validate(person, (name: 42, age: "old"), ("basics",))
