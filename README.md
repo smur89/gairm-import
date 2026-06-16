@@ -31,7 +31,7 @@ Motivated by [smur89/alta-typst#48](https://github.com/smur89/alta-typst/issues/
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": validate, coerce, parse
+#import "@preview/gairm-import:0.5.1": validate, coerce, parse
 ```
 <!-- x-release-please-end -->
 
@@ -69,7 +69,7 @@ or a Typst-root-relative path string:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": parse
+#import "@preview/gairm-import:0.5.1": parse
 
 // Path relative to your own .typ — let Typst's json() resolve it.
 #let resume = parse(json("resume.json"))
@@ -109,7 +109,7 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": parse
+#import "@preview/gairm-import:0.5.1": parse
 
 #alta(
   parse(json("resume.json")),
@@ -129,7 +129,7 @@ Each error is a record `(path: ("basics", "email"), message: "expected string, g
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": validate, coerce
+#import "@preview/gairm-import:0.5.1": validate, coerce
 
 #let raw = json("resume.json")
 #let errors = validate(raw)
@@ -190,7 +190,7 @@ Pass `schema: resume-schema-strict` to opt in:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": parse, resume-schema-strict
+#import "@preview/gairm-import:0.5.1": parse, resume-schema-strict
 
 #let resume = parse(json("resume.json"), schema: resume-schema-strict)
 ```
@@ -237,7 +237,7 @@ combinators and pass it to `parse` / `validate` / `coerce` via the
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": (
+#import "@preview/gairm-import:0.5.1": (
   resume-schema, parse, object, array-of, str-type, content-type,
 )
 
@@ -284,7 +284,7 @@ replaced or transformed:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": (
+#import "@preview/gairm-import:0.5.1": (
   resume-schema, lens, lens-put, lens-over, add-field,
   set-required, unset-required,
   str-type, content-type, number-type, object,
@@ -356,7 +356,7 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": (
+#import "@preview/gairm-import:0.5.1": (
   schema-from-json-schema, coerce, object, array-of, content-type,
 )
 
