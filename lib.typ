@@ -6,7 +6,7 @@
 #import "internal/schema.typ": (
   resume-schema, resume-schema-strict,
   str-type, content-type, number-type, array-of, object,
-  date-string, datetime-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,
 )
 #import "internal/validate.typ": _validate

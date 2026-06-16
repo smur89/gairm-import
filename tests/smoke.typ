@@ -6,7 +6,7 @@
   validate, coerce, parse, format-errors,
   resume-schema, resume-schema-strict,
   object, array-of, str-type, content-type, number-type,
-  date-string, datetime-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,
   schema-from-json-schema,
   lens, lens-get, lens-put, lens-over, lens-then,

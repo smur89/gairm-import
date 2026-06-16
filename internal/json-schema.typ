@@ -3,7 +3,7 @@
 
 #import "kinds.typ": (
   str-type, content-type, number-type, array-of, object,
-  date-string, datetime-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,
 )
 
@@ -78,12 +78,23 @@
   if "const" in js { return const-of(js.at("const")) }
   let t = js.at("type", default: none)
   if t == "string" {
+    // Format wins over pattern when both are present — composing two
+    // gates is more moving parts than the engine needs.
     let fmt = js.at("format", default: none)
-    if fmt == none { return str-type }
-    if fmt not in _format-kinds {
-      _bail("unsupported string format: " + repr(fmt) + ".")
+    if fmt != none {
+      if fmt not in _format-kinds {
+        _bail("unsupported string format: " + repr(fmt) + ".")
+      }
+      return _format-kinds.at(fmt)
     }
-    return _format-kinds.at(fmt)
+    let pat = js.at("pattern", default: none)
+    if pat != none {
+      if type(pat) != str {
+        _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
+      }
+      return pattern-string(pat, expected: "matching " + repr(pat))
+    }
+    return str-type
   }
   if t == "number" or t == "integer" { return number-type }
   if t == "array" {

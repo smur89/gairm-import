@@ -37,7 +37,7 @@
   }
   // Format-specialised string kinds pass through identically to `str`
   // — the regex gate fires in _validate, not here.
-  if kind in ("str", "date-string", "datetime-string", "uri-string", "email-string") {
+  if kind in ("str", "date-string", "datetime-string", "uri-string", "email-string", "pattern-string") {
     assert(type(value) == str, message: _expect("a string", value))
     return value
   }

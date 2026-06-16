@@ -4,7 +4,7 @@
 #import "../internal/coerce.typ": _coerce
 #import "../internal/schema.typ": (
   str-type, content-type, number-type,
-  date-string, datetime-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string, pattern-string,
 )
 
 #assert.eq(_coerce(str-type, "hi"), "hi")
@@ -17,7 +17,8 @@
 // Format-specialised string kinds pass through identically to `str` —
 // the regex gate fires in _validate, not here, and the value flows
 // through unchanged for downstream renderers.
-#assert.eq(_coerce(date-string,     "2024-01-15"),            "2024-01-15")
-#assert.eq(_coerce(datetime-string, "2024-01-15T10:00:00Z"),   "2024-01-15T10:00:00Z")
-#assert.eq(_coerce(uri-string,      "https://example.com"),    "https://example.com")
-#assert.eq(_coerce(email-string,    "name@example.com"),       "name@example.com")
+#assert.eq(_coerce(date-string,                  "2024-01-15"),           "2024-01-15")
+#assert.eq(_coerce(datetime-string,              "2024-01-15T10:00:00Z"), "2024-01-15T10:00:00Z")
+#assert.eq(_coerce(uri-string,                   "https://example.com"),  "https://example.com")
+#assert.eq(_coerce(email-string,                 "name@example.com"),     "name@example.com")
+#assert.eq(_coerce(pattern-string("^[A-Z]{2}$"), "US"),                   "US")

@@ -11,7 +11,7 @@
 // path() route: same translation as the dict form above.
 #let canonical-from-path = schema-from-json-schema(path("../internal/assets/jsonresume-schema.json"))
 #assert.eq(canonical-from-path.shape.keys().sorted(), canonical.shape.keys().sorted())
-#assert.eq(canonical-from-path.shape.work.elem.shape.startDate, str-type)
+#assert.eq(canonical-from-path.shape.work.elem.shape.startDate.kind, "pattern-string")
 
 #let expected-keys = (
   "$schema", "awards", "basics", "certificates", "education",
@@ -34,9 +34,12 @@
   )
 }
 
-// $ref to #/definitions/iso8601 resolves through to str-type — proves
-// the ref-resolver walked the canonical document, not just synthetics.
-#assert.eq(canonical.shape.work.elem.shape.startDate, str-type)
+// $ref to #/definitions/iso8601 resolves through to a pattern-string
+// (the iso8601 definition is a string with a `pattern`) — proves the
+// ref-resolver walked the canonical document AND the translator
+// honoured the pattern on the resolved leaf. `meta.lastModified` has
+// no pattern in upstream, so it stays as plain `str`.
+#assert.eq(canonical.shape.work.elem.shape.startDate.kind, "pattern-string")
 #assert.eq(canonical.shape.meta.shape.lastModified, str-type)
 
 // End-to-end: the existing full-section fixture validates cleanly

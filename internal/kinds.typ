@@ -14,6 +14,14 @@
 #let uri-string      = (kind: "uri-string")
 #let email-string    = (kind: "email-string")
 
+// Per-instance regex gate — a constructor, not a constant, because
+// each schema node carries its own regex and hint.
+#let pattern-string(re, expected: "matching pattern") = (
+  kind: "pattern-string",
+  pattern: regex(re),
+  expected: expected,
+)
+
 #let array-of(elem) = (kind: "array", elem: elem)
 
 // Mixed-type members allowed — the validator's `in` check gates on

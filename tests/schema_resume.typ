@@ -69,22 +69,24 @@
 // regex gate for these kinds.
 // Format-specialised kinds come from upstream `format` keywords. The
 // canonical document annotates email + uri fields and one date field
-// (certificates.date); other date fields use a `$ref` to iso8601 that
-// the translator can't pick up from the ref alone, so they stay as
-// `str` in the faithful default and only the strict variant lifts
-// them to date-string.
+// (certificates.date); other date fields use a `$ref` to iso8601 whose
+// definition carries a `pattern`, so the translator now lands them as
+// `pattern-string` (gated by the upstream regex) — the strict variant
+// tightens that to date-string.
 #assert.eq(resume-schema.shape.basics.shape.email.kind, "email-string")
 #assert.eq(resume-schema.shape.basics.shape.url.kind, "uri-string")
 // basics.image is described as a URL in prose but not annotated with
 // `format: "uri"` upstream. Honour the source.
 #assert.eq(resume-schema.shape.basics.shape.image.kind, "str")
 #assert.eq(resume-schema.shape.work.elem.shape.url.kind, "uri-string")
-#assert.eq(resume-schema.shape.work.elem.shape.startDate.kind, "str")
-#assert.eq(resume-schema.shape.work.elem.shape.endDate.kind, "str")
-#assert.eq(resume-schema.shape.awards.elem.shape.date.kind, "str")
+#assert.eq(resume-schema.shape.work.elem.shape.startDate.kind, "pattern-string")
+#assert.eq(resume-schema.shape.work.elem.shape.endDate.kind, "pattern-string")
+#assert.eq(resume-schema.shape.awards.elem.shape.date.kind, "pattern-string")
 #assert.eq(resume-schema.shape.certificates.elem.shape.date.kind, "date-string")
-#assert.eq(resume-schema.shape.publications.elem.shape.releaseDate.kind, "str")
+#assert.eq(resume-schema.shape.publications.elem.shape.releaseDate.kind, "pattern-string")
 #assert.eq(resume-schema.shape.meta.shape.canonical.kind, "uri-string")
+// `meta.lastModified` has no upstream pattern (only a description), so
+// it stays as plain str — the strict variant lifts it to date-string.
 #assert.eq(resume-schema.shape.meta.shape.lastModified.kind, "str")
 
 // Array-of-string fields (tags / lists).

@@ -68,6 +68,15 @@
     }
     return ()
   }
+  // pattern + hint travel on the schema node rather than via the
+  // _format-specs table above, since each instance is unique.
+  if kind == "pattern-string" {
+    if type(value) != str { return _type-error(path, "string", value) }
+    if value.match(schema.pattern) == none {
+      return ((path: path, message: "expected " + schema.expected + "."),)
+    }
+    return ()
+  }
   if kind == "number" {
     if type(value) not in (int, float) { return _type-error(path, "number", value) }
     return ()

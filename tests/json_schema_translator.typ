@@ -1,7 +1,7 @@
 #import "../lib.typ": (
   schema-from-json-schema,
   str-type, number-type, array-of, object,
-  date-string, datetime-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,
 )
 
@@ -133,4 +133,30 @@
 #assert.eq(
   schema-from-json-schema((type: "string", const: "fixed")),
   const-of("fixed"),
+)
+
+// Equality holds because Typst's regex compares by source.
+#assert.eq(
+  schema-from-json-schema((type: "string", pattern: "^[A-Z]{2}$")),
+  pattern-string("^[A-Z]{2}$", expected: "matching " + repr("^[A-Z]{2}$")),
+)
+
+// Format wins over pattern when both are present — the format-specific
+// kind is emitted and the pattern is dropped (locked design decision:
+// simpler than composing two gates).
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "email", pattern: "^x$")),
+  email-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "uri", pattern: "^x$")),
+  uri-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "date", pattern: "^x$")),
+  date-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "date-time", pattern: "^x$")),
+  datetime-string,
 )

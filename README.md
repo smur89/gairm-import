@@ -249,6 +249,34 @@ Coercion is pass-through: format-checked values flow through to the
 model as plain strings, so renderers receive
 `model.basics.email == "name@example.com"` unchanged.
 
+For ad-hoc constraints outside the four built-in formats, build a
+`pattern-string(re, expected: …)` and target it via a lens or splice it
+into an extension schema. JSON Schema's `pattern` keyword on a plain
+string maps to this kind too — see [Supported JSON Schema keywords](#starting-from-a-json-schema-document)
+for the precedence rule when both `format` and `pattern` are present:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.5.1": (
+  resume-schema, lens, lens-put, pattern-string,
+)
+
+// Gate basics.location.countryCode as an ISO 3166-1 alpha-2 code.
+#let with-country-code = lens-put(
+  lens(("basics", "location", "countryCode")),
+  resume-schema,
+  pattern-string(
+    "^[A-Z]{2}$",
+    expected: "an ISO 3166-1 alpha-2 code (e.g. \"US\")",
+  ),
+)
+```
+<!-- x-release-please-end -->
+
+Typst's regex `match` finds a match anywhere in the string, so anchor
+the pattern yourself if you need a full-string match — `^…$` is the
+common case.
+
 ## Building an extension schema
 
 `parse` is strict against the canonical schema by design — unknown keys
@@ -396,7 +424,10 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
 `object`), `format` (`uri` → `uri-string`, `email` → `email-string`,
 `date` → `date-string`, `date-time` → `datetime-string`),
-`enum` → `enum-of`, `const` → `const-of`,
+`pattern` → `pattern-string` (on plain string schemas only — when both
+`format` and `pattern` are present on the same node, `format` wins and
+`pattern` is dropped; compose two gates yourself via a lens if you
+need both), `enum` → `enum-of`, `const` → `const-of`,
 `properties`, `required`, `items`, internal `$ref`
 (`#/definitions/…` / `#/$defs/…`). Out of scope:
 `allOf` / `anyOf` / `oneOf` / `not`,

@@ -53,7 +53,10 @@
 #assert.eq(resume-schema-strict.shape.certificates.elem.shape.date, date-string)
 
 // Faithfulness: the strict overlay must NOT mutate the default
-// resume-schema — the same paths come through as plain str there.
+// resume-schema. Free-text fields stay as plain str in the faithful
+// base; iso8601 $ref fields land as pattern-string there (gated by the
+// upstream regex) — only the strict overlay tightens them to
+// date-string.
 #assert.eq(resume-schema.shape.basics.shape.summary, str-type)
-#assert.eq(resume-schema.shape.work.elem.shape.startDate, str-type)
+#assert.eq(resume-schema.shape.work.elem.shape.startDate.kind, "pattern-string")
 #assert.eq(resume-schema.shape.references.elem.shape.reference, str-type)
