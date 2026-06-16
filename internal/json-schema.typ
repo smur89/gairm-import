@@ -131,11 +131,8 @@
   _bail("unrecognised JSON Schema fragment (no recognised \"type\" or \"$ref\"); keys: " + repr(js.keys()) + ".")
 }
 
-// Accepts either a parsed JSON Schema dict or a `path(…)` value; the
-// path form is read via `json()` internally so callers can write
-// `schema-from-json-schema(path("schema.json"))` without the
-// double-wrap. Strings are not accepted here — there is no
-// "/"-prefix convention for this entry point.
+// `path("…")` is read via json() so callers can skip the double-wrap.
+// No string form — there's no "/"-prefix convention for this entry.
 #let schema-from-json-schema(js) = {
   let parsed = if type(js) == path { json(js) } else { js }
   _from-json-schema(parsed, parsed, ())

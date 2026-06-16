@@ -8,10 +8,7 @@
 #let canonical-js = json("../internal/assets/jsonresume-schema.json")
 #let canonical = schema-from-json-schema(canonical-js)
 
-// path() entry: schema-from-json-schema accepts a path value directly
-// and reads it via json() internally. Same shape as the parsed-dict
-// form above — verified end-to-end by running the existing $ref-bearing
-// fixture through the path()-derived schema.
+// path() route: same translation as the dict form above.
 #let canonical-from-path = schema-from-json-schema(path("../internal/assets/jsonresume-schema.json"))
 #assert.eq(canonical-from-path.shape.keys().sorted(), canonical.shape.keys().sorted())
 #assert.eq(canonical-from-path.shape.work.elem.shape.startDate, str-type)

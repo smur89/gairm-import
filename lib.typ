@@ -40,15 +40,9 @@
   _coerce(schema, data)
 }
 
-// One-call composition. Accepts a parsed dict, a `path(…)` value, or
-// a Typst-root-relative path string ("/…"); validates, aborts
-// compilation with the combined report on issues, otherwise coerces.
-//
-// `path("…")` is the recommended form: Typst resolves the path when
-// the value is constructed, so the lookup anchors on the caller's
-// own .typ rather than this file inside the @preview cache. The
-// "/"-prefixed string form and the legacy `json("…")` wrap are also
-// accepted — see the panic message below for the string-path contract.
+// `path("…")` resolves against the caller's .typ rather than the
+// @preview cache where this file lives — that's the headline form.
+// The "/…" string and pre-parsed dict are also accepted.
 #let parse(data, schema: resume-schema) = {
   _reject-none-root(data)
   let dict-data = if type(data) == path {

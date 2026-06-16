@@ -11,9 +11,7 @@
 #assert.eq(from-path.basics.name, "Seán Ó Murchú")
 #assert.eq(type(from-path.basics.summary), str)
 
-// path() entry: the headline form on 0.15+. Resolution anchor is the
-// caller's .typ, so the file is found relative to tests/ even though
-// parse itself lives inside the @preview cache.
+// path() entry: resolves against the caller's .typ, not @preview.
 #let from-path-value = parse(path("fixtures/resume_minimal.json"))
 #assert.eq(from-path-value.basics.name, from-path.basics.name)
 
