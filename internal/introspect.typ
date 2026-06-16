@@ -34,7 +34,7 @@
 // header line and don't contribute to the kind-column width.
 #let _column-key(key, sub) = {
   if sub.kind == "object" { none }
-  else if sub.kind == "array" and sub.elem.kind == "object" { none }
+  else if sub.kind == "array" and sub.elem.kind in ("object", "array") { none }
   else if sub.kind == "array" { key + "[]" }
   else { key }
 }
@@ -51,7 +51,7 @@
     let lines = pairs.map(((key, sub)) => {
       if sub.kind == "object" {
         indent + key + ":\n" + _describe(sub, indent + "  ")
-      } else if sub.kind == "array" and sub.elem.kind == "object" {
+      } else if sub.kind == "array" and sub.elem.kind in ("object", "array") {
         indent + key + "[]:\n" + _describe(sub.elem, indent + "  ")
       } else if sub.kind == "array" {
         indent + _pad-right(key + "[]", col) + _leaf-suffix(sub.elem)
@@ -61,7 +61,7 @@
     })
     if lines.len() == 0 { "" } else { lines.join("\n") }
   } else if schema.kind == "array" {
-    if schema.elem.kind == "object" {
+    if schema.elem.kind in ("object", "array") {
       indent + "[]:\n" + _describe(schema.elem, indent + "  ")
     } else {
       indent + "[] " + _leaf-suffix(schema.elem)

@@ -146,6 +146,28 @@ work[]:
   (("work", "items", "startDate"),),
 )
 
+// --- describe-schema: nested array-of-array -------------------------
+
+// `array-of-array` (e.g. a 2D string matrix) was previously rendered
+// inline as `key[]  array`, hiding the inner element kind. Now treated
+// as structural so the recursive walk shows the deeper level.
+#let matrix-schema = object((
+  grid: array-of(array-of(str-type)),
+))
+#assert.eq(
+  describe-schema(matrix-schema),
+  "grid[]:\n  [] str",
+)
+
+// Three levels deep with content-type at the leaf.
+#let cube-schema = object((
+  cube: array-of(array-of(array-of(content-type))),
+))
+#assert.eq(
+  describe-schema(cube-schema),
+  "cube[]:\n  []:\n    [] content",
+)
+
 // --- kind-at ---------------------------------------------------------
 
 #assert.eq(kind-at(resume-schema, ("basics", "name")), "str")
