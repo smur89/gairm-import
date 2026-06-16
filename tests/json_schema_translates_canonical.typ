@@ -10,9 +10,11 @@
 
 // path() entry: schema-from-json-schema accepts a path value directly
 // and reads it via json() internally. Same shape as the parsed-dict
-// form above, so the resulting translation must match.
+// form above — verified end-to-end by running the existing $ref-bearing
+// fixture through the path()-derived schema.
 #let canonical-from-path = schema-from-json-schema(path("../internal/assets/jsonresume-schema.json"))
 #assert.eq(canonical-from-path.shape.keys().sorted(), canonical.shape.keys().sorted())
+#assert.eq(canonical-from-path.shape.work.elem.shape.startDate, str-type)
 
 #let expected-keys = (
   "$schema", "awards", "basics", "certificates", "education",
