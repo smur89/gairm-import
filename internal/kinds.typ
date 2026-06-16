@@ -26,7 +26,7 @@
   let unknown = required-keys.filter(k => k not in shape)
   assert(
     unknown.len() == 0,
-    message: "json-resume: object() required-keys references keys not in shape: " +
+    message: "gairm-import: object() required-keys references keys not in shape: " +
       unknown.join(", ") + ".",
   )
   (

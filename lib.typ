@@ -20,7 +20,7 @@
 // (no schema can validate "missing document"). One source of truth
 // for the message so docs and tests have something stable to pin.
 #let _reject-none-root(data) = {
-  if data == none { panic("json-resume: input must be a dict, got null.") }
+  if data == none { panic("gairm-import: input must be a dict, got null.") }
 }
 
 // Combined-report formatter, for callers handling errors themselves
@@ -53,7 +53,7 @@
   let dict-data = if type(data) == str {
     if not data.starts-with("/") {
       panic(
-        "json-resume: parse with a string path requires the path " +
+        "gairm-import: parse with a string path requires the path " +
           "to start with \"/\" (resolved from the typst root). Got: " + repr(data) + ". " +
           "To use a path relative to your own .typ file, pass " +
           "json(" + repr(data) + ") in place of the path string.",
@@ -64,7 +64,7 @@
     data
   } else {
     panic(
-      "json-resume: parse expected a dict or a string path, got " +
+      "gairm-import: parse expected a dict or a string path, got " +
         repr(type(data)) + ".",
     )
   }

@@ -2,7 +2,7 @@ I am submitting
 - [ ] a new package
 - [x] an update for a package
 
-Description: `json-resume` ${VERSION} — see the release notes for what changed: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}
+Description: `gairm-import` ${VERSION} — see the release notes for what changed: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}
 
 ---
 

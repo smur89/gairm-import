@@ -18,7 +18,7 @@
 
 // One panic prefix so every diagnostic from this module is grep-able
 // by "schema-from-json-schema —".
-#let _bail(msg) = panic("json-resume: schema-from-json-schema — " + msg)
+#let _bail(msg) = panic("gairm-import: schema-from-json-schema — " + msg)
 
 // `seen` is the chain of refs traversed so far; a repeat means a
 // cycle (e.g. `definitions.alias → alias`) — panic before Typst's

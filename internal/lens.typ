@@ -10,7 +10,7 @@
 //   - array : literal "items" to enter `.elem`
 //   - empty `()` : identity lens
 
-#let _bail(msg) = panic("json-resume: " + msg)
+#let _bail(msg) = panic("gairm-import: " + msg)
 
 #let _require-object(parent, op) = {
   if parent.kind != "object" {
