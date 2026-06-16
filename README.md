@@ -1,15 +1,19 @@
-<h1 align="center">json-resume</h1>
+<h1 align="center">gairm-import</h1>
 
 <p align="center">
-  <a href="https://typst.app/universe/package/json-resume"><img alt="json-resume on Typst Universe" src="https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Ftypst.app%2Funiverse%2Fpackage%2Fjson-resume&query=%2Fhtml%2Fbody%2Fdiv%2Fmain%2Fdiv%5B2%5D%2Faside%2Fsection%5B2%5D%2Fdl%2Fdd%5B3%5D&logo=typst&label=Universe&color=%23239DAE&style=flat-square"></a>
-  <a href="https://github.com/smur89/typst-json-resume/releases"><img alt="Latest GitHub release version of json-resume" src="https://img.shields.io/github/v/release/smur89/typst-json-resume?style=flat-square"></a>
-  <a href="https://github.com/smur89/typst-json-resume/actions/workflows/build.yml"><img alt="GitHub Actions build workflow status on the json-resume main branch" src="https://img.shields.io/github/actions/workflow/status/smur89/typst-json-resume/build.yml?style=flat-square"></a>
-  <a href="LICENSE"><img alt="MIT license badge linking to the json-resume LICENSE file" src="https://img.shields.io/github/license/smur89/typst-json-resume?style=flat-square"></a>
-  <a href="https://github.com/smur89/typst-json-resume/stargazers"><img alt="Number of GitHub stargazers for json-resume" src="https://img.shields.io/github/stars/smur89/typst-json-resume?style=flat-square"></a>
+  <a href="https://typst.app/universe/package/gairm-import"><img alt="gairm-import on Typst Universe" src="https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Ftypst.app%2Funiverse%2Fpackage%2Fgairm-import&query=%2Fhtml%2Fbody%2Fdiv%2Fmain%2Fdiv%5B2%5D%2Faside%2Fsection%5B2%5D%2Fdl%2Fdd%5B3%5D&logo=typst&label=Universe&color=%23239DAE&style=flat-square"></a>
+  <a href="https://github.com/smur89/gairm-import/releases"><img alt="Latest GitHub release version of gairm-import" src="https://img.shields.io/github/v/release/smur89/gairm-import?style=flat-square"></a>
+  <a href="https://github.com/smur89/gairm-import/actions/workflows/build.yml"><img alt="GitHub Actions build workflow status on the gairm-import main branch" src="https://img.shields.io/github/actions/workflow/status/smur89/gairm-import/build.yml?style=flat-square"></a>
+  <a href="LICENSE"><img alt="MIT license badge linking to the gairm-import LICENSE file" src="https://img.shields.io/github/license/smur89/gairm-import?style=flat-square"></a>
+  <a href="https://github.com/smur89/gairm-import/stargazers"><img alt="Number of GitHub stargazers for gairm-import" src="https://img.shields.io/github/stars/smur89/gairm-import?style=flat-square"></a>
 </p>
 
 <p align="center">
   Strict <a href="https://jsonresume.org/">JSON Resume</a> loader for Typst — validate a canonical <code>resume.json</code> against the <a href="https://jsonresume.org/schema">published schema</a>, then hand the normalised dict to any compatible CV template.
+</p>
+
+<p align="center">
+  <sub><em>"gairm" is the Irish word for vocation — this package imports the data that describes one.</em></sub>
 </p>
 
 [JSON Resume](https://jsonresume.org/) is a portable JSON-based resume format —
@@ -26,7 +30,7 @@ Motivated by [smur89/alta-typst#48](https://github.com/smur89/alta-typst/issues/
 ## Install
 
 ```typst
-#import "@preview/json-resume:0.5.0": validate, coerce, parse // x-release-please-version
+#import "@preview/gairm-import:0.5.0": validate, coerce, parse // x-release-please-version
 ```
 
 ## A minimal `resume.json`
@@ -62,7 +66,7 @@ The full canonical schema covers thirteen sections:
 or a Typst-root-relative path string:
 
 ```typst
-#import "@preview/json-resume:0.5.0": parse // x-release-please-version
+#import "@preview/gairm-import:0.5.0": parse // x-release-please-version
 
 // Path relative to your own .typ — let Typst's json() resolve it.
 #let resume = parse(json("resume.json"))
@@ -93,7 +97,7 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 
 ```typst
 #import "@preview/altacv:1.1.1": alta, palettes
-#import "@preview/json-resume:0.5.0": parse // x-release-please-version
+#import "@preview/gairm-import:0.5.0": parse // x-release-please-version
 
 #alta(
   parse(json("resume.json")),
@@ -111,7 +115,7 @@ for the full surface.
 Each error is a record `(path: ("basics", "email"), message: "expected string, got integer.")`. A typical step-by-step is:
 
 ```typst
-#import "@preview/json-resume:0.5.0": validate, coerce // x-release-please-version
+#import "@preview/gairm-import:0.5.0": validate, coerce // x-release-please-version
 
 #let raw = json("resume.json")
 #let errors = validate(raw)
@@ -131,7 +135,7 @@ with a combined report on the first invocation that finds issues, so every
 problem in the document surfaces in one error:
 
 ```text
-error: assertion failed: json-resume: found 3 problems in the input:
+error: assertion failed: gairm-import: found 3 problems in the input:
   - basics.email: expected string, got integer.
   - work[0].positon: unknown key "positon". Valid keys: name, location, description, position, url, startDate, endDate, summary, highlights.
   - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
@@ -146,7 +150,7 @@ when their value is `null`, so typos do not slip through silently.
 
 Root null is rejected: if the entire input document is `null`,
 `validate`, `coerce`, and `parse` panic with
-`json-resume: input must be a dict, got null.` The null-as-absent
+`gairm-import: input must be a dict, got null.` The null-as-absent
 policy applies to leaf positions inside a document, not to the
 document itself.
 
@@ -170,7 +174,7 @@ The package exports two values of the canonical schema:
 Pass `schema: resume-schema-strict` to opt in:
 
 ```typst
-#import "@preview/json-resume:0.5.0": parse, resume-schema-strict // x-release-please-version
+#import "@preview/gairm-import:0.5.0": parse, resume-schema-strict // x-release-please-version
 
 #let resume = parse(json("resume.json"), schema: resume-schema-strict)
 ```
@@ -215,7 +219,7 @@ combinators and pass it to `parse` / `validate` / `coerce` via the
 `schema:` keyword:
 
 ```typst
-#import "@preview/json-resume:0.5.0": ( // x-release-please-version
+#import "@preview/gairm-import:0.5.0": ( // x-release-please-version
   resume-schema, parse, object, array-of, str-type, content-type,
 )
 
@@ -260,7 +264,7 @@ a path inside the schema and return a new schema with the targeted node
 replaced or transformed:
 
 ```typst
-#import "@preview/json-resume:0.5.0": ( // x-release-please-version
+#import "@preview/gairm-import:0.5.0": ( // x-release-please-version
   resume-schema, lens, lens-put, lens-over, add-field,
   set-required, unset-required,
   str-type, content-type, number-type, object,
@@ -330,7 +334,7 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 `.json` schema and don't want to keep a parallel Typst copy in sync:
 
 ```typst
-#import "@preview/json-resume:0.5.0": ( // x-release-please-version
+#import "@preview/gairm-import:0.5.0": ( // x-release-please-version
   schema-from-json-schema, coerce, object, array-of, content-type,
 )
 

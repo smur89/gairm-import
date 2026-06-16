@@ -1,11 +1,11 @@
 [package]
-name = "json-resume"
+name = "gairm-import"
 version = "0.5.0"
 entrypoint = "lib.typ"
 authors = ["Shane Murphy"]
 license = "MIT"
 description = "Strict JSON Resume loader for CV templates."
-repository = "https://github.com/smur89/typst-json-resume"
+repository = "https://github.com/smur89/gairm-import"
 keywords = ["json-resume", "resume", "cv", "loader", "schema"]
 categories = ["utility"]
 compiler = "0.13.0"

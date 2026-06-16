@@ -16,7 +16,7 @@ instead of as a PR or issue.
 
 ## Scope
 
-`json-resume` implements **only** the canonical [JSON Resume schema](https://jsonresume.org/schema).
+`gairm-import` implements **only** the canonical [JSON Resume schema](https://jsonresume.org/schema).
 Anything renderer-specific (theme colours, label overrides, header
 decorations, custom sections, …) belongs in the consuming Typst CV template,
 not here. PRs that add fields outside the canonical schema will be redirected

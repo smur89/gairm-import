@@ -53,7 +53,7 @@
     let current = lens-get(l, s)
     assert(
       current == expected-source,
-      message: "json-resume: " + list-name + " must target " +
+      message: "gairm-import: " + list-name + " must target " +
         repr(expected-source.kind) + " leaves only — " + repr(p) +
         " is now " + repr(current.kind) + ". Audit upstream schema bump.",
     )

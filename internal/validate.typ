@@ -102,5 +102,5 @@
       ))
     return per-key-errs + missing-errs
   }
-  panic("json-resume: internal — unknown schema kind " + repr(kind))
+  panic("gairm-import: internal — unknown schema kind " + repr(kind))
 }

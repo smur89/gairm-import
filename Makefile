@@ -1,4 +1,4 @@
-# json-resume — local build helper. Mirrors the compile sweep CI runs
+# gairm-import — local build helper. Mirrors the compile sweep CI runs
 # on every PR.
 #
 # Usage:

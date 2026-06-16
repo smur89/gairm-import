@@ -6,7 +6,7 @@ body:
   - type: input
     id: package-version
     attributes:
-      label: json-resume version
+      label: gairm-import version
       description: From `typst.toml` or your `#import` line.
       placeholder: "0.1.0"
     validations:

@@ -34,5 +34,5 @@
   let n = errors.len()
   let noun = if n == 1 { "problem" } else { "problems" }
   let lines = errors.map(e => "  - " + _format-path(e.path) + ": " + e.message)
-  "json-resume: found " + str(n) + " " + noun + " in the input:\n" + lines.join("\n")
+  "gairm-import: found " + str(n) + " " + noun + " in the input:\n" + lines.join("\n")
 }

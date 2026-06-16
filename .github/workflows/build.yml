@@ -18,7 +18,7 @@ env:
   # here so branch names, tarball names, PR titles, and the supersede
   # filter all derive from one place; rename the package by editing
   # both this and typst.toml.
-  PACKAGE_NAME: json-resume
+  PACKAGE_NAME: gairm-import
 
 jobs:
   # Compile every tests/*.typ fixture against the local file tree.
@@ -73,7 +73,7 @@ jobs:
           manifest-file: .release-please-manifest.json
 
   # Runs only when release-please just created a release. Builds a
-  # `json-resume-<version>.tar.gz` containing the package files that
+  # `gairm-import-<version>.tar.gz` containing the package files that
   # should be submitted to typst/packages (typst.toml, lib.typ,
   # LICENSE, README.md) and attaches it to the release.
   #
@@ -116,13 +116,13 @@ jobs:
           make_latest: 'true'
 
   # When release-please cuts a new tag, automatically open a PR on
-  # typst/packages submitting json-resume:<version> to Typst Universe.
+  # typst/packages submitting gairm-import:<version> to Typst Universe.
   # The PR is created from a maintainer-owned fork (smur89/packages),
   # branched off the current typst/packages main so the diff is just
   # the new package directory.
   #
   # NOTE: this workflow only handles version *updates*. The very first
-  # submission of json-resume to typst/packages must be opened manually
+  # submission of gairm-import to typst/packages must be opened manually
   # so the maintainers can do a full new-package review. See
   # CONTRIBUTING.md.
   #
@@ -133,11 +133,11 @@ jobs:
   #        - Contents: Read and write    (push the branch)
   #        - Pull requests: Read and write  (open the cross-repo PR)
   #   3. Store the PAT as a repository secret named TYPST_UNIVERSE_TOKEN
-  #      on smur89/typst-json-resume.
+  #      on smur89/gairm-import.
   #
   # The job is idempotent: re-running for an already-submitted version
   # detects the existing PR, captures its URL, and skips creation.
-  # Older `json-resume:*` PRs we own are then auto-closed with a
+  # Older `gairm-import:*` PRs we own are then auto-closed with a
   # supersede comment pointing at the current submission.
   submit-to-typst-universe:
     needs: [release-please, attach-release-artifacts]

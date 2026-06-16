@@ -22,7 +22,7 @@
 #import "errors.typ": _type-name-of
 
 #let _expect(expected, value) = (
-  "json-resume: coerce expected " + expected + ", got " +
+  "gairm-import: coerce expected " + expected + ", got " +
     _type-name-of(value) + ". Run validate(data) first."
 )
 
@@ -73,5 +73,5 @@
     if coerced.len() == 0 { return none }
     return coerced
   }
-  panic("json-resume: internal — unknown schema kind " + repr(kind))
+  panic("gairm-import: internal — unknown schema kind " + repr(kind))
 }
