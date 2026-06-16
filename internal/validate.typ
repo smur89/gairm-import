@@ -10,7 +10,7 @@
 // required key must still count as missing). See README "Errors"
 // section for the user-facing rationale.
 
-#import "errors.typ": _type-name-of
+#import "errors.typ": _type-name-of, _closest-match
 
 #let _type-error(path, expected, value) = ((
   path: path,
@@ -84,14 +84,23 @@
       if key in schema.shape {
         _validate(schema.shape.at(key), sub-value, path + (key,))
       } else {
-        // Valid-keys list only assembled on the unknown-key branch so
-        // the happy path skips the join. An unknown key with a null
-        // value is still flagged — silently swallowing typos would
-        // defeat the point of strict validation.
-        let valid-keys-str = schema.shape.keys().join(", ")
+        // On the unknown-key branch, try a fuzzy suggestion first: a
+        // short "Did you mean …?" beats a 9–14-key dump when the typo
+        // is within edit distance 2 of a valid key. Otherwise fall
+        // back to the full list. Either way the per-branch work is
+        // skipped on the happy path.
+        //
+        // An unknown key with a null value is still flagged — silently
+        // swallowing typos would defeat the point of strict validation.
+        let suggestion = _closest-match(key, schema.shape.keys(), 2)
+        let tail = if suggestion != none {
+          "Did you mean " + repr(suggestion) + "?"
+        } else {
+          "Valid keys: " + schema.shape.keys().join(", ") + "."
+        }
         ((
           path: path + (key,),
-          message: "unknown key " + repr(key) + ". Valid keys: " + valid-keys-str + ".",
+          message: "unknown key " + repr(key) + ". " + tail,
         ),)
       }
     }).flatten()

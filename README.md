@@ -160,9 +160,13 @@ problem in the document surfaces in one error:
 ```text
 error: assertion failed: gairm-import: found 3 problems in the input:
   - basics.email: expected string, got integer.
-  - work[0].positon: unknown key "positon". Valid keys: name, location, description, position, url, startDate, endDate, summary, highlights.
+  - work[0].positon: unknown key "positon". Did you mean "position"?
   - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
 ```
+
+When a typo is within edit distance 2 of a valid key, the message
+surfaces a short "Did you mean …?" hint; otherwise it falls back to
+the full valid-keys list shown for `meta.foo`.
 
 JSON `null` is treated as if the key were absent — no validation
 error, dropped from the coerced model. Null elements inside arrays
