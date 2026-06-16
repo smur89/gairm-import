@@ -14,6 +14,7 @@
 #import "internal/errors.typ": _format-report
 #import "internal/json-schema.typ": schema-from-json-schema
 #import "internal/lens.typ": lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field, set-required, unset-required
+#import "internal/introspect.typ": describe-schema, paths-of-kind, kind-at
 
 // Engines treat `none` at any value position as "key absent" — right
 // for leaves inside a document, but a null root is always invalid

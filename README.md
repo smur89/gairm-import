@@ -399,6 +399,69 @@ can build an extension schema by chaining edits without disturbing the
 canonical one. (Operations are top-level functions rather than methods because
 Typst parses `lens.put(…)` as a type-method lookup, not a closure call.)
 
+### Inspecting a schema
+
+When an extension schema misbehaves, `describe-schema`, `paths-of-kind`,
+and `kind-at` answer the three usual questions — *what does this thing
+look like?*, *where do my date strings live?*, *what kind is at this
+path?* — without `repr(schema)` or hand-walking `.shape`:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.6.0": (
+  resume-schema-strict, describe-schema, paths-of-kind, kind-at,
+)
+
+// Tree view of every leaf, with array sections suffixed `[]`.
+#describe-schema(resume-schema-strict)
+// basics:
+//   email    email-string
+//   name     str
+//   summary  content
+//   …
+// work[]:
+//   highlights[]  content
+//   startDate     date-string
+//   …
+
+// Every lens-compatible path whose terminal kind matches.
+#paths-of-kind(resume-schema-strict, "date-string")
+// → (("work", "items", "startDate"), …)
+
+// Kind at a single path — thin wrapper over lens-get.
+#kind-at(resume-schema-strict, ("basics", "summary"))  // "content"
+```
+<!-- x-release-please-end -->
+
+Array segments in returned path tuples use `"items"` so they plug
+straight into `lens(path)`; the `[]` suffix in `describe-schema`'s
+output is human-friendly visual only. Keys sort alphabetically so
+diffs across schema versions stay stable.
+
+The real leverage comes from folding `paths-of-kind` together with
+`lens-put` to bulk-edit every field of a kind in one pass — the list
+of paths is derived from the schema, so new fields an upstream JSON
+Resume bump introduces are covered automatically:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.6.0": (
+  resume-schema, paths-of-kind, lens, lens-put, pattern-string,
+)
+
+// Tighten every uri-string field to a corporate-domain pattern,
+// without enumerating the paths by hand.
+#let corporate-uri = pattern-string(
+  "^https://(corp|docs)\.example\.com/",
+  expected: "a corporate URL",
+)
+#let corporate-schema = paths-of-kind(resume-schema, "uri-string").fold(
+  resume-schema,
+  (schema, path) => lens-put(lens(path), schema, corporate-uri),
+)
+```
+<!-- x-release-please-end -->
+
 ### Starting from a JSON Schema document
 
 `schema-from-json-schema(parsed-schema)` translates a JSON Schema (draft 7
