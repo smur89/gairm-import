@@ -20,7 +20,13 @@ ROOT  := .
 
 TESTS := $(wildcard tests/*.typ)
 
-.PHONY: all test check clean help
+# Files that ship to typst/packages. Single source of truth for the
+# release tarball recipe AND the PR-time package-check stager — pulling
+# the list here keeps the two from drifting (the same drift that
+# slipped CONTRIBUTING.md past altacv 1.4.1's typst-package-check).
+PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md CONTRIBUTING.md
+
+.PHONY: all test check clean help stage-package-dir package-tarball
 
 all: test
 
@@ -45,6 +51,30 @@ test:
 	exit $$status
 
 check: test
+
+# Stage every file that ships to typst/packages into PKG_DIR. Used by
+# the CI package-check job (PR-time) to lay out the same file set the
+# release tarball would publish — typst-package-check then validates
+# THAT directory, so a missing file is caught at review time.
+#
+#   make stage-package-dir PKG_DIR=/tmp/.../gairm-import/0.0.0
+#
+# `bash -eo pipefail` so a missing file makes the tar producer fail
+# the recipe — without pipefail the consumer's clean exit would
+# silently mask a partial stage. Invoked explicitly (not via
+# .SHELLFLAGS) so this works on Make < 3.82.
+stage-package-dir:
+	@test -n "$(PKG_DIR)" || { echo "stage-package-dir: PKG_DIR=/path required" >&2; exit 2; }
+	@mkdir -p "$(PKG_DIR)"
+	@bash -eo pipefail -c 'tar cf - $(PACKAGE_FILES) | tar xf - -C "$(PKG_DIR)"'
+
+# Same file set, gzipped — the artifact attached to the GitHub Release
+# and uploaded to typst/packages.
+#
+#   make package-tarball PACKAGE_TARBALL=$(PACKAGE_NAME)-$(VERSION).tar.gz
+package-tarball:
+	@test -n "$(PACKAGE_TARBALL)" || { echo "package-tarball: PACKAGE_TARBALL=/path.tar.gz required" >&2; exit 2; }
+	tar czf "$(PACKAGE_TARBALL)" $(PACKAGE_FILES)
 
 clean:
 	@:
