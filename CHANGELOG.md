@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/smur89/gairm-import/compare/v0.6.0...v0.7.0) (2026-06-16)
+
+
+### Features
+
+* schema introspection helpers (describe-schema, paths-of-kind, kind-at) ([#54](https://github.com/smur89/gairm-import/issues/54)) ([d72b282](https://github.com/smur89/gairm-import/commit/d72b282268d882ad90b3a10dac9cc7e703a5cfd3))
+
 ## [0.6.0](https://github.com/smur89/gairm-import/compare/v0.5.1...v0.6.0) (2026-06-16)
 
 
