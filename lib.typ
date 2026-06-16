@@ -40,23 +40,26 @@
   _coerce(schema, data)
 }
 
-// One-call composition. Accepts a parsed dict OR a Typst-root-relative
-// path string ("/…"); validates, aborts compilation with the combined
-// report on issues, otherwise coerces.
+// One-call composition. Accepts a parsed dict, a `path(…)` value, or
+// a Typst-root-relative path string ("/…"); validates, aborts
+// compilation with the combined report on issues, otherwise coerces.
 //
-// String paths must start with "/" because Typst resolves relative
-// paths against the file containing the call — here that's the
-// @preview cache. For paths relative to the caller's own .typ, pass
-// `json("…")` instead.
+// `path("…")` is the recommended form: Typst resolves the path when
+// the value is constructed, so the lookup anchors on the caller's
+// own .typ rather than this file inside the @preview cache. The
+// "/"-prefixed string form and the legacy `json("…")` wrap are also
+// accepted — see the panic message below for the string-path contract.
 #let parse(data, schema: resume-schema) = {
   _reject-none-root(data)
-  let dict-data = if type(data) == str {
+  let dict-data = if type(data) == path {
+    json(data)
+  } else if type(data) == str {
     if not data.starts-with("/") {
       panic(
         "gairm-import: parse with a string path requires the path " +
           "to start with \"/\" (resolved from the typst root). Got: " + repr(data) + ". " +
-          "To use a path relative to your own .typ file, pass " +
-          "json(" + repr(data) + ") in place of the path string.",
+          "For paths relative to your own .typ file, pass " +
+          "path(" + repr(data) + ") (or json(" + repr(data) + ")) in place of the path string.",
       )
     }
     json(data)
@@ -64,7 +67,7 @@
     data
   } else {
     panic(
-      "gairm-import: parse expected a dict or a string path, got " +
+      "gairm-import: parse expected a dict, a path, or a string path, got " +
         repr(type(data)) + ".",
     )
   }
