@@ -29,9 +29,11 @@ Motivated by [smur89/alta-typst#48](https://github.com/smur89/alta-typst/issues/
 
 ## Install
 
+<!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": validate, coerce, parse // x-release-please-version
+#import "@preview/gairm-import:0.5.0": validate, coerce, parse
 ```
+<!-- x-release-please-end -->
 
 ## A minimal `resume.json`
 
@@ -65,8 +67,9 @@ The full canonical schema covers thirteen sections:
 `parse` is the one-call entry point. It accepts either a parsed dict
 or a Typst-root-relative path string:
 
+<!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": parse // x-release-please-version
+#import "@preview/gairm-import:0.5.0": parse
 
 // Path relative to your own .typ — let Typst's json() resolve it.
 #let resume = parse(json("resume.json"))
@@ -74,6 +77,7 @@ or a Typst-root-relative path string:
 // Or a Typst-root-relative path string, resolved by parse itself.
 #let resume = parse("/resume.json")
 ```
+<!-- x-release-please-end -->
 
 The returned dict is a 1:1 mirror of the canonical schema — every kind comes
 from the upstream JSON Schema document. Format-annotated fields are gated by
@@ -97,13 +101,18 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 
 ```typst
 #import "@preview/altacv:1.1.1": alta, palettes
-#import "@preview/gairm-import:0.5.0": parse // x-release-please-version
+```
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.5.0": parse
 
 #alta(
   parse(json("resume.json")),
   preferences: (accent: palettes.navy),
 )
 ```
+<!-- x-release-please-end -->
 
 `alta(cv, labels: (:), preferences: (:))` takes the JSON-Resume-shaped dict
 positionally; `labels` and `preferences` are optional dicts merged over the
@@ -114,8 +123,9 @@ for the full surface.
 
 Each error is a record `(path: ("basics", "email"), message: "expected string, got integer.")`. A typical step-by-step is:
 
+<!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": validate, coerce // x-release-please-version
+#import "@preview/gairm-import:0.5.0": validate, coerce
 
 #let raw = json("resume.json")
 #let errors = validate(raw)
@@ -126,6 +136,7 @@ Each error is a record `(path: ("basics", "email"), message: "expected string, g
   // render model …
 }
 ```
+<!-- x-release-please-end -->
 
 ## Errors
 
@@ -173,11 +184,13 @@ The package exports two values of the canonical schema:
 
 Pass `schema: resume-schema-strict` to opt in:
 
+<!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": parse, resume-schema-strict // x-release-please-version
+#import "@preview/gairm-import:0.5.0": parse, resume-schema-strict
 
 #let resume = parse(json("resume.json"), schema: resume-schema-strict)
 ```
+<!-- x-release-please-end -->
 
 The faithful default is the source-of-truth view; the strict variant
 is a renderer-ergonomics overlay. If you want a different mix, build
@@ -218,8 +231,9 @@ are rejected. Renderers that need their own fields (alta-typst's
 combinators and pass it to `parse` / `validate` / `coerce` via the
 `schema:` keyword:
 
+<!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": ( // x-release-please-version
+#import "@preview/gairm-import:0.5.0": (
   resume-schema, parse, object, array-of, str-type, content-type,
 )
 
@@ -240,6 +254,7 @@ combinators and pass it to `parse` / `validate` / `coerce` via the
 #let model = parse(json("resume.json"), schema: altacv-schema)
 // render model with the renderer's own theme…
 ```
+<!-- x-release-please-end -->
 
 When to reach for which API:
 
@@ -263,8 +278,9 @@ when the field you want to touch is three or four levels deep (`work` items'
 a path inside the schema and return a new schema with the targeted node
 replaced or transformed:
 
+<!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": ( // x-release-please-version
+#import "@preview/gairm-import:0.5.0": (
   resume-schema, lens, lens-put, lens-over, add-field,
   set-required, unset-required,
   str-type, content-type, number-type, object,
@@ -300,6 +316,7 @@ replaced or transformed:
   strict-basics, lens(("basics",)), ("email",),
 )
 ```
+<!-- x-release-please-end -->
 
 Path segments: object keys as strings, the literal `"items"` to enter an
 array's element schema. Composition (`lens-then(a, b)`) concatenates paths,
@@ -333,8 +350,9 @@ Typst parses `lens.put(…)` as a type-method lookup, not a closure call.)
 subset) into a Typst schema dict. Use it when you already have an authoritative
 `.json` schema and don't want to keep a parallel Typst copy in sync:
 
+<!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.5.0": ( // x-release-please-version
+#import "@preview/gairm-import:0.5.0": (
   schema-from-json-schema, coerce, object, array-of, content-type,
 )
 
@@ -346,6 +364,7 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 
 #let model = coerce(json("resume.json"), schema: altacv-schema)
 ```
+<!-- x-release-please-end -->
 
 Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
 `object`), `format` (`uri` → `uri-string`, `email` → `email-string`,
