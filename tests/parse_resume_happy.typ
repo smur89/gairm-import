@@ -1,5 +1,5 @@
 // End-to-end: minimal valid resume passes through validate + coerce
-// via every supported entry shape (dict, path string).
+// via every supported entry shape (dict, path value, string path).
 
 #import "../lib.typ": validate, coerce, parse, resume-schema-strict
 
@@ -10,6 +10,10 @@
 #assert.eq(type(from-path), dictionary)
 #assert.eq(from-path.basics.name, "Seán Ó Murchú")
 #assert.eq(type(from-path.basics.summary), str)
+
+// path() entry: resolves against the caller's .typ, not @preview.
+#let from-path-value = parse(path("fixtures/resume_minimal.json"))
+#assert.eq(from-path-value.basics.name, from-path.basics.name)
 
 // resume-schema-strict opts into content wrapping for the renderer
 // ergonomics — summary is content there.

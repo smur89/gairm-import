@@ -8,6 +8,11 @@
 #let canonical-js = json("../internal/assets/jsonresume-schema.json")
 #let canonical = schema-from-json-schema(canonical-js)
 
+// path() route: same translation as the dict form above.
+#let canonical-from-path = schema-from-json-schema(path("../internal/assets/jsonresume-schema.json"))
+#assert.eq(canonical-from-path.shape.keys().sorted(), canonical.shape.keys().sorted())
+#assert.eq(canonical-from-path.shape.work.elem.shape.startDate, str-type)
+
 #let expected-keys = (
   "$schema", "awards", "basics", "certificates", "education",
   "interests", "languages", "meta", "projects", "publications",
@@ -40,3 +45,4 @@
 // shape in translation.
 #let raw = json("fixtures/resume_full.json")
 #assert.eq(validate(raw, schema: canonical), ())
+#assert.eq(validate(raw, schema: canonical-from-path), ())

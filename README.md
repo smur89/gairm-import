@@ -62,20 +62,30 @@ The full canonical schema covers thirteen sections:
 
 ## Usage
 
-`parse` is the one-call entry point. It accepts either a parsed dict
-or a Typst-root-relative path string:
+`parse` is the one-call entry point. The recommended form is
+`parse(path("resume.json"))` — the [`path`](https://typst.app/docs/reference/foundations/path/)
+value resolves against your own `.typ` (not the `@preview` cache), so
+you can use the natural relative path:
 
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.5.1": parse
 
-// Path relative to your own .typ — let Typst's json() resolve it.
-#let resume = parse(json("resume.json"))
-
-// Or a Typst-root-relative path string, resolved by parse itself.
-#let resume = parse("/resume.json")
+#let resume = parse(path("resume.json"))
 ```
 <!-- x-release-please-end -->
+
+A parsed dict, a `json("…")` wrap, or a Typst-root-relative `"/…"`
+string are also accepted — useful on older callers or when you've
+already loaded the document yourself:
+
+```typst
+// json() resolves the path against your .typ; parse takes the dict.
+#let resume = parse(json("resume.json"))
+
+// Typst-root-relative path string, resolved by parse itself.
+#let resume = parse("/resume.json")
+```
 
 The returned dict is a 1:1 mirror of the canonical schema — every kind comes
 from the upstream JSON Schema document. Format-annotated fields are gated by
@@ -110,7 +120,7 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 #import "@preview/gairm-import:0.5.1": parse
 
 #alta(
-  parse(json("resume.json")),
+  parse(path("resume.json")),
   preferences: (accent: palettes.navy),
 )
 ```
@@ -190,7 +200,7 @@ Pass `schema: resume-schema-strict` to opt in:
 ```typst
 #import "@preview/gairm-import:0.5.1": parse, resume-schema-strict
 
-#let resume = parse(json("resume.json"), schema: resume-schema-strict)
+#let resume = parse(path("resume.json"), schema: resume-schema-strict)
 ```
 <!-- x-release-please-end -->
 
@@ -253,7 +263,7 @@ combinators and pass it to `parse` / `validate` / `coerce` via the
   focusAreas: array-of(content-type),
 ))
 
-#let model = parse(json("resume.json"), schema: altacv-schema)
+#let model = parse(path("resume.json"), schema: altacv-schema)
 // render model with the renderer's own theme…
 ```
 <!-- x-release-please-end -->
@@ -358,7 +368,7 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
   schema-from-json-schema, coerce, object, array-of, content-type,
 )
 
-#let canonical = schema-from-json-schema(json("resume-schema.json"))
+#let canonical = schema-from-json-schema(path("resume-schema.json"))
 #let altacv-schema = object((
   ..canonical.shape,
   focusAreas: array-of(content-type),
