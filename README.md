@@ -438,6 +438,30 @@ straight into `lens(path)`; the `[]` suffix in `describe-schema`'s
 output is human-friendly visual only. Keys sort alphabetically so
 diffs across schema versions stay stable.
 
+The real leverage comes from folding `paths-of-kind` together with
+`lens-put` to bulk-edit every field of a kind in one pass — the list
+of paths is derived from the schema, so new fields an upstream JSON
+Resume bump introduces are covered automatically:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.6.0": (
+  resume-schema, paths-of-kind, lens, lens-put, pattern-string,
+)
+
+// Tighten every uri-string field to a corporate-domain pattern,
+// without enumerating the paths by hand.
+#let corporate-uri = pattern-string(
+  "^https://(corp|docs)\.example\.com/",
+  expected: "a corporate URL",
+)
+#let corporate-schema = paths-of-kind(resume-schema, "uri-string").fold(
+  resume-schema,
+  (schema, path) => lens-put(lens(path), schema, corporate-uri),
+)
+```
+<!-- x-release-please-end -->
+
 ### Starting from a JSON Schema document
 
 `schema-from-json-schema(parsed-schema)` translates a JSON Schema (draft 7
