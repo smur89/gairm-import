@@ -132,8 +132,16 @@
 }
 
 // `path("…")` is read via json() so callers can skip the double-wrap.
-// No string form — there's no "/"-prefix convention for this entry.
+// Non-dict/non-path inputs are rejected at the boundary so the
+// diagnostic carries the standard schema-from-json-schema prefix
+// instead of failing deep inside _from-json-schema.
 #let schema-from-json-schema(js) = {
-  let parsed = if type(js) == path { json(js) } else { js }
+  let parsed = if type(js) == path {
+    json(js)
+  } else if type(js) == dictionary {
+    js
+  } else {
+    _bail("expected a parsed JSON Schema dict or path(...), got: " + repr(type(js)) + ".")
+  }
   _from-json-schema(parsed, parsed, ())
 }
