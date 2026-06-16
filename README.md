@@ -99,6 +99,10 @@ instead and pass it via the `schema:` keyword — see [Two schemas](#two-schemas
 
 Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.app/universe/package/altacv):
 
+<!-- Known-ugly: two fences instead of one because release-please's block
+     wrap would also bump altacv:1.1.1 on every release. See
+     https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
+
 ```typst
 #import "@preview/altacv:1.1.1": alta, palettes
 ```
