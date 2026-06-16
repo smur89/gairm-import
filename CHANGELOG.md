@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/smur89/gairm-import/compare/v0.5.0...v0.5.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* hide release-please version markers from rendered README ([#57](https://github.com/smur89/gairm-import/issues/57)) ([0f33b09](https://github.com/smur89/gairm-import/commit/0f33b09b5acf2f806a429d694094589ab6e5d41b))
+
 ## [0.5.0](https://github.com/smur89/typst-json-resume/compare/v0.4.0...v0.5.0) (2026-06-15)
 
 
