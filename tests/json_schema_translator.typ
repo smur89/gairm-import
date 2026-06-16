@@ -1,7 +1,7 @@
 #import "../lib.typ": (
   schema-from-json-schema,
   str-type, number-type, array-of, object,
-  date-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string,
   enum-of, const-of,
 )
 
@@ -21,6 +21,10 @@
 #assert.eq(
   schema-from-json-schema((type: "string", format: "date")),
   date-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "date-time")),
+  datetime-string,
 )
 
 #assert.eq(

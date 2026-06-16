@@ -217,15 +217,26 @@ your own by lensing over `resume-schema` — see
 
 Fields the canonical schema annotates with `format: "uri"`,
 `format: "email"`, or `format: "date"` are gated by a regex during
-`validate` / `parse`. The patterns are deliberately permissive — they
-reject obvious malformations without claiming full RFC compliance —
-and each emits a path-qualified message with a canonical example:
+`validate` / `parse`. The patterns are deliberately permissive —
+they reject obvious malformations without claiming full RFC
+compliance — and each emits a path-qualified message with a
+canonical example:
 
 ```text
 basics.email:           expected an email (e.g. "name@example.com").
 basics.url:             expected a URI (e.g. "https://example.com").
 certificates[0].date:   expected an ISO-8601 date (e.g. "2024-01-15").
 ```
+
+`format: "date-time"` is supported too via the `datetime-string` kind:
+the canonical JSON Resume document doesn't currently carry any
+`date-time` annotations, so the kind only fires when a caller
+translates their own JSON Schema with `schema-from-json-schema`, or
+lens-overrides a field. `date-string` accepts `YYYY` / `YYYY-MM` /
+`YYYY-MM-DD`; `datetime-string` requires the full `YYYY-MM-DDTHH:MM:SS`
+shape with an optional fractional component and an optional `Z` or
+`±HH:MM` offset. The two are separate kinds on purpose — widening the
+date regex to also match datetime values would mislabel pure-date fields.
 
 Most date fields in JSON Resume (`work[].startDate`, `awards[].date`,
 `meta.lastModified`, …) use `$ref: "#/definitions/iso8601"` rather
@@ -384,16 +395,15 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 
 Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
 `object`), `format` (`uri` → `uri-string`, `email` → `email-string`,
-`date` → `date-string`), `enum` → `enum-of`, `const` → `const-of`,
+`date` → `date-string`, `date-time` → `datetime-string`),
+`enum` → `enum-of`, `const` → `const-of`,
 `properties`, `required`, `items`, internal `$ref`
 (`#/definitions/…` / `#/$defs/…`). Out of scope:
 `allOf` / `anyOf` / `oneOf` / `not`,
 `if` / `then` / `else`, `dependencies` (and the `dependentRequired` /
 `dependentSchemas` variants), open object schemas (`type: "object"` without
 `properties`), `type: [...]` union arrays, external `$ref`, and string formats
-other than the three listed above (notably `date-time`, which would need its
-own datetime-string kind to avoid labelling a datetime then rejecting its
-values against a date-only regex) — every one of these panics with a clear
+other than the four listed above — every one of these panics with a clear
 "unsupported" message rather than silently dropping the constraint.
 
 ## Scope

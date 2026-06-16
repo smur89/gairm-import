@@ -3,17 +3,15 @@
 
 #import "kinds.typ": (
   str-type, content-type, number-type, array-of, object,
-  date-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string,
   enum-of, const-of,
 )
 
-// `date-time` is intentionally absent: the date-string regex is
-// date-only, so labelling a datetime field then rejecting its values
-// is worse than the up-front "unsupported format" panic.
 #let _format-kinds = (
   "uri": uri-string,
   "email": email-string,
   "date": date-string,
+  "date-time": datetime-string,
 )
 
 // One panic prefix so every diagnostic from this module is grep-able

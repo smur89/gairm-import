@@ -9,9 +9,10 @@
 
 // Format-specialised string kinds — regex-gated in _validate;
 // deliberately permissive (reject obvious malformations, not full RFC).
-#let date-string  = (kind: "date-string")
-#let uri-string   = (kind: "uri-string")
-#let email-string = (kind: "email-string")
+#let date-string     = (kind: "date-string")
+#let datetime-string = (kind: "datetime-string")
+#let uri-string      = (kind: "uri-string")
+#let email-string    = (kind: "email-string")
 
 #let array-of(elem) = (kind: "array", elem: elem)
 

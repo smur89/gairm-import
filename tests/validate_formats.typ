@@ -1,12 +1,16 @@
 // Format-specialised string combinators reject malformed values and
 // surface path-qualified messages with a canonical example. Coverage:
 //
-//  - date-string  → iso8601 (YYYY / YYYY-MM / YYYY-MM-DD)
-//  - uri-string   → scheme://rest (permissive)
-//  - email-string → local@domain.tld (permissive)
+//  - date-string     → iso8601 (YYYY / YYYY-MM / YYYY-MM-DD)
+//  - datetime-string → iso8601 datetime (date + T + HH:MM:SS, optional fractional + offset)
+//  - uri-string      → scheme://rest (permissive)
+//  - email-string    → local@domain.tld (permissive)
 
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": date-string, uri-string, email-string, object, array-of
+#import "../internal/schema.typ": (
+  date-string, datetime-string, uri-string, email-string,
+  object, array-of,
+)
 
 // ---- date-string ----------------------------------------------------
 
@@ -51,6 +55,59 @@
 #assert.eq(date-type-err.len(), 1)
 #assert(date-type-err.at(0).message.contains("expected string"))
 #assert(date-type-err.at(0).message.contains("got integer"))
+
+// ---- datetime-string ------------------------------------------------
+
+// Bare datetime (no fractional, no offset), with fractional, with `Z`,
+// with `±HH:MM` offset — all accepted.
+#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00",         ("dt",)), ())
+#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00.123",     ("dt",)), ())
+#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00Z",        ("dt",)), ())
+#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00.5Z",      ("dt",)), ())
+#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00+01:00",   ("dt",)), ())
+#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00-05:30",   ("dt",)), ())
+#assert.eq(_validate(datetime-string, "2024-01-15T23:59:59.999+14:00", ("dt",)), ())
+
+#let datetime-fail(value, path) = {
+  let errs = _validate(datetime-string, value, path)
+  assert.eq(errs.len(), 1, message: "expected one error for " + repr(value))
+  assert.eq(errs.at(0).path, path)
+  errs.at(0).message
+}
+
+// Missing T separator, missing seconds, date-only — all rejected so a
+// pure-date value can't quietly pass under a datetime-string gate.
+#let m-dt = datetime-fail("2024-01-15 10:00:00", ("meta", "lastModified"))
+#assert(m-dt.contains("ISO-8601 datetime"))
+#assert(m-dt.contains("e.g. \"2024-01-15T10:00:00Z\""))
+
+#assert(datetime-fail("2024-01-15",          ("dt",)).contains("ISO-8601 datetime"))  // no time
+#assert(datetime-fail("2024-01-15T10:00",    ("dt",)).contains("ISO-8601 datetime"))  // no seconds
+#assert(datetime-fail("2024-01-15T1:00:00",  ("dt",)).contains("ISO-8601 datetime"))  // 1-digit hour
+#assert(datetime-fail("",                    ("dt",)).contains("ISO-8601 datetime"))
+
+// Malformed timezones — anything other than `Z` or `±HH:MM`.
+#assert(datetime-fail("2024-01-15T10:00:00+0100",   ("dt",)).contains("ISO-8601 datetime"))  // no colon
+#assert(datetime-fail("2024-01-15T10:00:00+1:00",   ("dt",)).contains("ISO-8601 datetime"))  // 1-digit hour
+#assert(datetime-fail("2024-01-15T10:00:00+25:00",  ("dt",)).contains("ISO-8601 datetime"))  // hour > 23
+#assert(datetime-fail("2024-01-15T10:00:00z",       ("dt",)).contains("ISO-8601 datetime"))  // lowercase z
+#assert(datetime-fail("2024-01-15T10:00:00UTC",     ("dt",)).contains("ISO-8601 datetime"))  // named tz
+
+// Calendar / clock out-of-range — same tightening as date-string, plus
+// hours/minutes/seconds.
+#assert(datetime-fail("2024-13-15T10:00:00Z", ("dt",)).contains("ISO-8601 datetime"))  // month > 12
+#assert(datetime-fail("2024-00-15T10:00:00Z", ("dt",)).contains("ISO-8601 datetime"))  // month = 00
+#assert(datetime-fail("2024-01-00T10:00:00Z", ("dt",)).contains("ISO-8601 datetime"))  // day   = 00
+#assert(datetime-fail("2024-01-32T10:00:00Z", ("dt",)).contains("ISO-8601 datetime"))  // day  > 31
+#assert(datetime-fail("2024-01-15T24:00:00Z", ("dt",)).contains("ISO-8601 datetime"))  // hour = 24
+#assert(datetime-fail("2024-01-15T10:60:00Z", ("dt",)).contains("ISO-8601 datetime"))  // minute = 60
+#assert(datetime-fail("2024-01-15T10:00:60Z", ("dt",)).contains("ISO-8601 datetime"))  // second = 60
+
+// Wrong type yields a type-error, not a format-error.
+#let dt-type-err = _validate(datetime-string, 2024, ("dt",))
+#assert.eq(dt-type-err.len(), 1)
+#assert(dt-type-err.at(0).message.contains("expected string"))
+#assert(dt-type-err.at(0).message.contains("got integer"))
 
 // ---- uri-string -----------------------------------------------------
 

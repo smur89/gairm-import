@@ -5,7 +5,7 @@
 
 #import "kinds.typ": (
   str-type, content-type, number-type, array-of, object,
-  date-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string,
   enum-of, const-of,
 )
 #import "json-schema.typ": schema-from-json-schema
