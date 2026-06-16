@@ -8,4 +8,4 @@ description = "Strict JSON Resume loader for CV templates."
 repository = "https://github.com/smur89/gairm-import"
 keywords = ["json-resume", "resume", "cv", "loader", "schema"]
 categories = ["utility"]
-compiler = "0.13.0"
+compiler = "0.15.0"
