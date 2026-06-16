@@ -25,8 +25,6 @@ template. Strict to the published [schema](https://jsonresume.org/schema)
 unknown fields are rejected, free-text fields are coerced to Typst `content`,
 and renderer-specific extensions belong in the consuming template — not here.
 
-Motivated by [smur89/alta-typst#48](https://github.com/smur89/alta-typst/issues/48).
-
 ## Install
 
 <!-- x-release-please-start-version -->
