@@ -286,8 +286,12 @@ common case.
 
 ## Building an extension schema
 
-`parse` is strict against the canonical schema by design — unknown keys
-are rejected. Renderers that need their own fields (alta-typst's
+`parse` is strict against declared fields in the canonical schema:
+keys that aren't declared *and* aren't covered by an upstream
+`additionalProperties` clause are rejected. (Upstream JSON Resume
+sets `additionalProperties: true` on every section's items, so extras
+in those positions pass through — see the note in the BYO section.)
+Renderers that need their own fields (alta-typst's
 `preferences`, `labels`, `focusAreas`; numeric language `rating`; publication
 `type` grouping; …) can build a JSON-Resume+ schema with the public
 combinators and pass it to `parse` / `validate` / `coerce` via the
@@ -380,11 +384,14 @@ replaced or transformed:
 ```
 <!-- x-release-please-end -->
 
-Path segments: object keys as strings, the literal `"items"` to enter an
-array's element schema. Composition (`lens-then(a, b)`) concatenates paths,
-so `lens-then(lens(("work",)), lens(("items", "highlights")))` is the same
-lens as `lens(("work", "items", "highlights"))`. The empty path `lens(())`
-is the identity lens.
+Path segments match JSON Schema keyword names: object keys as strings,
+the literal `"items"` to enter an array's element schema, and the
+literal `"additionalProperties"` to enter an object's `additional` (the
+additionalProperties schema; only valid when `additional` is a schema
+dict, not `true`). Composition (`lens-then(a, b)`) concatenates paths,
+so `lens-then(lens(("work",)), lens(("items", "highlights")))` is the
+same lens as `lens(("work", "items", "highlights"))`. The empty path
+`lens(())` is the identity lens.
 
 Operations:
 
@@ -501,17 +508,32 @@ need both), `enum` → `enum-of`, `const` → `const-of`,
 `properties`, `required`, `items`, internal `$ref`
 (`#/definitions/…` / `#/$defs/…`), `type: [X, "null"]` nullable unions
 (under the engine's null-as-absent policy these translate to plain `X`),
-and constraint keywords on strings (`minLength` / `maxLength`), numbers
+constraint keywords on strings (`minLength` / `maxLength`), numbers
 (`minimum` / `maximum` / `exclusiveMinimum` / `exclusiveMaximum` /
-`multipleOf`), and arrays (`minItems` / `maxItems` / `uniqueItems`) —
-bake onto the kind dict as kebab-case fields and validate inline.
+`multipleOf`), and arrays (`minItems` / `maxItems` / `uniqueItems`)
+— baked onto the kind dict as kebab-case fields and validated
+inline — and `additionalProperties` (a schema, `true`, or `false`
+— `false` matches the strict default; `true` permits extras without
+validation; a schema validates every extra against it, also reachable
+via the `map(value-schema)` combinator).
 Out of scope: `allOf` / `anyOf` / `oneOf` / `not`,
 `if` / `then` / `else`, `dependencies` (and the `dependentRequired` /
-`dependentSchemas` variants), open object schemas (`type: "object"` without
-`properties`), `type: [...]` unions with more than one non-null member,
-external `$ref`, and string formats other than the four listed above —
-every one of these panics with a clear "unsupported" message rather
-than silently dropping the constraint.
+`dependentSchemas` variants), `type: "object"` with neither `properties`
+nor `additionalProperties` (fully open),
+`type: [...]` unions with more than one non-null member, external `$ref`,
+and string formats other than the four listed above — every one of these
+panics with a clear "unsupported" message rather than silently dropping
+the constraint.
+
+A note on the canonical `resume-schema` and `additionalProperties`:
+the upstream JSON Resume document declares `additionalProperties: true`
+on every section's items, so the canonical schema accepts extras at
+runtime even though the README's headline framing is "strict". Strict
+applies to declared fields; `additionalProperties: true` from upstream
+is honoured. If you need stricter behaviour, use `resume-schema-strict`
+— it recursively strips `additional: true` from every nested object,
+restoring the "unknown keys are rejected" promise (typed extras
+declared via `additionalProperties: <schema>` are kept).
 
 ## Scope
 

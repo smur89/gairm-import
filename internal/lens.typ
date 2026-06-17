@@ -5,10 +5,26 @@
 // of the closure stored under that key, so methods would force
 // `(lens.put)(args)` at every call site.
 //
-// Path segments:
-//   - object: string key into `.shape`
-//   - array : literal "items" to enter `.elem`
+// Path segments match the JSON Schema keyword name (not the engine
+// field name) so a lens path reads as a JSON Schema location:
+//   - object   : string key into `.shape`
+//   - object   : literal "additionalProperties" to enter `.additional`
+//                (only when set to a schema dict, not `true`)
+//   - array    : literal "items" to enter `.elem`
 //   - empty `()` : identity lens
+//
+// Shape-first precedence for objects: if `"additionalProperties"` is
+// both a literal property in `shape` and the additionalProperties
+// keyword name, the literal property wins (meta-schemas are the
+// realistic case where this collision arises). Reach the
+// additional-schema in that rare collision case via lens-over on the
+// parent — `p => p.additional` to read, `p => (..p, additional: new)`
+// to write.
+//
+// `lens-put` writes the replacement value verbatim — it doesn't
+// validate that the value is a well-formed schema dict at any
+// segment. Use the public `object` / `array-of` / kind constructors
+// to build the replacement.
 
 #let _bail(msg) = panic("gairm-import: " + msg)
 
@@ -31,13 +47,25 @@
 
 #let _descend(schema, segment) = {
   if schema.kind == "object" {
-    if segment not in schema.shape {
-      _bail(
-        "lens path segment " + repr(segment) + " not in object shape. " +
-          "Valid keys: " + schema.shape.keys().join(", ") + ".",
-      )
+    // Shape lookup wins so a literal property named
+    // "additionalProperties" stays addressable.
+    if segment in schema.shape {
+      return schema.shape.at(segment)
     }
-    return schema.shape.at(segment)
+    if segment == "additionalProperties" {
+      let additional = schema.at("additional", default: none)
+      if type(additional) != dictionary {
+        _bail(
+          "lens segment \"additionalProperties\" requires the object's " +
+            "`additional` field to be a schema dict, got: " + repr(additional) + ".",
+        )
+      }
+      return additional
+    }
+    _bail(
+      "lens path segment " + repr(segment) + " not in object shape. " +
+        "Valid keys: " + schema.shape.keys().join(", ") + ".",
+    )
   }
   if schema.kind == "array" {
     if segment != "items" {
@@ -66,8 +94,18 @@
   if path.len() == 0 { return value }
   let (head, ..rest) = path
   let new-sub = _set-at(_descend(schema, head), rest, value)
-  if schema.kind == "object" { _with-shape-set(schema, head, new-sub) }
-  else { (..schema, elem: new-sub) }
+  // Mirror _descend's shape-first precedence so a literal property
+  // named "additionalProperties" rewrites the shape entry, not the
+  // additional schema. _descend already bailed on any other invalid
+  // object segment, so the additionalProperties branch is the only
+  // remaining object case.
+  if schema.kind == "object" and head in schema.shape {
+    _with-shape-set(schema, head, new-sub)
+  } else if schema.kind == "object" {
+    (..schema, additional: new-sub)
+  } else {
+    (..schema, elem: new-sub)
+  }
 }
 
 #let lens(path) = (kind: "lens", path: path)

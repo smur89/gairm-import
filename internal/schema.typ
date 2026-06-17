@@ -5,7 +5,7 @@
 
 #import "kinds.typ": (
   str-type, content-type, number-type, bool-type, null-type,
-  array-of, object,
+  array-of, object, map,
   date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,
 )
@@ -80,9 +80,40 @@
   })
 }
 
+// Strip `additional: true` (the JSON Resume upstream's permissive
+// "extras allowed" on every section's items) recursively. Typed
+// extras (`additional: <schema>`) are kept and recursed into; only
+// the unchecked-pass-through form is removed. Used by the strict
+// variant to restore the "rejected unknown keys" promise.
+#let _strip-permissive-additional(schema) = {
+  if schema.kind == "object" {
+    let new-shape = (:)
+    for (k, v) in schema.shape.pairs() {
+      new-shape.insert(k, _strip-permissive-additional(v))
+    }
+    let ap = schema.at("additional", default: none)
+    let new-additional = if type(ap) == dictionary {
+      _strip-permissive-additional(ap)
+    } else {
+      none
+    }
+    // Route through the public constructor so any future invariant
+    // added to `object()` applies here too.
+    object(new-shape, required-keys: schema.required-keys, additional: new-additional)
+  } else if schema.kind == "array" {
+    (..schema, elem: _strip-permissive-additional(schema.elem))
+  } else {
+    schema
+  }
+}
+
 #let resume-schema-strict = {
+  // Strip first so the override-folds run against a schema that
+  // doesn't carry the `additional: true` markers — paths and
+  // expectations stay simple.
+  let strict-base = _strip-permissive-additional(resume-schema)
   let with-content = _override-fold(
-    resume-schema, _content-paths, str-type, content-type, "_content-paths",
+    strict-base, _content-paths, str-type, content-type, "_content-paths",
   )
   let with-iso = _override-fold(
     with-content, _iso8601-date-paths, _iso8601-source, date-string, "_iso8601-date-paths",
