@@ -9,21 +9,28 @@
 </p>
 
 <p align="center">
-  Strict <a href="https://jsonresume.org/">JSON Resume</a> loader for Typst — validate a canonical <code>resume.json</code> against the <a href="https://jsonresume.org/schema">published schema</a>, then hand the normalised dict to any compatible CV template.
+  JSON Schema → Typst dict coercer. Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and return a normalised Typst dict ready for downstream rendering. Ships with the <a href="https://jsonresume.org/schema">JSON Resume</a> schema and convenience entry points as the canonical bundled example.
 </p>
 
 <p align="center">
-  <sub><em>"gairm" is the Irish word for vocation — this package imports the data that describes one.</em></sub>
+  <sub><em>"gairm" is Irish for vocation. The package was originally a JSON Resume loader.</em></sub>
 </p>
 
-[JSON Resume](https://jsonresume.org/) is a portable JSON-based resume format —
-one `resume.json` file rendered by many themes across many output formats.
-This package brings that ecosystem to Typst: load and validate a canonical
-`resume.json`, then hand the normalised dict to any compatible Typst CV
-template. Strict to the published [schema](https://jsonresume.org/schema)
-(canonical source at [jsonresume/resume-schema](https://github.com/jsonresume/resume-schema/blob/v1.0.0/schema.json)):
-unknown fields are rejected, free-text fields are coerced to Typst `content`,
-and renderer-specific extensions belong in the consuming template — not here.
+The engine is a pair of pure functions of `(schema, value)` — `validate` returns a
+list of `(path, message)` records, `coerce` returns the normalised dict — backed by
+combinators for hand-authoring Typst schemas (`object`, `array-of`, `str-type`,
+`content-type`, `number-type`, `enum-of`, `const-of`, format-specialised string
+kinds, `pattern-string`) and a translator (`schema-from-json-schema`) that converts
+JSON Schema (draft&nbsp;7 subset) into the same shape. Lens helpers
+(`lens-put`, `lens-over`, `add-field`, …) and introspection helpers
+(`describe-schema`, `paths-of-kind`, `kind-at`) round out the schema-editing
+surface.
+
+The [JSON Resume](https://jsonresume.org/) schema ships ready-to-use as
+`resume-schema` / `resume-schema-strict` — load a canonical `resume.json` via
+`parse` and hand the normalised dict to any compatible Typst CV template. Bring
+your own schema for any other JSON-Schema-shaped data format; the engine doesn't
+know or care that it's a CV.
 
 ## Install
 
