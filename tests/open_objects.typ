@@ -4,7 +4,7 @@
 #import "../lib.typ": (
   validate, coerce,
   schema-from-json-schema,
-  object, map, str-type, number-type, array-of,
+  object, map, str-type, number-type, email-string, array-of,
   lens, lens-get, lens-put, paths-of-kind, describe-schema,
 )
 
@@ -262,16 +262,18 @@
 // "additionalProperties". Shape-first precedence keeps that literal
 // key addressable; the additional schema in that collision case is
 // reached via lens-over on the parent (see lens.typ top-of-file).
+// Distinct baseline + replacement so the "untouched" assertion below
+// can't pass accidentally if lens-put rewrote both.
 #let meta-shaped = object(
   (additionalProperties: number-type),
-  additional: str-type,
+  additional: email-string,
 )
 // Literal property wins: lens-get returns the shape entry, not `additional`.
 #assert.eq(lens-get(lens(("additionalProperties",)), meta-shaped), number-type)
 // And lens-put rewrites the shape entry, not `additional`.
 #let after-put = lens-put(lens(("additionalProperties",)), meta-shaped, str-type)
 #assert.eq(after-put.shape.additionalProperties, str-type)
-#assert.eq(after-put.additional, str-type)  // untouched
+#assert.eq(after-put.additional, email-string)  // untouched, distinct from the replacement
 
 // --- lens "items" doesn't collide: per-kind dispatch ----------------
 //
