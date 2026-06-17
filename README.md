@@ -480,8 +480,9 @@ Resume bump introduces are covered automatically:
 
 Lens paths and validator error paths are `(seg, seg, ...)` tuples — natural in Typst but they don't directly interoperate with external tooling that speaks [RFC 6901 JSON Pointer](https://datatracker.ietf.org/doc/html/rfc6901) (editor extensions for schema-aware completion, schema diff tools, JSON Schema documentation generators, …). `path-to-pointer` / `pointer-to-path` cross the boundary:
 
+<!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.7.x": path-to-pointer, pointer-to-path
+#import "@preview/gairm-import:0.7.0": path-to-pointer, pointer-to-path
 
 #path-to-pointer(("basics", "email"))            // "/basics/email"
 #path-to-pointer(("work", 0, "highlights", 1))   // "/work/0/highlights/1"
@@ -492,8 +493,9 @@ Lens paths and validator error paths are `(seg, seg, ...)` tuples — natural in
 #pointer-to-path("")                             // ()          — whole document
 #pointer-to-path("/")                            // ("",)       — empty-string key at root
 ```
+<!-- x-release-please-end -->
 
-Encoding accepts `str` (object key) or `int` (array index) segments; other types panic. Decoding parses tokens matching JSON Pointer's array-index ABNF (`0` | `[1-9][0-9]*`) back to `int`; everything else stays `str`. `pointer-to-path(path-to-pointer(p)) == p` round-trips for any path with unambiguous segment types — the shape lens and validator code emit.
+Encoding accepts `str` (object key) or `int` (array index, non-negative — RFC 6901's array-index ABNF) segments; other types panic. Decoding parses tokens matching that ABNF (`0` | `[1-9][0-9]*`) back to `int`; everything else stays `str`. `pointer-to-path(path-to-pointer(p)) == p` round-trips for paths whose string segments don't look like array indices — a `("0",)` segment would decode back as `(0,)`, not `("0",)`. In practice this isn't a concern: shape lens and validator code never emit numeric strings.
 
 ### Starting from a JSON Schema document
 

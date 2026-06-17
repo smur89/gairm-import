@@ -90,3 +90,13 @@
 // suffix instead.
 #assert(src.contains("pointer-to-path expected"))
 #assert(src.contains("or a pointer starting with"))
+
+// Negative ints are not RFC 6901 array indices; rejected at encode
+// rather than silently emitting "/-1" (which decodes back as the
+// string "-1", a silent round-trip break).
+#assert(src.contains("expected a non-negative integer"))
+
+// Malformed `~` escape sequences (bare `~`, `~2`, `~<other>`) are
+// rejected at decode rather than passing through as plain strings.
+#assert(src.contains("invalid escape sequence in token"))
+#assert(src.contains("RFC 6901 only allows"))
