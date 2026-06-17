@@ -13,10 +13,13 @@
 //   - array    : literal "items" to enter `.elem`
 //   - empty `()` : identity lens
 //
-// "additionalProperties" is reserved as the additional-schema
-// accessor — but unambiguous: a JSON Schema can't have both a
-// literal property named "additionalProperties" *and* the
-// additionalProperties keyword applying to that object.
+// Shape-first precedence for objects: if `"additionalProperties"` is
+// both a literal property in `shape` and the additionalProperties
+// keyword name, the literal property wins (meta-schemas are the
+// realistic case where this collision arises). Reach the
+// additional-schema in that rare collision case via
+// `lens-over(parent-lens, schema, p => p.additional)` instead of a
+// path segment.
 //
 // `lens-put` writes the replacement value verbatim — it doesn't
 // validate that the value is a well-formed schema dict at any
@@ -44,6 +47,11 @@
 
 #let _descend(schema, segment) = {
   if schema.kind == "object" {
+    // Shape lookup wins so a literal property named
+    // "additionalProperties" stays addressable.
+    if segment in schema.shape {
+      return schema.shape.at(segment)
+    }
     if segment == "additionalProperties" {
       let additional = schema.at("additional", default: none)
       if type(additional) != dictionary {
@@ -54,13 +62,10 @@
       }
       return additional
     }
-    if segment not in schema.shape {
-      _bail(
-        "lens path segment " + repr(segment) + " not in object shape. " +
-          "Valid keys: " + schema.shape.keys().join(", ") + ".",
-      )
-    }
-    return schema.shape.at(segment)
+    _bail(
+      "lens path segment " + repr(segment) + " not in object shape. " +
+        "Valid keys: " + schema.shape.keys().join(", ") + ".",
+    )
   }
   if schema.kind == "array" {
     if segment != "items" {
@@ -89,7 +94,12 @@
   if path.len() == 0 { return value }
   let (head, ..rest) = path
   let new-sub = _set-at(_descend(schema, head), rest, value)
-  if schema.kind == "object" and head == "additionalProperties" {
+  // Mirror _descend's shape-first precedence so a literal property
+  // named "additionalProperties" rewrites the shape entry, not the
+  // additional schema.
+  if schema.kind == "object" and head in schema.shape {
+    _with-shape-set(schema, head, new-sub)
+  } else if schema.kind == "object" and head == "additionalProperties" {
     (..schema, additional: new-sub)
   } else if schema.kind == "object" {
     _with-shape-set(schema, head, new-sub)

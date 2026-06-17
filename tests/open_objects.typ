@@ -255,3 +255,31 @@
 // confirming `_describe` recurses through the additional pair.
 #let nested-described = describe-schema(map(map(str-type)))
 #assert(nested-described.contains("*"))
+
+// --- lens collision: literal "additionalProperties" shape key wins -
+//
+// Meta-schemas describe properties literally named
+// "additionalProperties". Shape-first precedence keeps that literal
+// key addressable; the additional schema in that collision case is
+// reached via lens-over on the parent (see lens.typ top-of-file).
+#let meta-shaped = object(
+  (additionalProperties: number-type),
+  additional: str-type,
+)
+// Literal property wins: lens-get returns the shape entry, not `additional`.
+#assert.eq(lens-get(lens(("additionalProperties",)), meta-shaped), number-type)
+// And lens-put rewrites the shape entry, not `additional`.
+#let after-put = lens-put(lens(("additionalProperties",)), meta-shaped, str-type)
+#assert.eq(after-put.shape.additionalProperties, str-type)
+#assert.eq(after-put.additional, str-type)  // untouched
+
+// --- lens "items" doesn't collide: per-kind dispatch ----------------
+//
+// "items" on an object kind is a shape key lookup; on an array kind
+// it enters `.elem`. The two interpretations live in different
+// _descend branches, so a property literally named "items" stays
+// addressable on objects.
+#let obj-with-items-key = object((items: str-type))
+#assert.eq(lens-get(lens(("items",)), obj-with-items-key), str-type)
+#let arr = array-of(number-type)
+#assert.eq(lens-get(lens(("items",)), arr), number-type)
