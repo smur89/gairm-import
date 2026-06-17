@@ -5,13 +5,23 @@
 // of the closure stored under that key, so methods would force
 // `(lens.put)(args)` at every call site.
 //
-// Path segments:
+// Path segments match the JSON Schema keyword name (not the engine
+// field name) so a lens path reads as a JSON Schema location:
 //   - object   : string key into `.shape`
-//   - object   : literal "*" to enter `.additional` (the
-//                additionalProperties schema; only when set to a
-//                schema dict, not `true`)
+//   - object   : literal "additionalProperties" to enter `.additional`
+//                (only when set to a schema dict, not `true`)
 //   - array    : literal "items" to enter `.elem`
 //   - empty `()` : identity lens
+//
+// "additionalProperties" is reserved as the additional-schema
+// accessor — but unambiguous: a JSON Schema can't have both a
+// literal property named "additionalProperties" *and* the
+// additionalProperties keyword applying to that object.
+//
+// `lens-put` writes the replacement value verbatim — it doesn't
+// validate that the value is a well-formed schema dict at any
+// segment. Use the public `object` / `array-of` / kind constructors
+// to build the replacement.
 
 #let _bail(msg) = panic("gairm-import: " + msg)
 
@@ -34,12 +44,12 @@
 
 #let _descend(schema, segment) = {
   if schema.kind == "object" {
-    if segment == "*" {
+    if segment == "additionalProperties" {
       let additional = schema.at("additional", default: none)
       if type(additional) != dictionary {
         _bail(
-          "lens segment \"*\" requires the object's `additional` field " +
-            "to be a schema dict, got: " + repr(additional) + ".",
+          "lens segment \"additionalProperties\" requires the object's " +
+            "`additional` field to be a schema dict, got: " + repr(additional) + ".",
         )
       }
       return additional
@@ -79,9 +89,13 @@
   if path.len() == 0 { return value }
   let (head, ..rest) = path
   let new-sub = _set-at(_descend(schema, head), rest, value)
-  if schema.kind == "object" and head == "*" { (..schema, additional: new-sub) }
-  else if schema.kind == "object" { _with-shape-set(schema, head, new-sub) }
-  else { (..schema, elem: new-sub) }
+  if schema.kind == "object" and head == "additionalProperties" {
+    (..schema, additional: new-sub)
+  } else if schema.kind == "object" {
+    _with-shape-set(schema, head, new-sub)
+  } else {
+    (..schema, elem: new-sub)
+  }
 }
 
 #let lens(path) = (kind: "lens", path: path)

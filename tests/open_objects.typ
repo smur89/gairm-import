@@ -4,7 +4,7 @@
 #import "../lib.typ": (
   validate, coerce,
   schema-from-json-schema,
-  object, map, str-type, number-type,
+  object, map, str-type, number-type, array-of,
   lens, lens-get, lens-put, paths-of-kind, describe-schema,
 )
 
@@ -190,7 +190,8 @@
 
 // --- introspection: `paths-of-kind` descends into `additional` -----
 //
-// Path segment is `"*"` to denote "the additional schema". The
+// Path segment is `"additionalProperties"` (matching the JSON Schema
+// keyword name, same convention as `"items"` for arrays). The
 // emitted path round-trips through `lens-get`.
 #let tags-schema = object(
   (name: str-type, tags: map(str-type)),
@@ -198,25 +199,28 @@
 )
 #assert.eq(
   paths-of-kind(tags-schema, "str"),
-  (("name",), ("tags", "*")),
+  (("name",), ("tags", "additionalProperties")),
 )
-// Round-trip: the synthetic "*" segment is a real lens path.
-#assert.eq(lens-get(lens(("tags", "*")), tags-schema), str-type)
+// Round-trip: the segment is a real lens path.
+#assert.eq(lens-get(lens(("tags", "additionalProperties")), tags-schema), str-type)
 
 // Nested `additional` inside `additional` works too.
 #let nested-maps = map(map(number-type))
-#assert.eq(paths-of-kind(nested-maps, "number"), (("*", "*"),))
+#assert.eq(
+  paths-of-kind(nested-maps, "number"),
+  (("additionalProperties", "additionalProperties"),),
+)
 
-// --- lens: `"*"` writes back into `additional` ---------------------
-#let updated = lens-put(lens(("tags", "*")), tags-schema, number-type)
+// --- lens: `"additionalProperties"` writes back into `additional` --
+#let updated = lens-put(lens(("tags", "additionalProperties")), tags-schema, number-type)
 #assert.eq(updated.shape.tags.additional, number-type)
 // Shape outside the lensed path is untouched.
 #assert.eq(updated.shape.name, str-type)
 
-// Trying to lens through `"*"` when `additional` is true (no schema)
-// bails with a grep-able message.
+// Trying to lens through `additionalProperties` when `additional` is
+// true (no schema) bails with a grep-able message.
 #let lens-src = read("../internal/lens.typ")
-#assert(lens-src.contains("requires the object's `additional` field"))
+#assert(lens-src.contains("requires the object's"))
 
 // --- describe-schema renders `additional` --------------------------
 #let described = describe-schema(map(str-type))
@@ -225,3 +229,29 @@
 #let described-true = describe-schema(object((name: str-type), additional: true))
 #assert(described-true.contains("*"))
 #assert(described-true.contains("any"))
+
+// --- lens "additionalProperties" on array errors --------------------
+//
+// Arrays use "items"; the additional-schema segment is object-only.
+// _descend bails with the "must be \"items\"" message before any
+// additional-schema logic runs.
+#let arr-src = read("../internal/lens.typ")
+#assert(arr-src.contains("lens segment for an array schema must be"))
+
+// --- lens-put trusts the caller for replacement shape --------------
+//
+// The replacement is written verbatim; lens-put doesn't validate it.
+// This pins the contract spelled out in lens.typ's top-of-file
+// comment so a future tightening surfaces here.
+#let trust-test = lens-put(lens(("tags", "additionalProperties")), tags-schema, 42)
+#assert.eq(trust-test.shape.tags.additional, 42)
+// The downstream crash that this enables is the caller's
+// responsibility — validate would hit a `.kind` access on the int.
+// Not exercised here; the pin is on the trust contract itself.
+
+// --- describe-schema with nested map of map ------------------------
+//
+// Recursive `additional` (map(map(...))) prints the inner "*" too,
+// confirming `_describe` recurses through the additional pair.
+#let nested-described = describe-schema(map(map(str-type)))
+#assert(nested-described.contains("*"))

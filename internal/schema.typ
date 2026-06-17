@@ -91,17 +91,15 @@
     for (k, v) in schema.shape.pairs() {
       new-shape.insert(k, _strip-permissive-additional(v))
     }
-    let base = (
-      kind: "object",
-      shape: new-shape,
-      required-keys: schema.required-keys,
-    )
     let ap = schema.at("additional", default: none)
-    if type(ap) == dictionary {
-      (..base, additional: _strip-permissive-additional(ap))
+    let new-additional = if type(ap) == dictionary {
+      _strip-permissive-additional(ap)
     } else {
-      base
+      none
     }
+    // Route through the public constructor so any future invariant
+    // added to `object()` applies here too.
+    object(new-shape, required-keys: schema.required-keys, additional: new-additional)
   } else if schema.kind == "array" {
     (..schema, elem: _strip-permissive-additional(schema.elem))
   } else {

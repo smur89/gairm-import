@@ -384,13 +384,13 @@ replaced or transformed:
 ```
 <!-- x-release-please-end -->
 
-Path segments: object keys as strings, the literal `"items"` to enter an
-array's element schema, and the literal `"*"` to enter an object's
-`additional` (the `additionalProperties` schema; only valid when
-`additional` is a schema dict, not `true`). Composition
-(`lens-then(a, b)`) concatenates paths, so
-`lens-then(lens(("work",)), lens(("items", "highlights")))` is the same
-lens as `lens(("work", "items", "highlights"))`. The empty path
+Path segments match JSON Schema keyword names: object keys as strings,
+the literal `"items"` to enter an array's element schema, and the
+literal `"additionalProperties"` to enter an object's `additional` (the
+additionalProperties schema; only valid when `additional` is a schema
+dict, not `true`). Composition (`lens-then(a, b)`) concatenates paths,
+so `lens-then(lens(("work",)), lens(("items", "highlights")))` is the
+same lens as `lens(("work", "items", "highlights"))`. The empty path
 `lens(())` is the identity lens.
 
 Operations:
@@ -530,8 +530,10 @@ the upstream JSON Resume document declares `additionalProperties: true`
 on every section's items, so the canonical schema accepts extras at
 runtime even though the README's headline framing is "strict". Strict
 applies to declared fields; `additionalProperties: true` from upstream
-is honoured. If you need stricter behaviour, edit the schema with
-`lens-put` to strip the `additional: true` field.
+is honoured. If you need stricter behaviour, use `resume-schema-strict`
+— it recursively strips `additional: true` from every nested object,
+restoring the "unknown keys are rejected" promise (typed extras
+declared via `additionalProperties: <schema>` are kept).
 
 ## Scope
 

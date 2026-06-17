@@ -4,9 +4,10 @@
 // in lens.typ.
 //
 // Path tuples use lens-compatible segments — `"items"` for array
-// descent, `"*"` for the additionalProperties schema — so
+// descent, `"additionalProperties"` for the additional schema — so
 // `paths-of-kind` output round-trips through `lens` and `lens-get`.
-// The `[]` / `{*}` suffixes in `describe-schema` are display-only.
+// The `[]` suffix and the `*` row in `describe-schema` are
+// display-only (`*` is the conventional shorthand for "any key").
 
 #import "lens.typ": lens, lens-get
 
@@ -61,6 +62,11 @@
   if schema.kind == "object" {
     let pairs = _sorted-pairs(schema.shape)
     let additional = schema.at("additional", default: none)
+    // `*` is the display-only key shown for the additional-schema row
+    // (lens-addressing uses "additionalProperties"). `(kind: "any")`
+    // is a display-only sentinel for `additional: true` — not a real
+    // engine kind, recognised by the leaf branch below and nowhere
+    // else.
     let additional-pair = if additional == true {
       ("*", (kind: "any"))
     } else if type(additional) == dictionary {
@@ -109,7 +115,7 @@
       .fold((), (acc, ps) => acc + ps)
     let additional = schema.at("additional", default: none)
     let additional-paths = if type(additional) == dictionary {
-      _walk-paths(additional, path + ("*",), kind-name)
+      _walk-paths(additional, path + ("additionalProperties",), kind-name)
     } else { () }
     shape-paths + additional-paths
   } else if schema.kind == "array" {
