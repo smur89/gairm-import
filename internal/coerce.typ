@@ -81,6 +81,8 @@
         let sub = if key in schema.shape {
           _coerce(schema.shape.at(key), sub-value)
         } else if additional == true {
+          // `additionalProperties: true` — pass through; validate.typ
+          // mirrors this by returning `()` (no validation).
           sub-value
         } else {
           _coerce(additional, sub-value)

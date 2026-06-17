@@ -34,24 +34,30 @@
 #let enum-of(values) = (kind: "enum", values: values)
 #let const-of(value) = enum-of((value,))
 
-// `additional` for keys not in `shape`: `none` → reject; `true` →
-// pass-through; schema dict → validate every extra against it.
-// Bad-shape `additional` and required-keys-not-covered both fail at
-// construction, not as a phantom validation error.
+// `additional` controls keys not in `shape` (the engine-side name for
+// JSON Schema's `additionalProperties`): `none` / `false` → reject;
+// `true` → pass-through; schema dict → validate every extra against
+// it. `false` is accepted as a synonym for `none` so callers fluent
+// in JSON Schema can pass either. Bad-shape `additional` and
+// required-keys-not-covered both fail at construction, not as a
+// phantom validation error.
 #let object(shape, required-keys: (), additional: none) = {
+  // false ≡ none in our model; normalise so the constructor and the
+  // translator agree on what they accept.
+  let normalized = if additional == false { none } else { additional }
   let additional-ok = (
-    additional == none
-      or additional == true
-      or (type(additional) == dictionary and "kind" in additional)
+    normalized == none
+      or normalized == true
+      or (type(normalized) == dictionary and "kind" in normalized)
   )
   assert(
     additional-ok,
-    message: "gairm-import: object() additional must be none, true, or a schema dict (with a `kind` field); got: " +
+    message: "gairm-import: object() additional must be none, false, true, or a schema dict (with a `kind` field); got: " +
       repr(additional) + ".",
   )
   // With `additional`, undeclared required keys are covered by the
   // additional schema, so the subset check only applies when strict.
-  let unknown = if additional == none {
+  let unknown = if normalized == none {
     required-keys.filter(k => k not in shape)
   } else {
     ()
@@ -67,7 +73,14 @@
     required-keys: required-keys,
   )
   // Omitted when `none` so existing strict dicts keep their shape.
-  if additional == none { base } else { (..base, additional: additional) }
+  if normalized == none { base } else { (..base, additional: normalized) }
 }
 
-#let map(value-schema) = object((:), additional: value-schema)
+// `required-keys` kwarg for symmetry with `object` — required keys
+// on a pure map are still meaningful ("the document must contain
+// these specific keys, plus any number of others").
+#let map(value-schema, required-keys: ()) = object(
+  (:),
+  required-keys: required-keys,
+  additional: value-schema,
+)

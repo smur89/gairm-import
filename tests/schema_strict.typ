@@ -60,3 +60,16 @@
 #assert.eq(resume-schema.shape.basics.shape.summary, str-type)
 #assert.eq(resume-schema.shape.work.elem.shape.startDate.kind, "pattern-string")
 #assert.eq(resume-schema.shape.references.elem.shape.reference, str-type)
+
+// Strict variant strips `additional: true` from every nested object
+// that inherited it from upstream JSON Resume — restoring the
+// strict-rejection promise. Sample a few sections; the recursive
+// walker covers every kind == "object" node.
+#assert("additional" not in resume-schema-strict.shape.work.elem)
+#assert("additional" not in resume-schema-strict.shape.languages.elem)
+#assert("additional" not in resume-schema-strict.shape.skills.elem)
+#assert("additional" not in resume-schema-strict.shape.basics)
+// And the faithful base still carries them — that's the trade-off
+// the strict variant exists to fix.
+#assert.eq(resume-schema.shape.languages.elem.additional, true)
+#assert.eq(resume-schema.shape.work.elem.additional, true)

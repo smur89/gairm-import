@@ -6,8 +6,11 @@
 // `(lens.put)(args)` at every call site.
 //
 // Path segments:
-//   - object: string key into `.shape`
-//   - array : literal "items" to enter `.elem`
+//   - object   : string key into `.shape`
+//   - object   : literal "*" to enter `.additional` (the
+//                additionalProperties schema; only when set to a
+//                schema dict, not `true`)
+//   - array    : literal "items" to enter `.elem`
 //   - empty `()` : identity lens
 
 #let _bail(msg) = panic("gairm-import: " + msg)
@@ -31,6 +34,16 @@
 
 #let _descend(schema, segment) = {
   if schema.kind == "object" {
+    if segment == "*" {
+      let additional = schema.at("additional", default: none)
+      if type(additional) != dictionary {
+        _bail(
+          "lens segment \"*\" requires the object's `additional` field " +
+            "to be a schema dict, got: " + repr(additional) + ".",
+        )
+      }
+      return additional
+    }
     if segment not in schema.shape {
       _bail(
         "lens path segment " + repr(segment) + " not in object shape. " +
@@ -66,7 +79,8 @@
   if path.len() == 0 { return value }
   let (head, ..rest) = path
   let new-sub = _set-at(_descend(schema, head), rest, value)
-  if schema.kind == "object" { _with-shape-set(schema, head, new-sub) }
+  if schema.kind == "object" and head == "*" { (..schema, additional: new-sub) }
+  else if schema.kind == "object" { _with-shape-set(schema, head, new-sub) }
   else { (..schema, elem: new-sub) }
 }
 

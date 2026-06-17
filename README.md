@@ -385,10 +385,13 @@ replaced or transformed:
 <!-- x-release-please-end -->
 
 Path segments: object keys as strings, the literal `"items"` to enter an
-array's element schema. Composition (`lens-then(a, b)`) concatenates paths,
-so `lens-then(lens(("work",)), lens(("items", "highlights")))` is the same
-lens as `lens(("work", "items", "highlights"))`. The empty path `lens(())`
-is the identity lens.
+array's element schema, and the literal `"*"` to enter an object's
+`additional` (the `additionalProperties` schema; only valid when
+`additional` is a schema dict, not `true`). Composition
+(`lens-then(a, b)`) concatenates paths, so
+`lens-then(lens(("work",)), lens(("items", "highlights")))` is the same
+lens as `lens(("work", "items", "highlights"))`. The empty path
+`lens(())` is the identity lens.
 
 Operations:
 

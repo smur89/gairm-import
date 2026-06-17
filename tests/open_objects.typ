@@ -5,6 +5,7 @@
   validate, coerce,
   schema-from-json-schema,
   object, map, str-type, number-type,
+  lens, lens-get, lens-put, paths-of-kind, describe-schema,
 )
 
 // --- map() convenience ----------------------------------------------
@@ -122,7 +123,7 @@
 // at construction instead of crashing inside _validate when `.kind`
 // is read.
 #let kinds-src = read("../internal/kinds.typ")
-#assert(kinds-src.contains("additional must be none, true, or a schema dict"))
+#assert(kinds-src.contains("additional must be none, false, true, or a schema dict"))
 
 // `additional` + required-key-not-in-shape is now allowed — the
 // extra key gets validated by `additional`, so the construction-time
@@ -156,3 +157,71 @@
 )
 #assert.eq(bad-books.len(), 1)
 #assert.eq(bad-books.at(0).path, ("two", "title"))
+
+// --- constructor: `additional: false` ≡ `none` -----------------------
+//
+// JSON Schema's `additionalProperties: false` and our `additional: none`
+// are semantically identical. The constructor accepts both so callers
+// fluent in JSON Schema vocabulary don't trip on the assert.
+#let strict-via-false = object((name: str-type), additional: false)
+#assert("additional" not in strict-via-false)
+#let strict-via-none = object((name: str-type))
+#assert.eq(strict-via-false, strict-via-none)
+
+// --- map(v, required-keys: …) symmetry with object ------------------
+#let required-map = map(str-type, required-keys: ("id",))
+#assert.eq(required-map.required-keys, ("id",))
+#assert.eq(required-map.additional, str-type)
+#assert.eq(validate((id: "abc", other: "ok"), schema: required-map), ())
+#let missing-id = validate((other: "ok"), schema: required-map)
+#assert.eq(missing-id.len(), 1)
+#assert(missing-id.at(0).message.contains("missing required key \"id\""))
+
+// --- all-none extras collapse the object to none --------------------
+//
+// Symmetry with the leaf-null policy: an object whose every key
+// coerced to none collapses to none itself. With `additional`, the
+// open keys participate in that collapse.
+#assert.eq(coerce((a: none, b: none), schema: map(str-type)), none)
+#assert.eq(
+  coerce((id: "x", a: none, b: none), schema: map(str-type, required-keys: ("id",))),
+  (id: "x"),
+)
+
+// --- introspection: `paths-of-kind` descends into `additional` -----
+//
+// Path segment is `"*"` to denote "the additional schema". The
+// emitted path round-trips through `lens-get`.
+#let tags-schema = object(
+  (name: str-type, tags: map(str-type)),
+  required-keys: ("name",),
+)
+#assert.eq(
+  paths-of-kind(tags-schema, "str"),
+  (("name",), ("tags", "*")),
+)
+// Round-trip: the synthetic "*" segment is a real lens path.
+#assert.eq(lens-get(lens(("tags", "*")), tags-schema), str-type)
+
+// Nested `additional` inside `additional` works too.
+#let nested-maps = map(map(number-type))
+#assert.eq(paths-of-kind(nested-maps, "number"), (("*", "*"),))
+
+// --- lens: `"*"` writes back into `additional` ---------------------
+#let updated = lens-put(lens(("tags", "*")), tags-schema, number-type)
+#assert.eq(updated.shape.tags.additional, number-type)
+// Shape outside the lensed path is untouched.
+#assert.eq(updated.shape.name, str-type)
+
+// Trying to lens through `"*"` when `additional` is true (no schema)
+// bails with a grep-able message.
+#let lens-src = read("../internal/lens.typ")
+#assert(lens-src.contains("requires the object's `additional` field"))
+
+// --- describe-schema renders `additional` --------------------------
+#let described = describe-schema(map(str-type))
+#assert(described.contains("*"))
+#assert(described.contains("str"))
+#let described-true = describe-schema(object((name: str-type), additional: true))
+#assert(described-true.contains("*"))
+#assert(described-true.contains("any"))

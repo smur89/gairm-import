@@ -174,6 +174,8 @@
       if key in schema.shape {
         _validate(schema.shape.at(key), sub-value, path + (key,))
       } else if additional == true {
+        // `additionalProperties: true` — no validation. coerce.typ
+        // mirrors this by passing the value through verbatim.
         ()
       } else if additional != none {
         _validate(additional, sub-value, path + (key,))
