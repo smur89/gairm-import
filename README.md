@@ -135,8 +135,8 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 <!-- x-release-please-end -->
 
 If the renderer expects fields outside the canonical JSON Resume shape, build
-an extension schema with the lens API and pass it as `schema:` — see
-[Building an extension schema](#building-an-extension-schema).
+an extension schema with the public combinators and pass it as `schema:` —
+see [Building an extension schema](#building-an-extension-schema).
 
 ### Handling validation errors yourself
 
