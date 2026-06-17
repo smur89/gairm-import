@@ -13,4 +13,5 @@
   lens, lens-get, lens-put, lens-over, lens-then,
   add-field, remove-field, set-required, unset-required,
   describe-schema, paths-of-kind, kind-at,
+  path-to-pointer, pointer-to-path,
 )

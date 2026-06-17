@@ -476,6 +476,37 @@ Resume bump introduces are covered automatically:
 ```
 <!-- x-release-please-end -->
 
+### JSON Pointer interop
+
+Lens paths and validator error paths are `(seg, seg, ...)` tuples — natural in Typst but they don't directly interoperate with external tooling that speaks [RFC 6901 JSON Pointer](https://datatracker.ietf.org/doc/html/rfc6901) (editor extensions for schema-aware completion, schema diff tools, JSON Schema documentation generators, …). `path-to-pointer` / `pointer-to-path` cross the boundary:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.7.0": path-to-pointer, pointer-to-path
+
+#path-to-pointer(("basics", "email"))            // "/basics/email"
+#path-to-pointer(("work", 0, "highlights", 1))   // "/work/0/highlights/1"
+#path-to-pointer(("a/b",))                       // "/a~1b"     — `/` escapes as `~1`
+#path-to-pointer(("~tilde",))                    // "/~0tilde"  — `~` escapes as `~0`
+
+#pointer-to-path("/work/0/highlights/1")         // ("work", 0, "highlights", 1)
+#pointer-to-path("")                             // ()          — whole document
+#pointer-to-path("/")                            // ("",)       — empty-string key at root
+```
+<!-- x-release-please-end -->
+
+**Two addressing schemes share the same encoder** — pick the right one for your use case:
+
+- **Validator error paths** (mixed `str` / non-negative `int`) address into **data**. The output is a real RFC 6901 JSON Pointer that any JSON-Pointer-aware tool can dereference against the resume / data document.
+- **Lens and introspect paths** (`str`-only, with `"items"` for array elements and `"additionalProperties"` for the additional schema) address into the **schema**. The output is a JSON-Pointer-shaped string that names a schema location — meaningful to JSON Schema tooling that uses JSON Pointer in `$ref` (e.g. `#/properties/foo/items`), but **not** a data pointer.
+
+Encoding accepts `str` (object key) or `int` (non-negative — RFC 6901's array-index ABNF) segments; other types and negative ints panic. Decoding parses tokens matching that ABNF (`0` | `[1-9][0-9]*`) back to `int`; everything else stays `str`. Malformed `~` escapes (bare `~`, `~2`, `~<other>`) panic at decode rather than silently passing through.
+
+**Round-trip directions are asymmetric:**
+
+- `pointer → path → pointer` is **lossless** for any well-formed pointer.
+- `path → pointer → path` is lossless **except** when a `str` segment looks like an array index — `("0",)` decodes back as `(0,)`. In practice the validator and lens code never emit numeric strings, so this isn't a concern.
+
 ### Starting from a JSON Schema document
 
 `schema-from-json-schema(parsed-schema)` translates a JSON Schema (draft 7
