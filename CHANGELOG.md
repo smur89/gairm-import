@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/smur89/gairm-import/compare/v0.8.0...v0.8.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* align rendering forward-link with the section it points to ([#94](https://github.com/smur89/gairm-import/issues/94)) ([d53f366](https://github.com/smur89/gairm-import/commit/d53f3665b6020fd5ccffc50de2739478461e98d6))
+
 ## [0.8.0](https://github.com/smur89/gairm-import/compare/v0.7.0...v0.8.0) (2026-06-17)
 
 
