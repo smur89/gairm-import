@@ -133,7 +133,7 @@
 #let paths-of-kind(schema, kind-name) = {
   assert(
     kind-name in _leaf-kinds,
-    message: "json-resume: paths-of-kind kind-name " + repr(kind-name) +
+    message: "gairm-import: paths-of-kind kind-name " + repr(kind-name) +
       " is not a recognised leaf kind. Expected one of: " +
       _leaf-kinds.join(", ") + ".",
   )
