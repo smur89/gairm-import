@@ -6,7 +6,7 @@
 #import "internal/schema.typ": (
   resume-schema, resume-schema-strict,
   str-type, content-type, number-type, bool-type, null-type,
-  array-of, object,
+  array-of, object, map,
   date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,
 )

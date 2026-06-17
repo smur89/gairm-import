@@ -74,9 +74,21 @@
   }
   if kind == "object" {
     assert(type(value) == dictionary, message: _expect("an object", value))
+    let additional = schema.at("additional", default: none)
     let coerced = value.pairs()
-      .filter(((key, _)) => key in schema.shape)
-      .map(((key, sub-value)) => (key, _coerce(schema.shape.at(key), sub-value)))
+      .filter(((key, _)) => key in schema.shape or additional != none)
+      .map(((key, sub-value)) => {
+        let sub = if key in schema.shape {
+          _coerce(schema.shape.at(key), sub-value)
+        } else if additional == true {
+          // `additionalProperties: true` — pass through; validate.typ
+          // mirrors this by returning `()` (no validation).
+          sub-value
+        } else {
+          _coerce(additional, sub-value)
+        }
+        (key, sub)
+      })
       .filter(((_, coerced)) => coerced != none)
       .to-dict()
     if coerced.len() == 0 { return none }

@@ -208,15 +208,17 @@
     return _with-array-constraints(js, array-of(_from-json-schema(items, root, seen)))
   }
   if t == "object" {
-    // Engine is strict by design — can't represent open objects. A
-    // missing `properties` would silently invert the schema's intent.
-    if "properties" not in js {
+    let has-props = "properties" in js
+    let has-ap = "additionalProperties" in js
+    // Fully open with no constraints inverts the engine's strict intent.
+    if not has-props and not has-ap {
       _bail(
-        "open object schemas (`type: \"object\"` with no `properties`) " +
-          "are out of scope; every field must be declared.",
+        "open object schemas (`type: \"object\"` with no `properties` " +
+          "or `additionalProperties`) are out of scope; every field " +
+          "must be declared or covered by `additionalProperties`.",
       )
     }
-    let props = js.at("properties")
+    let props = if has-props { js.at("properties") } else { (:) }
     if type(props) != dictionary {
       _bail("\"properties\" must be an object, got: " + repr(type(props)) + ".")
     }
@@ -224,9 +226,21 @@
     if type(required) != array {
       _bail("\"required\" must be an array of field names, got: " + repr(type(required)) + ".")
     }
+    let additional = if not has-ap {
+      none
+    } else {
+      let ap = js.at("additionalProperties")
+      if ap == false { none }
+      else if ap == true { true }
+      else if type(ap) == dictionary { _from-json-schema(ap, root, seen) }
+      else {
+        _bail("\"additionalProperties\" must be a schema, true, or false, got: " + repr(ap) + ".")
+      }
+    }
     return object(
       props.pairs().map(((k, v)) => (k, _from-json-schema(v, root, seen))).to-dict(),
       required-keys: required,
+      additional: additional,
     )
   }
   if t == "boolean" { return bool-type }

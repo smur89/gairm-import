@@ -169,18 +169,21 @@
   }
   if kind == "object" {
     if type(value) != dictionary { return _type-error(path, "object", value) }
+    let additional = schema.at("additional", default: none)
     let per-key-errs = value.pairs().map(((key, sub-value)) => {
       if key in schema.shape {
         _validate(schema.shape.at(key), sub-value, path + (key,))
+      } else if additional == true {
+        // `additionalProperties: true` — no validation. coerce.typ
+        // mirrors this by passing the value through verbatim.
+        ()
+      } else if additional != none {
+        _validate(additional, sub-value, path + (key,))
       } else {
-        // On the unknown-key branch, try a fuzzy suggestion first: a
-        // short "Did you mean …?" beats a 9–14-key dump when the typo
-        // is within edit distance 2 of a valid key. Otherwise fall
-        // back to the full list. Either way the per-branch work is
-        // skipped on the happy path.
-        //
-        // An unknown key with a null value is still flagged — silently
-        // swallowing typos would defeat the point of strict validation.
+        // Strict branch: fuzzy suggestion if the typo is within edit
+        // distance 2 of a valid key, otherwise the full key list.
+        // Unknown key with null value still flagged — silently
+        // swallowing typos defeats the point of strict validation.
         let suggestion = _closest-match(key, schema.shape.keys(), 2)
         let tail = if suggestion != none {
           "Did you mean " + repr(suggestion) + "?"

@@ -4,6 +4,7 @@
 #import "../lib.typ": (
   lens, lens-over,
   resume-schema, object, str-type, number-type, validate,
+  lens-get, kind-at,
 )
 
 #let language-items = lens(("languages", "items"))
@@ -18,9 +19,12 @@
 )
 #assert.eq(validate(sample, schema: with-rating), ())
 
-// Canonical schema still rejects the new field — edit is localised
-// to the new value, not a global mutation.
-#let errors = validate(sample, schema: resume-schema)
-#assert(errors.len() > 0)
-#assert.eq(errors.at(0).path, ("languages", 0, "rating"))
-#assert(errors.at(0).message.contains("unknown key"))
+// Edit is localised to the lensed value — the canonical schema's own
+// `shape.languages.items` still has no `rating` declared. (Upstream
+// JSON Resume sets `additionalProperties: true` on language items, so
+// the canonical schema accepts extra fields at runtime; this assertion
+// targets the schema declaration, not the runtime acceptance.)
+#let canonical-language-shape = lens-get(language-items, resume-schema).shape
+#assert("rating" not in canonical-language-shape)
+#let with-rating-shape = lens-get(language-items, with-rating).shape
+#assert.eq(with-rating-shape.rating, number-type)
