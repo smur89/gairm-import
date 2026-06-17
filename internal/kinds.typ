@@ -6,6 +6,11 @@
 #let str-type     = (kind: "str")
 #let content-type = (kind: "content")
 #let number-type  = (kind: "number")
+#let bool-type    = (kind: "bool")
+
+// "Must be null or absent": `none` passes via the engine's global
+// early return, non-none hits the kind branch and errors.
+#let null-type    = (kind: "null")
 
 // Format-specialised string kinds — regex-gated in _validate;
 // deliberately permissive (reject obvious malformations, not full RFC).

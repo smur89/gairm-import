@@ -81,6 +81,12 @@
     if type(value) not in (int, float) { return _type-error(path, "number", value) }
     return ()
   }
+  if kind == "bool" {
+    if type(value) != bool { return _type-error(path, "boolean", value) }
+    return ()
+  }
+  // `none` succeeds via the top early return; non-none can only fail.
+  if kind == "null" { return _type-error(path, "null", value) }
   if kind == "array" {
     if type(value) != array { return _type-error(path, "array", value) }
     return value.enumerate()

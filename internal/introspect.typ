@@ -10,7 +10,7 @@
 #import "lens.typ": lens, lens-get
 
 #let _leaf-kinds = (
-  "str", "content", "number",
+  "str", "content", "number", "bool", "null",
   "date-string", "datetime-string", "uri-string", "email-string", "pattern-string",
   "enum",
 )

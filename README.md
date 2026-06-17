@@ -492,20 +492,22 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 <!-- x-release-please-end -->
 
 Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
-`object`), `format` (`uri` → `uri-string`, `email` → `email-string`,
+`object`/`boolean`/`null`), `format` (`uri` → `uri-string`, `email` → `email-string`,
 `date` → `date-string`, `date-time` → `datetime-string`),
 `pattern` → `pattern-string` (on plain string schemas only — when both
 `format` and `pattern` are present on the same node, `format` wins and
 `pattern` is dropped; compose two gates yourself via a lens if you
 need both), `enum` → `enum-of`, `const` → `const-of`,
 `properties`, `required`, `items`, internal `$ref`
-(`#/definitions/…` / `#/$defs/…`). Out of scope:
-`allOf` / `anyOf` / `oneOf` / `not`,
+(`#/definitions/…` / `#/$defs/…`), and `type: [X, "null"]` nullable unions
+(under the engine's null-as-absent policy these translate to plain `X`).
+Out of scope: `allOf` / `anyOf` / `oneOf` / `not`,
 `if` / `then` / `else`, `dependencies` (and the `dependentRequired` /
 `dependentSchemas` variants), open object schemas (`type: "object"` without
-`properties`), `type: [...]` union arrays, external `$ref`, and string formats
-other than the four listed above — every one of these panics with a clear
-"unsupported" message rather than silently dropping the constraint.
+`properties`), `type: [...]` unions with more than one non-null member,
+external `$ref`, and string formats other than the four listed above —
+every one of these panics with a clear "unsupported" message rather
+than silently dropping the constraint.
 
 ## Scope
 

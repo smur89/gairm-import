@@ -45,6 +45,15 @@
     assert(type(value) in (int, float), message: _expect("a number", value))
     return value
   }
+  if kind == "bool" {
+    assert(type(value) == bool, message: _expect("a boolean", value))
+    return value
+  }
+  // Unreachable on validated input — top early return handles `none`,
+  // the only legal value.
+  if kind == "null" {
+    assert(false, message: _expect("null", value))
+  }
   // Members are polymorphic — no single type to assert. Mirror the
   // validator's membership check so direct-coerce callers fail loud.
   if kind == "enum" {
