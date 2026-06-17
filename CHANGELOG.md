@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/smur89/gairm-import/compare/v0.7.0...v0.8.0) (2026-06-17)
+
+
+### Features
+
+* JSON Schema constraint keywords ([#85](https://github.com/smur89/gairm-import/issues/85)) ([f2b301a](https://github.com/smur89/gairm-import/commit/f2b301a9e14d473203af3b9f61bcc2a1e5c5eccf))
+* type coverage for boolean, null, and [X, "null"] unions ([#83](https://github.com/smur89/gairm-import/issues/83)) ([3081e24](https://github.com/smur89/gairm-import/commit/3081e24123268d2714f4f6b7ec9b9b8ea3633941))
+
 ## [0.7.0](https://github.com/smur89/gairm-import/compare/v0.6.0...v0.7.0) (2026-06-16)
 
 
