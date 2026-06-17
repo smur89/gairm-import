@@ -9,28 +9,26 @@
 </p>
 
 <p align="center">
-  JSON Schema → Typst dict coercer. Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and return a normalised Typst dict ready for downstream rendering. Ships with the <a href="https://jsonresume.org/schema">JSON Resume</a> schema and convenience entry points as the canonical bundled example.
+  <strong>JSON Schema → Typst dict coercer.</strong>
 </p>
 
 <p align="center">
-  <sub><em>"gairm" is Irish for vocation. The package was originally a JSON Resume loader.</em></sub>
+  Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and return a normalised Typst dict ready for downstream rendering. Ships with the <a href="https://jsonresume.org/schema">JSON Resume</a> schema and convenience entry points as the canonical bundled example.
 </p>
 
-The engine is a pair of pure functions of `(schema, value)` — `validate` returns a
-list of `(path, message)` records, `coerce` returns the normalised dict — backed by
-combinators for hand-authoring Typst schemas (`object`, `array-of`, `str-type`,
-`content-type`, `number-type`, `enum-of`, `const-of`, format-specialised string
-kinds, `pattern-string`) and a translator (`schema-from-json-schema`) that converts
-JSON Schema (draft&nbsp;7 subset) into the same shape. Lens helpers
-(`lens-put`, `lens-over`, `add-field`, …) and introspection helpers
-(`describe-schema`, `paths-of-kind`, `kind-at`) round out the schema-editing
-surface.
+## Quick start
 
-The [JSON Resume](https://jsonresume.org/) schema ships ready-to-use as
-`resume-schema` / `resume-schema-strict` — load a canonical `resume.json` via
-`parse` and hand the normalised dict to any compatible Typst CV template. Bring
-your own schema for any other JSON-Schema-shaped data format; the engine doesn't
-know or care that it's a CV.
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.7.0": parse
+
+#let resume = parse(path("resume.json"))
+// hand `resume` to any compatible Typst CV template
+```
+<!-- x-release-please-end -->
+
+Bring your own JSON-Schema-shaped document and pass `schema:` to `parse` — the
+engine doesn't know or care that it's a CV.
 
 ## Install
 
@@ -61,18 +59,19 @@ know or care that it's a CV.
 }
 ```
 
-The full canonical schema covers thirteen sections:
-`basics`, `work`, `volunteer`, `education`, `awards`, `certificates`,
-`publications`, `skills`, `languages`, `interests`, `references`, `projects`,
-`meta`. The `$schema` top-level metadata field is also accepted. See
+The canonical schema covers thirteen sections: `basics`, `work`, `volunteer`,
+`education`, `awards`, `certificates`, `publications`, `skills`, `languages`,
+`interests`, `references`, `projects`, `meta`. The `$schema` top-level
+metadata field is also accepted. See
 [jsonresume.org/schema](https://jsonresume.org/schema) for every field.
 
 ## Usage
 
 `parse` is the one-call entry point. The recommended form is
-`parse(path("resume.json"))` — the [`path`](https://typst.app/docs/reference/foundations/path/)
-value resolves against your own `.typ` (not the `@preview` cache), so
-you can use the natural relative path:
+`parse(path("resume.json"))` — the
+[`path`](https://typst.app/docs/reference/foundations/path/) value resolves
+against your own `.typ` (not the `@preview` cache), so you can use the
+natural relative path:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -82,9 +81,9 @@ you can use the natural relative path:
 ```
 <!-- x-release-please-end -->
 
-A parsed dict, a `json("…")` wrap, or a Typst-root-relative `"/…"`
-string are also accepted — useful on older callers or when you've
-already loaded the document yourself:
+A parsed dict, a `json("…")` wrap, or a Typst-root-relative `"/…"` string
+are also accepted — useful on older callers or when you've already loaded
+the document yourself:
 
 ```typst
 // json() resolves the path against your .typ; parse takes the dict.
@@ -96,8 +95,8 @@ already loaded the document yourself:
 
 The returned dict is a 1:1 mirror of the canonical schema — every kind comes
 from the upstream JSON Schema document. Format-annotated fields are gated by
-a regex (see [Format validation](#format-validation)); everything else
-passes through as JSON-native types. For example:
+a regex (see [Format validation](#format-validation)); everything else passes
+through as JSON-native types. For example:
 
 ```text
 resume.basics.name            str
@@ -110,13 +109,14 @@ resume.skills.at(0).keywords  array of str
 
 For renderer-friendly opinions (free-text fields wrapped as Typst `content`,
 iso8601 `$ref` fields validated as dates), import `resume-schema-strict`
-instead and pass it via the `schema:` keyword — see [Two schemas](#two-schemas).
+instead and pass it via the `schema:` keyword — see
+[Two schemas](#two-schemas).
+
+### Rendering with a template
 
 Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.app/universe/package/altacv):
 
-<!-- Known-ugly: two fences instead of one because release-please's block
-     wrap would also bump altacv:1.1.1 on every release. See
-     https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
+<!-- Two fences (not one): release-please would otherwise bump altacv:1.1.1 on every gairm release. See https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
 
 ```typst
 #import "@preview/altacv:1.1.1": alta, palettes
@@ -135,12 +135,15 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 
 `alta(cv, labels: (:), preferences: (:))` takes the JSON-Resume-shaped dict
 positionally; `labels` and `preferences` are optional dicts merged over the
-template defaults. See the [altacv README](https://github.com/smur89/alta-typst#readme)
-for the full surface.
+template defaults. See the
+[altacv README](https://github.com/smur89/alta-typst#readme) for the full
+surface.
 
 ### Handling validation errors yourself
 
-Each error is a record `(path: ("basics", "email"), message: "expected string, got integer.")`. A typical step-by-step is:
+Each error is a record
+`(path: ("basics", "email"), message: "expected string, got integer.")`.
+A typical step-by-step is:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -159,10 +162,10 @@ Each error is a record `(path: ("basics", "email"), message: "expected string, g
 
 ## Errors
 
-`validate` returns a list of `(path, message)` records — empty list
-means the input is valid. `parse` validates first and aborts compilation
-with a combined report on the first invocation that finds issues, so every
-problem in the document surfaces in one error:
+`validate` returns a list of `(path, message)` records — empty list means
+the input is valid. `parse` validates first and aborts compilation with a
+combined report on the first invocation that finds issues, so every problem
+in the document surfaces in one error:
 
 ```text
 error: assertion failed: gairm-import: found 3 problems in the input:
@@ -171,39 +174,51 @@ error: assertion failed: gairm-import: found 3 problems in the input:
   - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
 ```
 
-When a typo is within edit distance 2 of a valid key, the message
-surfaces a short "Did you mean …?" hint; otherwise it falls back to
-the full valid-keys list shown for `meta.foo`.
+When a typo is within edit distance 2 of a valid key, the message surfaces
+a short "Did you mean …?" hint; otherwise it falls back to the full
+valid-keys list shown for `meta.foo`.
 
-JSON `null` is treated as if the key were absent — no validation
-error, dropped from the coerced model. Null elements inside arrays
-are dropped the same way. This matches the convention used by most
-JSON Resume emitters, where `"summary": null` is semantically
-equivalent to omitting the key. Unknown keys are still flagged even
-when their value is `null`, so typos do not slip through silently.
+### Null handling
 
-Root null is rejected: if the entire input document is `null`,
-`validate`, `coerce`, and `parse` panic with
-`gairm-import: input must be a dict, got null.` The null-as-absent
-policy applies to leaf positions inside a document, not to the
-document itself.
+JSON `null` is treated as if the key were absent — no validation error,
+dropped from the coerced model. Null elements inside arrays are dropped the
+same way. This matches the convention used by most JSON Resume emitters,
+where `"summary": null` is semantically equivalent to omitting the key.
+Unknown keys are still flagged even when their value is `null`, so typos do
+not slip through silently.
 
-## Two schemas
+Root null is rejected: if the entire input document is `null`, `validate`,
+`coerce`, and `parse` panic with
+`gairm-import: input must be a dict, got null.` The null-as-absent policy
+applies to leaf positions inside a document, not to the document itself.
+
+## Scope
+
+The canonical surface — `parse`, `validate`, `coerce` — implements **only**
+the [JSON Resume schema](https://jsonresume.org/schema) and rejects unknown
+fields. Renderer-specific extensions are layered on top by the consuming
+template via the [Advanced](#advanced) APIs below; requests for
+renderer-specific fields in the canonical schema itself will be redirected
+to the relevant template repo.
+
+## Advanced
+
+### Two schemas
 
 The package exports two values of the canonical schema:
 
-- **`resume-schema`** — a faithful 1:1 translation of the vendored
-  upstream JSON Schema document. Every kind comes from the source;
-  nothing is rewritten. This is the default when you call
-  `parse(data)` / `validate(data)` / `coerce(data)`.
-- **`resume-schema-strict`** — adds two layered opinions on top via
-  the lens API:
+- **`resume-schema`** — a faithful 1:1 translation of the vendored upstream
+  JSON Schema document. Every kind comes from the source; nothing is
+  rewritten. This is the default when you call `parse(data)` /
+  `validate(data)` / `coerce(data)`.
+- **`resume-schema-strict`** — adds two layered opinions on top via the
+  lens API:
   - free-text fields (`basics.summary`, `work[].summary`,
-    `work[].highlights[]`, etc.) are typed as Typst `content` so
-    they splice directly into markup
-  - iso8601 `$ref` fields (`startDate`, `endDate`, …) are validated
-    as ISO-8601 dates (the upstream document doesn't carry a
-    `format` annotation on them, just a regex inside a definition)
+    `work[].highlights[]`, etc.) are typed as Typst `content` so they
+    splice directly into markup
+  - iso8601 `$ref` fields (`startDate`, `endDate`, …) are validated as
+    ISO-8601 dates (the upstream document doesn't carry a `format`
+    annotation on them, just a regex inside a definition)
 
 Pass `schema: resume-schema-strict` to opt in:
 
@@ -215,19 +230,18 @@ Pass `schema: resume-schema-strict` to opt in:
 ```
 <!-- x-release-please-end -->
 
-The faithful default is the source-of-truth view; the strict variant
-is a renderer-ergonomics overlay. If you want a different mix, build
-your own by lensing over `resume-schema` — see
+The faithful default is the source-of-truth view; the strict variant is a
+renderer-ergonomics overlay. If you want a different mix, build your own by
+lensing over `resume-schema` — see
 [Targeted edits with lenses](#targeted-edits-with-lenses).
 
-## Format validation
+### Format validation
 
-Fields the canonical schema annotates with `format: "uri"`,
-`format: "email"`, or `format: "date"` are gated by a regex during
-`validate` / `parse`. The patterns are deliberately permissive —
-they reject obvious malformations without claiming full RFC
-compliance — and each emits a path-qualified message with a
-canonical example:
+Fields the canonical schema annotates with `format: "uri"`, `format: "email"`,
+or `format: "date"` are gated by a regex during `validate` / `parse`. The
+patterns are deliberately permissive — they reject obvious malformations
+without claiming full RFC compliance — and each emits a path-qualified
+message with a canonical example:
 
 ```text
 basics.email:           expected an email (e.g. "name@example.com").
@@ -235,31 +249,35 @@ basics.url:             expected a URI (e.g. "https://example.com").
 certificates[0].date:   expected an ISO-8601 date (e.g. "2024-01-15").
 ```
 
-`format: "date-time"` is supported too via the `datetime-string` kind:
-the canonical JSON Resume document doesn't currently carry any
-`date-time` annotations, so the kind only fires when a caller
-translates their own JSON Schema with `schema-from-json-schema`, or
-lens-overrides a field. `date-string` accepts `YYYY` / `YYYY-MM` /
-`YYYY-MM-DD`; `datetime-string` requires the full `YYYY-MM-DDTHH:MM:SS`
-shape with an optional fractional component and an optional `Z` or
-`±HH:MM` offset. The two are separate kinds on purpose — widening the
-date regex to also match datetime values would mislabel pure-date fields.
+`format: "date-time"` is supported via the `datetime-string` kind. The
+canonical JSON Resume document doesn't currently carry any `date-time`
+annotations, so the kind only fires when a caller translates their own JSON
+Schema with `schema-from-json-schema`, or lens-overrides a field. The two
+date kinds are intentionally separate:
+
+- `date-string` accepts `YYYY` / `YYYY-MM` / `YYYY-MM-DD`.
+- `datetime-string` requires the full `YYYY-MM-DDTHH:MM:SS` shape with an
+  optional fractional component and an optional `Z` or `±HH:MM` offset.
+
+Widening the date regex to also match datetime values would mislabel
+pure-date fields.
 
 Most date fields in JSON Resume (`work[].startDate`, `awards[].date`,
-`meta.lastModified`, …) use `$ref: "#/definitions/iso8601"` rather
-than `format: "date"`. The translator can't pick formats up from a
-`$ref` alone, so those fields stay as plain `str` in `resume-schema`.
-Switch to `resume-schema-strict` to validate them as dates, or build
-your own override list with `lens-put(lens(path), schema, date-string)`.
+`meta.lastModified`, …) use `$ref: "#/definitions/iso8601"` rather than
+`format: "date"`. The translator can't pick formats up from a `$ref` alone,
+so those fields stay as plain `str` in `resume-schema`. Switch to
+`resume-schema-strict` to validate them as dates, or build your own override
+list with `lens-put(lens(path), schema, date-string)`.
 
-Coercion is pass-through: format-checked values flow through to the
-model as plain strings, so renderers receive
-`model.basics.email == "name@example.com"` unchanged.
+Coercion is pass-through: format-checked values flow through to the model as
+plain strings, so renderers receive `model.basics.email == "name@example.com"`
+unchanged.
 
 For ad-hoc constraints outside the four built-in formats, build a
 `pattern-string(re, expected: …)` and target it via a lens or splice it
-into an extension schema. JSON Schema's `pattern` keyword on a plain
-string maps to this kind too — see [Supported JSON Schema keywords](#starting-from-a-json-schema-document)
+into an extension schema. JSON Schema's `pattern` keyword on a plain string
+maps to this kind too — see
+[Starting from a JSON Schema document](#starting-from-a-json-schema-document)
 for the precedence rule when both `format` and `pattern` are present:
 
 <!-- x-release-please-start-version -->
@@ -280,22 +298,21 @@ for the precedence rule when both `format` and `pattern` are present:
 ```
 <!-- x-release-please-end -->
 
-Typst's regex `match` finds a match anywhere in the string, so anchor
-the pattern yourself if you need a full-string match — `^…$` is the
-common case.
+Typst's regex `match` finds a match anywhere in the string, so anchor the
+pattern yourself if you need a full-string match — `^…$` is the common case.
 
-## Building an extension schema
+### Building an extension schema
 
-`parse` is strict against declared fields in the canonical schema:
-keys that aren't declared *and* aren't covered by an upstream
-`additionalProperties` clause are rejected. (Upstream JSON Resume
-sets `additionalProperties: true` on every section's items, so extras
-in those positions pass through — see the note in the BYO section.)
-Renderers that need their own fields (alta-typst's
-`preferences`, `labels`, `focusAreas`; numeric language `rating`; publication
-`type` grouping; …) can build a JSON-Resume+ schema with the public
-combinators and pass it to `parse` / `validate` / `coerce` via the
-`schema:` keyword:
+`parse` is strict against declared fields in the canonical schema: keys that
+aren't declared *and* aren't covered by an upstream `additionalProperties`
+clause are rejected. (Upstream JSON Resume sets `additionalProperties: true`
+on every section's items, so extras in those positions pass through — see
+the note further down on `additionalProperties`.)
+
+Renderers that need their own fields (alta-typst's `preferences`, `labels`,
+`focusAreas`; numeric language `rating`; publication `type` grouping; …)
+can build a JSON-Resume+ schema with the public combinators and pass it to
+`parse` / `validate` / `coerce` via the `schema:` keyword:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -324,25 +341,23 @@ combinators and pass it to `parse` / `validate` / `coerce` via the
 
 When to reach for which API:
 
-- **`parse(data)`** — one call, aborts compilation with a combined report on
-  validation issues. Defaults to the canonical schema; pass `schema: …` to use
-  an extension.
-- **`validate(data)` / `coerce(data)`** — return data instead of aborting, so
-  you can present errors yourself (see the [step-by-step above](#handling-validation-errors-yourself)).
-  Same `schema:` default.
+| API | Behaviour |
+|---|---|
+| `parse(data)` | One call, aborts compilation with a combined report on validation issues. Defaults to the canonical schema; pass `schema: …` to use an extension. |
+| `validate(data)` / `coerce(data)` | Return data instead of aborting, so you can present errors yourself (see the [step-by-step above](#handling-validation-errors-yourself)). Same `schema:` default. |
 
-`resume-schema.shape` is a plain dict, so `..resume-schema.shape` is the only
-operator you need to extend it. Per-section combinators (`work-item`,
-`volunteer-item`, …) are intentionally not exposed yet — splice the canonical
-top-level fields whole and add your own siblings.
+`resume-schema.shape` is a plain dict, so `..resume-schema.shape` is the
+only operator you need to extend it. Per-section combinators (`work-item`,
+`volunteer-item`, …) are intentionally not exposed yet — splice the
+canonical top-level fields whole and add your own siblings.
 
 ### Targeted edits with lenses
 
-Splicing `..resume-schema.shape` works for top-level additions but is awkward
-when the field you want to touch is three or four levels deep (`work` items'
-`highlights` element schema, `basics.email`, …). For those cases, lenses target
-a path inside the schema and return a new schema with the targeted node
-replaced or transformed:
+Splicing `..resume-schema.shape` works for top-level additions but is
+awkward when the field you want to touch is three or four levels deep
+(`work` items' `highlights` element schema, `basics.email`, …). For those
+cases, lenses target a path inside the schema and return a new schema with
+the targeted node replaced or transformed:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -384,16 +399,14 @@ replaced or transformed:
 ```
 <!-- x-release-please-end -->
 
-Path segments match JSON Schema keyword names: object keys as strings,
-the literal `"items"` to enter an array's element schema, and the
-literal `"additionalProperties"` to enter an object's `additional` (the
-additionalProperties schema; only valid when `additional` is a schema
-dict, not `true`). Composition (`lens-then(a, b)`) concatenates paths,
-so `lens-then(lens(("work",)), lens(("items", "highlights")))` is the
-same lens as `lens(("work", "items", "highlights"))`. The empty path
-`lens(())` is the identity lens.
-
-Operations:
+Path segments match JSON Schema keyword names: object keys as strings, the
+literal `"items"` to enter an array's element schema, and the literal
+`"additionalProperties"` to enter an object's `additional` (the
+additionalProperties schema; only valid when `additional` is a schema dict,
+not `true`). Composition (`lens-then(a, b)`) concatenates paths, so
+`lens-then(lens(("work",)), lens(("items", "highlights")))` is the same
+lens as `lens(("work", "items", "highlights"))`. The empty path `lens(())`
+is the identity lens.
 
 | Function | Shape | Behaviour |
 |---|---|---|
@@ -408,10 +421,11 @@ Operations:
 | `unset-required(schema, parent, keys)` | … → schema | Drop specific entries from the object's `required-keys` list at `parent` |
 
 Operations are functional — every `lens-put` / `lens-over` / `add-field` /
-`remove-field` / `set-required` / `unset-required` returns a NEW schema and leaves the input untouched, so you
-can build an extension schema by chaining edits without disturbing the
-canonical one. (Operations are top-level functions rather than methods because
-Typst parses `lens.put(…)` as a type-method lookup, not a closure call.)
+`remove-field` / `set-required` / `unset-required` returns a NEW schema and
+leaves the input untouched, so you can build an extension schema by chaining
+edits without disturbing the canonical one. (Operations are top-level
+functions rather than methods because Typst parses `lens.put(…)` as a
+type-method lookup, not a closure call.)
 
 ### Inspecting a schema
 
@@ -447,15 +461,15 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 ```
 <!-- x-release-please-end -->
 
-Array segments in returned path tuples use `"items"` so they plug
-straight into `lens(path)`; the `[]` suffix in `describe-schema`'s
-output is human-friendly visual only. Keys sort alphabetically so
-diffs across schema versions stay stable.
+Array segments in returned path tuples use `"items"` so they plug straight
+into `lens(path)`; the `[]` suffix in `describe-schema`'s output is
+human-friendly visual only. Keys sort alphabetically so diffs across schema
+versions stay stable.
 
 The real leverage comes from folding `paths-of-kind` together with
-`lens-put` to bulk-edit every field of a kind in one pass — the list
-of paths is derived from the schema, so new fields an upstream JSON
-Resume bump introduces are covered automatically:
+`lens-put` to bulk-edit every field of a kind in one pass — the list of
+paths is derived from the schema, so new fields an upstream JSON Resume
+bump introduces are covered automatically:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -478,7 +492,12 @@ Resume bump introduces are covered automatically:
 
 ### JSON Pointer interop
 
-Lens paths and validator error paths are `(seg, seg, ...)` tuples — natural in Typst but they don't directly interoperate with external tooling that speaks [RFC 6901 JSON Pointer](https://datatracker.ietf.org/doc/html/rfc6901) (editor extensions for schema-aware completion, schema diff tools, JSON Schema documentation generators, …). `path-to-pointer` / `pointer-to-path` cross the boundary:
+Lens paths and validator error paths are `(seg, seg, ...)` tuples — natural
+in Typst but they don't directly interoperate with external tooling that
+speaks [RFC 6901 JSON Pointer](https://datatracker.ietf.org/doc/html/rfc6901)
+(editor extensions for schema-aware completion, schema diff tools, JSON
+Schema documentation generators, …). `path-to-pointer` / `pointer-to-path`
+cross the boundary:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -495,23 +514,39 @@ Lens paths and validator error paths are `(seg, seg, ...)` tuples — natural in
 ```
 <!-- x-release-please-end -->
 
-**Two addressing schemes share the same encoder** — pick the right one for your use case:
+**Two addressing schemes share the same encoder** — pick the right one for
+your use case:
 
-- **Validator error paths** (mixed `str` / non-negative `int`) address into **data**. The output is a real RFC 6901 JSON Pointer that any JSON-Pointer-aware tool can dereference against the resume / data document.
-- **Lens and introspect paths** (`str`-only, with `"items"` for array elements and `"additionalProperties"` for the additional schema) address into the **schema**. The output is a JSON-Pointer-shaped string that names a schema location — meaningful to JSON Schema tooling that uses JSON Pointer in `$ref` (e.g. `#/properties/foo/items`), but **not** a data pointer.
+- **Validator error paths** (mixed `str` / non-negative `int`) address into
+  **data**. The output is a real RFC 6901 JSON Pointer that any
+  JSON-Pointer-aware tool can dereference against the resume / data document.
+- **Lens and introspect paths** (`str`-only, with `"items"` for array
+  elements and `"additionalProperties"` for the additional schema) address
+  into the **schema**. The output is a JSON-Pointer-shaped string that names
+  a schema location — meaningful to JSON Schema tooling that uses JSON
+  Pointer in `$ref` (e.g. `#/properties/foo/items`), but **not** a data
+  pointer.
 
-Encoding accepts `str` (object key) or `int` (non-negative — RFC 6901's array-index ABNF) segments; other types and negative ints panic. Decoding parses tokens matching that ABNF (`0` | `[1-9][0-9]*`) back to `int`; everything else stays `str`. Malformed `~` escapes (bare `~`, `~2`, `~<other>`) panic at decode rather than silently passing through.
+Encoding accepts `str` (object key) or `int` (non-negative — RFC 6901's
+array-index ABNF) segments; other types and negative ints panic. Decoding
+parses tokens matching that ABNF (`0` | `[1-9][0-9]*`) back to `int`;
+everything else stays `str`. Malformed `~` escapes (bare `~`, `~2`,
+`~<other>`) panic at decode rather than silently passing through.
 
-**Round-trip directions are asymmetric:**
+Round-trip directions are asymmetric:
 
 - `pointer → path → pointer` is **lossless** for any well-formed pointer.
-- `path → pointer → path` is lossless **except** when a `str` segment looks like an array index — `("0",)` decodes back as `(0,)`. In practice the validator and lens code never emit numeric strings, so this isn't a concern.
+- `path → pointer → path` is lossless **except** when a `str` segment looks
+  like an array index — `("0",)` decodes back as `(0,)`. In practice the
+  validator and lens code never emit numeric strings, so this isn't a
+  concern.
 
 ### Starting from a JSON Schema document
 
 `schema-from-json-schema(parsed-schema)` translates a JSON Schema (draft 7
-subset) into a Typst schema dict. Use it when you already have an authoritative
-`.json` schema and don't want to keep a parallel Typst copy in sync:
+subset) into a Typst schema dict. Use it when you already have an
+authoritative `.json` schema and don't want to keep a parallel Typst copy
+in sync:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -529,51 +564,54 @@ subset) into a Typst schema dict. Use it when you already have an authoritative
 ```
 <!-- x-release-please-end -->
 
-Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
-`object`/`boolean`/`null`), `format` (`uri` → `uri-string`, `email` → `email-string`,
-`date` → `date-string`, `date-time` → `datetime-string`),
-`pattern` → `pattern-string` (on plain string schemas only — when both
-`format` and `pattern` are present on the same node, `format` wins and
-`pattern` is dropped; compose two gates yourself via a lens if you
-need both), `enum` → `enum-of`, `const` → `const-of`,
-`properties`, `required`, `items`, internal `$ref`
-(`#/definitions/…` / `#/$defs/…`), `type: [X, "null"]` nullable unions
-(under the engine's null-as-absent policy these translate to plain `X`),
-constraint keywords on strings (`minLength` / `maxLength`), numbers
-(`minimum` / `maximum` / `exclusiveMinimum` / `exclusiveMaximum` /
-`multipleOf`), and arrays (`minItems` / `maxItems` / `uniqueItems`)
-— baked onto the kind dict as kebab-case fields and validated
-inline — and `additionalProperties` (a schema, `true`, or `false`
-— `false` matches the strict default; `true` permits extras without
-validation; a schema validates every extra against it, also reachable
-via the `map(value-schema)` combinator).
-Out of scope: `allOf` / `anyOf` / `oneOf` / `not`,
-`if` / `then` / `else`, `dependencies` (and the `dependentRequired` /
-`dependentSchemas` variants), `type: "object"` with neither `properties`
-nor `additionalProperties` (fully open),
-`type: [...]` unions with more than one non-null member, external `$ref`,
-and string formats other than the four listed above — every one of these
-panics with a clear "unsupported" message rather than silently dropping
-the constraint.
+**Supported keywords:**
 
-A note on the canonical `resume-schema` and `additionalProperties`:
-the upstream JSON Resume document declares `additionalProperties: true`
-on every section's items, so the canonical schema accepts extras at
-runtime even though the README's headline framing is "strict". Strict
-applies to declared fields; `additionalProperties: true` from upstream
-is honoured. If you need stricter behaviour, use `resume-schema-strict`
-— it recursively strips `additional: true` from every nested object,
-restoring the "unknown keys are rejected" promise (typed extras
-declared via `additionalProperties: <schema>` are kept).
+- `type`: `string` / `number` / `integer` / `array` / `object` / `boolean` /
+  `null`
+- `format`: `uri` → `uri-string`, `email` → `email-string`,
+  `date` → `date-string`, `date-time` → `datetime-string`
+- `pattern` → `pattern-string` (on plain string schemas only; when both
+  `format` and `pattern` are present on the same node, `format` wins and
+  `pattern` is dropped — compose two gates yourself via a lens if you need
+  both)
+- `enum` → `enum-of`, `const` → `const-of`
+- `properties`, `required`, `items`
+- Internal `$ref` (`#/definitions/…` / `#/$defs/…`)
+- `type: [X, "null"]` nullable unions (under the engine's null-as-absent
+  policy these translate to plain `X`)
+- String constraints: `minLength`, `maxLength`
+- Number constraints: `minimum`, `maximum`, `exclusiveMinimum`,
+  `exclusiveMaximum`, `multipleOf`
+- Array constraints: `minItems`, `maxItems`, `uniqueItems`
+- `additionalProperties`: a schema, `true`, or `false` — `false` matches
+  the strict default; `true` permits extras without validation; a schema
+  validates every extra against it (also reachable via the
+  `map(value-schema)` combinator)
 
-## Scope
+Constraint keywords are baked onto the kind dict as kebab-case fields and
+validated inline.
 
-The canonical surface — `parse`, `validate`, `coerce` —
-implements **only** the [JSON Resume schema](https://jsonresume.org/schema) and
-rejects unknown fields. Renderer-specific extensions are layered on top by the
-consuming template via the BYO API above; requests for renderer-specific
-fields in the canonical schema itself will be redirected to the relevant
-template repo.
+**Out of scope** (every one panics with a clear "unsupported" message rather
+than silently dropping the constraint):
+
+- `allOf` / `anyOf` / `oneOf` / `not`
+- `if` / `then` / `else`
+- `dependencies` (and the `dependentRequired` / `dependentSchemas` variants)
+- `type: "object"` with neither `properties` nor `additionalProperties`
+  (fully open)
+- `type: [...]` unions with more than one non-null member
+- External `$ref`
+- String formats other than the four listed above
+
+**A note on the canonical `resume-schema` and `additionalProperties`:** the
+upstream JSON Resume document declares `additionalProperties: true` on every
+section's items, so the canonical schema accepts extras at runtime even
+though the README's headline framing is "strict". Strict applies to declared
+fields; `additionalProperties: true` from upstream is honoured. If you need
+stricter behaviour, use `resume-schema-strict` — it recursively strips
+`additional: true` from every nested object, restoring the "unknown keys are
+rejected" promise (typed extras declared via `additionalProperties: <schema>`
+are kept).
 
 ## Contributing
 
@@ -584,3 +622,7 @@ conventional-commit titles on `main`.
 ## License
 
 [MIT](LICENSE).
+
+---
+
+<p align="center"><sub><em>"gairm" is Irish for vocation. The package was originally a JSON Resume loader.</em></sub></p>
