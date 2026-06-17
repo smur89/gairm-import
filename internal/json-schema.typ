@@ -133,10 +133,9 @@
   if t == "boolean" { return bool-type }
   if t == "null" { return null-type }
   if type(t) == array {
-    // [X, "null"] translates to plain X: under null-as-absent every
-    // kind already accepts null, so a wrapper would be a no-op.
-    // Multi-non-null unions would need discriminated-union machinery
-    // that's out of scope.
+    // [X, "null"] → X: under null-as-absent every kind already accepts
+    // null, so a wrapper would be a no-op. Multi-non-null unions need
+    // discriminated-union machinery that's out of scope.
     if t.len() == 2 and "null" in t {
       let non-null = t.filter(x => x != "null")
       if non-null.len() == 1 {

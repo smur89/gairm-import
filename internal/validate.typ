@@ -85,8 +85,7 @@
     if type(value) != bool { return _type-error(path, "boolean", value) }
     return ()
   }
-  // Success path is the top-of-function `none` early return; here
-  // the value is non-none and therefore wrong.
+  // `none` succeeds via the top early return; non-none can only fail.
   if kind == "null" { return _type-error(path, "null", value) }
   if kind == "array" {
     if type(value) != array { return _type-error(path, "array", value) }

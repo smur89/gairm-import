@@ -49,8 +49,8 @@
     assert(type(value) == bool, message: _expect("a boolean", value))
     return value
   }
-  // Unreachable on a validated input — top early return handles
-  // `none`, the only legal value.
+  // Unreachable on validated input — top early return handles `none`,
+  // the only legal value.
   if kind == "null" {
     assert(false, message: _expect("null", value))
   }
