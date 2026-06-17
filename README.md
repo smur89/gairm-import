@@ -16,6 +16,10 @@
   Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and return a normalised Typst dict ready for downstream rendering. Ships with the <a href="https://jsonresume.org/schema">JSON Resume</a> schema and convenience entry points as the canonical bundled example.
 </p>
 
+<p align="center">
+  <sub><em>"gairm" is Irish for vocation. The package was originally a JSON Resume loader.</em></sub>
+</p>
+
 ## Quick start
 
 <!-- x-release-please-start-version -->
@@ -622,7 +626,3 @@ conventional-commit titles on `main`.
 ## License
 
 [MIT](LICENSE).
-
----
-
-<p align="center"><sub><em>"gairm" is Irish for vocation. The package was originally a JSON Resume loader.</em></sub></p>
