@@ -47,6 +47,100 @@
   "dependencies", "dependentRequired", "dependentSchemas",
 )
 
+// Bail at translate time on bad-shape values; better than a kind
+// dict the validator can't reason about.
+#let _require-nonneg-int(js, key) = {
+  let v = js.at(key)
+  if type(v) != int or v < 0 {
+    _bail(repr(key) + " must be a non-negative integer, got: " + repr(v) + ".")
+  }
+  v
+}
+
+#let _require-number(js, key) = {
+  let v = js.at(key)
+  if type(v) not in (int, float) {
+    _bail(repr(key) + " must be a number, got: " + repr(v) + ".")
+  }
+  v
+}
+
+// Cross-constraint contradictions (min > max, etc.) translate cleanly
+// but reject every input — catch them up front so the diagnostic
+// fires at translate time, not as a mystery validation failure.
+#let _require-ordered(lower-key, lower, upper-key, upper, sep) = {
+  if lower != none and upper != none and not (lower <= upper) {
+    _bail(
+      lower-key + " (" + repr(lower) + ") " + sep + " " +
+        upper-key + " (" + repr(upper) + ") is unsatisfiable.",
+    )
+  }
+}
+#let _require-strict(lower-key, lower, upper-key, upper) = {
+  if lower != none and upper != none and not (lower < upper) {
+    _bail(
+      lower-key + " (" + repr(lower) + ") and " + upper-key + " (" +
+        repr(upper) + ") leave no satisfying value.",
+    )
+  }
+}
+
+#let _with-string-constraints(js, dict) = {
+  let result = dict
+  if "minLength" in js { result.insert("min-length", _require-nonneg-int(js, "minLength")) }
+  if "maxLength" in js { result.insert("max-length", _require-nonneg-int(js, "maxLength")) }
+  _require-ordered(
+    "minLength", result.at("min-length", default: none),
+    "maxLength", result.at("max-length", default: none),
+    ">",
+  )
+  result
+}
+
+#let _with-number-constraints(js, dict) = {
+  let result = dict
+  if "minimum" in js { result.insert("minimum", _require-number(js, "minimum")) }
+  if "maximum" in js { result.insert("maximum", _require-number(js, "maximum")) }
+  if "exclusiveMinimum" in js { result.insert("exclusive-minimum", _require-number(js, "exclusiveMinimum")) }
+  if "exclusiveMaximum" in js { result.insert("exclusive-maximum", _require-number(js, "exclusiveMaximum")) }
+  if "multipleOf" in js {
+    let v = _require-number(js, "multipleOf")
+    if v <= 0 { _bail("\"multipleOf\" must be > 0, got: " + repr(v) + ".") }
+    result.insert("multiple-of", v)
+  }
+  let mn = result.at("minimum", default: none)
+  let mx = result.at("maximum", default: none)
+  let emn = result.at("exclusive-minimum", default: none)
+  let emx = result.at("exclusive-maximum", default: none)
+  _require-ordered("minimum", mn, "maximum", mx, ">")
+  // Exclusive bound leaves no value when it meets/crosses an inclusive
+  // bound on the same side (e.g. exclusiveMinimum: 5 demands > 5,
+  // maximum: 5 demands ≤ 5).
+  _require-strict("exclusiveMinimum", emn, "maximum", mx)
+  _require-strict("minimum", mn, "exclusiveMaximum", emx)
+  _require-strict("exclusiveMinimum", emn, "exclusiveMaximum", emx)
+  result
+}
+
+#let _with-array-constraints(js, dict) = {
+  let result = dict
+  if "minItems" in js { result.insert("min-items", _require-nonneg-int(js, "minItems")) }
+  if "maxItems" in js { result.insert("max-items", _require-nonneg-int(js, "maxItems")) }
+  if "uniqueItems" in js {
+    let v = js.at("uniqueItems")
+    if type(v) != bool {
+      _bail("\"uniqueItems\" must be a boolean, got: " + repr(v) + ".")
+    }
+    if v { result.insert("unique-items", true) }
+  }
+  _require-ordered(
+    "minItems", result.at("min-items", default: none),
+    "maxItems", result.at("max-items", default: none),
+    ">",
+  )
+  result
+}
+
 #let _from-json-schema(js, root, seen) = {
   if "$ref" in js {
     let ref = js.at("$ref")
@@ -82,22 +176,27 @@
     // Format wins over pattern when both are present — composing two
     // gates is more moving parts than the engine needs.
     let fmt = js.at("format", default: none)
-    if fmt != none {
+    let base = if fmt != none {
       if fmt not in _format-kinds {
         _bail("unsupported string format: " + repr(fmt) + ".")
       }
-      return _format-kinds.at(fmt)
-    }
-    let pat = js.at("pattern", default: none)
-    if pat != none {
-      if type(pat) != str {
-        _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
+      _format-kinds.at(fmt)
+    } else {
+      let pat = js.at("pattern", default: none)
+      if pat != none {
+        if type(pat) != str {
+          _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
+        }
+        pattern-string(pat, expected: "matching " + repr(pat))
+      } else {
+        str-type
       }
-      return pattern-string(pat, expected: "matching " + repr(pat))
     }
-    return str-type
+    return _with-string-constraints(js, base)
   }
-  if t == "number" or t == "integer" { return number-type }
+  if t == "number" or t == "integer" {
+    return _with-number-constraints(js, number-type)
+  }
   if t == "array" {
     let items = js.at("items", default: none)
     if items == none {
@@ -106,7 +205,7 @@
     if type(items) != dictionary {
       _bail("\"items\" must be a schema object, got: " + repr(type(items)) + ".")
     }
-    return array-of(_from-json-schema(items, root, seen))
+    return _with-array-constraints(js, array-of(_from-json-schema(items, root, seen)))
   }
   if t == "object" {
     // Engine is strict by design — can't represent open objects. A

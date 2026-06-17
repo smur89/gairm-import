@@ -499,8 +499,12 @@ Supported JSON Schema keywords: `type` (`string`/`number`/`integer`/`array`/
 `pattern` is dropped; compose two gates yourself via a lens if you
 need both), `enum` → `enum-of`, `const` → `const-of`,
 `properties`, `required`, `items`, internal `$ref`
-(`#/definitions/…` / `#/$defs/…`), and `type: [X, "null"]` nullable unions
-(under the engine's null-as-absent policy these translate to plain `X`).
+(`#/definitions/…` / `#/$defs/…`), `type: [X, "null"]` nullable unions
+(under the engine's null-as-absent policy these translate to plain `X`),
+and constraint keywords on strings (`minLength` / `maxLength`), numbers
+(`minimum` / `maximum` / `exclusiveMinimum` / `exclusiveMaximum` /
+`multipleOf`), and arrays (`minItems` / `maxItems` / `uniqueItems`) —
+bake onto the kind dict as kebab-case fields and validate inline.
 Out of scope: `allOf` / `anyOf` / `oneOf` / `not`,
 `if` / `then` / `else`, `dependencies` (and the `dependentRequired` /
 `dependentSchemas` variants), open object schemas (`type: "object"` without
