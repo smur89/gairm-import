@@ -13,12 +13,28 @@
 </p>
 
 <p align="center">
-  Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and return a normalised Typst dict ready for downstream rendering. Ships with the <a href="https://jsonresume.org/schema">JSON Resume</a> schema and convenience entry points as the canonical bundled example.
+  Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and
+  return a normalised Typst dict ready for downstream rendering. Ships with
+  the <a href="https://jsonresume.org/schema">JSON Resume</a> schema and
+  convenience entry points as the canonical bundled example.
 </p>
 
 <p align="center">
   <sub><em>"gairm" is Irish for vocation. The package was originally a JSON Resume loader.</em></sub>
 </p>
+
+## Highlights
+
+- Strict validation with path-qualified error reports and "did you mean …?" hints.
+- One-call `parse` that validates and coerces in a single step, or split via `validate` and `coerce`.
+- Two flavours of the canonical JSON Resume schema: a faithful 1:1 derivation and a renderer-friendly strict variant.
+- Bring your own JSON-Schema-shaped document via the `schema:` keyword — the engine is JSON-Schema-driven, not CV-specific.
+- Functional, lens-based editing for extension schemas without re-spelling the canonical shape.
+- A JSON Schema (draft 7 subset) → Typst schema translator for callers with an existing `.json` schema.
+
+## Requirements
+
+- Typst `0.15.0` or later.
 
 ## Quick start
 
@@ -31,18 +47,7 @@
 ```
 <!-- x-release-please-end -->
 
-Bring your own JSON-Schema-shaped document and pass `schema:` to `parse` — the
-engine doesn't know or care that it's a CV.
-
-## Install
-
-<!-- x-release-please-start-version -->
-```typst
-#import "@preview/gairm-import:0.8.1": validate, coerce, parse
-```
-<!-- x-release-please-end -->
-
-## A minimal `resume.json`
+A minimal `resume.json`:
 
 ```json
 {
@@ -71,6 +76,8 @@ metadata field is also accepted. See
 
 ## Usage
 
+### Loading the document
+
 `parse` is the one-call entry point. The recommended form is
 `parse(path("resume.json"))` — the
 [`path`](https://typst.app/docs/reference/foundations/path/) value resolves
@@ -96,6 +103,8 @@ the document yourself:
 // Typst-root-relative path string, resolved by parse itself.
 #let resume = parse("/resume.json")
 ```
+
+### The returned model
 
 The returned dict is a 1:1 mirror of the canonical schema — every kind comes
 from the upstream JSON Schema document. Format-annotated fields are gated by
