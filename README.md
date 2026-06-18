@@ -609,6 +609,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Releases are cut by
 [release-please](https://github.com/googleapis/release-please) from
 conventional-commit titles on `main`.
 
-## Licence
+## License
 
 [MIT](LICENSE).
