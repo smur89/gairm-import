@@ -10,9 +10,7 @@
 
 <p align="center">
   <strong>JSON Schema → Typst dict coercer.</strong>
-</p>
-
-<p align="center">
+  <br>
   Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and
   return a normalised Typst dict ready for downstream rendering. Ships with
   the <a href="https://jsonresume.org/schema">JSON Resume</a> schema and
@@ -22,6 +20,29 @@
 <p align="center">
   <sub><em>"gairm" is Irish for vocation. The package was originally a JSON Resume loader.</em></sub>
 </p>
+
+## Contents
+
+- [Highlights](#highlights)
+- [Requirements](#requirements)
+- [Quick start](#quick-start)
+- [Usage](#usage)
+  - [Loading the document](#loading-the-document)
+  - [The returned model](#the-returned-model)
+  - [Rendering with a template](#rendering-with-a-template)
+  - [Handling validation errors yourself](#handling-validation-errors-yourself)
+- [Errors](#errors)
+  - [Null handling](#null-handling)
+- [Schemas and composition](#schemas-and-composition)
+  - [Two schemas](#two-schemas)
+  - [Format validation](#format-validation)
+  - [Building an extension schema](#building-an-extension-schema)
+  - [Targeted edits with lenses](#targeted-edits-with-lenses)
+  - [Inspecting a schema](#inspecting-a-schema)
+  - [JSON Pointer interop](#json-pointer-interop)
+  - [Starting from a JSON Schema document](#starting-from-a-json-schema-document)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Highlights
 
@@ -73,6 +94,19 @@ The canonical schema covers thirteen sections: `basics`, `work`, `volunteer`,
 `interests`, `references`, `projects`, `meta`. The `$schema` top-level
 metadata field is also accepted. See
 [jsonresume.org/schema](https://jsonresume.org/schema) for every field.
+
+### API at a glance
+
+The five names a first-time reader will meet. Lens, introspection, and
+schema-building helpers are introduced later in [Schemas and composition](#schemas-and-composition).
+
+| Export | Purpose |
+|---|---|
+| `parse(data, schema: ...)` | Validate and coerce in one call; aborts compilation with a combined report on errors. |
+| `validate(data, schema: ...)` | Return a list of `(path, message)` records — empty list means valid. |
+| `coerce(data, schema: ...)` | Coerce a (validated) document into the typed model. |
+| `resume-schema` | Default schema — faithful 1:1 derivation of the canonical JSON Resume document. |
+| `resume-schema-strict` | Renderer-friendly overlay — free-text fields typed as Typst `content`, iso8601 `$ref` fields validated as dates. |
 
 ## Usage
 
@@ -200,7 +234,7 @@ Root null is rejected: if the entire input document is `null`, `validate`,
 `gairm-import: input must be a dict, got null.` The null-as-absent policy
 applies to leaf positions inside a document, not to the document itself.
 
-## Advanced
+## Schemas and composition
 
 ### Two schemas
 
@@ -410,12 +444,11 @@ is the identity lens.
 | `set-required(schema, parent, keys)` | … → schema | Replace the object's `required-keys` list at `parent` |
 | `unset-required(schema, parent, keys)` | … → schema | Drop specific entries from the object's `required-keys` list at `parent` |
 
-Operations are functional — every `lens-put` / `lens-over` / `add-field` /
-`remove-field` / `set-required` / `unset-required` returns a NEW schema and
-leaves the input untouched, so you can build an extension schema by chaining
-edits without disturbing the canonical one. (Operations are top-level
-functions rather than methods because Typst parses `lens.put(…)` as a
-type-method lookup, not a closure call.)
+Operations are functional — each helper above returns a NEW schema and
+leaves the input untouched, so you can chain edits without disturbing the
+canonical one. (Operations are top-level functions rather than methods
+because Typst parses `lens.put(…)` as a type-method lookup, not a closure
+call.)
 
 ### Inspecting a schema
 
@@ -581,8 +614,8 @@ in sync:
 Constraint keywords are baked onto the kind dict as kebab-case fields and
 validated inline.
 
-**Out of scope** (every one panics with a clear "unsupported" message rather
-than silently dropping the constraint):
+**Out of scope.** Each keyword below panics with a clear "unsupported"
+message rather than silently dropping the constraint:
 
 - `allOf` / `anyOf` / `oneOf` / `not`
 - `if` / `then` / `else`
