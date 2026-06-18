@@ -26,6 +26,8 @@
 - [Highlights](#highlights)
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
+  - [Bring your own schema](#bring-your-own-schema)
+  - [API at a glance](#api-at-a-glance)
 - [Usage](#usage)
   - [Loading the document](#loading-the-document)
   - [The returned model](#the-returned-model)
@@ -95,6 +97,36 @@ The canonical schema covers thirteen sections: `basics`, `work`, `volunteer`,
 metadata field is also accepted. See
 [jsonresume.org/schema](https://jsonresume.org/schema) for every field.
 
+### Bring your own schema
+
+gairm-import is JSON-Schema-driven, not CV-specific. To work with any
+other shape, build a schema with the public combinators (or translate
+an existing `.json` schema) and pass it via `schema:`:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.8.1": (
+  parse, object, array-of, str-type, number-type,
+)
+
+#let book-schema = object((
+  title:  str-type,
+  author: str-type,
+  year:   number-type,
+  tags:   array-of(str-type),
+))
+
+#let book = parse(path("book.json"), schema: book-schema)
+```
+<!-- x-release-please-end -->
+
+The same `validate` / `coerce` / error-reporting machinery applies — the
+JSON Resume schemas are just the bundled default. See
+[Schemas and composition](#schemas-and-composition) for the full
+schema-building API, including lenses for targeted edits and
+[`schema-from-json-schema`](#starting-from-a-json-schema-document) for
+translating an existing `.json` schema document.
+
 ### API at a glance
 
 The five names a first-time reader will meet. Lens, introspection, and
@@ -107,6 +139,7 @@ schema-building helpers are introduced later in [Schemas and composition](#schem
 | `coerce(data, schema: ...)` | Coerce a (validated) document into the typed model. |
 | `resume-schema` | Default schema — faithful 1:1 derivation of the canonical JSON Resume document. |
 | `resume-schema-strict` | Renderer-friendly overlay — free-text fields typed as Typst `content`, iso8601 `$ref` fields validated as dates. |
+| `object`, `array-of`, … | Build your own schema (or translate from JSON Schema via `schema-from-json-schema`) and pass it via `schema:`. See [Schemas and composition](#schemas-and-composition). |
 
 ## Usage
 
