@@ -99,9 +99,23 @@ metadata field is also accepted. See
 
 ### Bring your own schema
 
-gairm-import is JSON-Schema-driven, not CV-specific. To work with any
-other shape, build a schema with the public combinators (or translate
-an existing `.json` schema) and pass it via `schema:`:
+gairm-import is JSON-Schema-driven, not CV-specific. Two ways to use a
+non-CV shape.
+
+**Translate an existing `.json` schema** with `schema-from-json-schema`
+(JSON Schema draft 7 subset — supported keywords listed under
+[Starting from a JSON Schema document](#starting-from-a-json-schema-document)):
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.8.1": parse, schema-from-json-schema
+
+#let book-schema = schema-from-json-schema(json("book-schema.json"))
+#let book = parse(path("book.json"), schema: book-schema)
+```
+<!-- x-release-please-end -->
+
+**Or build the schema directly in Typst** with the public combinators:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -120,12 +134,11 @@ an existing `.json` schema) and pass it via `schema:`:
 ```
 <!-- x-release-please-end -->
 
-The same `validate` / `coerce` / error-reporting machinery applies — the
-JSON Resume schemas are just the bundled default. See
+Both go through the same `validate` / `coerce` / error-reporting
+machinery — the JSON Resume schemas are just the bundled default. See
 [Schemas and composition](#schemas-and-composition) for the full
-schema-building API, including lenses for targeted edits and
-[`schema-from-json-schema`](#starting-from-a-json-schema-document) for
-translating an existing `.json` schema document.
+schema-building API (lenses for targeted edits, the supported /
+out-of-scope JSON Schema keywords, and more).
 
 ### API at a glance
 
@@ -139,7 +152,8 @@ schema-building helpers are introduced later in [Schemas and composition](#schem
 | `coerce(data, schema: ...)` | Coerce a (validated) document into the typed model. |
 | `resume-schema` | Default schema — faithful 1:1 derivation of the canonical JSON Resume document. |
 | `resume-schema-strict` | Renderer-friendly overlay — free-text fields typed as Typst `content`, iso8601 `$ref` fields validated as dates. |
-| `object`, `array-of`, … | Build your own schema (or translate from JSON Schema via `schema-from-json-schema`) and pass it via `schema:`. See [Schemas and composition](#schemas-and-composition). |
+| `schema-from-json-schema(doc)` | Translate an existing JSON Schema (draft 7 subset) document into a Typst schema. Pair with `parse(..., schema: ...)`. |
+| `object`, `array-of`, kind primitives | Build a Typst schema directly. See [Schemas and composition](#schemas-and-composition). |
 
 ## Usage
 
