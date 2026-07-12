@@ -5,7 +5,9 @@
 
 #import "../lib.typ": coerce, resume-schema-strict
 #import "../internal/coerce.typ": _coerce
-#import "../internal/kinds.typ": str-type, content-type, number-type, array-of, object
+#import "../internal/kinds.typ": (
+  str-type, content-type, number-type, array-of, object,
+)
 
 // Null at a primitive value position coerces to `none` so the parent
 // filter can drop it.
@@ -24,7 +26,11 @@
 #let work-item = object((name: str-type, position: str-type))
 #let work-coerced = _coerce(
   array-of(work-item),
-  ((name: "Acme", position: "Engineer"), none, (name: "Globex", position: "PM")),
+  (
+    (name: "Acme", position: "Engineer"),
+    none,
+    (name: "Globex", position: "PM"),
+  ),
 )
 #assert.eq(work-coerced.len(), 2)
 #assert.eq(work-coerced.at(0), (name: "Acme", position: "Engineer"))
@@ -103,10 +109,16 @@
 // top-level resume whose only present section is itself all-null
 // coerces to `none` (consistent extension of the policy — every key
 // in the root coerced to absent, so the root is absent too).
-#let all-null-basics = coerce((basics: (name: none, email: none, summary: none)), schema: resume-schema-strict)
+#let all-null-basics = coerce(
+  (basics: (name: none, email: none, summary: none)),
+  schema: resume-schema-strict,
+)
 #assert.eq(all-null-basics, none)
 
 // And a single live leaf anywhere keeps the chain intact.
-#let one-leaf = coerce((basics: (name: "Alice", email: none)), schema: resume-schema-strict)
+#let one-leaf = coerce(
+  (basics: (name: "Alice", email: none)),
+  schema: resume-schema-strict,
+)
 #assert.eq(one-leaf.basics.name, "Alice")
 #assert("email" not in one-leaf.basics)

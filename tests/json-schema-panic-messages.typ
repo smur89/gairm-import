@@ -40,7 +40,9 @@
 #assert(src.contains("items\\\" must be a schema object"))
 #assert(src.contains("properties\\\" must be an object"))
 #assert(src.contains("required\\\" must be an array of field names"))
-#assert(src.contains("additionalProperties\\\" must be a schema, true, or false"))
+#assert(
+  src.contains("additionalProperties\\\" must be a schema, true, or false"),
+)
 #assert(src.contains("open object schemas"))
 #assert(src.contains("must be declared or covered"))
 

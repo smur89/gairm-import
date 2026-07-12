@@ -35,7 +35,12 @@
 #assert.eq(pointer-to-path("/basics/email"), ("basics", "email"))
 
 // Array-index ABNF: only `0` or `[1-9][0-9]*` decode to int.
-#assert.eq(pointer-to-path("/work/0/highlights/1"), ("work", 0, "highlights", 1))
+#assert.eq(pointer-to-path("/work/0/highlights/1"), (
+  "work",
+  0,
+  "highlights",
+  1,
+))
 
 // Leading zeros aren't valid array indices, so "01" stays str.
 #assert.eq(pointer-to-path("/work/01"), ("work", "01"))

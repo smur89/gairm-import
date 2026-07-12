@@ -2,8 +2,7 @@
 // language entry — a deep edit into schema.languages.elem.shape.
 
 #import "../lib.typ": (
-  lens, lens-over,
-  resume-schema, object, str-type, number-type, validate,
+  lens, lens-over, resume-schema, object, str-type, number-type, validate,
   lens-get, kind-at,
 )
 

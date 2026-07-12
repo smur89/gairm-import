@@ -31,8 +31,10 @@
 #let _require-object(parent, op) = {
   if parent.kind != "object" {
     _bail(
-      op + " expects an object schema at the lens target, got kind=" +
-        repr(parent.kind) + ".",
+      op
+        + " expects an object schema at the lens target, got kind="
+        + repr(parent.kind)
+        + ".",
     )
   }
 }
@@ -56,29 +58,39 @@
       let additional = schema.at("additional", default: none)
       if type(additional) != dictionary {
         _bail(
-          "lens segment \"additionalProperties\" requires the object's " +
-            "`additional` field to be a schema dict, got: " + repr(additional) + ".",
+          "lens segment \"additionalProperties\" requires the object's "
+            + "`additional` field to be a schema dict, got: "
+            + repr(additional)
+            + ".",
         )
       }
       return additional
     }
     _bail(
-      "lens path segment " + repr(segment) + " not in object shape. " +
-        "Valid keys: " + schema.shape.keys().join(", ") + ".",
+      "lens path segment "
+        + repr(segment)
+        + " not in object shape. "
+        + "Valid keys: "
+        + schema.shape.keys().join(", ")
+        + ".",
     )
   }
   if schema.kind == "array" {
     if segment != "items" {
       _bail(
-        "lens segment for an array schema must be \"items\", got " +
-          repr(segment) + ".",
+        "lens segment for an array schema must be \"items\", got "
+          + repr(segment)
+          + ".",
       )
     }
     return schema.elem
   }
   _bail(
-    "lens cannot descend into a leaf schema (kind=" + repr(schema.kind) +
-      ") with segment " + repr(segment) + ".",
+    "lens cannot descend into a leaf schema (kind="
+      + repr(schema.kind)
+      + ") with segment "
+      + repr(segment)
+      + ".",
   )
 }
 
@@ -115,7 +127,10 @@
 // `put` because `set` is a Typst keyword.
 #let lens-put(l, schema, value) = _set-at(schema, l.path, value)
 
-#let lens-over(l, schema, fn) = _set-at(schema, l.path, fn(_get-at(schema, l.path)))
+#let lens-over(l, schema, fn) = _set-at(schema, l.path, fn(_get-at(
+  schema,
+  l.path,
+)))
 
 // `lens-then(a, b)` applies a then b — paths concatenate in that order.
 #let lens-then(a, b) = lens(a.path + b.path)
@@ -129,8 +144,10 @@
     _require-object(parent, "add-field")
     if key in parent.shape {
       _bail(
-        "add-field key " + repr(key) + " already in object shape. " +
-          "Use lens-put / lens-over to replace an existing field.",
+        "add-field key "
+          + repr(key)
+          + " already in object shape. "
+          + "Use lens-put / lens-over to replace an existing field.",
       )
     }
     _with-shape-set(parent, key, sub-schema)
@@ -147,8 +164,11 @@
     let unknown = keys.filter(k => k not in parent.shape)
     if unknown.len() > 0 {
       _bail(
-        "set-required keys not in object shape: " + unknown.join(", ") +
-          ". Valid keys: " + parent.shape.keys().join(", ") + ".",
+        "set-required keys not in object shape: "
+          + unknown.join(", ")
+          + ". Valid keys: "
+          + parent.shape.keys().join(", ")
+          + ".",
       )
     }
     (..parent, required-keys: keys)
@@ -165,8 +185,11 @@
     let absent = keys.filter(k => k not in parent.required-keys)
     if absent.len() > 0 {
       _bail(
-        "unset-required keys not in required-keys: " + absent.join(", ") +
-          ". Current required: " + parent.required-keys.join(", ") + ".",
+        "unset-required keys not in required-keys: "
+          + absent.join(", ")
+          + ". Current required: "
+          + parent.required-keys.join(", ")
+          + ".",
       )
     }
     (..parent, required-keys: parent.required-keys.filter(k => k not in keys))
@@ -181,8 +204,12 @@
     _require-object(parent, "remove-field")
     if key not in parent.shape {
       _bail(
-        "remove-field key " + repr(key) + " not in object shape. " +
-          "Valid keys: " + parent.shape.keys().join(", ") + ".",
+        "remove-field key "
+          + repr(key)
+          + " not in object shape. "
+          + "Valid keys: "
+          + parent.shape.keys().join(", ")
+          + ".",
       )
     }
     let new-shape = parent.shape

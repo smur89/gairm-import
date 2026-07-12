@@ -18,7 +18,8 @@
   if key == "$schema" {
     // $schema is a URI in JSON Schema (carries the format: "uri" hint).
     assert.eq(
-      sub-schema.kind, "uri-string",
+      sub-schema.kind,
+      "uri-string",
       message: "$schema must be uri-string; got " + sub-schema.kind,
     )
   } else {
@@ -28,7 +29,10 @@
     )
     assert(
       ok,
-      message: "resume-schema." + key + " must be object or array-of(object); got " + kind,
+      message: "resume-schema."
+        + key
+        + " must be object or array-of(object); got "
+        + kind,
     )
   }
 }
@@ -83,7 +87,10 @@
 #assert.eq(resume-schema.shape.work.elem.shape.endDate.kind, "pattern-string")
 #assert.eq(resume-schema.shape.awards.elem.shape.date.kind, "pattern-string")
 #assert.eq(resume-schema.shape.certificates.elem.shape.date.kind, "date-string")
-#assert.eq(resume-schema.shape.publications.elem.shape.releaseDate.kind, "pattern-string")
+#assert.eq(
+  resume-schema.shape.publications.elem.shape.releaseDate.kind,
+  "pattern-string",
+)
 #assert.eq(resume-schema.shape.meta.shape.canonical.kind, "uri-string")
 // `meta.lastModified` has no upstream pattern (only a description), so
 // it stays as plain str — the strict variant lifts it to date-string.

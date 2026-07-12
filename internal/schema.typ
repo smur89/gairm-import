@@ -9,7 +9,9 @@
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
 
-#let resume-schema = schema-from-json-schema(json("assets/jsonresume-schema.json"))
+#let resume-schema = schema-from-json-schema(
+  json("assets/jsonresume-schema.json"),
+)
 
 // Free-text fields wrapped as Typst `content` in the strict variant.
 // Renderer ergonomics, not validation.
@@ -69,9 +71,15 @@
     let current = lens-get(l, s)
     assert(
       current == expected-source,
-      message: "gairm-import: " + list-name + " must target " +
-        repr(expected-source.kind) + " leaves only — " + repr(p) +
-        " is now " + repr(current.kind) + ". Audit upstream schema bump.",
+      message: "gairm-import: "
+        + list-name
+        + " must target "
+        + repr(expected-source.kind)
+        + " leaves only — "
+        + repr(p)
+        + " is now "
+        + repr(current.kind)
+        + ". Audit upstream schema bump.",
     )
     lens-put(l, s, replacement)
   })
@@ -96,7 +104,11 @@
     }
     // Route through the public constructor so any future invariant
     // added to `object()` applies here too.
-    object(new-shape, required-keys: schema.required-keys, additional: new-additional)
+    object(
+      new-shape,
+      required-keys: schema.required-keys,
+      additional: new-additional,
+    )
   } else if schema.kind == "array" {
     (..schema, elem: _strip-permissive-additional(schema.elem))
   } else {
@@ -110,12 +122,24 @@
   // expectations stay simple.
   let strict-base = _strip-permissive-additional(resume-schema)
   let with-content = _override-fold(
-    strict-base, _content-paths, str-type, content-type, "_content-paths",
+    strict-base,
+    _content-paths,
+    str-type,
+    content-type,
+    "_content-paths",
   )
   let with-iso = _override-fold(
-    with-content, _iso8601-date-paths, _iso8601-source, date-string, "_iso8601-date-paths",
+    with-content,
+    _iso8601-date-paths,
+    _iso8601-source,
+    date-string,
+    "_iso8601-date-paths",
   )
   _override-fold(
-    with-iso, _plain-date-paths, str-type, date-string, "_plain-date-paths",
+    with-iso,
+    _plain-date-paths,
+    str-type,
+    date-string,
+    "_plain-date-paths",
   )
 }

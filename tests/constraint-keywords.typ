@@ -3,9 +3,7 @@
 // validator branches read those fields after the type check.
 
 #import "../lib.typ": (
-  validate,
-  schema-from-json-schema,
-  str-type, number-type, array-of, object,
+  validate, schema-from-json-schema, str-type, number-type, array-of, object,
 )
 
 // --- string length ---------------------------------------------------
@@ -89,7 +87,11 @@
 #assert(dup.at(0).message.contains("indices 0 and 2"))
 
 // Deep equality: dict elements with the same content compare equal.
-#let unique-dicts = (kind: "array", elem: object((k: str-type)), unique-items: true)
+#let unique-dicts = (
+  kind: "array",
+  elem: object((k: str-type)),
+  unique-items: true,
+)
 #let same-shape = (
   (k: "x"),
   (k: "x"),
@@ -124,7 +126,11 @@
 // `uniqueItems: false` is the default — omit from the dict to keep the
 // no-constraint case as a plain dict.
 #assert.eq(
-  schema-from-json-schema((type: "array", items: (type: "string"), uniqueItems: false)),
+  schema-from-json-schema((
+    type: "array",
+    items: (type: "string"),
+    uniqueItems: false,
+  )),
   array-of(str-type),
 )
 
@@ -160,25 +166,55 @@
   errs.at(0)
 }
 
-#assert(_expect-error((type: "string", minLength: 3), "ab").message.contains("≥ 3"))
-#assert(_expect-error((type: "string", maxLength: 3), "abcd").message.contains("≤ 3"))
+#assert(
+  _expect-error((type: "string", minLength: 3), "ab").message.contains("≥ 3"),
+)
+#assert(
+  _expect-error((type: "string", maxLength: 3), "abcd").message.contains("≤ 3"),
+)
 #assert(_expect-error((type: "number", minimum: 1), 0).message.contains("≥ 1"))
-#assert(_expect-error((type: "number", maximum: 10), 11).message.contains("≤ 10"))
-#assert(_expect-error((type: "number", exclusiveMinimum: 1), 1).message.contains("> 1"))
-#assert(_expect-error((type: "number", exclusiveMaximum: 10), 10).message.contains("< 10"))
-#assert(_expect-error((type: "number", multipleOf: 3), 10).message.contains("multiple of 3"))
-#assert(_expect-error(
-  (type: "array", items: (type: "string"), minItems: 2),
-  ("a",),
-).message.contains("≥ 2"))
-#assert(_expect-error(
-  (type: "array", items: (type: "string"), maxItems: 1),
-  ("a", "b"),
-).message.contains("≤ 1"))
-#assert(_expect-error(
-  (type: "array", items: (type: "string"), uniqueItems: true),
-  ("a", "a"),
-).message.contains("duplicate"))
+#assert(
+  _expect-error((type: "number", maximum: 10), 11).message.contains("≤ 10"),
+)
+#assert(
+  _expect-error((type: "number", exclusiveMinimum: 1), 1)
+    .message
+    .contains("> 1"),
+)
+#assert(
+  _expect-error((type: "number", exclusiveMaximum: 10), 10)
+    .message
+    .contains("< 10"),
+)
+#assert(
+  _expect-error((type: "number", multipleOf: 3), 10)
+    .message
+    .contains("multiple of 3"),
+)
+#assert(
+  _expect-error(
+    (type: "array", items: (type: "string"), minItems: 2),
+    ("a",),
+  )
+    .message
+    .contains("≥ 2"),
+)
+#assert(
+  _expect-error(
+    (type: "array", items: (type: "string"), maxItems: 1),
+    ("a", "b"),
+  )
+    .message
+    .contains("≤ 1"),
+)
+#assert(
+  _expect-error(
+    (type: "array", items: (type: "string"), uniqueItems: true),
+    ("a", "a"),
+  )
+    .message
+    .contains("duplicate"),
+)
 
 // --- null-as-absent applies to array constraints --------------------
 //

@@ -2,10 +2,9 @@
 // `paths-of-kind` leaf enumeration, `kind-at` lens-shortcut.
 
 #import "../lib.typ": (
-  describe-schema, paths-of-kind, kind-at,
-  resume-schema, resume-schema-strict,
-  object, array-of, str-type, content-type, number-type,
-  date-string, uri-string, email-string, enum-of,
+  describe-schema, paths-of-kind, kind-at, resume-schema, resume-schema-strict,
+  object, array-of, str-type, content-type, number-type, date-string,
+  uri-string, email-string, enum-of,
 )
 
 // --- describe-schema -------------------------------------------------

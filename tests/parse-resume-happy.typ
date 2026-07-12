@@ -17,7 +17,10 @@
 
 // resume-schema-strict opts into content wrapping for the renderer
 // ergonomics — summary is content there.
-#let from-strict = parse("/tests/fixtures/resume-minimal.json", schema: resume-schema-strict)
+#let from-strict = parse(
+  "/tests/fixtures/resume-minimal.json",
+  schema: resume-schema-strict,
+)
 #assert.eq(type(from-strict.basics.summary), content)
 
 // Dict entry: same model, parsing done by the caller. Exercises

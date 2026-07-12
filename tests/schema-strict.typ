@@ -5,21 +5,42 @@
 // that break the lens-fold.
 
 #import "../lib.typ": (
-  resume-schema, resume-schema-strict,
-  str-type, content-type, date-string, uri-string, email-string,
+  resume-schema, resume-schema-strict, str-type, content-type, date-string,
+  uri-string, email-string,
 )
 
 // _content-paths: free-text fields wrapped to content-type.
 #assert.eq(resume-schema-strict.shape.basics.shape.summary, content-type)
 #assert.eq(resume-schema-strict.shape.work.elem.shape.summary, content-type)
-#assert.eq(resume-schema-strict.shape.work.elem.shape.highlights.elem, content-type)
-#assert.eq(resume-schema-strict.shape.volunteer.elem.shape.summary, content-type)
-#assert.eq(resume-schema-strict.shape.volunteer.elem.shape.highlights.elem, content-type)
+#assert.eq(
+  resume-schema-strict.shape.work.elem.shape.highlights.elem,
+  content-type,
+)
+#assert.eq(
+  resume-schema-strict.shape.volunteer.elem.shape.summary,
+  content-type,
+)
+#assert.eq(
+  resume-schema-strict.shape.volunteer.elem.shape.highlights.elem,
+  content-type,
+)
 #assert.eq(resume-schema-strict.shape.awards.elem.shape.summary, content-type)
-#assert.eq(resume-schema-strict.shape.publications.elem.shape.summary, content-type)
-#assert.eq(resume-schema-strict.shape.references.elem.shape.reference, content-type)
-#assert.eq(resume-schema-strict.shape.projects.elem.shape.description, content-type)
-#assert.eq(resume-schema-strict.shape.projects.elem.shape.highlights.elem, content-type)
+#assert.eq(
+  resume-schema-strict.shape.publications.elem.shape.summary,
+  content-type,
+)
+#assert.eq(
+  resume-schema-strict.shape.references.elem.shape.reference,
+  content-type,
+)
+#assert.eq(
+  resume-schema-strict.shape.projects.elem.shape.description,
+  content-type,
+)
+#assert.eq(
+  resume-schema-strict.shape.projects.elem.shape.highlights.elem,
+  content-type,
+)
 
 // _iso8601-date-paths (+ _plain-date-paths for meta.lastModified):
 // date fields lifted to date-string. Every path in those lists is
@@ -27,13 +48,25 @@
 // failure, not as silent loss of date validation.
 #assert.eq(resume-schema-strict.shape.work.elem.shape.startDate, date-string)
 #assert.eq(resume-schema-strict.shape.work.elem.shape.endDate, date-string)
-#assert.eq(resume-schema-strict.shape.volunteer.elem.shape.startDate, date-string)
+#assert.eq(
+  resume-schema-strict.shape.volunteer.elem.shape.startDate,
+  date-string,
+)
 #assert.eq(resume-schema-strict.shape.volunteer.elem.shape.endDate, date-string)
-#assert.eq(resume-schema-strict.shape.education.elem.shape.startDate, date-string)
+#assert.eq(
+  resume-schema-strict.shape.education.elem.shape.startDate,
+  date-string,
+)
 #assert.eq(resume-schema-strict.shape.education.elem.shape.endDate, date-string)
 #assert.eq(resume-schema-strict.shape.awards.elem.shape.date, date-string)
-#assert.eq(resume-schema-strict.shape.publications.elem.shape.releaseDate, date-string)
-#assert.eq(resume-schema-strict.shape.projects.elem.shape.startDate, date-string)
+#assert.eq(
+  resume-schema-strict.shape.publications.elem.shape.releaseDate,
+  date-string,
+)
+#assert.eq(
+  resume-schema-strict.shape.projects.elem.shape.startDate,
+  date-string,
+)
 #assert.eq(resume-schema-strict.shape.projects.elem.shape.endDate, date-string)
 #assert.eq(resume-schema-strict.shape.meta.shape.lastModified, date-string)
 

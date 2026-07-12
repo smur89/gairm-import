@@ -3,8 +3,7 @@
 // validate stops emitting "missing required key" once relaxed.
 
 #import "../lib.typ": (
-  lens, set-required, unset-required, object, validate,
-  str-type,
+  lens, set-required, unset-required, object, validate, str-type,
 )
 
 #let basics = object((name: str-type, email: str-type, summary: str-type))

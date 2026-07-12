@@ -2,8 +2,7 @@
 // with surprising behaviour.
 
 #import "../lib.typ": (
-  lens, lens-get, lens-put, lens-over, lens-then,
-  resume-schema, str-type,
+  lens, lens-get, lens-put, lens-over, lens-then, resume-schema, str-type,
 )
 
 #let identity = lens(())

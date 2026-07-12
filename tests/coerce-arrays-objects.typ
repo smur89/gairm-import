@@ -2,7 +2,9 @@
 // coercion (content fields wrap, str fields pass through).
 
 #import "../internal/coerce.typ": _coerce
-#import "../internal/kinds.typ": str-type, content-type, number-type, array-of, object
+#import "../internal/kinds.typ": (
+  str-type, content-type, number-type, array-of, object,
+)
 
 // Array of strings — passes through unchanged.
 #assert.eq(_coerce(array-of(str-type), ("a", "b")), ("a", "b"))
@@ -21,6 +23,6 @@
 #assert.eq(coerced.age, 30)
 
 // Missing keys stay absent from output.
-#let partial = _coerce(person, (name: "Bob",))
+#let partial = _coerce(person, (name: "Bob"))
 #assert.eq(partial.keys(), ("name",))
 #assert.eq(partial.name, "Bob")

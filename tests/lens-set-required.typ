@@ -3,8 +3,7 @@
 // typos surface as construction-time panics.
 
 #import "../lib.typ": (
-  lens, set-required, object, validate,
-  str-type, number-type,
+  lens, set-required, object, validate, str-type, number-type,
 )
 
 // ---- happy: empty → required ---------------------------------------

@@ -9,14 +9,33 @@
 #let canonical = schema-from-json-schema(canonical-js)
 
 // path() route: same translation as the dict form above.
-#let canonical-from-path = schema-from-json-schema(path("../internal/assets/jsonresume-schema.json"))
-#assert.eq(canonical-from-path.shape.keys().sorted(), canonical.shape.keys().sorted())
-#assert.eq(canonical-from-path.shape.work.elem.shape.startDate.kind, "pattern-string")
+#let canonical-from-path = schema-from-json-schema(
+  path("../internal/assets/jsonresume-schema.json"),
+)
+#assert.eq(
+  canonical-from-path.shape.keys().sorted(),
+  canonical.shape.keys().sorted(),
+)
+#assert.eq(
+  canonical-from-path.shape.work.elem.shape.startDate.kind,
+  "pattern-string",
+)
 
 #let expected-keys = (
-  "$schema", "awards", "basics", "certificates", "education",
-  "interests", "languages", "meta", "projects", "publications",
-  "references", "skills", "volunteer", "work",
+  "$schema",
+  "awards",
+  "basics",
+  "certificates",
+  "education",
+  "interests",
+  "languages",
+  "meta",
+  "projects",
+  "publications",
+  "references",
+  "skills",
+  "volunteer",
+  "work",
 ).sorted()
 #assert.eq(canonical.kind, "object")
 #assert.eq(canonical.shape.keys().sorted(), expected-keys)
@@ -25,12 +44,14 @@
 #for (key, sub) in canonical.shape.pairs() {
   if key == "$schema" { continue }
   let ok = (
-    sub.kind == "object"
-      or (sub.kind == "array" and sub.elem.kind == "object")
+    sub.kind == "object" or (sub.kind == "array" and sub.elem.kind == "object")
   )
   assert(
     ok,
-    message: "canonical." + key + " not object or array-of-object; kind=" + sub.kind,
+    message: "canonical."
+      + key
+      + " not object or array-of-object; kind="
+      + sub.kind,
   )
 }
 
