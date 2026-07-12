@@ -2,11 +2,14 @@
 // `"<root>: expected object, got …"`.
 #let _format-path(parts) = {
   if parts.len() == 0 { return "<root>" }
-  parts.enumerate().map(((i, part)) => {
-    if type(part) == int { "[" + str(part) + "]" }
-    else if i == 0 { part }
-    else { "." + part }
-  }).join("")
+  parts
+    .enumerate()
+    .map(((i, part)) => {
+      if type(part) == int { "[" + str(part) + "]" } else if i == 0 {
+        part
+      } else { "." + part }
+    })
+    .join("")
 }
 
 // Typst's `repr(type(...))` renders as `"int"` / `"dictionary"` /
@@ -34,7 +37,14 @@
   let n = errors.len()
   let noun = if n == 1 { "problem" } else { "problems" }
   let lines = errors.map(e => "  - " + _format-path(e.path) + ": " + e.message)
-  "gairm-import: found " + str(n) + " " + noun + " in the input:\n" + lines.join("\n")
+  (
+    "gairm-import: found "
+      + str(n)
+      + " "
+      + noun
+      + " in the input:\n"
+      + lines.join("\n")
+  )
 }
 
 // Classic two-row Levenshtein edit distance. We fold over the
@@ -47,16 +57,25 @@
   let ac = a.clusters()
   let bc = b.clusters()
   let n = bc.len()
-  let final-row = ac.enumerate().fold(range(0, n + 1), (prev, (i, ca)) => {
-    bc.enumerate().fold((i + 1,), (row, (j, cb)) => {
-      let cost = if ca == cb { 0 } else { 1 }
-      row + (calc.min(
-        prev.at(j + 1) + 1,  // deletion
-        row.at(j) + 1,       // insertion
-        prev.at(j) + cost,   // substitution
-      ),)
+  let final-row = ac
+    .enumerate()
+    .fold(range(0, n + 1), (prev, (i, ca)) => {
+      bc
+        .enumerate()
+        .fold((i + 1,), (row, (j, cb)) => {
+          let cost = if ca == cb { 0 } else { 1 }
+          (
+            row
+              + (
+                calc.min(
+                  prev.at(j + 1) + 1, // deletion
+                  row.at(j) + 1, // insertion
+                  prev.at(j) + cost, // substitution
+                ),
+              )
+          )
+        })
     })
-  })
   final-row.at(n)
 }
 
