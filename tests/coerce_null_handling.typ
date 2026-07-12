@@ -5,7 +5,7 @@
 
 #import "../lib.typ": coerce, resume-schema-strict
 #import "../internal/coerce.typ": _coerce
-#import "../internal/schema.typ": str-type, content-type, number-type, array-of, object
+#import "../internal/kinds.typ": str-type, content-type, number-type, array-of, object
 
 // Null at a primitive value position coerces to `none` so the parent
 // filter can drop it.

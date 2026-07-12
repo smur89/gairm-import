@@ -10,10 +10,11 @@
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "lens.typ": lens, lens-get
+#import "kinds.typ": _format-string-kinds
 
 #let _leaf-kinds = (
   "str", "content", "number", "bool", "null",
-  "date-string", "datetime-string", "uri-string", "email-string", "pattern-string",
+  .._format-string-kinds, "pattern-string",
   "enum",
 )
 

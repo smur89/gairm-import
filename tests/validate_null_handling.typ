@@ -7,7 +7,7 @@
 
 #import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": str-type, content-type, number-type, array-of, object
+#import "../internal/kinds.typ": str-type, content-type, number-type, array-of, object
 
 // Null at a primitive value position: no error.
 #assert.eq(_validate(str-type, none, ("basics", "summary")), ())

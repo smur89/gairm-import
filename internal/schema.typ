@@ -3,12 +3,9 @@
 // `resume-schema-strict` layers content + date opinions via lens.
 // See README "Two schemas" for the trade-off.
 
-#import "kinds.typ": (
-  str-type, content-type, number-type, bool-type, null-type,
-  array-of, object, map,
-  date-string, datetime-string, uri-string, email-string, pattern-string,
-  enum-of, const-of,
-)
+// Only the kinds this module itself uses — the full combinator surface
+// is re-exported to callers by lib.typ directly from kinds.typ.
+#import "kinds.typ": str-type, content-type, date-string, pattern-string, object
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
 

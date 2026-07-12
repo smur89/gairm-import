@@ -9,7 +9,7 @@
 //  - nested under array-of / object: paths stay correct
 
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": pattern-string, object, array-of
+#import "../internal/kinds.typ": pattern-string, object, array-of
 
 // ---- positive --------------------------------------------------------
 

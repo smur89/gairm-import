@@ -20,6 +20,7 @@
 // collapse never surprises a direct user of the engine.
 
 #import "errors.typ": _type-name-of
+#import "kinds.typ": _format-string-kinds
 
 #let _expect(expected, value) = (
   "gairm-import: coerce expected " + expected + ", got " +
@@ -37,7 +38,7 @@
   }
   // Format-specialised string kinds pass through identically to `str`
   // — the regex gate fires in _validate, not here.
-  if kind in ("str", "date-string", "datetime-string", "uri-string", "email-string", "pattern-string") {
+  if kind == "str" or kind == "pattern-string" or kind in _format-string-kinds {
     assert(type(value) == str, message: _expect("a string", value))
     return value
   }

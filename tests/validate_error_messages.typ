@@ -4,7 +4,7 @@
 // friendly _type-name-of mapping) would silently diverge.
 
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": str-type, number-type, array-of, object
+#import "../internal/kinds.typ": str-type, number-type, array-of, object
 
 #let one(schema, value, path) = {
   let errs = _validate(schema, value, path)

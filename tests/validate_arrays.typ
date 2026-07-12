@@ -2,7 +2,7 @@
 // elements with their indexed path.
 
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": str-type, array-of
+#import "../internal/kinds.typ": str-type, array-of
 
 // Valid array of strings.
 #assert.eq(_validate(array-of(str-type), ("a", "b", "c"), ("keywords",)), ())
