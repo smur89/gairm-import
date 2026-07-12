@@ -4,7 +4,7 @@
 #import "kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
   array-of, object, date-string, datetime-string, uri-string, email-string,
-  pattern-string, enum-of, const-of,
+  pattern-string, enum-of, const-of, any-of, one-of, not-of,
 )
 
 #let _format-kinds = (
@@ -57,10 +57,6 @@
 }
 
 #let _unsupported-keywords = (
-  "allOf",
-  "anyOf",
-  "oneOf",
-  "not",
   "if",
   "then",
   "else",
@@ -68,6 +64,111 @@
   "dependentRequired",
   "dependentSchemas",
 )
+
+// Composition keywords (#108). Each must stand alone on its node
+// (annotation-only siblings excepted) — a sibling `type` / `properties`
+// / constraint would be silently ignored otherwise, and this module's
+// contract is to bail rather than drop.
+#let _composition-keywords = ("allOf", "anyOf", "oneOf", "not")
+
+// Annotation-only keywords tolerated beside a composition keyword —
+// they carry no validation semantics the engine could drop.
+#let _annotation-keywords = (
+  "$schema",
+  "$id",
+  "$comment",
+  "title",
+  "description",
+  "default",
+  "examples",
+  "readOnly",
+  "writeOnly",
+  "deprecated",
+  "definitions",
+  "$defs",
+)
+
+#let _require-lone-composition(js, keyword) = {
+  let extras = js
+    .keys()
+    .filter(k => k != keyword and k not in _annotation-keywords)
+  if extras.len() > 0 {
+    _bail(
+      "sibling keywords beside "
+        + repr(keyword)
+        + " are not supported: "
+        + extras.map(repr).join(", ")
+        + ". Move them into the composition members.",
+    )
+  }
+}
+
+#let _require-member-array(js, keyword) = {
+  let members = js.at(keyword)
+  if type(members) != array or members.len() == 0 {
+    _bail(
+      repr(keyword)
+        + " must be a non-empty array of schemas, got: "
+        + repr(members)
+        + ".",
+    )
+  }
+  for m in members {
+    if type(m) != dictionary {
+      _bail(
+        repr(keyword)
+          + " members must be schema objects, got: "
+          + repr(m)
+          + ".",
+      )
+    }
+  }
+  members
+}
+
+// allOf: the object-merge subset — every member must translate to an
+// object schema; shapes union (a duplicate key must carry an EQUAL
+// sub-schema), required-keys union, additionalProperties must agree.
+// Non-object composition (e.g. string + extra constraints) stays out
+// of scope; deep-merging conflicting sub-schemas is a rabbit hole the
+// engine's flat kinds can't express.
+#let _merge-all-of(members) = {
+  for m in members {
+    if m.kind != "object" {
+      _bail(
+        "allOf members must all be object schemas; got kind "
+          + repr(m.kind)
+          + ". Non-object composition is out of scope.",
+      )
+    }
+  }
+  let shape = (:)
+  let required = ()
+  let additional = none
+  for m in members {
+    for (key, sub) in m.shape {
+      if key in shape and shape.at(key) != sub {
+        _bail(
+          "allOf members declare conflicting schemas for key "
+            + repr(key)
+            + ".",
+        )
+      }
+      shape.insert(key, sub)
+    }
+    required += m
+      .at("required-keys", default: ())
+      .filter(k => k not in required)
+    let m-additional = m.at("additional", default: none)
+    if m-additional != none {
+      if additional != none and additional != m-additional {
+        _bail("allOf members declare conflicting additionalProperties.")
+      }
+      additional = m-additional
+    }
+  }
+  object(shape, required-keys: required, additional: additional)
+}
 
 // Constraint keywords that would genuinely tighten an enum / const
 // value set. The engine's enum kind checks membership only, so these
@@ -234,9 +335,46 @@
       _bail(
         "unsupported JSON Schema keyword: "
           + repr(keyword)
-          + ". Composition keywords (allOf/anyOf/oneOf) and conditional schemas are out of scope.",
+          + ". Conditional schemas (if/then/else) and dependencies are out of scope.",
       )
     }
+  }
+  for keyword in _composition-keywords {
+    if keyword in js { _require-lone-composition(js, keyword) }
+  }
+  if "allOf" in js {
+    return _merge-all-of(
+      _require-member-array(js, "allOf").map(m => _from-json-schema(
+        m,
+        root,
+        seen,
+      )),
+    )
+  }
+  if "anyOf" in js {
+    return any-of(
+      _require-member-array(js, "anyOf").map(m => _from-json-schema(
+        m,
+        root,
+        seen,
+      )),
+    )
+  }
+  if "oneOf" in js {
+    return one-of(
+      _require-member-array(js, "oneOf").map(m => _from-json-schema(
+        m,
+        root,
+        seen,
+      )),
+    )
+  }
+  if "not" in js {
+    let member = js.at("not")
+    if type(member) != dictionary {
+      _bail("\"not\" must be a schema object, got: " + repr(member) + ".")
+    }
+    return not-of(_from-json-schema(member, root, seen))
   }
   // enum / const take precedence over `type` — membership constrains
   // shape on its own, so any accompanying type keyword is redundant.

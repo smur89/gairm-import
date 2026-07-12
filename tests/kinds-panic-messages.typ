@@ -1,5 +1,5 @@
 // Source-level pin pattern — see tests/lens-panic-messages.typ for
-// the basic shape and tests/json_schema-panic-messages.typ for the
+// the basic shape and tests/json-schema-panic-messages.typ for the
 // coverage + substring rules.
 
 #let src = read("../internal/kinds.typ")
@@ -16,3 +16,7 @@
     "gairm-import: object() required-keys references keys not in shape",
   ),
 )
+
+// Composition constructors (#108) — shared member guard + not-of's own.
+#assert(src.contains("members must be a non-empty array of schema dicts"))
+#assert(src.contains("gairm-import: not-of member must be a schema dict"))

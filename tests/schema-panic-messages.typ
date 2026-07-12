@@ -1,5 +1,5 @@
 // Source-level pin pattern — see tests/lens-panic-messages.typ for
-// the basic shape and tests/json_schema-panic-messages.typ for the
+// the basic shape and tests/json-schema-panic-messages.typ for the
 // coverage + substring rules.
 //
 // `_override-fold`'s assert is exercised behaviorally by

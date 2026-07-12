@@ -252,5 +252,46 @@
       .flatten()
     return per-key-errs + missing-errs
   }
+  // anyOf / oneOf. One summary error at the union's own path rather
+  // than every member's failure list — member errors describe branches
+  // the value never claimed to match, so replaying them all is noise.
+  if kind == "union" {
+    let matches = schema
+      .members
+      .filter(m => _validate(m, value, path).len() == 0)
+      .len()
+    if schema.exclusive and matches > 1 {
+      return _err(
+        path,
+        "expected exactly one alternative to match, but "
+          + str(matches)
+          + " matched.",
+      )
+    }
+    if matches >= 1 { return () }
+    let alternatives = schema.members.map(m => m.kind).join(" | ")
+    let quantifier = if schema.exclusive { "exactly one" } else { "one" }
+    return _err(
+      path,
+      "expected a value matching "
+        + quantifier
+        + " of: "
+        + alternatives
+        + "; none matched.",
+    )
+  }
+  // `not` inverts the member verdict; the member's own errors are
+  // discarded (they describe why the value is ACCEPTABLE here).
+  if kind == "not" {
+    if _validate(schema.member, value, path).len() == 0 {
+      return _err(
+        path,
+        "expected a value not matching the negated "
+          + schema.member.kind
+          + " schema.",
+      )
+    }
+    return ()
+  }
   panic("gairm-import: internal — unknown schema kind " + repr(kind))
 }
