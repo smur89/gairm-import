@@ -2,7 +2,7 @@
 // into Typst content; everything else is identity.
 
 #import "../internal/coerce.typ": _coerce
-#import "../internal/schema.typ": (
+#import "../internal/kinds.typ": (
   str-type, content-type, number-type,
   date-string, datetime-string, uri-string, email-string, pattern-string,
 )

@@ -2,7 +2,7 @@
 // reject unknown keys with a path-qualified error.
 
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": str-type, number-type, object
+#import "../internal/kinds.typ": str-type, number-type, object
 
 #let person = object((name: str-type, age: number-type))
 

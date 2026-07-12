@@ -1,7 +1,7 @@
 // _validate dispatches on schema.kind for primitive types.
 
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": str-type, content-type, number-type
+#import "../internal/kinds.typ": str-type, content-type, number-type
 
 // Valid: empty error list.
 #assert.eq(_validate(str-type, "hi", ("name",)), ())

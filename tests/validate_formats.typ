@@ -7,7 +7,7 @@
 //  - email-string    → local@domain.tld (permissive)
 
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": (
+#import "../internal/kinds.typ": (
   date-string, datetime-string, uri-string, email-string,
   object, array-of,
 )

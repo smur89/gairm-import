@@ -11,6 +11,7 @@
 // section for the user-facing rationale.
 
 #import "errors.typ": _type-name-of, _closest-match
+#import "kinds.typ": _format-string-kinds
 
 #let _err(path, msg) = ((path: path, message: msg),)
 
@@ -112,6 +113,13 @@
     pattern: regex("^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$"),
     expected: "an email (e.g. \"name@example.com\")",
   ),
+)
+
+// Load-time drift guard: a format kind added to kinds.typ but not here
+// (or vice versa) fails at import, not at validate time on unlucky input.
+#assert(
+  _format-specs.keys().sorted() == _format-string-kinds.sorted(),
+  message: "gairm-import: internal — _format-specs is out of sync with kinds._format-string-kinds.",
 )
 
 #let _validate(schema, value, path) = {

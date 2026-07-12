@@ -2,7 +2,7 @@
 // coercion (content fields wrap, str fields pass through).
 
 #import "../internal/coerce.typ": _coerce
-#import "../internal/schema.typ": str-type, content-type, number-type, array-of, object
+#import "../internal/kinds.typ": str-type, content-type, number-type, array-of, object
 
 // Array of strings — passes through unchanged.
 #assert.eq(_coerce(array-of(str-type), ("a", "b")), ("a", "b"))

@@ -19,6 +19,13 @@
 #let uri-string      = (kind: "uri-string")
 #let email-string    = (kind: "email-string")
 
+// The format-gated kinds above as one list — validate.typ owns their
+// regex table (keyed by these names, drift-guarded at load), coerce.typ
+// passes them through as plain strings, introspect.typ lists them as
+// leaf kinds. One list so adding a format kind is this line plus a
+// regex, instead of three hand-synced module-local lists.
+#let _format-string-kinds = ("date-string", "datetime-string", "uri-string", "email-string")
+
 // Per-instance regex gate — a constructor, not a constant, because
 // each schema node carries its own regex and hint.
 #let pattern-string(re, expected: "matching pattern") = (

@@ -3,7 +3,7 @@
 // preserved; extension schemas can opt in.
 
 #import "../internal/validate.typ": _validate
-#import "../internal/schema.typ": str-type, object
+#import "../internal/kinds.typ": str-type, object
 
 #let strict-person = object(
   (name: str-type, email: str-type),
