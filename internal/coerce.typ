@@ -20,10 +20,14 @@
 // collapse never surprises a direct user of the engine.
 
 #import "errors.typ": _type-name-of
+#import "kinds.typ": _format-string-kinds
 
 #let _expect(expected, value) = (
-  "gairm-import: coerce expected " + expected + ", got " +
-    _type-name-of(value) + ". Run validate(data) first."
+  "gairm-import: coerce expected "
+    + expected
+    + ", got "
+    + _type-name-of(value)
+    + ". Run validate(data) first."
 )
 
 #let _coerce(schema, value) = {
@@ -37,7 +41,7 @@
   }
   // Format-specialised string kinds pass through identically to `str`
   // — the regex gate fires in _validate, not here.
-  if kind in ("str", "date-string", "datetime-string", "uri-string", "email-string", "pattern-string") {
+  if kind == "str" or kind == "pattern-string" or kind in _format-string-kinds {
     assert(type(value) == str, message: _expect("a string", value))
     return value
   }
@@ -75,7 +79,8 @@
   if kind == "object" {
     assert(type(value) == dictionary, message: _expect("an object", value))
     let additional = schema.at("additional", default: none)
-    let coerced = value.pairs()
+    let coerced = value
+      .pairs()
       .filter(((key, _)) => key in schema.shape or additional != none)
       .map(((key, sub-value)) => {
         let sub = if key in schema.shape {

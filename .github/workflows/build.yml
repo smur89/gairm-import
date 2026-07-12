@@ -46,6 +46,36 @@ jobs:
       - name: Compile fixtures
         run: make test
 
+  # Advisory: formatting drift surfaces as a red ✗ in PR checks without
+  # blocking merge — same contract as typst-package-check below. The
+  # flags live in the Makefile's fmt-check target so this job and the
+  # local `make fmt` can never disagree about what "formatted" means.
+  format:
+    name: typstyle
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      # Bump deliberately, together with the locally-installed version.
+      TYPSTYLE_VERSION: v0.15.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install typstyle
+        run: |
+          URL=https://github.com/typstyle-rs/typstyle/releases/download/${TYPSTYLE_VERSION}/typstyle-x86_64-unknown-linux-musl
+          sudo curl -sSfL "$URL" -o /usr/local/bin/typstyle
+          sudo chmod +x /usr/local/bin/typstyle
+
+      - name: Check formatting
+        run: make fmt-check
+
   # Advisory: catch tarball-list drift, README-link rot, and
   # deprecated-API warnings before release-please cuts a tag — same
   # tool the typst/packages CI bot runs. `continue-on-error: true`

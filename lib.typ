@@ -1,20 +1,22 @@
 // Strict loader for canonical JSON Resume data
 // (https://jsonresume.org/schema). The engines under internal/ are
 // pure functions of (schema, value); see
-// tests/engine_schema_agnostic.typ for the BYO-schema contract.
+// tests/engine-schema-agnostic.typ for the BYO-schema contract.
 
-#import "internal/schema.typ": (
-  resume-schema, resume-schema-strict,
-  str-type, content-type, number-type, bool-type, null-type,
-  array-of, object, map,
-  date-string, datetime-string, uri-string, email-string, pattern-string,
-  enum-of, const-of,
+#import "internal/kinds.typ": (
+  str-type, content-type, number-type, integer-type, bool-type, null-type,
+  array-of, object, map, date-string, datetime-string, uri-string, email-string,
+  pattern-string, enum-of, const-of,
 )
+#import "internal/schema.typ": resume-schema, resume-schema-strict
 #import "internal/validate.typ": _validate
 #import "internal/coerce.typ": _coerce
 #import "internal/errors.typ": _format-report
 #import "internal/json-schema.typ": schema-from-json-schema
-#import "internal/lens.typ": lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field, set-required, unset-required
+#import "internal/lens.typ": (
+  lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
+  set-required, unset-required,
+)
 #import "internal/introspect.typ": describe-schema, paths-of-kind, kind-at
 #import "internal/json-pointer.typ": path-to-pointer, pointer-to-path
 
@@ -53,10 +55,16 @@
   } else if type(data) == str {
     if not data.starts-with("/") {
       panic(
-        "gairm-import: parse with a string path requires the path " +
-          "to start with \"/\" (resolved from the typst root). Got: " + repr(data) + ". " +
-          "For paths relative to your own .typ file, pass " +
-          "path(" + repr(data) + ") (or json(" + repr(data) + ")) in place of the path string.",
+        "gairm-import: parse with a string path requires the path "
+          + "to start with \"/\" (resolved from the typst root). Got: "
+          + repr(data)
+          + ". "
+          + "For paths relative to your own .typ file, pass "
+          + "path("
+          + repr(data)
+          + ") (or json("
+          + repr(data)
+          + ")) in place of the path string.",
       )
     }
     json(data)
@@ -64,8 +72,9 @@
     data
   } else {
     panic(
-      "gairm-import: parse expected a dict, a path, or a string path, got " +
-        repr(type(data)) + ".",
+      "gairm-import: parse expected a dict, a path, or a string path, got "
+        + repr(type(data))
+        + ".",
     )
   }
   let errors = _validate(schema, dict-data, ())
