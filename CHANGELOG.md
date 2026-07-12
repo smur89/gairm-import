@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/smur89/gairm-import/compare/v0.8.1...v0.9.0) (2026-07-12)
+
+
+### Features
+
+* enforce integral values for JSON Schema type "integer" ([#103](https://github.com/smur89/gairm-import/issues/103)) ([ce1610a](https://github.com/smur89/gairm-import/commit/ce1610aaa11e44b1f350f2e8a149b216940e25f6))
+* JSON Schema composition keywords — allOf, anyOf, oneOf, not ([#117](https://github.com/smur89/gairm-import/issues/117)) ([2841e16](https://github.com/smur89/gairm-import/commit/2841e1625ac89e14c365bd825da737280279d1ba))
+
 ## [0.8.1](https://github.com/smur89/gairm-import/compare/v0.8.0...v0.8.1) (2026-06-17)
 
 
