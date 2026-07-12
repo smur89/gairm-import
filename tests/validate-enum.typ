@@ -68,6 +68,9 @@
 
 // ---- Coercion is membership-checked pass-through -------------------
 
-#assert.eq(coerce((fluency: "native"), schema: fluency-schema).fluency, "native")
+#assert.eq(
+  coerce((fluency: "native"), schema: fluency-schema).fluency,
+  "native",
+)
 #assert.eq(coerce((rating: 5), schema: rating-schema).rating, 5)
 #assert.eq(coerce((version: "v1.0.0"), schema: meta-schema).version, "v1.0.0")

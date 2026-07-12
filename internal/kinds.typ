@@ -3,10 +3,10 @@
 // json-schema.typ depends on these primitives — extracting them here
 // breaks the cycle.
 
-#let str-type     = (kind: "str")
+#let str-type = (kind: "str")
 #let content-type = (kind: "content")
-#let number-type  = (kind: "number")
-#let bool-type    = (kind: "bool")
+#let number-type = (kind: "number")
+#let bool-type = (kind: "bool")
 
 // JSON Schema `integer`: any number with a zero fractional part
 // (draft-7 semantics — 1.0 passes, 1.5 fails). Same "number" kind with
@@ -16,21 +16,26 @@
 
 // "Must be null or absent": `none` passes via the engine's global
 // early return, non-none hits the kind branch and errors.
-#let null-type    = (kind: "null")
+#let null-type = (kind: "null")
 
 // Format-specialised string kinds — regex-gated in _validate;
 // deliberately permissive (reject obvious malformations, not full RFC).
-#let date-string     = (kind: "date-string")
+#let date-string = (kind: "date-string")
 #let datetime-string = (kind: "datetime-string")
-#let uri-string      = (kind: "uri-string")
-#let email-string    = (kind: "email-string")
+#let uri-string = (kind: "uri-string")
+#let email-string = (kind: "email-string")
 
 // The format-gated kinds above as one list — validate.typ owns their
 // regex table (keyed by these names, drift-guarded at load), coerce.typ
 // passes them through as plain strings, introspect.typ lists them as
 // leaf kinds. One list so adding a format kind is this line plus a
 // regex, instead of three hand-synced module-local lists.
-#let _format-string-kinds = ("date-string", "datetime-string", "uri-string", "email-string")
+#let _format-string-kinds = (
+  "date-string",
+  "datetime-string",
+  "uri-string",
+  "email-string",
+)
 
 // Per-instance regex gate — a constructor, not a constant, because
 // each schema node carries its own regex and hint.
@@ -65,8 +70,9 @@
   )
   assert(
     additional-ok,
-    message: "gairm-import: object() additional must be none, false, true, or a schema dict (with a `kind` field); got: " +
-      repr(additional) + ".",
+    message: "gairm-import: object() additional must be none, false, true, or a schema dict (with a `kind` field); got: "
+      + repr(additional)
+      + ".",
   )
   // With `additional`, undeclared required keys are covered by the
   // additional schema, so the subset check only applies when strict.
@@ -77,8 +83,9 @@
   }
   assert(
     unknown.len() == 0,
-    message: "gairm-import: object() required-keys references keys not in shape: " +
-      unknown.join(", ") + ".",
+    message: "gairm-import: object() required-keys references keys not in shape: "
+      + unknown.join(", ")
+      + ".",
   )
   let base = (
     kind: "object",

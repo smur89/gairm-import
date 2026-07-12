@@ -2,10 +2,9 @@
 // combinator — #77.
 
 #import "../lib.typ": (
-  validate, coerce,
-  schema-from-json-schema,
-  object, map, str-type, number-type, email-string, array-of,
-  lens, lens-get, lens-put, paths-of-kind, describe-schema,
+  validate, coerce, schema-from-json-schema, object, map, str-type, number-type,
+  email-string, array-of, lens, lens-get, lens-put, paths-of-kind,
+  describe-schema,
 )
 
 // --- map() convenience ----------------------------------------------
@@ -55,7 +54,13 @@
 
 #let permissive = object((name: str-type), additional: true)
 // Any extra accepted without validation.
-#assert.eq(validate((name: "Ada", anything: ((nested: ("array",))), other: 42), schema: permissive), ())
+#assert.eq(
+  validate(
+    (name: "Ada", anything: (nested: ("array",)), other: 42),
+    schema: permissive,
+  ),
+  (),
+)
 
 // Coerce preserves extras verbatim — no recursion into them.
 #assert.eq(
@@ -123,7 +128,9 @@
 // at construction instead of crashing inside _validate when `.kind`
 // is read.
 #let kinds-src = read("../internal/kinds.typ")
-#assert(kinds-src.contains("additional must be none, false, true, or a schema dict"))
+#assert(
+  kinds-src.contains("additional must be none, false, true, or a schema dict"),
+)
 
 // `additional` + required-key-not-in-shape is now allowed — the
 // extra key gets validated by `additional`, so the construction-time
@@ -184,7 +191,9 @@
 // open keys participate in that collapse.
 #assert.eq(coerce((a: none, b: none), schema: map(str-type)), none)
 #assert.eq(
-  coerce((id: "x", a: none, b: none), schema: map(str-type, required-keys: ("id",))),
+  coerce((id: "x", a: none, b: none), schema: map(str-type, required-keys: (
+    "id",
+  ))),
   (id: "x"),
 )
 
@@ -202,7 +211,10 @@
   (("name",), ("tags", "additionalProperties")),
 )
 // Round-trip: the segment is a real lens path.
-#assert.eq(lens-get(lens(("tags", "additionalProperties")), tags-schema), str-type)
+#assert.eq(
+  lens-get(lens(("tags", "additionalProperties")), tags-schema),
+  str-type,
+)
 
 // Nested `additional` inside `additional` works too.
 #let nested-maps = map(map(number-type))
@@ -212,7 +224,11 @@
 )
 
 // --- lens: `"additionalProperties"` writes back into `additional` --
-#let updated = lens-put(lens(("tags", "additionalProperties")), tags-schema, number-type)
+#let updated = lens-put(
+  lens(("tags", "additionalProperties")),
+  tags-schema,
+  number-type,
+)
 #assert.eq(updated.shape.tags.additional, number-type)
 // Shape outside the lensed path is untouched.
 #assert.eq(updated.shape.name, str-type)
@@ -226,7 +242,10 @@
 #let described = describe-schema(map(str-type))
 #assert(described.contains("*"))
 #assert(described.contains("str"))
-#let described-true = describe-schema(object((name: str-type), additional: true))
+#let described-true = describe-schema(object(
+  (name: str-type),
+  additional: true,
+))
 #assert(described-true.contains("*"))
 #assert(described-true.contains("any"))
 
@@ -243,7 +262,11 @@
 // The replacement is written verbatim; lens-put doesn't validate it.
 // This pins the contract spelled out in lens.typ's top-of-file
 // comment so a future tightening surfaces here.
-#let trust-test = lens-put(lens(("tags", "additionalProperties")), tags-schema, 42)
+#let trust-test = lens-put(
+  lens(("tags", "additionalProperties")),
+  tags-schema,
+  42,
+)
 #assert.eq(trust-test.shape.tags.additional, 42)
 // The downstream crash that this enables is the caller's
 // responsibility — validate would hit a `.kind` access on the int.
@@ -271,7 +294,11 @@
 // Literal property wins: lens-get returns the shape entry, not `additional`.
 #assert.eq(lens-get(lens(("additionalProperties",)), meta-shaped), number-type)
 // And lens-put rewrites the shape entry, not `additional`.
-#let after-put = lens-put(lens(("additionalProperties",)), meta-shaped, str-type)
+#let after-put = lens-put(
+  lens(("additionalProperties",)),
+  meta-shaped,
+  str-type,
+)
 #assert.eq(after-put.shape.additionalProperties, str-type)
 #assert.eq(after-put.additional, email-string)  // untouched, distinct from the replacement
 

@@ -21,4 +21,7 @@
 #assert.eq(_validate(str-type, none, ("missing",)), ())
 #assert.eq(one(number-type, "nope", ("age",)), "expected number, got string.")
 #assert.eq(one(array-of(str-type), "x", ("k",)), "expected array, got string.")
-#assert.eq(one(object((name: str-type)), "x", ("b",)), "expected object, got string.")
+#assert.eq(
+  one(object((name: str-type)), "x", ("b",)),
+  "expected object, got string.",
+)

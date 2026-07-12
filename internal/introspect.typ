@@ -13,8 +13,13 @@
 #import "kinds.typ": _format-string-kinds
 
 #let _leaf-kinds = (
-  "str", "content", "number", "bool", "null",
-  .._format-string-kinds, "pattern-string",
+  "str",
+  "content",
+  "number",
+  "bool",
+  "null",
+  .._format-string-kinds,
+  "pattern-string",
   "enum",
 )
 
@@ -36,10 +41,9 @@
 // inline-rendered child, or `none` for children that emit their own
 // header line and don't contribute to the kind-column width.
 #let _column-key(key, sub) = {
-  if sub.kind == "object" { none }
-  else if sub.kind == "array" and sub.elem.kind in ("object", "array") { none }
-  else if sub.kind == "array" { key + "[]" }
-  else { key }
+  if sub.kind == "object" { none } else if (
+    sub.kind == "array" and sub.elem.kind in ("object", "array")
+  ) { none } else if sub.kind == "array" { key + "[]" } else { key }
 }
 
 // One line for (key, sub) when sub is a leaf or array-of-leaf;
@@ -75,8 +79,12 @@
     } else {
       none
     }
-    let all-pairs = if additional-pair != none { pairs + (additional-pair,) } else { pairs }
-    let column-keys = all-pairs.map(((k, s)) => _column-key(k, s)).filter(k => k != none)
+    let all-pairs = if additional-pair != none {
+      pairs + (additional-pair,)
+    } else { pairs }
+    let column-keys = all-pairs
+      .map(((k, s)) => _column-key(k, s))
+      .filter(k => k != none)
     let col = if column-keys.len() == 0 { 0 } else {
       calc.max(..column-keys.map(k => k.len())) + 2
     }
@@ -134,9 +142,11 @@
 #let paths-of-kind(schema, kind-name) = {
   assert(
     kind-name in _leaf-kinds,
-    message: "gairm-import: paths-of-kind kind-name " + repr(kind-name) +
-      " is not a recognised leaf kind. Expected one of: " +
-      _leaf-kinds.join(", ") + ".",
+    message: "gairm-import: paths-of-kind kind-name "
+      + repr(kind-name)
+      + " is not a recognised leaf kind. Expected one of: "
+      + _leaf-kinds.join(", ")
+      + ".",
   )
   _walk-paths(schema, (), kind-name)
 }

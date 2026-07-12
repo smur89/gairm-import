@@ -1,11 +1,8 @@
 // bool-type / null-type / [X, "null"] union — #75.
 
 #import "../lib.typ": (
-  validate, coerce,
-  schema-from-json-schema,
-  bool-type, null-type,
-  str-type, integer-type, email-string, object,
-  paths-of-kind,
+  validate, coerce, schema-from-json-schema, bool-type, null-type, str-type,
+  integer-type, email-string, object, paths-of-kind,
 )
 
 // --- bool-type --------------------------------------------------------

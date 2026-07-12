@@ -28,10 +28,16 @@
   let n = value.clusters().len()
   let errs = ()
   if min != none and n < min {
-    errs += _err(path, "expected string length ≥ " + str(min) + ", got " + str(n) + ".")
+    errs += _err(
+      path,
+      "expected string length ≥ " + str(min) + ", got " + str(n) + ".",
+    )
   }
   if max != none and n > max {
-    errs += _err(path, "expected string length ≤ " + str(max) + ", got " + str(n) + ".")
+    errs += _err(
+      path,
+      "expected string length ≤ " + str(max) + ", got " + str(n) + ".",
+    )
   }
   errs
 }
@@ -56,7 +62,10 @@
   }
   let mult = schema.at("multiple-of", default: none)
   if mult != none and calc.rem(value, mult) != 0 {
-    errs += _err(path, "expected multiple of " + str(mult) + ", got " + str(value) + ".")
+    errs += _err(
+      path,
+      "expected multiple of " + str(mult) + ", got " + str(value) + ".",
+    )
   }
   errs
 }
@@ -70,11 +79,17 @@
   let n = present.len()
   let min = schema.at("min-items", default: none)
   if min != none and n < min {
-    errs += _err(path, "expected array length ≥ " + str(min) + ", got " + str(n) + ".")
+    errs += _err(
+      path,
+      "expected array length ≥ " + str(min) + ", got " + str(n) + ".",
+    )
   }
   let max = schema.at("max-items", default: none)
   if max != none and n > max {
-    errs += _err(path, "expected array length ≤ " + str(max) + ", got " + str(n) + ".")
+    errs += _err(
+      path,
+      "expected array length ≤ " + str(max) + ", got " + str(n) + ".",
+    )
   }
   if schema.at("unique-items", default: false) {
     for i in range(n) {
@@ -82,7 +97,14 @@
         let (orig-i, left) = present.at(i)
         let (orig-j, right) = present.at(j)
         if left == right {
-          errs += _err(path, "expected unique items, duplicate at indices " + str(orig-i) + " and " + str(orig-j) + ".")
+          errs += _err(
+            path,
+            "expected unique items, duplicate at indices "
+              + str(orig-i)
+              + " and "
+              + str(orig-j)
+              + ".",
+          )
           return errs
         }
       }
@@ -98,11 +120,15 @@
 // example in `expected` is the actionable hint.
 #let _format-specs = (
   "date-string": (
-    pattern: regex("^([0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[0-9]{4}-(0[1-9]|1[0-2])|[0-9]{4})$"),
+    pattern: regex(
+      "^([0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[0-9]{4}-(0[1-9]|1[0-2])|[0-9]{4})$",
+    ),
     expected: "an ISO-8601 date (e.g. \"2024-01-15\")",
   ),
   "datetime-string": (
-    pattern: regex("^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])?$"),
+    pattern: regex(
+      "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])?$",
+    ),
     expected: "an ISO-8601 datetime (e.g. \"2024-01-15T10:00:00Z\")",
   ),
   "uri-string": (
@@ -137,8 +163,11 @@
     if value in schema.values { return () }
     return _err(
       path,
-      "expected one of " + schema.values.map(repr).join(", ") +
-        ", got " + repr(value) + ".",
+      "expected one of "
+        + schema.values.map(repr).join(", ")
+        + ", got "
+        + repr(value)
+        + ".",
     )
   }
   if kind in _format-specs {
@@ -159,10 +188,14 @@
     return _string-length-errs(schema, value, path)
   }
   if kind == "number" {
-    if type(value) not in (int, float) { return _type-error(path, "number", value) }
+    if type(value) not in (int, float) {
+      return _type-error(path, "number", value)
+    }
     // `integer: true` (kinds.typ's integer-type / JSON Schema `integer`):
     // draft-7 semantics, so a float with zero fractional part passes.
-    let errs = if schema.at("integer", default: false) and calc.fract(value) != 0 {
+    let errs = if (
+      schema.at("integer", default: false) and calc.fract(value) != 0
+    ) {
       _err(path, "expected an integer, got " + str(value) + ".")
     } else { () }
     return errs + _number-range-errs(schema, value, path)
@@ -175,7 +208,8 @@
   if kind == "null" { return _type-error(path, "null", value) }
   if kind == "array" {
     if type(value) != array { return _type-error(path, "array", value) }
-    let elem-errs = value.enumerate()
+    let elem-errs = value
+      .enumerate()
       .map(((i, elem)) => _validate(schema.elem, elem, path + (i,)))
       .flatten()
     return elem-errs + _array-constraint-errs(schema, value, path)
@@ -183,29 +217,32 @@
   if kind == "object" {
     if type(value) != dictionary { return _type-error(path, "object", value) }
     let additional = schema.at("additional", default: none)
-    let per-key-errs = value.pairs().map(((key, sub-value)) => {
-      if key in schema.shape {
-        _validate(schema.shape.at(key), sub-value, path + (key,))
-      } else if additional == true {
-        // `additionalProperties: true` — no validation. coerce.typ
-        // mirrors this by passing the value through verbatim.
-        ()
-      } else if additional != none {
-        _validate(additional, sub-value, path + (key,))
-      } else {
-        // Strict branch: fuzzy suggestion if the typo is within edit
-        // distance 2 of a valid key, otherwise the full key list.
-        // Unknown key with null value still flagged — silently
-        // swallowing typos defeats the point of strict validation.
-        let suggestion = _closest-match(key, schema.shape.keys(), 2)
-        let tail = if suggestion != none {
-          "Did you mean " + repr(suggestion) + "?"
+    let per-key-errs = value
+      .pairs()
+      .map(((key, sub-value)) => {
+        if key in schema.shape {
+          _validate(schema.shape.at(key), sub-value, path + (key,))
+        } else if additional == true {
+          // `additionalProperties: true` — no validation. coerce.typ
+          // mirrors this by passing the value through verbatim.
+          ()
+        } else if additional != none {
+          _validate(additional, sub-value, path + (key,))
         } else {
-          "Valid keys: " + schema.shape.keys().join(", ") + "."
+          // Strict branch: fuzzy suggestion if the typo is within edit
+          // distance 2 of a valid key, otherwise the full key list.
+          // Unknown key with null value still flagged — silently
+          // swallowing typos defeats the point of strict validation.
+          let suggestion = _closest-match(key, schema.shape.keys(), 2)
+          let tail = if suggestion != none {
+            "Did you mean " + repr(suggestion) + "?"
+          } else {
+            "Valid keys: " + schema.shape.keys().join(", ") + "."
+          }
+          _err(path + (key,), "unknown key " + repr(key) + ". " + tail)
         }
-        _err(path + (key,), "unknown key " + repr(key) + ". " + tail)
-      }
-    }).flatten()
+      })
+      .flatten()
     // A required key whose value is explicit null counts as missing —
     // null-as-absent applies uniformly.
     let required = schema.at("required-keys", default: ())

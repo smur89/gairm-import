@@ -1,10 +1,15 @@
 #import "../lib.typ": (
-  lens, add-field, remove-field, resume-schema, object,
-  str-type, number-type, validate,
+  lens, add-field, remove-field, resume-schema, object, str-type, number-type,
+  validate,
 )
 
 #let language-items = lens(("languages", "items"))
-#let with-rating = add-field(resume-schema, language-items, "rating", number-type)
+#let with-rating = add-field(
+  resume-schema,
+  language-items,
+  "rating",
+  number-type,
+)
 
 #assert("rating" in with-rating.shape.languages.elem.shape)
 #assert.eq(with-rating.shape.languages.elem.shape.rating, number-type)

@@ -13,7 +13,10 @@
 
 // ---- positive --------------------------------------------------------
 
-#let country-code = pattern-string("^[A-Z]{2}$", expected: "an ISO 3166-1 alpha-2 code")
+#let country-code = pattern-string(
+  "^[A-Z]{2}$",
+  expected: "an ISO 3166-1 alpha-2 code",
+)
 #assert.eq(_validate(country-code, "US", ("c",)), ())
 #assert.eq(_validate(country-code, "IE", ("c",)), ())
 
@@ -29,19 +32,26 @@
 #let m1 = pat-fail(country-code, "USA", ("basics", "countryCode"))
 #assert(m1.contains("ISO 3166-1 alpha-2 code"))
 
-#assert(pat-fail(country-code, "us",  ("c",)).contains("ISO 3166-1 alpha-2 code"))
-#assert(pat-fail(country-code, "",    ("c",)).contains("ISO 3166-1 alpha-2 code"))
-#assert(pat-fail(country-code, "U1",  ("c",)).contains("ISO 3166-1 alpha-2 code"))
+#assert(
+  pat-fail(country-code, "us", ("c",)).contains("ISO 3166-1 alpha-2 code"),
+)
+#assert(pat-fail(country-code, "", ("c",)).contains("ISO 3166-1 alpha-2 code"))
+#assert(
+  pat-fail(country-code, "U1", ("c",)).contains("ISO 3166-1 alpha-2 code"),
+)
 
 // ---- unanchored pattern applies as authored -------------------------
 //
 // Typst's `match` is substring-based; anchoring is the schema author's
 // job. Without `^…$` a pattern accepts any string containing a match.
 
-#let contains-digit = pattern-string("[0-9]", expected: "a string containing a digit")
-#assert.eq(_validate(contains-digit, "abc123",  ("x",)), ())
-#assert.eq(_validate(contains-digit, "1",       ("x",)), ())
-#assert.eq(_validate(contains-digit, "v2-final",("x",)), ())
+#let contains-digit = pattern-string(
+  "[0-9]",
+  expected: "a string containing a digit",
+)
+#assert.eq(_validate(contains-digit, "abc123", ("x",)), ())
+#assert.eq(_validate(contains-digit, "1", ("x",)), ())
+#assert.eq(_validate(contains-digit, "v2-final", ("x",)), ())
 #assert(pat-fail(contains-digit, "no-digits-here", ("x",)).contains("digit"))
 
 // ---- wrong type yields a type-error, not a pattern-error ------------

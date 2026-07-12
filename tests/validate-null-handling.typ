@@ -7,7 +7,9 @@
 
 #import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
-#import "../internal/kinds.typ": str-type, content-type, number-type, array-of, object
+#import "../internal/kinds.typ": (
+  str-type, content-type, number-type, array-of, object,
+)
 
 // Null at a primitive value position: no error.
 #assert.eq(_validate(str-type, none, ("basics", "summary")), ())
@@ -19,7 +21,10 @@
 
 // Null elements inside an array: silently dropped from the error walk.
 #assert.eq(_validate(array-of(str-type), ("a", none, "c"), ("keywords",)), ())
-#assert.eq(_validate(array-of(content-type), (none, "one", none), ("highlights",)), ())
+#assert.eq(
+  _validate(array-of(content-type), (none, "one", none), ("highlights",)),
+  (),
+)
 
 // Null elements inside an array of objects: each null element is treated
 // as "key absent" by the per-element early return, so the walk produces
@@ -29,7 +34,11 @@
 #assert.eq(
   _validate(
     array-of(work-item),
-    ((name: "Acme", position: "Engineer"), none, (name: "Globex", position: "Engineer")),
+    (
+      (name: "Acme", position: "Engineer"),
+      none,
+      (name: "Globex", position: "Engineer"),
+    ),
     ("work",),
   ),
   (),
@@ -45,7 +54,7 @@
 
 // Unknown key with a null value still errors — typos must not slip
 // through just because the user wrote `null`.
-#let errs-unknown = _validate(person, (foo: none,), ("basics",))
+#let errs-unknown = _validate(person, (foo: none), ("basics",))
 #assert.eq(errs-unknown.len(), 1)
 #assert.eq(errs-unknown.at(0).path, ("basics", "foo"))
 #assert(errs-unknown.at(0).message.contains("unknown key"))

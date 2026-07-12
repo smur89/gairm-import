@@ -3,8 +3,7 @@
 // and the schema kinds at each step.
 
 #import "../lib.typ": (
-  lens, lens-get, lens-put,
-  resume-schema, content-type, str-type,
+  lens, lens-get, lens-put, resume-schema, content-type, str-type,
 )
 
 #let work = lens(("work",))

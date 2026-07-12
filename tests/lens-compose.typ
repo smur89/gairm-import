@@ -3,8 +3,7 @@
 // observationally equivalent.
 
 #import "../lib.typ": (
-  lens, lens-get, lens-put, lens-then,
-  resume-schema, str-type, number-type,
+  lens, lens-get, lens-put, lens-then, resume-schema, str-type, number-type,
 )
 
 #let basics = lens(("basics",))

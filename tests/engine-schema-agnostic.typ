@@ -8,7 +8,9 @@
 // stable for downstream renderers — e.g. alta-typst's `preferences`
 // / `labels` extension.
 
-#import "../lib.typ": validate, coerce, str-type, content-type, number-type, array-of, object
+#import "../lib.typ": (
+  validate, coerce, str-type, content-type, number-type, array-of, object,
+)
 
 // A renderer-specific extension schema — not part of the canonical
 // JSON Resume spec, but the engines must walk it indistinguishably.
@@ -70,5 +72,5 @@
 // Coercer still produces a model for the present keys when one
 // required key is missing — coercion is shape-blind and trusts the
 // caller to have run validation first.
-#let partial = coerce((title: "hi",), schema: strict-schema)
+#let partial = coerce((title: "hi"), schema: strict-schema)
 #assert.eq(partial.keys(), ("title",))

@@ -45,7 +45,8 @@
   if s.match(_invalid-escape-re) != none {
     panic(
       "gairm-import: pointer-to-path got an invalid escape sequence in token: "
-        + repr(s) + ". RFC 6901 only allows `~0` (tilde) and `~1` (slash)."
+        + repr(s)
+        + ". RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
     )
   }
   s.replace("~1", "/").replace("~0", "~")
@@ -55,15 +56,16 @@
 // (other than "0" itself) aren't valid array indices, so e.g. "01"
 // round-trips as the string "01" rather than becoming int 1.
 #let _int-token-re = regex("^(0|[1-9][0-9]*)$")
-#let _try-int(token) = if token.match(_int-token-re) != none { int(token) } else { token }
+#let _try-int(token) = if token.match(_int-token-re) != none {
+  int(token)
+} else { token }
 
 // Convert a path tuple to an RFC 6901 JSON Pointer string. Empty
 // path → empty string (whole-document reference per spec).
 #let path-to-pointer(path) = {
   if path.len() == 0 { return "" }
   let parts = path.map(seg => {
-    if type(seg) == str { _escape-token(seg) }
-    else if type(seg) == int {
+    if type(seg) == str { _escape-token(seg) } else if type(seg) == int {
       // RFC 6901 array-index ABNF is non-negative only — emitting
       // "/-1" would round-trip back to the string "-1" (regex
       // rejects the minus sign), silently breaking the round-trip
@@ -71,15 +73,19 @@
       if seg < 0 {
         panic(
           "gairm-import: path-to-pointer expected a non-negative integer "
-            + "(RFC 6901 array indices), got: " + str(seg) + "."
+            + "(RFC 6901 array indices), got: "
+            + str(seg)
+            + ".",
         )
       }
       str(seg)
-    }
-    else {
+    } else {
       panic(
         "gairm-import: path-to-pointer expected a str or int segment, got: "
-          + repr(seg) + " (" + repr(type(seg)) + ")."
+          + repr(seg)
+          + " ("
+          + repr(type(seg))
+          + ").",
       )
     }
   })
@@ -94,7 +100,8 @@
   if not pointer.starts-with("/") {
     panic(
       "gairm-import: pointer-to-path expected \"\" or a pointer starting with \"/\", got: "
-        + repr(pointer) + "."
+        + repr(pointer)
+        + ".",
     )
   }
   pointer.slice(1).split("/").map(_unescape-token).map(_try-int)

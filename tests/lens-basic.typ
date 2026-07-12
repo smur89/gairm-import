@@ -1,8 +1,7 @@
 // Pins the get/put round-trip and the lens record shape.
 
 #import "../lib.typ": (
-  lens, lens-get, lens-put,
-  resume-schema, str-type, content-type, number-type,
+  lens, lens-get, lens-put, resume-schema, str-type, content-type, number-type,
 )
 
 #let basics = lens(("basics",))
