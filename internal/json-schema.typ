@@ -47,6 +47,17 @@
   "dependencies", "dependentRequired", "dependentSchemas",
 )
 
+// Constraint keywords that would genuinely tighten an enum / const
+// value set. The engine's enum kind checks membership only, so these
+// must bail rather than translate to a schema that silently ignores
+// them. (`type` beside enum/const stays accepted: membership already
+// pins the shape, so it's redundant rather than dropped.)
+#let _membership-incompatible-keywords = (
+  "format", "pattern", "minLength", "maxLength",
+  "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
+  "minItems", "maxItems", "uniqueItems",
+)
+
 // Bail at translate time on bad-shape values; better than a kind
 // dict the validator can't reason about.
 #let _require-nonneg-int(js, key) = {
@@ -163,6 +174,15 @@
   }
   // enum / const take precedence over `type` — membership constrains
   // shape on its own, so any accompanying type keyword is redundant.
+  if "enum" in js or "const" in js {
+    for keyword in _membership-incompatible-keywords {
+      if keyword in js {
+        _bail(
+          repr(keyword) + " cannot be combined with enum/const — membership already pins the exact values; fold the constraint into the values instead.",
+        )
+      }
+    }
+  }
   if "enum" in js {
     let values = js.at("enum")
     if type(values) != array {

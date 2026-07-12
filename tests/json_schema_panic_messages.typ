@@ -33,6 +33,7 @@
 // --- per-keyword shape checks (suffix-only — see escape note above) -
 
 #assert(src.contains("enum\\\" must be an array of values"))
+#assert(src.contains("cannot be combined with enum/const"))
 #assert(src.contains("pattern\\\" must be a string"))
 #assert(src.contains("unsupported string format"))
 #assert(src.contains("array schema missing"))

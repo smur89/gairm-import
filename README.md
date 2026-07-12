@@ -669,6 +669,10 @@ message rather than silently dropping the constraint:
 - `allOf` / `anyOf` / `oneOf` / `not`
 - `if` / `then` / `else`
 - `dependencies` (and the `dependentRequired` / `dependentSchemas` variants)
+- Constraint keywords (`minLength`, `minimum`, `minItems`, …) combined with
+  `enum` / `const` — membership already pins the exact values, so fold the
+  constraint into the value list instead (`type` alongside `enum` / `const`
+  remains accepted as redundant)
 - `type: "object"` with neither `properties` nor `additionalProperties`
   (fully open)
 - `type: [...]` unions with more than one non-null member
