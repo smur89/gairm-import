@@ -63,7 +63,7 @@
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": parse
+#import "@preview/gairm-import:0.9.0": parse
 
 #let resume = parse(path("resume.json"))
 // hand `resume` to any compatible Typst CV template
@@ -108,7 +108,7 @@ non-CV shape.
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": parse, schema-from-json-schema
+#import "@preview/gairm-import:0.9.0": parse, schema-from-json-schema
 
 #let book-schema = schema-from-json-schema(json("book-schema.json"))
 #let book = parse(path("book.json"), schema: book-schema)
@@ -119,7 +119,7 @@ non-CV shape.
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": (
+#import "@preview/gairm-import:0.9.0": (
   parse, object, array-of, str-type, number-type,
 )
 
@@ -167,7 +167,7 @@ natural relative path:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": parse
+#import "@preview/gairm-import:0.9.0": parse
 
 #let resume = parse(path("resume.json"))
 ```
@@ -218,7 +218,7 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": parse
+#import "@preview/gairm-import:0.9.0": parse
 
 #alta(parse(path("resume.json")))
 ```
@@ -255,7 +255,7 @@ run the two steps separately:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": validate, coerce
+#import "@preview/gairm-import:0.9.0": validate, coerce
 
 #let raw = json("resume.json")
 #let errors = validate(raw)
@@ -310,7 +310,7 @@ Pass `schema: resume-schema-strict` to opt in:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": parse, resume-schema-strict
+#import "@preview/gairm-import:0.9.0": parse, resume-schema-strict
 
 #let resume = parse(path("resume.json"), schema: resume-schema-strict)
 ```
@@ -362,7 +362,7 @@ for the precedence rule when both `format` and `pattern` are present:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": (
+#import "@preview/gairm-import:0.9.0": (
   resume-schema, lens, lens-put, pattern-string,
 )
 
@@ -396,7 +396,7 @@ public combinators and pass it to `parse` / `validate` / `coerce` via the
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": (
+#import "@preview/gairm-import:0.9.0": (
   resume-schema, parse, object, array-of, content-type,
 )
 
@@ -425,7 +425,7 @@ the targeted node replaced or transformed:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": (
+#import "@preview/gairm-import:0.9.0": (
   resume-schema, lens, lens-put, lens-over, add-field,
   set-required, unset-required,
   str-type, content-type, number-type, object,
@@ -499,7 +499,7 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": (
+#import "@preview/gairm-import:0.9.0": (
   resume-schema-strict, describe-schema, paths-of-kind, kind-at,
 )
 
@@ -536,7 +536,7 @@ bump introduces are covered automatically:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": (
+#import "@preview/gairm-import:0.9.0": (
   resume-schema, paths-of-kind, lens, lens-put, pattern-string,
 )
 
@@ -564,7 +564,7 @@ cross the boundary:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": path-to-pointer, pointer-to-path
+#import "@preview/gairm-import:0.9.0": path-to-pointer, pointer-to-path
 
 #path-to-pointer(("basics", "email"))            // "/basics/email"
 #path-to-pointer(("work", 0, "highlights", 1))   // "/work/0/highlights/1"
@@ -601,7 +601,7 @@ in sync:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.8.1": (
+#import "@preview/gairm-import:0.9.0": (
   schema-from-json-schema, coerce, object, array-of, content-type,
 )
 
