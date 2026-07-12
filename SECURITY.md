@@ -13,12 +13,13 @@ I'll acknowledge within a few days and work with you on a fix.
 ## Scope
 
 `gairm-import` is a Typst data-loading library — it reads a JSON file from
-disk, validates the shape against the canonical [JSON Resume schema](https://jsonresume.org/schema),
+disk, validates the shape against a JSON Schema (the canonical
+[JSON Resume schema](https://jsonresume.org/schema) is the bundled default),
 and returns a Typst dict. The most realistic attack surface is malicious input
 crafted to exploit a `typst` runtime bug; please report those upstream at
 [typst/typst](https://github.com/typst/typst/security). Issues *specific* to
 this package (e.g. a validation gap that lets unexpected data shapes through,
-or a path-handling bug in `read-resume`) are in scope here.
+or a path-handling bug in `parse`) are in scope here.
 
 ## Supported versions
 

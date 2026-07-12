@@ -1,8 +1,8 @@
 // Regression pin for `resume-schema-strict`: every path in
-// internal/schema.typ's `_content-paths` and `_date-paths` lands at
-// the expected kind. Catches stale paths after an upstream schema
-// bump (renamed/removed field) and refactors that break the
-// lens-fold.
+// internal/schema.typ's `_content-paths`, `_iso8601-date-paths`, and
+// `_plain-date-paths` lands at the expected kind. Catches stale paths
+// after an upstream schema bump (renamed/removed field) and refactors
+// that break the lens-fold.
 
 #import "../lib.typ": (
   resume-schema, resume-schema-strict,
@@ -21,10 +21,10 @@
 #assert.eq(resume-schema-strict.shape.projects.elem.shape.description, content-type)
 #assert.eq(resume-schema-strict.shape.projects.elem.shape.highlights.elem, content-type)
 
-// _date-paths: iso8601 $ref fields lifted to date-string. Every path
-// in internal/schema.typ's _date-paths is pinned here so a stale or
-// missing override surfaces as a test failure, not as silent loss of
-// date validation.
+// _iso8601-date-paths (+ _plain-date-paths for meta.lastModified):
+// date fields lifted to date-string. Every path in those lists is
+// pinned here so a stale or missing override surfaces as a test
+// failure, not as silent loss of date validation.
 #assert.eq(resume-schema-strict.shape.work.elem.shape.startDate, date-string)
 #assert.eq(resume-schema-strict.shape.work.elem.shape.endDate, date-string)
 #assert.eq(resume-schema-strict.shape.volunteer.elem.shape.startDate, date-string)

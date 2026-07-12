@@ -5,7 +5,7 @@
 #   make             # compile every tests/*.typ fixture (output discarded)
 #   make test        # alias for the default target
 #   make check       # alias for `make test` — matches the CI lint name
-#   make clean       # remove any generated artifacts
+#   make clean       # no-op today — tests compile to /dev/null, nothing to remove
 #   make help        # summarise the available targets
 #
 # Tool overrides:

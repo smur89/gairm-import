@@ -16,11 +16,14 @@ instead of as a PR or issue.
 
 ## Scope
 
-`gairm-import` implements **only** the canonical [JSON Resume schema](https://jsonresume.org/schema).
-Anything renderer-specific (theme colours, label overrides, header
-decorations, custom sections, …) belongs in the consuming Typst CV template,
-not here. PRs that add fields outside the canonical schema will be redirected
-to the appropriate downstream template repo.
+`gairm-import` is a JSON Schema (draft 7 subset) → Typst dict engine; the
+canonical [JSON Resume schema](https://jsonresume.org/schema) ships as the
+bundled default. Engine work — validation, coercion, translator keywords,
+lenses, introspection — is in scope. Anything renderer-specific (theme
+colours, label overrides, header decorations, …) belongs in the consuming
+Typst CV template, not here. Likewise, fields outside the canonical JSON
+Resume shape should be added by downstream callers via an extension schema
+(see the README's "Building an extension schema") rather than hardcoded here.
 
 ## Project layout
 
@@ -33,6 +36,9 @@ internal/validate.typ                # validation engine (path-typed errors)
 internal/coerce.typ                  # coercion engine (content wrapping, null absorption)
 internal/json-schema.typ             # JSON Schema → Typst-schema translator
 internal/lens.typ                    # path-based functional editing of schemas
+internal/introspect.typ              # read-only schema inspection (describe-schema, paths-of-kind, kind-at)
+internal/json-pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop
+internal/errors.typ                  # error formatting (paths, type names, did-you-mean)
 tests/                               # fixtures — CI compiles each as a regression guard
 ```
 
@@ -45,20 +51,23 @@ upstream document is the source of truth. To pull a newer upstream version:
 1. Replace `internal/assets/jsonresume-schema.json` with the chosen tag from
    [jsonresume/resume-schema](https://github.com/jsonresume/resume-schema).
 2. Run `make test`. The translator handles the draft-04/-07 subset that the
-   canonical document uses; newer constructs (`allOf`/`anyOf`/`oneOf`,
-   `enum`/`const`, format-aware types beyond uri/email/date/date-time, open
-   objects, type unions, external `$ref`) panic with an "unsupported" message.
+   canonical document uses; unsupported constructs (`allOf`/`anyOf`/`oneOf`/
+   `not`, `if`/`then`/`else`, `dependencies`, string formats beyond
+   uri/email/date/date-time, fully open objects, unions with more than one
+   non-null member, external `$ref`) panic with an "unsupported" message.
    If a panic surfaces, extend `internal/json-schema.typ` rather than
    silently dropping the constraint.
-3. Audit `_content-paths` and `_date-paths` in `internal/schema.typ` against
-   the bumped document. These lists are the opt-in `resume-schema-strict`
-   variant's opinions — `_content-paths` lifts free-text `string` fields to
-   Typst `content` for inline rendering; `_date-paths` lifts iso8601 `$ref`
-   fields (which the translator can't pick up from a `$ref` alone) to
-   `date-string` for regex validation. If a new free-text or iso8601-referenced
-   field lands in the upstream document, add its path here. The drift guard
-   in `_override-fold` will panic at module-load if an existing path's source
-   kind changes, so you'll see the audit prompt automatically.
+3. Audit `_content-paths`, `_iso8601-date-paths`, and `_plain-date-paths` in
+   `internal/schema.typ` against the bumped document. These lists are the
+   opt-in `resume-schema-strict` variant's opinions — `_content-paths` lifts
+   free-text `string` fields to Typst `content` for inline rendering;
+   `_iso8601-date-paths` lifts iso8601 `$ref` fields (which the translator
+   surfaces as pattern-strings) and `_plain-date-paths` lifts plain-string
+   date fields (`meta.lastModified`) to `date-string` for regex validation.
+   If a new free-text or iso8601-referenced field lands in the upstream
+   document, add its path here. The drift guard in `_override-fold` will
+   panic at module-load if an existing path's source kind changes, so you'll
+   see the audit prompt automatically.
 
 `feat:` commit if the bump introduces new fields or behaviour;
 `chore(deps):` if it's a no-op refresh.
@@ -110,7 +119,8 @@ For a **new schema field**:
 
 1. Add (or extend) a fixture under `tests/` exercising the field — a valid
    case and at least one rejection case for the validator.
-2. Implement the validation / coercion in `lib.typ` (or a module it imports).
+2. Implement the validation / coercion in the engine modules under
+   `internal/` (`lib.typ` is a thin façade and rarely needs to change).
 3. Update the README's "Usage" example if the field is end-user-visible.
 
 `feat:` commit.
