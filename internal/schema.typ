@@ -111,7 +111,14 @@
     )
   } else if schema.kind == "array" {
     (..schema, elem: _strip-permissive-additional(schema.elem))
+  } else if schema.kind == "union" {
+    // Union members are positive matchers for the document, so
+    // stripping tightens them — same promise as everywhere else.
+    (..schema, members: schema.members.map(_strip-permissive-additional))
   } else {
+    // Leaves — and, deliberately, `not`: its member is a NEGATED
+    // matcher, so stripping there would make the negation accept more
+    // documents, loosening the strict variant instead of tightening it.
     schema
   }
 }

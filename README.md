@@ -630,6 +630,16 @@ in sync:
 - `enum` → `enum-of`, `const` → `const-of`
 - `properties`, `required`, `items`
 - Internal `$ref` (`#/definitions/…` / `#/$defs/…`)
+- `anyOf` → `any-of` (at least one member matches), `oneOf` → `one-of`
+  (exactly one member matches), `not` → `not-of` (value must not match) —
+  the composition keyword must stand alone on its node (annotation-only
+  siblings like `title` / `description` excepted); a sibling `type`,
+  constraint, or `$ref` panics rather than being silently ignored
+- `allOf` — merged at translate time; every member must be an object
+  schema (shapes union, `required` union; a duplicate key must carry an
+  identical sub-schema; `additionalProperties` must agree across all
+  members, with an undeclared member counting as closed). Non-object
+  composition (e.g. string + extra constraints) panics
 - `type: [X, "null"]` nullable unions (under the engine's null-as-absent
   policy these translate to plain `X`)
 - String constraints: `minLength`, `maxLength`
@@ -647,7 +657,6 @@ validated inline.
 **Out of scope.** Each keyword below panics with a clear "unsupported"
 message rather than silently dropping the constraint:
 
-- `allOf` / `anyOf` / `oneOf` / `not`
 - `if` / `then` / `else`
 - `dependencies` (and the `dependentRequired` / `dependentSchemas` variants)
 - Constraint keywords (`minLength`, `minimum`, `minItems`, …) combined with
@@ -659,6 +668,8 @@ message rather than silently dropping the constraint:
 - `type: [...]` unions with more than one non-null member
 - External `$ref`
 - String formats other than the four listed above
+- `allOf` with non-object members, and schema-bearing sibling keywords
+  beside any composition keyword (move them into the members)
 
 ## Contributing
 

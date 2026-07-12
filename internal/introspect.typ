@@ -12,6 +12,10 @@
 #import "lens.typ": lens, lens-get
 #import "kinds.typ": _format-string-kinds
 
+// "union" and "not" are composite, but lens paths cannot descend into
+// them (no segment addresses a member), so walks terminate there —
+// they are findable via paths-of-kind("union") / ("not"), while their
+// members are not walked individually.
 #let _leaf-kinds = (
   "str",
   "content",
@@ -21,16 +25,24 @@
   .._format-string-kinds,
   "pattern-string",
   "enum",
+  "union",
+  "not",
 )
 
 // Alphabetical pair ordering — diff-stable output regardless of
 // dictionary insertion order in the source.
 #let _sorted-pairs(d) = d.pairs().sorted(key: p => p.at(0))
 
-// enum nodes carry their values inline for at-a-glance debugging;
-// every other kind name speaks for itself.
+// enum nodes carry their values inline for at-a-glance debugging, and
+// union / not name their member kinds (one level — nested members
+// show as their kind name only); every other kind speaks for itself.
 #let _leaf-suffix(sub) = if sub.kind == "enum" {
   "enum (" + sub.values.map(repr).join(", ") + ")"
+} else if sub.kind == "union" {
+  let junction = if sub.exclusive { "one of" } else { "any of" }
+  junction + " (" + sub.members.map(m => m.kind).join(" | ") + ")"
+} else if sub.kind == "not" {
+  "not " + sub.member.kind
 } else {
   sub.kind
 }

@@ -26,9 +26,19 @@
 // --- translator dispatch + entry / fallthrough guards ---------------
 
 #assert(src.contains("unsupported JSON Schema keyword"))
-#assert(src.contains("Composition keywords (allOf/anyOf/oneOf)"))
+#assert(src.contains("Conditional schemas (if/then/else) and dependencies"))
 #assert(src.contains("expected a parsed JSON Schema dict or path"))
 #assert(src.contains("unrecognised JSON Schema fragment"))
+
+// --- composition keywords (#108) -------------------------------------
+
+#assert(src.contains("sibling keywords beside"))
+#assert(src.contains("must be a non-empty array of schemas"))
+#assert(src.contains("members must be schema objects"))
+#assert(src.contains("allOf members must all be object schemas"))
+#assert(src.contains("conflicting schemas for key"))
+#assert(src.contains("allOf members declare conflicting additionalProperties"))
+#assert(src.contains("not\\\" must be a schema object"))
 
 // --- per-keyword shape checks (suffix-only — see escape note above) -
 

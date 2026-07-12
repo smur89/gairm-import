@@ -1,5 +1,5 @@
 // Source-level pin pattern — see tests/lens-panic-messages.typ for
-// the basic shape and tests/json_schema-panic-messages.typ for the
+// the basic shape and tests/json-schema-panic-messages.typ for the
 // coverage + substring rules.
 
 #let src = read("../internal/coerce.typ")
@@ -12,6 +12,8 @@
 // Per-branch expected-type literals — pin each so dropping a
 // dispatch branch fails loud.
 #assert(src.contains("_expect(\"a string\""))
+// union delegates via first-matching-member; no-match asserts (#108).
+#assert(src.contains("a value matching one of the union alternatives"))
 #assert(src.contains("_expect(\"a number\""))
 #assert(src.contains("_expect(\"a boolean\""))
 #assert(src.contains("_expect(\"null\""))
