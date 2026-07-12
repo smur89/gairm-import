@@ -102,22 +102,65 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Stage package directory matching the release tarball
+      - name: Stage package tree with real sibling registry entries
+        # typst-package-check's import/outdated check decides whether an
+        # import is stale by read_dir()-ing the *sibling* package dirs
+        # next to the package under test and taking the max version-dir
+        # name it finds (typst/package-check src/check/imports.rs). Staging
+        # only our own package — as this job first did — leaves those
+        # siblings absent, so the check silently no-ops on every foreign
+        # `@preview/<pkg>:<ver>` import in the README (e.g. the altacv
+        # render example). Clone just the referenced foreign packages from
+        # typst/packages so a pin that has fallen behind Universe is caught
+        # here at PR time, not at submission review.
         run: |
-          PKG_DIR=/tmp/pkg-check/packages/preview/${PACKAGE_NAME}/${PKG_VERSION}
+          REGISTRY=/tmp/pkg-check
+          PKG_DIR="${REGISTRY}/packages/preview/${PACKAGE_NAME}/${PKG_VERSION}"
+
+          # Foreign @preview packages we import, minus ourselves.
+          foreign=$(grep -rhoE '@preview/[a-z0-9-]+:' README.md lib.typ internal 2>/dev/null \
+            | sed -E 's#@preview/([^:]+):#\1#' \
+            | sort -u \
+            | grep -vx "${PACKAGE_NAME}" || true)
+
+          # Partial + sparse clone: fetch trees/blobs lazily, materialise
+          # only the foreign package dirs (their version-dir names are all
+          # the check reads).
+          git clone --quiet --depth=1 --filter=blob:none --sparse \
+            https://github.com/typst/packages.git "${REGISTRY}"
+          if [ -n "${foreign}" ]; then
+            paths=""
+            for p in ${foreign}; do paths="${paths} packages/preview/${p}"; done
+            git -C "${REGISTRY}" sparse-checkout set ${paths}
+            echo "Staged sibling registry entries for: ${foreign}"
+          else
+            echo "No foreign @preview imports found — staging self only."
+          fi
+
+          # Overlay our own package at a sentinel version. preview/<name>/
+          # then holds only 0.0.0, so our release-please-managed
+          # self-imports never read as outdated against it.
           make stage-package-dir PKG_DIR="${PKG_DIR}"
           sed -i "s/^version = \".*\"/version = \"${PKG_VERSION}\"/" "${PKG_DIR}/typst.toml"
 
       - name: Validate package
         # The official image's entrypoint is typst-package-check; pass
         # the subcommand + args directly. --workdir matches the tool's
-        # requirement to be invoked from the `packages` subdir.
+        # requirement to be invoked from the `packages` subdir. The tool
+        # emits import/outdated as a *note* for foreign packages (exit 0),
+        # so grep the output to turn a stale pin into a visible ✗ on this
+        # advisory job — otherwise it would still slip by silently.
         run: |
+          out=$(mktemp)
           docker run --rm \
             -v /tmp/pkg-check:/data \
             --workdir /data/packages \
             ${PCHECK_IMAGE} \
-            check @preview/${PACKAGE_NAME}:${PKG_VERSION}
+            check @preview/${PACKAGE_NAME}:${PKG_VERSION} 2>&1 | tee "${out}"
+          if grep -qE 'import/outdated|older version of the package' "${out}"; then
+            echo "::error::A package import is pinned to an outdated version. Bump the annotated import above."
+            exit 1
+          fi
 
   # release-please reads conventional-commit messages since the last
   # tag, opens (or updates) a Release PR with the bumped version, and
