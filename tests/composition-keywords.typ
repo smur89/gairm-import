@@ -158,3 +158,30 @@
 // `not` has no shape to coerce toward — value passes through verbatim.
 #assert.eq(coerce(42, schema: not-of(str-type)), 42)
 #assert.eq(coerce((a: 1), schema: not-of(str-type)), (a: 1))
+
+// --- strict stripping recurses into union members ----------------------
+
+#import "../internal/schema.typ": _strip-permissive-additional
+
+// `additional: true` inside a union member is stripped like anywhere
+// else — a member is a positive matcher for the document, so stripping
+// tightens it, consistent with the strict variant's promise.
+#let permissive-union = any-of((
+  object((x: str-type), additional: true),
+  str-type,
+))
+#let stripped = _strip-permissive-additional(permissive-union)
+#assert("additional" not in stripped.members.at(0))
+#assert.eq(stripped.members.at(1), str-type)
+
+// Typed extras inside union members are kept, same as at top level.
+#let typed-union = any-of((object((:), additional: number-type),))
+#assert.eq(
+  _strip-permissive-additional(typed-union).members.at(0).additional,
+  number-type,
+)
+
+// Negation context inverts strip semantics — a stricter negated
+// matcher rejects less, so `not` members stay exactly as authored.
+#let negated = not-of(object((x: str-type), additional: true))
+#assert.eq(_strip-permissive-additional(negated), negated)
