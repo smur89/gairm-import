@@ -1,7 +1,7 @@
 // _coerce drops JSON null (Typst's `none`) at any value position so
 // downstream renderers see "key not in dict" rather than a stray
 // `none` value to special-case. This mirrors the validate-side
-// policy in tests/validate_null_handling.typ.
+// policy in tests/validate-null-handling.typ.
 
 #import "../lib.typ": coerce, resume-schema-strict
 #import "../internal/coerce.typ": _coerce

@@ -1,7 +1,7 @@
 // Strict loader for canonical JSON Resume data
 // (https://jsonresume.org/schema). The engines under internal/ are
 // pure functions of (schema, value); see
-// tests/engine_schema_agnostic.typ for the BYO-schema contract.
+// tests/engine-schema-agnostic.typ for the BYO-schema contract.
 
 #import "internal/kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,

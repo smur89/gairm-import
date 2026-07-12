@@ -46,6 +46,6 @@
 // against the derived schema. Hand-written `resume-schema` already
 // accepts this fixture; the derived schema must too, or we've lost
 // shape in translation.
-#let raw = json("fixtures/resume_full.json")
+#let raw = json("fixtures/resume-full.json")
 #assert.eq(validate(raw, schema: canonical), ())
 #assert.eq(validate(raw, schema: canonical-from-path), ())

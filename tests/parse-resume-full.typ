@@ -19,7 +19,7 @@
 
 #import "../lib.typ": validate, parse, resume-schema-strict
 
-#let raw = json("fixtures/resume_full.json")
+#let raw = json("fixtures/resume-full.json")
 
 // Both schemas validate cleanly against the same fixture.
 #assert.eq(validate(raw), ())

@@ -1,6 +1,6 @@
 // Typst can't catch panics, so source-level substring assertions are
 // the closest available proxy for "this message survives refactors".
-// Same approach as tests/lens_panic_messages.typ.
+// Same approach as tests/lens-panic-messages.typ.
 //
 // Coverage rule: every `_bail` / `panic` site in the target module
 // gets a pin. Substring rule: pins fit on a single source line

@@ -32,8 +32,8 @@
   - [Loading the document](#loading-the-document)
   - [The returned model](#the-returned-model)
   - [Rendering with a template](#rendering-with-a-template)
-  - [Handling validation errors yourself](#handling-validation-errors-yourself)
 - [Errors](#errors)
+  - [Handling validation errors yourself](#handling-validation-errors-yourself)
   - [Null handling](#null-handling)
 - [Schemas and composition](#schemas-and-composition)
   - [Two schemas](#two-schemas)
@@ -228,27 +228,6 @@ If the renderer expects fields outside the canonical JSON Resume shape, build
 an extension schema with the public combinators and pass it as `schema:` —
 see [Building an extension schema](#building-an-extension-schema).
 
-### Handling validation errors yourself
-
-Each error is a record
-`(path: ("basics", "email"), message: "expected string, got integer.")`.
-A typical step-by-step is:
-
-<!-- x-release-please-start-version -->
-```typst
-#import "@preview/gairm-import:0.8.1": validate, coerce
-
-#let raw = json("resume.json")
-#let errors = validate(raw)
-#if errors.len() > 0 {
-  [Resume has #errors.len() issue(s).]
-} else {
-  let model = coerce(raw)
-  // render model …
-}
-```
-<!-- x-release-please-end -->
-
 ## Errors
 
 `validate` returns a list of `(path, message)` records — empty list means
@@ -266,6 +245,28 @@ error: assertion failed: gairm-import: found 3 problems in the input:
 When a typo is within edit distance 2 of a valid key, the message surfaces
 a short "Did you mean …?" hint; otherwise it falls back to the full
 valid-keys list shown for `meta.foo`.
+
+### Handling validation errors yourself
+
+Each error is a record
+`(path: ("basics", "email"), message: "expected string, got integer.")`.
+To present errors yourself instead of letting `parse` abort compilation,
+run the two steps separately:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.8.1": validate, coerce
+
+#let raw = json("resume.json")
+#let errors = validate(raw)
+#if errors.len() > 0 {
+  [Resume has #errors.len() issue(s).]
+} else {
+  let model = coerce(raw)
+  // render model …
+}
+```
+<!-- x-release-please-end -->
 
 ### Null handling
 
@@ -291,7 +292,7 @@ The package exports two values of the canonical schema:
   JSON Schema document. Every kind comes from the source; nothing is
   rewritten. This is the default when you call `parse(data)` /
   `validate(data)` / `coerce(data)`.
-- **`resume-schema-strict`** — adds two layered opinions on top via the
+- **`resume-schema-strict`** — adds three layered opinions on top via the
   lens API:
   - free-text fields (`basics.summary`, `work[].summary`,
     `work[].highlights[]`, etc.) are typed as Typst `content` so they
@@ -299,6 +300,11 @@ The package exports two values of the canonical schema:
   - iso8601 `$ref` fields (`startDate`, `endDate`, …) are validated as
     ISO-8601 dates (the upstream document doesn't carry a `format`
     annotation on them, just a regex inside a definition)
+  - upstream's `additionalProperties: true` markers — declared on every
+    section's items, so the faithful default lets undeclared extras pass
+    through — are stripped recursively, restoring the "unknown keys are
+    rejected" promise (typed extras via `additionalProperties: <schema>`
+    are kept)
 
 Pass `schema: resume-schema-strict` to opt in:
 
@@ -329,18 +335,12 @@ basics.url:             expected a URI (e.g. "https://example.com").
 certificates[0].date:   expected an ISO-8601 date (e.g. "2024-01-15").
 ```
 
-`format: "date-time"` is supported via the `datetime-string` kind. The
-canonical JSON Resume document doesn't currently carry any `date-time`
-annotations, so the kind only fires when a caller translates their own JSON
-Schema with `schema-from-json-schema`, or lens-overrides a field. The two
-date kinds are intentionally separate:
-
-- `date-string` accepts `YYYY` / `YYYY-MM` / `YYYY-MM-DD`.
-- `datetime-string` requires the full `YYYY-MM-DDTHH:MM:SS` shape with an
-  optional fractional component and an optional `Z` or `±HH:MM` offset.
-
-Widening the date regex to also match datetime values would mislabel
-pure-date fields.
+`format: "date-time"` maps to the separate `datetime-string` kind:
+`date-string` accepts `YYYY` / `YYYY-MM` / `YYYY-MM-DD`, while
+`datetime-string` requires the full `YYYY-MM-DDTHH:MM:SS` shape (optional
+fractional part and `Z` / `±HH:MM` offset). The canonical document carries
+no `date-time` annotations, so that kind only fires via
+`schema-from-json-schema` or a lens override.
 
 Most date fields in JSON Resume (`work[].startDate`, `awards[].date`,
 `meta.lastModified`, …) use `$ref: "#/definitions/iso8601"` rather than
@@ -386,8 +386,8 @@ pattern yourself if you need a full-string match — `^…$` is the common case.
 `parse` is strict against declared fields in the canonical schema: keys that
 aren't declared *and* aren't covered by an upstream `additionalProperties`
 clause are rejected. (Upstream JSON Resume sets `additionalProperties: true`
-on every section's items, so extras in those positions pass through — see
-the note further down on `additionalProperties`.)
+on every section's items, so extras in those positions pass through —
+[Two schemas](#two-schemas) covers the strict variant that strips them.)
 
 Renderers that expect their own top-level fields in the resume document
 (e.g. alta-typst's `focusAreas`) can build a JSON-Resume+ schema with the
@@ -409,13 +409,6 @@ public combinators and pass it to `parse` / `validate` / `coerce` via the
 #let model = parse(path("resume.json"), schema: altacv-schema)
 ```
 <!-- x-release-please-end -->
-
-When to reach for which API:
-
-| API | Behaviour |
-|---|---|
-| `parse(data)` | One call, aborts compilation with a combined report on validation issues. Defaults to the canonical schema; pass `schema: …` to use an extension. |
-| `validate(data)` / `coerce(data)` | Return data instead of aborting, so you can present errors yourself (see the [step-by-step above](#handling-validation-errors-yourself)). Same `schema:` default. |
 
 `resume-schema.shape` is a plain dict, so `..resume-schema.shape` is the
 only operator you need to extend it. Per-section combinators (`work-item`,
@@ -584,32 +577,20 @@ cross the boundary:
 ```
 <!-- x-release-please-end -->
 
-**Two addressing schemes share the same encoder** — pick the right one for
-your use case:
+**Two addressing schemes share the same encoder.** Validator error paths
+(mixed `str` / non-negative `int`) address into **data** — the output is a
+real RFC 6901 pointer any JSON-Pointer-aware tool can dereference against
+the document. Lens and introspect paths (`str`-only, with `"items"` and
+`"additionalProperties"`) address into the **schema** — the output names a
+schema location the way JSON Schema tooling does in `$ref`
+(e.g. `#/properties/foo/items`), not a data position.
 
-- **Validator error paths** (mixed `str` / non-negative `int`) address into
-  **data**. The output is a real RFC 6901 JSON Pointer that any
-  JSON-Pointer-aware tool can dereference against the resume / data document.
-- **Lens and introspect paths** (`str`-only, with `"items"` for array
-  elements and `"additionalProperties"` for the additional schema) address
-  into the **schema**. The output is a JSON-Pointer-shaped string that names
-  a schema location — meaningful to JSON Schema tooling that uses JSON
-  Pointer in `$ref` (e.g. `#/properties/foo/items`), but **not** a data
-  pointer.
-
-Encoding accepts `str` (object key) or `int` (non-negative — RFC 6901's
-array-index ABNF) segments; other types and negative ints panic. Decoding
-parses tokens matching that ABNF (`0` | `[1-9][0-9]*`) back to `int`;
-everything else stays `str`. Malformed `~` escapes (bare `~`, `~2`,
-`~<other>`) panic at decode rather than silently passing through.
-
-Round-trip directions are asymmetric:
-
-- `pointer → path → pointer` is **lossless** for any well-formed pointer.
-- `path → pointer → path` is lossless **except** when a `str` segment looks
-  like an array index — `("0",)` decodes back as `(0,)`. In practice the
-  validator and lens code never emit numeric strings, so this isn't a
-  concern.
+Malformed input panics rather than passing through silently: non-`str`/`int`
+or negative segments at encode, invalid `~` escapes at decode.
+`pointer → path → pointer` round-trips losslessly; `path → pointer → path`
+is lossless except for `str` segments that look like array indices
+(`("0",)` decodes back as `(0,)`) — which validator and lens paths never
+emit in practice.
 
 ### Starting from a JSON Schema document
 
@@ -678,16 +659,6 @@ message rather than silently dropping the constraint:
 - `type: [...]` unions with more than one non-null member
 - External `$ref`
 - String formats other than the four listed above
-
-**A note on the canonical `resume-schema` and `additionalProperties`:** the
-upstream JSON Resume document declares `additionalProperties: true` on every
-section's items, so the canonical schema accepts extras at runtime even
-though the README's headline framing is "strict". Strict applies to declared
-fields; `additionalProperties: true` from upstream is honoured. If you need
-stricter behaviour, use `resume-schema-strict` — it recursively strips
-`additional: true` from every nested object, restoring the "unknown keys are
-rejected" promise (typed extras declared via `additionalProperties: <schema>`
-are kept).
 
 ## Contributing
 

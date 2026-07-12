@@ -81,7 +81,7 @@
 // ---- error cases ----------------------------------------------------
 //
 // Source-level message pins (Typst can't catch panics) — same
-// approach as tests/lens_panic_messages.typ.
+// approach as tests/lens-panic-messages.typ.
 
 #let src = read("../internal/json-pointer.typ")
 #assert(src.contains("path-to-pointer expected a str or int segment"))
