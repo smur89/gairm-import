@@ -21,6 +21,10 @@
 
 #import "errors.typ": _type-name-of
 #import "kinds.typ": _format-string-kinds
+// Union coercion must pick a member, and Typst has no try/catch to
+// probe with — so coerce leans on the validator's verdict. Acyclic:
+// validate.typ does not import coerce.
+#import "validate.typ": _validate
 
 #let _expect(expected, value) = (
   "gairm-import: coerce expected "
@@ -99,5 +103,21 @@
     if coerced.len() == 0 { return none }
     return coerced
   }
+  // Union: delegate to the first member the value validates against.
+  // For one-of, validation already guaranteed exactly one; direct
+  // callers who skipped validation fail the assert like every other
+  // branch.
+  if kind == "union" {
+    let matching = schema.members.find(m => _validate(m, value, ()).len() == 0)
+    assert(
+      matching != none,
+      message: _expect("a value matching one of the union alternatives", value),
+    )
+    return _coerce(matching, value)
+  }
+  // `not` constrains what a value may NOT be — there is no shape to
+  // coerce toward, so pass through verbatim (same contract as
+  // `additional: true` extras).
+  if kind == "not" { return value }
   panic("gairm-import: internal — unknown schema kind " + repr(kind))
 }

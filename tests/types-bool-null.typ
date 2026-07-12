@@ -70,6 +70,6 @@
 //
 // Source-level pin on the bail message — Typst can't catch panics so
 // this is the closest available proxy. Same pattern as
-// tests/json_schema-panic-messages.typ.
+// tests/json-schema-panic-messages.typ.
 #let src = read("../internal/json-schema.typ")
 #assert(src.contains("only supported as nullable wraps"))

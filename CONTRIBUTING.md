@@ -51,12 +51,12 @@ upstream document is the source of truth. To pull a newer upstream version:
 1. Replace `internal/assets/jsonresume-schema.json` with the chosen tag from
    [jsonresume/resume-schema](https://github.com/jsonresume/resume-schema).
 2. Run `make test`. The translator handles the draft-04/-07 subset that the
-   canonical document uses; unsupported constructs (`allOf`/`anyOf`/`oneOf`/
-   `not`, `if`/`then`/`else`, `dependencies`, string formats beyond
-   uri/email/date/date-time, fully open objects, unions with more than one
-   non-null member, external `$ref`) panic with an "unsupported" message.
-   If a panic surfaces, extend `internal/json-schema.typ` rather than
-   silently dropping the constraint.
+   canonical document uses; unsupported constructs (`if`/`then`/`else`,
+   `dependencies`, string formats beyond uri/email/date/date-time, fully
+   open objects, `type` unions with more than one non-null member, external
+   `$ref`, `allOf` with non-object members) panic with an "unsupported"
+   message. If a panic surfaces, extend `internal/json-schema.typ` rather
+   than silently dropping the constraint.
 3. Audit `_content-paths`, `_iso8601-date-paths`, and `_plain-date-paths` in
    `internal/schema.typ` against the bumped document. These lists are the
    opt-in `resume-schema-strict` variant's opinions — `_content-paths` lifts
