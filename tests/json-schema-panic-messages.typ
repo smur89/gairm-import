@@ -1,6 +1,6 @@
 // Typst can't catch panics, so source-level substring assertions are
 // the closest available proxy for "this message survives refactors".
-// Same approach as tests/lens_panic_messages.typ.
+// Same approach as tests/lens-panic-messages.typ.
 //
 // Coverage rule: every `_bail` / `panic` site in the target module
 // gets a pin. Substring rule: pins fit on a single source line
@@ -33,6 +33,7 @@
 // --- per-keyword shape checks (suffix-only — see escape note above) -
 
 #assert(src.contains("enum\\\" must be an array of values"))
+#assert(src.contains("cannot be combined with enum/const"))
 #assert(src.contains("pattern\\\" must be a string"))
 #assert(src.contains("unsupported string format"))
 #assert(src.contains("array schema missing"))

@@ -17,7 +17,7 @@
 #assert.eq(one(str-type, true, ("flag",)), "expected string, got boolean.")
 // JSON null is treated as "key absent" rather than a type mismatch —
 // see internal/validate.typ. The "got null" rendering is still
-// exercised in tests/errors_type_names.typ via _type-name-of.
+// exercised in tests/errors-type-names.typ via _type-name-of.
 #assert.eq(_validate(str-type, none, ("missing",)), ())
 #assert.eq(one(number-type, "nope", ("age",)), "expected number, got string.")
 #assert.eq(one(array-of(str-type), "x", ("k",)), "expected array, got string.")
