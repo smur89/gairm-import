@@ -8,6 +8,12 @@
 #let number-type  = (kind: "number")
 #let bool-type    = (kind: "bool")
 
+// JSON Schema `integer`: any number with a zero fractional part
+// (draft-7 semantics — 1.0 passes, 1.5 fails). Same "number" kind with
+// a validation flag rather than a new kind, so coerce / introspect /
+// lens need no extra branch.
+#let integer-type = (kind: "number", integer: true)
+
 // "Must be null or absent": `none` passes via the engine's global
 // early return, non-none hits the kind branch and errors.
 #let null-type    = (kind: "null")

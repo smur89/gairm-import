@@ -4,7 +4,7 @@
 // tests/engine_schema_agnostic.typ for the BYO-schema contract.
 
 #import "internal/kinds.typ": (
-  str-type, content-type, number-type, bool-type, null-type,
+  str-type, content-type, number-type, integer-type, bool-type, null-type,
   array-of, object, map,
   date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,

@@ -4,7 +4,7 @@
   validate, coerce,
   schema-from-json-schema,
   bool-type, null-type,
-  str-type, number-type, email-string, object,
+  str-type, integer-type, email-string, object,
   paths-of-kind,
 )
 
@@ -51,10 +51,11 @@
   schema-from-json-schema((type: ("string", "null"))),
   str-type,
 )
-// Order doesn't matter — `null` can come first.
+// Order doesn't matter — `null` can come first. The inner type keeps
+// its own semantics (`integer` stays integral-gated).
 #assert.eq(
   schema-from-json-schema((type: ("null", "integer"))),
-  number-type,
+  integer-type,
 )
 // Sibling keywords on the union carry through to the inner.
 #assert.eq(

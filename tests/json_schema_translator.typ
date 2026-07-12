@@ -1,13 +1,15 @@
 #import "../lib.typ": (
   schema-from-json-schema,
-  str-type, number-type, array-of, object,
+  str-type, number-type, integer-type, array-of, object,
   date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,
 )
 
 #assert.eq(schema-from-json-schema((type: "string")), str-type)
 #assert.eq(schema-from-json-schema((type: "number")), number-type)
-#assert.eq(schema-from-json-schema((type: "integer")), number-type)
+// `integer` keeps its integral constraint — it is not flattened to
+// plain number (that would silently drop the constraint).
+#assert.eq(schema-from-json-schema((type: "integer")), integer-type)
 
 // Format keywords map to format-specialised string kinds.
 #assert.eq(
@@ -51,7 +53,7 @@
 #let person-typst = schema-from-json-schema(person-js)
 #assert.eq(person-typst.kind, "object")
 #assert.eq(person-typst.shape.name, str-type)
-#assert.eq(person-typst.shape.age, number-type)
+#assert.eq(person-typst.shape.age, integer-type)
 #assert.eq(person-typst.required-keys, ("name",))
 
 #let loose = schema-from-json-schema((

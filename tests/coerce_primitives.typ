@@ -3,13 +3,16 @@
 
 #import "../internal/coerce.typ": _coerce
 #import "../internal/kinds.typ": (
-  str-type, content-type, number-type,
+  str-type, content-type, number-type, integer-type,
   date-string, datetime-string, uri-string, email-string, pattern-string,
 )
 
 #assert.eq(_coerce(str-type, "hi"), "hi")
 #assert.eq(_coerce(number-type, 42), 42)
 #assert.eq(_coerce(number-type, 3.14), 3.14)
+// integer-type shares the number branch — validation owns the
+// integral gate; coercion is identity.
+#assert.eq(_coerce(integer-type, 42), 42)
 
 #let wrapped = _coerce(content-type, "summary text")
 #assert.eq(type(wrapped), content)

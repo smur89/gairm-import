@@ -2,7 +2,7 @@
 // not supported panics rather than silently dropping the constraint.
 
 #import "kinds.typ": (
-  str-type, content-type, number-type, bool-type, null-type,
+  str-type, content-type, number-type, integer-type, bool-type, null-type,
   array-of, object,
   date-string, datetime-string, uri-string, email-string, pattern-string,
   enum-of, const-of,
@@ -195,7 +195,10 @@
     return _with-string-constraints(js, base)
   }
   if t == "number" or t == "integer" {
-    return _with-number-constraints(js, number-type)
+    // `integer` keeps its integral constraint (kinds.typ's integer-type)
+    // rather than flattening to plain number — silently dropping the
+    // constraint would violate this module's contract.
+    return _with-number-constraints(js, if t == "integer" { integer-type } else { number-type })
   }
   if t == "array" {
     let items = js.at("items", default: none)

@@ -637,7 +637,9 @@ in sync:
 **Supported keywords:**
 
 - `type`: `string` / `number` / `integer` / `array` / `object` / `boolean` /
-  `null`
+  `null` — `integer` rejects numbers with a non-zero fractional part
+  (`1.0` passes, per draft-7 semantics); the matching Typst-side
+  primitive is `integer-type`
 - `format`: `uri` → `uri-string`, `email` → `email-string`,
   `date` → `date-string`, `date-time` → `datetime-string`
 - `pattern` → `pattern-string` (on plain string schemas only; when both
