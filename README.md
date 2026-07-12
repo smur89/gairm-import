@@ -633,11 +633,12 @@ in sync:
 - `anyOf` → `any-of` (at least one member matches), `oneOf` → `one-of`
   (exactly one member matches), `not` → `not-of` (value must not match) —
   the composition keyword must stand alone on its node (annotation-only
-  siblings like `title` / `description` excepted); a sibling `type` or
-  constraint panics rather than being silently ignored
+  siblings like `title` / `description` excepted); a sibling `type`,
+  constraint, or `$ref` panics rather than being silently ignored
 - `allOf` — merged at translate time; every member must be an object
-  schema (shapes union, `required` union, `additionalProperties` must
-  agree; a duplicate key must carry an identical sub-schema). Non-object
+  schema (shapes union, `required` union; a duplicate key must carry an
+  identical sub-schema; `additionalProperties` must agree across all
+  members, with an undeclared member counting as closed). Non-object
   composition (e.g. string + extra constraints) panics
 - `type: [X, "null"]` nullable unions (under the engine's null-as-absent
   policy these translate to plain `X`)

@@ -55,7 +55,10 @@
 #assert.eq(with-ref.shape.id, str-type)
 #assert.eq(with-ref.shape.extra, number-type)
 
-// additionalProperties carried over from the declaring member.
+// additionalProperties must agree across ALL members (an undeclared
+// member counts as closed) — a closed member combined with an open one
+// bails rather than silently producing an open merge that would accept
+// keys the closed member rejects.
 #let with-ap = schema-from-json-schema((
   allOf: (
     (
@@ -63,7 +66,11 @@
       properties: (a: (type: "string")),
       additionalProperties: true,
     ),
-    (type: "object", properties: (b: (type: "number"))),
+    (
+      type: "object",
+      properties: (b: (type: "number")),
+      additionalProperties: true,
+    ),
   ),
 ))
 #assert.eq(with-ap.additional, true)

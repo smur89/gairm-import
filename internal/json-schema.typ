@@ -128,10 +128,11 @@
 
 // allOf: the object-merge subset — every member must translate to an
 // object schema; shapes union (a duplicate key must carry an EQUAL
-// sub-schema), required-keys union, additionalProperties must agree.
-// Non-object composition (e.g. string + extra constraints) stays out
-// of scope; deep-merging conflicting sub-schemas is a rabbit hole the
-// engine's flat kinds can't express.
+// sub-schema), required-keys union, additionalProperties must agree
+// across all members (undeclared counts as closed). Non-object
+// composition (e.g. string + extra constraints) stays out of scope;
+// deep-merging conflicting sub-schemas is a rabbit hole the engine's
+// flat kinds can't express.
 #let _merge-all-of(members) = {
   for m in members {
     if m.kind != "object" {
@@ -159,15 +160,20 @@
     required += m
       .at("required-keys", default: ())
       .filter(k => k not in required)
-    let m-additional = m.at("additional", default: none)
-    if m-additional != none {
-      if additional != none and additional != m-additional {
-        _bail("allOf members declare conflicting additionalProperties.")
-      }
-      additional = m-additional
+  }
+  // additionalProperties must agree across ALL members, with an
+  // undeclared member counting as closed (`none`) — silently taking
+  // the open (or typed) member's value would accept keys another
+  // member rejects.
+  let additionals = members.map(m => m.at("additional", default: none))
+  for a in additionals {
+    if a != additionals.at(0) {
+      _bail(
+        "allOf members declare conflicting additionalProperties (open, closed, and typed members must all agree).",
+      )
     }
   }
-  object(shape, required-keys: required, additional: additional)
+  object(shape, required-keys: required, additional: additionals.at(0))
 }
 
 // Constraint keywords that would genuinely tighten an enum / const
@@ -319,6 +325,12 @@
 }
 
 #let _from-json-schema(js, root, seen) = {
+  // Before the $ref early return: `$ref` beside a composition keyword
+  // must bail as a non-annotation sibling — resolving the ref first
+  // would silently drop the composition.
+  for keyword in _composition-keywords {
+    if keyword in js { _require-lone-composition(js, keyword) }
+  }
   if "$ref" in js {
     let ref = js.at("$ref")
     if type(ref) != str {
@@ -338,9 +350,6 @@
           + ". Conditional schemas (if/then/else) and dependencies are out of scope.",
       )
     }
-  }
-  for keyword in _composition-keywords {
-    if keyword in js { _require-lone-composition(js, keyword) }
   }
   if "allOf" in js {
     return _merge-all-of(
