@@ -54,7 +54,7 @@
 // the upstream JSON Schema types as plain `string` come through as
 // `str`, not as content or date kinds. Callers wanting renderer
 // ergonomics or stricter date validation reach for
-// `resume-schema-strict` (see tests/schema_strict.typ).
+// `resume-schema-strict` (see tests/schema-strict.typ).
 #assert.eq(resume-schema.shape.basics.shape.summary.kind, "str")
 #assert.eq(resume-schema.shape.work.elem.shape.summary.kind, "str")
 #assert.eq(resume-schema.shape.work.elem.shape.highlights.elem.kind, "str")
@@ -65,7 +65,7 @@
 #assert.eq(resume-schema.shape.basics.shape.name.kind, "str")
 
 // Format-specialised string fields carry their format kind. Coercion
-// is still pass-through (see coerce_primitives.typ); _validate adds a
+// is still pass-through (see coerce-primitives.typ); _validate adds a
 // regex gate for these kinds.
 // Format-specialised kinds come from upstream `format` keywords. The
 // canonical document annotates email + uri fields and one date field

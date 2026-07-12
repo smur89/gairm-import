@@ -6,7 +6,7 @@
 
 #import "../lib.typ": validate, parse, resume-schema-strict
 
-#let raw = json("fixtures/resume_with_nulls.json")
+#let raw = json("fixtures/resume-with-nulls.json")
 
 // Null is treated as "key absent" by both schemas.
 #assert.eq(validate(raw), ())
