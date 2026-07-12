@@ -256,19 +256,25 @@
   // than every member's failure list — member errors describe branches
   // the value never claimed to match, so replaying them all is noise.
   if kind == "union" {
-    let matches = schema
-      .members
-      .filter(m => _validate(m, value, path).len() == 0)
-      .len()
-    if schema.exclusive and matches > 1 {
-      return _err(
-        path,
-        "expected exactly one alternative to match, but "
-          + str(matches)
-          + " matched.",
-      )
+    // Exclusivity needs the full match count; any-of only needs "at
+    // least one", so it short-circuits on the first matching member.
+    if schema.exclusive {
+      let matches = schema
+        .members
+        .filter(m => _validate(m, value, path).len() == 0)
+        .len()
+      if matches == 1 { return () }
+      if matches > 1 {
+        return _err(
+          path,
+          "expected exactly one alternative to match, but "
+            + str(matches)
+            + " matched.",
+        )
+      }
+    } else if schema.members.any(m => _validate(m, value, path).len() == 0) {
+      return ()
     }
-    if matches >= 1 { return () }
     let alternatives = schema.members.map(m => m.kind).join(" | ")
     let quantifier = if schema.exclusive { "exactly one" } else { "one" }
     return _err(
