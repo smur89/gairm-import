@@ -210,10 +210,10 @@ instead and pass it via the `schema:` keyword — see
 
 Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.app/universe/package/altacv):
 
-<!-- Two fences (not one): release-please would otherwise bump altacv:1.1.1 on every gairm release. See https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
+<!-- Two fences (not one): a single fence would let release-please rewrite this altacv pin on every gairm release. Bump it by hand when altacv publishes a new version. See https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
 
 ```typst
-#import "@preview/altacv:1.1.1": alta
+#import "@preview/altacv:1.6.0": alta
 ```
 
 <!-- x-release-please-start-version -->
