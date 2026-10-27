@@ -1,0 +1,48 @@
+// Renovate config. Replaces Dependabot, matching the sister repo
+// smur89/alta-typst, so both repos share one dependency bot and policy.
+// Requires the Renovate GitHub App (https://github.com/apps/renovate) to be
+// installed on the repository; without it this file does nothing.
+// Keep this the only Renovate config file: a root `renovate.json` would be
+// found first and shadow this one.
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    // Keep actions pinned to full commit SHAs (with the `# vX.Y.Z` comment
+    // Renovate maintains), and pin any new tag reference on its first PR.
+    'helpers:pinGitHubActionDigests',
+  ],
+
+  // Only GitHub Actions. The library imports no `@preview/*` packages (the
+  // only ones are in README.md examples, which the typst manager does not
+  // scan, and they are either the self-import owned by release-please or
+  // illustrative), so the typst manager would find nothing; if a .typ file
+  // ever imports one, add 'typst' here plus a rule disabling the
+  // `gairm-import` self-import. The toolchain versions (TYPST_VERSION,
+  // TYPSTYLE_VERSION, PCHECK_IMAGE in build.yml, `compiler` in typst.toml,
+  // the minimum in README.md) are bumped deliberately by hand, in lockstep.
+  enabledManagers: ['github-actions'],
+
+  // Dependabot ran Sunday 22:00. Renovate schedules are windows (hour
+  // granularity, and the hosted app runs roughly hourly), so open Sunday
+  // night and run into early Monday to avoid a skipped week.
+  timezone: 'Europe/Zurich',
+  schedule: ['* 22-23 * * 0', '* 0-4 * * 1'],
+
+  prConcurrentLimit: 5,
+  labels: ['dependencies'],
+
+  // Conventional commits: `chore(deps): …` (release-please does not release
+  // on chore; action bumps only touch CI, not the published package).
+  semanticCommits: 'enabled',
+  semanticCommitType: 'chore',
+  semanticCommitScope: 'deps',
+
+  packageRules: [
+    {
+      description: 'All GitHub Actions updates in one PR, as the Dependabot `actions` group did.',
+      matchManagers: ['github-actions'],
+      groupName: 'actions',
+    },
+  ],
+}
