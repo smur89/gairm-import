@@ -1,4 +1,6 @@
-// Canonical JSON Resume schema (https://jsonresume.org/schema).
+// Canonical JSON Resume schema (https://jsonresume.org/schema), vendored
+// at 1.7.0. Upstream changelog:
+// https://github.com/jsonresume/jsonresume.org/blob/master/packages/schema/CHANGELOG.md
 // `resume-schema` is a faithful derivation of the upstream document;
 // `resume-schema-strict` layers content + date opinions via lens.
 // See README "Two schemas" for the trade-off.

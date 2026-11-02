@@ -91,10 +91,13 @@ A minimal `resume.json`:
 }
 ```
 
-The canonical schema covers thirteen sections: `basics`, `work`, `volunteer`,
-`education`, `awards`, `certificates`, `publications`, `skills`, `languages`,
-`interests`, `references`, `projects`, `meta`. The `$schema` top-level
-metadata field is also accepted. See
+The bundled schema is JSON Resume **1.7.0** (see the upstream
+[changelog](https://github.com/jsonresume/jsonresume.org/blob/master/packages/schema/CHANGELOG.md)
+for what each version adds). It covers thirteen sections: `basics`, `work`,
+`volunteer`, `education`, `awards`, `certificates`, `publications`, `skills`,
+`languages`, `interests`, `references`, `projects`, `meta`. The top-level
+`objective` string, the free-form `custom` object and the `$schema` metadata
+field are also accepted. See
 [jsonresume.org/schema](https://jsonresume.org/schema) for every field.
 
 ### Bring your own schema
