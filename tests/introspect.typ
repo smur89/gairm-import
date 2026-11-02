@@ -69,14 +69,18 @@ work[]:
 // --- paths-of-kind ---------------------------------------------------
 
 // Spec acceptance: strict schema content leaves match _content-paths
-// (10 entries). Alphabetical ordering means we can pin the exact list.
+// (14 entries). Alphabetical ordering means we can pin the exact list.
 #let content-paths = paths-of-kind(resume-schema-strict, "content")
-#assert.eq(content-paths.len(), 10)
+#assert.eq(content-paths.len(), 14)
 #assert.eq(content-paths, (
   ("awards", "items", "summary"),
   ("basics", "summary"),
+  ("certificates", "items", "summary"),
+  ("education", "items", "summary"),
+  ("objective",),
   ("projects", "items", "description"),
   ("projects", "items", "highlights", "items"),
+  ("projects", "items", "summary"),
   ("publications", "items", "summary"),
   ("references", "items", "reference"),
   ("volunteer", "items", "highlights", "items"),
@@ -114,21 +118,19 @@ work[]:
 )
 
 // Date kind: only the strict overlay lifts the iso8601 $ref fields.
-// The faithful base sees only certificates.date.
+// Every upstream date is an iso8601 $ref now, so the faithful base
+// has none.
 #let date-paths-strict = paths-of-kind(resume-schema-strict, "date-string")
-#assert.eq(date-paths-strict.len(), 12) // 11 _date-paths + certificates.date
+#assert.eq(date-paths-strict.len(), 14) // 13 iso8601 + meta.lastModified
 #assert(("work", "items", "startDate") in date-paths-strict)
 #assert(("certificates", "items", "date") in date-paths-strict)
-#assert.eq(
-  paths-of-kind(resume-schema, "date-string"),
-  (("certificates", "items", "date"),),
-)
+#assert.eq(paths-of-kind(resume-schema, "date-string"), ())
 
 // iso8601 $ref fields land as pattern-string in the faithful base
 // (translator picks up upstream's `definitions/iso8601` pattern). The
 // strict overlay rewrites them to date-string, so they vanish here.
 #let iso-paths-faithful = paths-of-kind(resume-schema, "pattern-string")
-#assert.eq(iso-paths-faithful.len(), 10)
+#assert.eq(iso-paths-faithful.len(), 13)
 #assert(("work", "items", "startDate") in iso-paths-faithful)
 #assert(("publications", "items", "releaseDate") in iso-paths-faithful)
 #assert.eq(paths-of-kind(resume-schema-strict, "pattern-string"), ())

@@ -17,6 +17,20 @@
 #assert.eq(_coerce(array-of(str-type), none), none)
 #assert.eq(_coerce(object((name: str-type)), none), none)
 
+// Exception: a free-form bag (no fields, `additional: true`, like JSON
+// Resume's `custom`) passes through untouched — nulls and emptiness
+// included — even when it sits inside a section that drops nulls.
+#let bag = object((:), additional: true)
+#assert.eq(_coerce(bag, (a: none, b: (c: none))), (a: none, b: (c: none)))
+#assert.eq(_coerce(bag, (:)), (:))
+#assert.eq(
+  coerce(
+    (basics: (name: "J"), custom: (myTool: none)),
+    schema: resume-schema-strict,
+  ).custom,
+  (myTool: none),
+)
+
 // Null elements inside an array are dropped from the coerced output.
 #assert.eq(_coerce(array-of(str-type), ("a", none, "c")), ("a", "c"))
 #assert.eq(_coerce(array-of(str-type), (none, none)), ())

@@ -139,6 +139,16 @@
   if normalized == none { base } else { (..base, additional: normalized) }
 }
 
+// An object that declares no fields and lets anything through is a
+// free-form bag (JSON Resume's `custom`): opaque data, not a section
+// with extras tacked on. Strict keeps it open, and coerce passes it
+// through unchanged.
+#let _is-free-form(schema) = (
+  schema.kind == "object"
+    and schema.shape.len() == 0
+    and schema.at("additional", default: none) == true
+)
+
 // `required-keys` kwarg for symmetry with `object` — required keys
 // on a pure map are still meaningful ("the document must contain
 // these specific keys, plus any number of others").

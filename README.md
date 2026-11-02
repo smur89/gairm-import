@@ -91,10 +91,13 @@ A minimal `resume.json`:
 }
 ```
 
-The canonical schema covers thirteen sections: `basics`, `work`, `volunteer`,
-`education`, `awards`, `certificates`, `publications`, `skills`, `languages`,
-`interests`, `references`, `projects`, `meta`. The `$schema` top-level
-metadata field is also accepted. See
+The bundled schema is JSON Resume **1.7.0** (see the upstream
+[changelog](https://github.com/jsonresume/jsonresume.org/blob/8576b3899489185193613b238bf3092efd005b45/packages/schema/CHANGELOG.md)
+for what each version adds). It covers thirteen sections: `basics`, `work`,
+`volunteer`, `education`, `awards`, `certificates`, `publications`, `skills`,
+`languages`, `interests`, `references`, `projects`, `meta`. The top-level
+`objective` string, the free-form `custom` object and the `$schema` metadata
+field are also accepted. See
 [jsonresume.org/schema](https://jsonresume.org/schema) for every field.
 
 ### Bring your own schema
@@ -275,7 +278,9 @@ dropped from the coerced model. Null elements inside arrays are dropped the
 same way. This matches the convention used by most JSON Resume emitters,
 where `"summary": null` is semantically equivalent to omitting the key.
 Unknown keys are still flagged even when their value is `null`, so typos do
-not slip through silently.
+not slip through silently. The one exception is a free-form object with no
+declared fields (JSON Resume's `custom`): it is passed through exactly as
+given, nulls and all, as upstream asks tools to do.
 
 Root null is rejected: if the entire input document is `null`, `validate`,
 `coerce`, and `parse` panic with
@@ -300,11 +305,12 @@ The package exports two values of the canonical schema:
   - iso8601 `$ref` fields (`startDate`, `endDate`, …) are validated as
     ISO-8601 dates (the upstream document doesn't carry a `format`
     annotation on them, just a regex inside a definition)
-  - upstream's `additionalProperties: true` markers — declared on every
-    section's items, so the faithful default lets undeclared extras pass
-    through — are stripped recursively, restoring the "unknown keys are
-    rejected" promise (typed extras via `additionalProperties: <schema>`
-    are kept)
+  - upstream's `additionalProperties: true` markers — declared at the top
+    level and on every section's items, so the faithful default lets
+    undeclared extras pass through — are stripped recursively, restoring
+    the "unknown keys are rejected" promise (typed extras via
+    `additionalProperties: <schema>` are kept, and so is upstream's
+    free-form `custom` object, which declares no fields of its own)
 
 Pass `schema: resume-schema-strict` to opt in:
 
@@ -342,12 +348,14 @@ fractional part and `Z` / `±HH:MM` offset). The canonical document carries
 no `date-time` annotations, so that kind only fires via
 `schema-from-json-schema` or a lens override.
 
-Most date fields in JSON Resume (`work[].startDate`, `awards[].date`,
-`meta.lastModified`, …) use `$ref: "#/definitions/iso8601"` rather than
-`format: "date"`. The translator can't pick formats up from a `$ref` alone,
-so those fields stay as plain `str` in `resume-schema`. Switch to
-`resume-schema-strict` to validate them as dates, or build your own override
-list with `lens-put(lens(path), schema, date-string)`.
+Every date field in JSON Resume (`work[].startDate`, `awards[].date`,
+`certificates[].date`, …) uses `$ref: "#/definitions/iso8601"` rather than
+`format: "date"`. That definition is a string with a regex, so in
+`resume-schema` those fields are `pattern-string`s gated by upstream's regex
+(`YYYY`, `YYYY-MM` or `YYYY-MM-DD`, month and day in range).
+`meta.lastModified` has no regex upstream and stays plain `str`. Switch to
+`resume-schema-strict` to type them all as `date-string`, or build your own
+override list with `lens-put(lens(path), schema, date-string)`.
 
 Coercion is pass-through: format-checked values flow through to the model as
 plain strings, so renderers receive `model.basics.email == "name@example.com"`
@@ -386,7 +394,8 @@ pattern yourself if you need a full-string match — `^…$` is the common case.
 `parse` is strict against declared fields in the canonical schema: keys that
 aren't declared *and* aren't covered by an upstream `additionalProperties`
 clause are rejected. (Upstream JSON Resume sets `additionalProperties: true`
-on every section's items, so extras in those positions pass through —
+at the top level and on every section's items, so extras in those positions
+pass through —
 [Two schemas](#two-schemas) covers the strict variant that strips them.)
 
 Renderers that expect their own top-level fields in the resume document

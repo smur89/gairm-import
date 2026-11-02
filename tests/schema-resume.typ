@@ -7,13 +7,15 @@
 //    depend on (free-text vs identifier vs tag-array).
 
 #import "../internal/schema.typ": resume-schema
+#import "../lib.typ": str-type
 
 #assert.eq(resume-schema.kind, "object")
 
 // Property: every top-level entry except the `$schema` metadata link
-// is either an object (singleton section like `basics`/`meta`) or an
-// array of objects (every other section). If a future section is
-// added that violates this shape, this assertion surfaces it.
+// and the `objective` string is either an object (singleton section
+// like `basics`/`meta`) or an array of objects (every other section).
+// If a future section is added that violates this shape, this
+// assertion surfaces it.
 #for (key, sub-schema) in resume-schema.shape.pairs() {
   if key == "$schema" {
     // $schema is a URI in JSON Schema (carries the format: "uri" hint).
@@ -22,6 +24,8 @@
       "uri-string",
       message: "$schema must be uri-string; got " + sub-schema.kind,
     )
+  } else if key == "objective" {
+    assert.eq(sub-schema, str-type)
   } else {
     let kind = sub-schema.kind
     let ok = (
@@ -40,9 +44,10 @@
 // Property: every section is reachable from resume-schema.shape and
 // every element schema (whether the section is an object or an
 // array-of-object) has a non-empty shape. If a refactor accidentally
-// drops the shape of a section, this fails.
+// drops the shape of a section, this fails. `custom` is the one object
+// with no shape on purpose (a free-form bag).
 #for (key, sub-schema) in resume-schema.shape.pairs() {
-  if key == "$schema" { continue }
+  if key in ("$schema", "objective", "custom") { continue }
   let element-shape = if sub-schema.kind == "object" {
     sub-schema.shape
   } else {
@@ -72,9 +77,9 @@
 // is still pass-through (see coerce-primitives.typ); _validate adds a
 // regex gate for these kinds.
 // Format-specialised kinds come from upstream `format` keywords. The
-// canonical document annotates email + uri fields and one date field
-// (certificates.date); other date fields use a `$ref` to iso8601 whose
-// definition carries a `pattern`, so the translator now lands them as
+// canonical document annotates email + uri fields; every date field
+// uses a `$ref` to iso8601 whose definition carries a `pattern`, so
+// the translator lands them as
 // `pattern-string` (gated by the upstream regex) — the strict variant
 // tightens that to date-string.
 #assert.eq(resume-schema.shape.basics.shape.email.kind, "email-string")
@@ -86,7 +91,10 @@
 #assert.eq(resume-schema.shape.work.elem.shape.startDate.kind, "pattern-string")
 #assert.eq(resume-schema.shape.work.elem.shape.endDate.kind, "pattern-string")
 #assert.eq(resume-schema.shape.awards.elem.shape.date.kind, "pattern-string")
-#assert.eq(resume-schema.shape.certificates.elem.shape.date.kind, "date-string")
+#assert.eq(
+  resume-schema.shape.certificates.elem.shape.date.kind,
+  "pattern-string",
+)
 #assert.eq(
   resume-schema.shape.publications.elem.shape.releaseDate.kind,
   "pattern-string",

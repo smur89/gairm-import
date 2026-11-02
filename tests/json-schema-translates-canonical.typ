@@ -1,4 +1,4 @@
-// Integration: the canonical JSON Resume schema.json (v1.0.0)
+// Integration: the canonical JSON Resume schema.json (v1.7.0)
 // translates cleanly and the resulting Typst schema validates a real
 // resume document. Proves the translator handles every keyword the
 // canonical doc actually uses, not just synthetic fragments.
@@ -26,10 +26,12 @@
   "awards",
   "basics",
   "certificates",
+  "custom",
   "education",
   "interests",
   "languages",
   "meta",
+  "objective",
   "projects",
   "publications",
   "references",
@@ -41,8 +43,10 @@
 #assert.eq(canonical.shape.keys().sorted(), expected-keys)
 
 // Every section is either an object (basics, meta) or array-of-object.
+// `objective` is a top-level string and `custom` a free-form bag, not
+// sections.
 #for (key, sub) in canonical.shape.pairs() {
-  if key == "$schema" { continue }
+  if key in ("$schema", "objective", "custom") { continue }
   let ok = (
     sub.kind == "object" or (sub.kind == "array" and sub.elem.kind == "object")
   )
