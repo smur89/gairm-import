@@ -53,7 +53,9 @@ upstream document is the source of truth. To pull a newer upstream version:
    [`@jsonresume/schema`](https://www.npmjs.com/package/@jsonresume/schema)
    npm package (source: `packages/schema` in
    [jsonresume/jsonresume.org](https://github.com/jsonresume/jsonresume.org);
-   the old `jsonresume/resume-schema` repo is archived at v1.2.1). Refresh
+   the old `jsonresume/resume-schema` repo is archived at v1.2.1). The
+   [changelog](https://github.com/jsonresume/jsonresume.org/blob/master/packages/schema/CHANGELOG.md)
+   lists what each version adds. Refresh
    `tests/fixtures/jsonresume-sample.json` from the same package's
    `sample.resume.json`.
 2. Run `make test`. The translator handles the draft-04/-07 subset that the

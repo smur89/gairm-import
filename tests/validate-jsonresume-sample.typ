@@ -17,50 +17,41 @@
 #let strict-errors = validate(sample, schema: resume-schema-strict)
 #assert.eq(strict-errors.map(e => e.path), (("meta", "lastModified"),))
 
-// The new free-form `custom` bag stays open in strict, while unknown
-// keys elsewhere are still rejected.
+// 1.7.0 additions strict accepts: the free-form `custom` bag (top level
+// and per section), `work[].keywords`, and `location` as a string or the
+// structured object.
 #let base = (basics: (name: "Jane Doe"))
+#for doc in (
+  base + (custom: (myTool: (theme: "dark"))),
+  base + (work: ((name: "Acme", custom: (myTool: 1)),)),
+  base + (work: ((name: "Acme", keywords: ("Scala",)),)),
+  base
+    + (
+      work: (
+        (name: "A", location: "Dublin"),
+        (name: "B", location: (city: "Dublin", countryCode: "IE")),
+      ),
+    ),
+) {
+  assert.eq(validate(doc, schema: resume-schema-strict), ())
+}
+
+// `work[].keywords` is spec, so the faithful schema takes it too.
 #assert.eq(
   validate(
-    base + (custom: (myTool: (theme: "dark"))),
-    schema: resume-schema-strict,
+    base + (work: ((name: "Acme", keywords: ("Scala",)),)),
+    schema: resume-schema,
   ),
   (),
 )
-#assert.eq(
-  validate(
-    base + (work: ((name: "Acme", custom: (myTool: 1)),)),
-    schema: resume-schema-strict,
-  ),
-  (),
-)
+
+// Unknown keys outside `custom` are still rejected.
 #assert.eq(
   validate(
     base + (work: ((name: "Acme", nope: 1),)),
     schema: resume-schema-strict,
   ).map(e => e.path),
   (("work", 0, "nope"),),
-)
-
-// `work[].keywords` is spec now, in both schemas.
-#let with-keywords = base + (work: ((name: "Acme", keywords: ("Scala",)),))
-#assert.eq(validate(with-keywords, schema: resume-schema), ())
-#assert.eq(validate(with-keywords, schema: resume-schema-strict), ())
-
-// `location` on work / volunteer / education takes a string or the
-// structured object.
-#assert.eq(
-  validate(
-    base
-      + (
-        work: (
-          (name: "A", location: "Dublin"),
-          (name: "B", location: (city: "Dublin", countryCode: "IE")),
-        ),
-      ),
-    schema: resume-schema-strict,
-  ),
-  (),
 )
 
 // The upstream iso8601 pattern now rejects month 13 even in the
