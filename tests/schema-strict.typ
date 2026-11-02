@@ -6,7 +6,7 @@
 
 #import "../lib.typ": (
   resume-schema, resume-schema-strict, str-type, content-type, date-string,
-  uri-string, email-string,
+  datetime-string, any-of, uri-string, email-string,
 )
 
 // _content-paths: free-text fields wrapped to content-type.
@@ -81,7 +81,10 @@
   date-string,
 )
 #assert.eq(resume-schema-strict.shape.projects.elem.shape.endDate, date-string)
-#assert.eq(resume-schema-strict.shape.meta.shape.lastModified, date-string)
+#assert.eq(
+  resume-schema-strict.shape.meta.shape.lastModified,
+  any-of((datetime-string, date-string)),
+)
 
 // Translator-emitted format kinds carry over from the faithful base.
 // Pinning every upstream-format-annotated path so a future schema

@@ -8,7 +8,8 @@
 // Only the kinds this module itself uses — the full combinator surface
 // is re-exported to callers by lib.typ directly from kinds.typ.
 #import "kinds.typ": (
-  str-type, content-type, date-string, pattern-string, object, _is-free-form,
+  str-type, content-type, date-string, datetime-string, pattern-string, object,
+  any-of, _is-free-form,
 )
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
@@ -58,10 +59,13 @@
 
 // `meta.lastModified` carries only a description in upstream — no
 // machine-readable pattern — so it lands as plain `str-type` in the
-// faithful schema. Strict still lifts it to date-string.
+// faithful schema. Upstream describes it as `YYYY-MM-DDThh:mm:ss`, so
+// strict accepts that datetime, and still a bare date for documents
+// that only record the day.
 #let _plain-date-paths = (
   ("meta", "lastModified"),
 )
+#let _last-modified-kind = any-of((datetime-string, date-string))
 
 // Source shape the translator emits for iso8601 $ref fields. The
 // pattern is hand-mirrored from upstream's `definitions/iso8601` so a
@@ -162,7 +166,7 @@
     with-iso,
     _plain-date-paths,
     str-type,
-    date-string,
+    _last-modified-kind,
     "_plain-date-paths",
   )
 }
