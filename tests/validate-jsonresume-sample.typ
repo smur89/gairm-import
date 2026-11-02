@@ -21,10 +21,11 @@
 // and per section), `work[].keywords`, and `location` as a string or the
 // structured object.
 #let base = (basics: (name: "Jane Doe"))
+#let with-keywords = base + (work: ((name: "Acme", keywords: ("Scala",)),))
 #for doc in (
   base + (custom: (myTool: (theme: "dark"))),
   base + (work: ((name: "Acme", custom: (myTool: 1)),)),
-  base + (work: ((name: "Acme", keywords: ("Scala",)),)),
+  with-keywords,
   base
     + (
       work: (
@@ -37,13 +38,7 @@
 }
 
 // `work[].keywords` is spec, so the faithful schema takes it too.
-#assert.eq(
-  validate(
-    base + (work: ((name: "Acme", keywords: ("Scala",)),)),
-    schema: resume-schema,
-  ),
-  (),
-)
+#assert.eq(validate(with-keywords, schema: resume-schema), ())
 
 // Unknown keys outside `custom` are still rejected.
 #assert.eq(
