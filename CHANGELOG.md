@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/smur89/gairm-import/compare/v0.9.0...v0.10.0) (2026-11-02)
+
+
+### Features
+
+* update vendored JSON Resume schema to 1.7.0 ([#127](https://github.com/smur89/gairm-import/issues/127)) ([18e91d7](https://github.com/smur89/gairm-import/commit/18e91d74cf440190d80dd92e3f4c774fb9633aaa))
+
+
+### Bug Fixes
+
+* accept the spec datetime for strict meta.lastModified ([#128](https://github.com/smur89/gairm-import/issues/128)) ([7af57a5](https://github.com/smur89/gairm-import/commit/7af57a56910b800083f77fe5859e2171d70dadee))
+
 ## [0.9.0](https://github.com/smur89/gairm-import/compare/v0.8.1...v0.9.0) (2026-07-12)
 
 
