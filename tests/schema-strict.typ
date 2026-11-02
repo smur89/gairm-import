@@ -10,6 +10,7 @@
 )
 
 // _content-paths: free-text fields wrapped to content-type.
+#assert.eq(resume-schema-strict.shape.objective, content-type)
 #assert.eq(resume-schema-strict.shape.basics.shape.summary, content-type)
 #assert.eq(resume-schema-strict.shape.work.elem.shape.summary, content-type)
 #assert.eq(
@@ -24,13 +25,25 @@
   resume-schema-strict.shape.volunteer.elem.shape.highlights.elem,
   content-type,
 )
+#assert.eq(
+  resume-schema-strict.shape.education.elem.shape.summary,
+  content-type,
+)
 #assert.eq(resume-schema-strict.shape.awards.elem.shape.summary, content-type)
+#assert.eq(
+  resume-schema-strict.shape.certificates.elem.shape.summary,
+  content-type,
+)
 #assert.eq(
   resume-schema-strict.shape.publications.elem.shape.summary,
   content-type,
 )
 #assert.eq(
   resume-schema-strict.shape.references.elem.shape.reference,
+  content-type,
+)
+#assert.eq(
+  resume-schema-strict.shape.projects.elem.shape.summary,
   content-type,
 )
 #assert.eq(
@@ -84,6 +97,11 @@
 #assert.eq(resume-schema-strict.shape.projects.elem.shape.url, uri-string)
 #assert.eq(resume-schema-strict.shape.meta.shape.canonical, uri-string)
 #assert.eq(resume-schema-strict.shape.certificates.elem.shape.date, date-string)
+#assert.eq(
+  resume-schema-strict.shape.certificates.elem.shape.expiryDate,
+  date-string,
+)
+#assert.eq(resume-schema-strict.shape.references.elem.shape.date, date-string)
 
 // Faithfulness: the strict overlay must NOT mutate the default
 // resume-schema. Free-text fields stay as plain str in the faithful
@@ -102,6 +120,10 @@
 #assert("additional" not in resume-schema-strict.shape.languages.elem)
 #assert("additional" not in resume-schema-strict.shape.skills.elem)
 #assert("additional" not in resume-schema-strict.shape.basics)
+// Except `custom`: it declares no fields, so it is a free-form bag and
+// stays open in strict, at the top level and in every section.
+#assert.eq(resume-schema-strict.shape.custom.additional, true)
+#assert.eq(resume-schema-strict.shape.work.elem.shape.custom.additional, true)
 // And the faithful base still carries them — that's the trade-off
 // the strict variant exists to fix.
 #assert.eq(resume-schema.shape.languages.elem.additional, true)

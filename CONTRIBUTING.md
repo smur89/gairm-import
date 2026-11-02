@@ -31,7 +31,7 @@ Resume shape should be added by downstream callers via an extension schema
 lib.typ                              # public entry — `parse`, `validate`, `coerce`, combinators, lenses
 internal/kinds.typ                   # schema-kind primitives (str-type, content-type, object, array-of, …)
 internal/schema.typ                  # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
-internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.0.0
+internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.7.0
 internal/validate.typ                # validation engine (path-typed errors)
 internal/coerce.typ                  # coercion engine (content wrapping, null absorption)
 internal/json-schema.typ             # JSON Schema → Typst-schema translator
@@ -48,8 +48,14 @@ tests/                               # fixtures — CI compiles each as a regres
 `internal/assets/jsonresume-schema.json` at module-load time, so the
 upstream document is the source of truth. To pull a newer upstream version:
 
-1. Replace `internal/assets/jsonresume-schema.json` with the chosen tag from
-   [jsonresume/resume-schema](https://github.com/jsonresume/resume-schema).
+1. Replace `internal/assets/jsonresume-schema.json` with `schema.json` from
+   the chosen version of the
+   [`@jsonresume/schema`](https://www.npmjs.com/package/@jsonresume/schema)
+   npm package (source: `packages/schema` in
+   [jsonresume/jsonresume.org](https://github.com/jsonresume/jsonresume.org);
+   the old `jsonresume/resume-schema` repo is archived at v1.2.1). Refresh
+   `tests/fixtures/jsonresume-sample.json` from the same package's
+   `sample.resume.json`.
 2. Run `make test`. The translator handles the draft-04/-07 subset that the
    canonical document uses; unsupported constructs (`if`/`then`/`else`,
    `dependencies`, string formats beyond uri/email/date/date-time, fully

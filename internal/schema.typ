@@ -16,22 +16,26 @@
 // Free-text fields wrapped as Typst `content` in the strict variant.
 // Renderer ergonomics, not validation.
 #let _content-paths = (
+  ("objective",),
   ("basics", "summary"),
   ("work", "items", "summary"),
   ("work", "items", "highlights", "items"),
   ("volunteer", "items", "summary"),
   ("volunteer", "items", "highlights", "items"),
+  ("education", "items", "summary"),
   ("awards", "items", "summary"),
+  ("certificates", "items", "summary"),
   ("publications", "items", "summary"),
   ("references", "items", "reference"),
+  ("projects", "items", "summary"),
   ("projects", "items", "description"),
   ("projects", "items", "highlights", "items"),
 )
 
 // iso8601 `$ref` fields. The upstream definition is a string with a
 // `pattern`, so the translator emits the iso8601 pattern-string for
-// these — the strict variant tightens that to date-string (rejects
-// month 00 / 13+, day 00 / 32+).
+// these — the strict variant retypes them as date-string, so callers
+// and `paths-of-kind` see them as dates.
 #let _iso8601-date-paths = (
   ("work", "items", "startDate"),
   ("work", "items", "endDate"),
@@ -40,7 +44,10 @@
   ("education", "items", "startDate"),
   ("education", "items", "endDate"),
   ("awards", "items", "date"),
+  ("certificates", "items", "date"),
+  ("certificates", "items", "expiryDate"),
   ("publications", "items", "releaseDate"),
+  ("references", "items", "date"),
   ("projects", "items", "startDate"),
   ("projects", "items", "endDate"),
 )
@@ -56,7 +63,7 @@
 // pattern is hand-mirrored from upstream's `definitions/iso8601` so a
 // schema bump that retires or alters it surfaces as an override-fold
 // guard panic at load time, not as silent semantic drift.
-#let _iso8601-pattern = "^([1-2][0-9]{3}-[0-1][0-9]-[0-3][0-9]|[1-2][0-9]{3}-[0-1][0-9]|[1-2][0-9]{3})$"
+#let _iso8601-pattern = "^([1-2][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[1-2][0-9]{3}-(0[1-9]|1[0-2])|[1-2][0-9]{3})$"
 #let _iso8601-source = pattern-string(
   _iso8601-pattern,
   expected: "matching " + repr(_iso8601-pattern),
@@ -90,6 +97,10 @@
 // extras (`additional: <schema>`) are kept and recursed into; only
 // the unchecked-pass-through form is removed. Used by the strict
 // variant to restore the "rejected unknown keys" promise.
+//
+// An object that declares no fields at all is a free-form bag
+// (upstream's `custom`), not a section with extras tacked on, so it
+// keeps `additional: true` — stripping it would accept only `{}`.
 #let _strip-permissive-additional(schema) = {
   if schema.kind == "object" {
     let new-shape = (:)
@@ -99,6 +110,8 @@
     let ap = schema.at("additional", default: none)
     let new-additional = if type(ap) == dictionary {
       _strip-permissive-additional(ap)
+    } else if ap == true and schema.shape.len() == 0 {
+      true
     } else {
       none
     }

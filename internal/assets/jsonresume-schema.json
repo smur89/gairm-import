@@ -1,11 +1,43 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/jsonresume/jsonresume.org/master/packages/schema/schema.json",
+  "additionalProperties": true,
   "definitions": {
     "iso8601": {
       "type": "string",
-      "description": "e.g. 2014-06-29",
-      "pattern": "^([1-2][0-9]{3}-[0-1][0-9]-[0-3][0-9]|[1-2][0-9]{3}-[0-1][0-9]|[1-2][0-9]{3})$"
+      "description": "Similar to the standard date type, but each section after the year is optional. e.g. 2014-06-29 or 2023-04. Every date is optional; omit endDate for a current position or ongoing entry (#309).",
+      "pattern": "^([1-2][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[1-2][0-9]{3}-(0[1-9]|1[0-2])|[1-2][0-9]{3})$"
+    },
+    "custom": {
+      "type": "object",
+      "description": "Tool- or author-specific data that has no standard field yet (#316). Keys are free-form; namespace them by tool (e.g. \"myTool\": { ... }) to avoid collisions. Themes are not expected to render it, and tools should preserve it unchanged when reading and writing resumes.",
+      "additionalProperties": true
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "To add multiple address lines, use \n. For example, 1234 Glücklichkeit Straße\nHinterhaus 5. Etage li."
+        },
+        "postalCode": {
+          "type": "string",
+          "description": "e.g. 12345"
+        },
+        "city": {
+          "type": "string",
+          "description": "e.g. Teststadt"
+        },
+        "countryCode": {
+          "type": "string",
+          "description": "code as per ISO-3166-1 ALPHA-2, e.g. US, AU, IN"
+        },
+        "region": {
+          "type": "string",
+          "description": "The general region where you live. Can be a US state, or a province, for instance."
+        }
+      }
     }
   },
   "properties": {
@@ -24,6 +56,10 @@
         "label": {
           "type": "string",
           "description": "e.g. Web Developer"
+        },
+        "pronouns": {
+          "type": "string",
+          "description": "e.g. she/her, they/them (#312)"
         },
         "image": {
           "type": "string",
@@ -48,33 +84,11 @@
           "description": "Write a short 2-3 sentence biography about yourself"
         },
         "location": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "address": {
-              "type": "string",
-              "description": "To add multiple address lines, use \n. For example, 1234 Glücklichkeit Straße\nHinterhaus 5. Etage li."
-            },
-            "postalCode": {
-              "type": "string"
-            },
-            "city": {
-              "type": "string"
-            },
-            "countryCode": {
-              "type": "string",
-              "description": "code as per ISO-3166-1 ALPHA-2, e.g. US, AU, IN"
-            },
-            "region": {
-              "type": "string",
-              "description": "The general region where you live. Can be a US state, or a province, for instance."
-            }
-          }
+          "$ref": "#/definitions/location"
         },
         "profiles": {
           "type": "array",
           "description": "Specify any number of social networks that you participate in",
-          "additionalItems": false,
           "items": {
             "type": "object",
             "additionalProperties": true,
@@ -94,12 +108,18 @@
               }
             }
           }
+        },
+        "custom": {
+          "$ref": "#/definitions/custom"
         }
       }
     },
+    "objective": {
+      "type": "string",
+      "description": "Forward-looking career goal, e.g. 'Seeking a senior backend role in climate tech'. Distinct from basics.summary, which describes background (#317)"
+    },
     "work": {
       "type": "array",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -109,8 +129,15 @@
             "description": "e.g. Facebook"
           },
           "location": {
-            "type": "string",
-            "description": "e.g. Menlo Park, CA"
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Free text, e.g. Menlo Park, CA"
+              },
+              {
+                "$ref": "#/definitions/location"
+              }
+            ]
           },
           "description": {
             "type": "string",
@@ -138,18 +165,27 @@
           "highlights": {
             "type": "array",
             "description": "Specify multiple accomplishments",
-            "additionalItems": false,
             "items": {
               "type": "string",
               "description": "e.g. Increased profits by 20% from 2011-2012 through viral advertising"
             }
+          },
+          "keywords": {
+            "type": "array",
+            "description": "Skills, tools or technologies used in this role (#293)",
+            "items": {
+              "type": "string",
+              "description": "e.g. React"
+            }
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
     },
     "volunteer": {
       "type": "array",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -157,6 +193,17 @@
           "organization": {
             "type": "string",
             "description": "e.g. Facebook"
+          },
+          "location": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Free text, e.g. Berlin, DE"
+              },
+              {
+                "$ref": "#/definitions/location"
+              }
+            ]
           },
           "position": {
             "type": "string",
@@ -180,18 +227,19 @@
           "highlights": {
             "type": "array",
             "description": "Specify accomplishments and achievements",
-            "additionalItems": false,
             "items": {
               "type": "string",
               "description": "e.g. Increased profits by 20% from 2011-2012 through viral advertising"
             }
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
     },
     "education": {
       "type": "array",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -199,6 +247,17 @@
           "institution": {
             "type": "string",
             "description": "e.g. Massachusetts Institute of Technology"
+          },
+          "location": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Free text, e.g. Cambridge, MA"
+              },
+              {
+                "$ref": "#/definitions/location"
+              }
+            ]
           },
           "url": {
             "type": "string",
@@ -226,11 +285,17 @@
           "courses": {
             "type": "array",
             "description": "List notable courses/subjects",
-            "additionalItems": false,
             "items": {
               "type": "string",
               "description": "e.g. H1302 - Introduction to American history"
             }
+          },
+          "summary": {
+            "type": "string",
+            "description": "Thesis topic, honours, notable projects or other context (#292)"
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
@@ -238,7 +303,6 @@
     "awards": {
       "type": "array",
       "description": "Specify any awards you have received throughout your professional career",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -257,6 +321,9 @@
           "summary": {
             "type": "string",
             "description": "e.g. Received for my work with Quantum Physics"
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
@@ -264,7 +331,6 @@
     "certificates": {
       "type": "array",
       "description": "Specify any certificates you have received throughout your professional career",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -274,18 +340,30 @@
             "description": "e.g. Certified Kubernetes Administrator"
           },
           "date": {
-            "type": "string",
-            "description": "e.g. 1989-06-12",
-            "format": "date"
+            "$ref": "#/definitions/iso8601"
           },
           "url": {
             "type": "string",
             "description": "e.g. http://example.com",
             "format": "uri"
           },
+          "credentialId": {
+            "type": "string",
+            "description": "Credential or licence number used to verify the certificate, e.g. a licence number or a certification ID (#590)"
+          },
           "issuer": {
             "type": "string",
             "description": "e.g. CNCF"
+          },
+          "expiryDate": {
+            "$ref": "#/definitions/iso8601"
+          },
+          "summary": {
+            "type": "string",
+            "description": "What the certificate covers (#590)"
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
@@ -293,7 +371,6 @@
     "publications": {
       "type": "array",
       "description": "Specify your publications through your career",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -302,12 +379,52 @@
             "type": "string",
             "description": "e.g. The World Wide Web"
           },
+          "authors": {
+            "type": "array",
+            "description": "Authors in published order, including the resume owner. e.g. ['Richard Hendriks', 'Bertram Gilfoyle']",
+            "items": {
+              "type": "string"
+            }
+          },
           "publisher": {
             "type": "string",
-            "description": "e.g. IEEE, Computer Magazine"
+            "description": "e.g. IEEE, Computer Magazine. For talks, the event name"
           },
           "releaseDate": {
             "$ref": "#/definitions/iso8601"
+          },
+          "volume": {
+            "type": "string",
+            "description": "e.g. 12"
+          },
+          "issue": {
+            "type": "string",
+            "description": "e.g. 3"
+          },
+          "pages": {
+            "type": "string",
+            "description": "e.g. 45-67"
+          },
+          "identifiers": {
+            "type": "object",
+            "description": "Persistent identifiers keyed by scheme, e.g. doi, isbn, arxiv, pmid",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "properties": {
+              "doi": {
+                "type": "string",
+                "description": "e.g. 10.1000/182"
+              },
+              "isbn": {
+                "type": "string",
+                "description": "e.g. 978-3-7502-4718-5"
+              },
+              "arxiv": {
+                "type": "string",
+                "description": "e.g. 2101.00001"
+              }
+            }
           },
           "url": {
             "type": "string",
@@ -317,6 +434,13 @@
           "summary": {
             "type": "string",
             "description": "Short summary of publication. e.g. Discussion of the World Wide Web, HTTP, HTML."
+          },
+          "type": {
+            "type": "string",
+            "description": "e.g. 'article', 'book', 'patent', 'thesis', 'talk' (#295)"
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
@@ -324,7 +448,6 @@
     "skills": {
       "type": "array",
       "description": "List out your professional skill-set",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -340,11 +463,13 @@
           "keywords": {
             "type": "array",
             "description": "List some keywords pertaining to this skill",
-            "additionalItems": false,
             "items": {
               "type": "string",
               "description": "e.g. HTML"
             }
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
@@ -352,7 +477,6 @@
     "languages": {
       "type": "array",
       "description": "List any other languages you speak",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -364,13 +488,15 @@
           "fluency": {
             "type": "string",
             "description": "e.g. Fluent, Beginner"
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
     },
     "interests": {
       "type": "array",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -381,11 +507,13 @@
           },
           "keywords": {
             "type": "array",
-            "additionalItems": false,
             "items": {
               "type": "string",
               "description": "e.g. Friedrich Nietzsche"
             }
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
@@ -393,7 +521,6 @@
     "references": {
       "type": "array",
       "description": "List references you have received",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -405,6 +532,24 @@
           "reference": {
             "type": "string",
             "description": "e.g. Joe blogs was a great employee, who turned up to work at least once a week. He exceeded my expectations when it came to doing nothing."
+          },
+          "relationship": {
+            "type": "string",
+            "description": "How the referee knows you. e.g. Manager, Peer, Client, Thesis advisor"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Where you worked together. e.g. Pied Piper"
+          },
+          "date": {
+            "$ref": "#/definitions/iso8601"
+          },
+          "availableOnRequest": {
+            "type": "boolean",
+            "description": "Show 'available on request' rather than publishing the reference. Contact details are deliberately not part of the schema"
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
@@ -412,7 +557,6 @@
     "projects": {
       "type": "array",
       "description": "Specify career projects",
-      "additionalItems": false,
       "items": {
         "type": "object",
         "additionalProperties": true,
@@ -421,14 +565,17 @@
             "type": "string",
             "description": "e.g. The World Wide Web"
           },
+          "summary": {
+            "type": "string",
+            "description": "Short summary of the project, consistent with summary in other sections (#296). e.g. Collated works of 2017."
+          },
           "description": {
             "type": "string",
-            "description": "Short summary of project. e.g. Collated works of 2017."
+            "description": "Deprecated alias of summary, kept for compatibility; when both are set, summary wins (#296). e.g. Collated works of 2017."
           },
           "highlights": {
             "type": "array",
             "description": "Specify multiple features",
-            "additionalItems": false,
             "items": {
               "type": "string",
               "description": "e.g. Directs you close but not quite there"
@@ -437,7 +584,6 @@
           "keywords": {
             "type": "array",
             "description": "Specify special elements involved",
-            "additionalItems": false,
             "items": {
               "type": "string",
               "description": "e.g. AngularJS"
@@ -457,7 +603,6 @@
           "roles": {
             "type": "array",
             "description": "Specify your role on this project or in company",
-            "additionalItems": false,
             "items": {
               "type": "string",
               "description": "e.g. Team Lead, Speaker, Writer"
@@ -470,6 +615,9 @@
           "type": {
             "type": "string",
             "description": " e.g. 'volunteering', 'presentation', 'talk', 'application', 'conference'"
+          },
+          "custom": {
+            "$ref": "#/definitions/custom"
           }
         }
       }
@@ -493,6 +641,9 @@
           "description": "Using ISO 8601 with YYYY-MM-DDThh:mm:ss"
         }
       }
+    },
+    "custom": {
+      "$ref": "#/definitions/custom"
     }
   },
   "title": "Resume Schema",
