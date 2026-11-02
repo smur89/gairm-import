@@ -7,7 +7,9 @@
 
 // Only the kinds this module itself uses — the full combinator surface
 // is re-exported to callers by lib.typ directly from kinds.typ.
-#import "kinds.typ": str-type, content-type, date-string, pattern-string, object
+#import "kinds.typ": (
+  str-type, content-type, date-string, pattern-string, object, _is-free-form,
+)
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
 
@@ -100,11 +102,12 @@
 // the unchecked-pass-through form is removed. Used by the strict
 // variant to restore the "rejected unknown keys" promise.
 //
-// An object that declares no fields at all is a free-form bag
-// (upstream's `custom`), not a section with extras tacked on, so it
-// keeps `additional: true` — stripping it would accept only `{}`.
+// A free-form bag (`_is-free-form`, upstream's `custom`) keeps its
+// `additional: true` — stripping it would accept only `{}`.
 #let _strip-permissive-additional(schema) = {
-  if schema.kind == "object" {
+  if _is-free-form(schema) {
+    schema
+  } else if schema.kind == "object" {
     let new-shape = (:)
     for (k, v) in schema.shape.pairs() {
       new-shape.insert(k, _strip-permissive-additional(v))
@@ -112,8 +115,6 @@
     let ap = schema.at("additional", default: none)
     let new-additional = if type(ap) == dictionary {
       _strip-permissive-additional(ap)
-    } else if ap == true and schema.shape.len() == 0 {
-      true
     } else {
       none
     }

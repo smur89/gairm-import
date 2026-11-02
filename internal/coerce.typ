@@ -20,7 +20,7 @@
 // collapse never surprises a direct user of the engine.
 
 #import "errors.typ": _type-name-of
-#import "kinds.typ": _format-string-kinds
+#import "kinds.typ": _format-string-kinds, _is-free-form
 // Union coercion must pick a member, and Typst has no try/catch to
 // probe with — so coerce leans on the validator's verdict. Acyclic:
 // validate.typ does not import coerce.
@@ -82,6 +82,9 @@
   }
   if kind == "object" {
     assert(type(value) == dictionary, message: _expect("an object", value))
+    // Opaque, like an `additional: true` extra: no null or empty-object
+    // cleanup, so `custom: (a: none)` and `custom: (:)` survive as given.
+    if _is-free-form(schema) { return value }
     let additional = schema.at("additional", default: none)
     let coerced = value
       .pairs()
