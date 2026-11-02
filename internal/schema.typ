@@ -62,7 +62,7 @@
 // faithful schema. Upstream describes it as `YYYY-MM-DDThh:mm:ss`, so
 // strict accepts that datetime, and still a bare date for documents
 // that only record the day.
-#let _plain-date-paths = (
+#let _last-modified-paths = (
   ("meta", "lastModified"),
 )
 #let _last-modified-kind = any-of((datetime-string, date-string))
@@ -164,9 +164,9 @@
   )
   _override-fold(
     with-iso,
-    _plain-date-paths,
+    _last-modified-paths,
     str-type,
     _last-modified-kind,
-    "_plain-date-paths",
+    "_last-modified-paths",
   )
 }

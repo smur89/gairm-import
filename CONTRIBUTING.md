@@ -65,13 +65,13 @@ upstream document is the source of truth. To pull a newer upstream version:
    `$ref`, `allOf` with non-object members) panic with an "unsupported"
    message. If a panic surfaces, extend `internal/json-schema.typ` rather
    than silently dropping the constraint.
-3. Audit `_content-paths`, `_iso8601-date-paths`, and `_plain-date-paths` in
+3. Audit `_content-paths`, `_iso8601-date-paths`, and `_last-modified-paths` in
    `internal/schema.typ` against the bumped document. These lists are the
    opt-in `resume-schema-strict` variant's opinions — `_content-paths` lifts
    free-text `string` fields to Typst `content` for inline rendering;
    `_iso8601-date-paths` lifts iso8601 `$ref` fields (which the translator
-   surfaces as pattern-strings) and `_plain-date-paths` lifts plain-string
-   date fields (`meta.lastModified`) to `date-string` for regex validation.
+   surfaces as pattern-strings) to `date-string`, and `_last-modified-paths`
+   lifts the plain-string `meta.lastModified` to a datetime-or-date union.
    If a new free-text or iso8601-referenced field lands in the upstream
    document, add its path here. The drift guard in `_override-fold` will
    panic at module-load if an existing path's source kind changes, so you'll
