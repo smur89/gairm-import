@@ -216,7 +216,7 @@ Pass the model into any compatible renderer — e.g. [`altacv`](https://typst.ap
 <!-- Two fences (not one): a single fence would let release-please rewrite this altacv pin on every gairm release. Bump it by hand when altacv publishes a new version. See https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
 
 ```typst
-#import "@preview/altacv:1.6.0": alta
+#import "@preview/altacv:1.7.0": alta
 ```
 
 <!-- x-release-please-start-version -->
