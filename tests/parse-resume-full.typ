@@ -8,14 +8,10 @@
 //    content (Typst inline-renderable) and iso8601 `$ref` fields are
 //    regex-gated as ISO-8601 dates.
 //
-// The fixture's `meta.lastModified` is encoded as a date-only string
-// (`2026-06-15`) rather than the JSON-Resume-described
-// `YYYY-MM-DDThh:mm:ss` datetime — the strict schema's date-string
-// regex is date-only by design (see internal/validate.typ comment on
-// _format-specs), so reverting to a datetime would break the strict
-// validate() call below and the test would fail loudly. That's the
-// signal: if the regex ever grows to accept datetimes, update both
-// the fixture and this comment.
+// The fixture's `meta.lastModified` is a bare date (`2026-06-15`);
+// strict accepts that as well as the upstream-described
+// `YYYY-MM-DDThh:mm:ss` datetime, which validate-jsonresume-sample.typ
+// covers.
 
 #import "../lib.typ": validate, parse, resume-schema-strict
 
@@ -87,9 +83,6 @@
   assert.eq(type(model.meta.lastModified), str)
 }
 
-// Pin the fixture's lastModified encoding so the workaround is
-// visible. If this assertion ever fails, either the fixture has been
-// reverted to a datetime (revert that), or the date-string regex
-// grew to accept datetimes (in which case update both this assertion
-// and the file-header comment above).
+// Pin the fixture's bare-date encoding, so this file keeps covering the
+// date branch of strict's `meta.lastModified`.
 #assert.eq(faithful.meta.lastModified, "2026-06-15")

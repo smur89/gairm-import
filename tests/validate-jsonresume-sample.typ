@@ -9,13 +9,23 @@
 #let sample = json("fixtures/jsonresume-sample.json")
 
 #assert.eq(validate(sample, schema: resume-schema), ())
+#assert.eq(validate(sample, schema: resume-schema-strict), ())
 
-// Strict's one known gap: `meta.lastModified` is lifted to the
-// date-only `date-string`, but upstream describes (and the sample
-// uses) `YYYY-MM-DDThh:mm:ss`. If strict ever accepts datetimes here,
-// this pin fails — drop it then.
-#let strict-errors = validate(sample, schema: resume-schema-strict)
-#assert.eq(strict-errors.map(e => e.path), (("meta", "lastModified"),))
+// Strict `meta.lastModified` takes upstream's `YYYY-MM-DDThh:mm:ss`
+// (which the sample uses) or a bare date, and nothing else.
+#let with-modified(value) = (
+  basics: (name: "Jane Doe"),
+  meta: (lastModified: value),
+)
+#for ok in ("2026-10-22T14:30:00", "2026-10-22T14:30:00Z", "2026-10-22") {
+  assert.eq(validate(with-modified(ok), schema: resume-schema-strict), ())
+}
+#for bad in ("2026-10-22 14:30", "yesterday") {
+  assert.eq(
+    validate(with-modified(bad), schema: resume-schema-strict).map(e => e.path),
+    (("meta", "lastModified"),),
+  )
+}
 
 // 1.7.0 additions strict accepts: the free-form `custom` bag (top level
 // and per section), `work[].keywords`, and `location` as a string or the

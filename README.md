@@ -354,8 +354,10 @@ Every date field in JSON Resume (`work[].startDate`, `awards[].date`,
 `resume-schema` those fields are `pattern-string`s gated by upstream's regex
 (`YYYY`, `YYYY-MM` or `YYYY-MM-DD`, month and day in range).
 `meta.lastModified` has no regex upstream and stays plain `str`. Switch to
-`resume-schema-strict` to type them all as `date-string`, or build your own
-override list with `lens-put(lens(path), schema, date-string)`.
+`resume-schema-strict` to type them all as `date-string` (and
+`meta.lastModified` as the upstream-described `YYYY-MM-DDThh:mm:ss`
+`datetime-string`, or a bare `date-string`), or build your own override list
+with `lens-put(lens(path), schema, date-string)`.
 
 Coercion is pass-through: format-checked values flow through to the model as
 plain strings, so renderers receive `model.basics.email == "name@example.com"`
