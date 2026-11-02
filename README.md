@@ -92,7 +92,7 @@ A minimal `resume.json`:
 ```
 
 The bundled schema is JSON Resume **1.7.0** (see the upstream
-[changelog](https://github.com/jsonresume/jsonresume.org/blob/master/packages/schema/CHANGELOG.md)
+[changelog](https://github.com/jsonresume/jsonresume.org/blob/8576b3899489185193613b238bf3092efd005b45/packages/schema/CHANGELOG.md)
 for what each version adds). It covers thirteen sections: `basics`, `work`,
 `volunteer`, `education`, `awards`, `certificates`, `publications`, `skills`,
 `languages`, `interests`, `references`, `projects`, `meta`. The top-level
@@ -278,7 +278,9 @@ dropped from the coerced model. Null elements inside arrays are dropped the
 same way. This matches the convention used by most JSON Resume emitters,
 where `"summary": null` is semantically equivalent to omitting the key.
 Unknown keys are still flagged even when their value is `null`, so typos do
-not slip through silently.
+not slip through silently. The one exception is a free-form object with no
+declared fields (JSON Resume's `custom`): it is passed through exactly as
+given, nulls and all, as upstream asks tools to do.
 
 Root null is rejected: if the entire input document is `null`, `validate`,
 `coerce`, and `parse` panic with
