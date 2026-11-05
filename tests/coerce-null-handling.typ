@@ -145,6 +145,29 @@
 #let distinct = ((x: "a", y: (:)), (x: "a"))
 #assert.eq(validate((us: distinct), schema: object((us: unique))), ())
 #assert.eq(_coerce(unique, distinct), distinct)
+// Uniqueness compares items with nulls removed, as coerce will see
+// them: these differ only by a null key, so they are duplicates.
+#let null-dupes = ((x: "a", y: none), (x: "a"))
+#assert.eq(_coerce(unique, null-dupes), ((x: "a"), (x: "a")))
+#let dupe-errs = validate((us: null-dupes), schema: object((us: unique)))
+#assert.eq(dupe-errs.len(), 1)
+#assert(dupe-errs.at(0).message.contains("indices 0 and 1"))
+// Nested too: a null inside a nested object is stripped before comparing.
+#let unique-nested = (
+  ..array-of(object((y: object((z: str-type))))),
+  unique-items: true,
+)
+#assert.eq(
+  validate(((y: (z: none)), (y: (:))), schema: unique-nested).len(),
+  1,
+)
+#assert.eq(
+  validate(
+    (us: ((x: "a", y: none), (x: "b"))),
+    schema: object((us: unique)),
+  ),
+  (),
+)
 
 // And a single live leaf anywhere keeps the chain intact.
 #let one-leaf = coerce(

@@ -99,6 +99,22 @@
   errs
 }
 
+// A value as coerce's null-as-absent rule leaves it: null keys and
+// null elements removed at every depth. Uniqueness compares these, or
+// items differing only by a null key would pass and then coerce to
+// duplicates.
+#let _strip-nulls(value) = {
+  if type(value) == dictionary {
+    value
+      .pairs()
+      .filter(((_, v)) => v != none)
+      .map(((k, v)) => (k, _strip-nulls(v)))
+      .to-dict()
+  } else if type(value) == array {
+    value.filter(v => v != none).map(_strip-nulls)
+  } else { value }
+}
+
 // Filter `none` first — coerce drops them, so raw counts would
 // validate inputs whose rendered model violates min-items. Duplicate
 // reports cite original positions so callers can find them.
@@ -121,11 +137,12 @@
     )
   }
   if schema.at("unique-items", default: false) {
+    let stripped = present.map(((_, elem)) => _strip-nulls(elem))
     for i in range(n) {
       for j in range(i + 1, n) {
-        let (orig-i, left) = present.at(i)
-        let (orig-j, right) = present.at(j)
-        if left == right {
+        let orig-i = present.at(i).at(0)
+        let orig-j = present.at(j).at(0)
+        if stripped.at(i) == stripped.at(j) {
           errs += _err(
             path,
             "expected unique items, duplicate at indices "
