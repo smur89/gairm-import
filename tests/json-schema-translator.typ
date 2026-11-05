@@ -142,20 +142,21 @@
   pattern-string("^[A-Z]{2}$", expected: "matching " + repr("^[A-Z]{2}$")),
 )
 
-// Format wins over pattern when both are present — the format-specific
-// kind is emitted and the pattern is dropped (locked design decision:
-// simpler than composing two gates).
+#let x-gate = (pattern: regex("^x$"), expected: "matching " + repr("^x$"))
+
+// Format and pattern compose — the format kind carries the pattern as
+// an extra gate, with the same hint a bare pattern would get.
 #assert.eq(
   schema-from-json-schema((type: "string", format: "email", pattern: "^x$")),
-  email-string,
+  email-string + x-gate,
 )
 #assert.eq(
   schema-from-json-schema((type: "string", format: "uri", pattern: "^x$")),
-  uri-string,
+  uri-string + x-gate,
 )
 #assert.eq(
   schema-from-json-schema((type: "string", format: "date", pattern: "^x$")),
-  date-string,
+  date-string + x-gate,
 )
 #assert.eq(
   schema-from-json-schema((
@@ -163,7 +164,7 @@
     format: "date-time",
     pattern: "^x$",
   )),
-  datetime-string,
+  datetime-string + x-gate,
 )
 
 // bytes entry mirrors path and dict.

@@ -43,6 +43,9 @@
   junction + " (" + sub.members.map(m => m.kind).join(" | ") + ")"
 } else if sub.kind == "not" {
   "not " + sub.member.kind
+} else if sub.kind in _format-string-kinds and "pattern" in sub {
+  // A format kind with an extra pattern gate (JSON Schema format + pattern).
+  sub.kind + " + pattern"
 } else {
   sub.kind
 }

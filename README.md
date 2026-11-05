@@ -381,7 +381,7 @@ For ad-hoc constraints outside the four built-in formats, build a
 and target it via a lens or splice it into an extension schema. JSON
 Schema's `pattern` keyword on a plain string maps to this kind too — see
 [Starting from a JSON Schema document](#starting-from-a-json-schema-document)
-for the precedence rule when both `format` and `pattern` are present:
+for how it combines with `format`:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -653,10 +653,10 @@ in sync:
   primitive is `integer-type`
 - `format`: `uri` → `uri-string`, `email` → `email-string`,
   `date` → `date-string`, `date-time` → `datetime-string`
-- `pattern` → `pattern-string` (on plain string schemas only; when both
-  `format` and `pattern` are present on the same node, `format` wins and
-  `pattern` is dropped — compose two gates yourself via a lens if you need
-  both)
+- `pattern` → `pattern-string` on a plain string schema; alongside
+  `format`, both apply (the format kind gains the pattern as an extra gate,
+  checked after the format's own check, also for a `datetime` given to a
+  date kind)
 - `enum` → `enum-of`, `const` → `const-of`
 - `properties`, `required`, `items`
 - Internal `$ref` (`#/definitions/…` / `#/$defs/…`) — like a composition
