@@ -12,17 +12,22 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  # Single source of truth for the Typst version used across all jobs.
-  TYPST_VERSION: v0.15.0
-  # Package name as it appears in typst.toml's `package.name`. Surfaced
-  # here so branch names, tarball names, PR titles, and the supersede
-  # filter all derive from one place; rename the package by editing
-  # both this and typst.toml.
+  # Must match typst.toml's `package.name`; tarball, branch and PR
+  # names all derive from it.
   PACKAGE_NAME: gairm-import
+  TYPST_VERSION: v0.15.0
+  # Formatter output can shift between versions: bump deliberately and
+  # reformat in the same commit.
+  TYPSTYLE_VERSION: v0.15.0
+
+# An explicit `bash` adds `-o pipefail`, so a failure on the left of a
+# pipe (`curl | tar`, `gh pr create | tail`) fails the step.
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  # Compile every tests/*.typ fixture against the local file tree.
-  # Same shape as `make test`; this is the gate every PR must pass.
+  # `make test`: every fixture, panic case and package test.
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -34,67 +39,78 @@ jobs:
         with:
           persist-credentials: false
 
+      # Cached per version: saves a download, and a 504 on it.
+      - name: Restore Typst
+        id: typst-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/bin/typst
+          key: typst-${{ env.TYPST_VERSION }}
+
       - name: Install Typst
+        if: steps.typst-cache.outputs.cache-hit != 'true'
         run: |
-          TARBALL=typst-x86_64-unknown-linux-musl.tar.xz
-          URL=https://github.com/typst/typst/releases/download/${TYPST_VERSION}/$TARBALL
-          curl -sSfL "$URL" | sudo tar -xJ \
-            --strip-components=1 \
-            -C /usr/local/bin \
-            typst-x86_64-unknown-linux-musl/typst
+          mkdir -p ~/.local/bin
+          curl -sSfL "https://github.com/typst/typst/releases/download/${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
+            | tar -xJ --strip-components=1 -C ~/.local/bin typst-x86_64-unknown-linux-musl/typst
 
-      - name: Compile fixtures
-        run: make test
+      - name: Put the cached tools on PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-  # Advisory: formatting drift surfaces as a red ✗ in PR checks without
-  # blocking merge — same contract as typst-package-check below. The
-  # flags live in the Makefile's fmt-check target so this job and the
-  # local `make fmt` can never disagree about what "formatted" means.
+      # `-k`: report every failure. `-j4 -O`: four cores, each check's
+      # log kept together.
+      - name: Compile fixtures, check panic cases and package tests
+        run: make -k -j4 -O test
+
+  # typstyle parses source only, so no Typst needed. The flags live in
+  # the Makefile, so this job and `make fmt` agree.
   format:
     name: typstyle
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    continue-on-error: true
     permissions:
       contents: read
-    env:
-      # Bump deliberately, together with the locally-installed version.
-      TYPSTYLE_VERSION: v0.15.0
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - name: Restore typstyle
+        id: typstyle-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/bin/typstyle
+          key: typstyle-${{ env.TYPSTYLE_VERSION }}
+
       - name: Install typstyle
+        if: steps.typstyle-cache.outputs.cache-hit != 'true'
         run: |
-          URL=https://github.com/typstyle-rs/typstyle/releases/download/${TYPSTYLE_VERSION}/typstyle-x86_64-unknown-linux-musl
-          sudo curl -sSfL "$URL" -o /usr/local/bin/typstyle
-          sudo chmod +x /usr/local/bin/typstyle
+          mkdir -p ~/.local/bin
+          curl -sSfL -o ~/.local/bin/typstyle \
+            "https://github.com/typstyle-rs/typstyle/releases/download/${TYPSTYLE_VERSION}/typstyle-x86_64-unknown-linux-musl"
+          chmod +x ~/.local/bin/typstyle
+
+      - name: Put the cached tools on PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Check formatting
         run: make fmt-check
 
-  # Advisory: catch tarball-list drift, README-link rot, and
-  # deprecated-API warnings before release-please cuts a tag — same
-  # tool the typst/packages CI bot runs. `continue-on-error: true`
-  # surfaces failures as red ✗ in PR checks without blocking merge.
+  # Runs the same checker as typst/packages' CI before a release is
+  # cut: catches tarball-list drift, README-link rot and deprecated APIs.
   package-check:
     name: typst-package-check
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    continue-on-error: true
     permissions:
       contents: read
     env:
-      # Bump deliberately. Pin via tag so a future check-tool change
-      # can't silently flip the verdict on the same source.
+      # Pinned so a checker update can't flip the verdict on the same source.
       PCHECK_IMAGE: ghcr.io/typst/package-check:0.6.0
-      # Stamped into the staged manifest so the directory shape
-      # `packages/preview/<name>/<version>/` matches what the
-      # @preview/...:VERSION spec resolves to.
+      # Stamped into the staged manifest so the directory matches what
+      # @preview/<name>:<version> resolves to.
       PKG_VERSION: 0.0.0
     steps:
       - name: Checkout
@@ -103,15 +119,10 @@ jobs:
           persist-credentials: false
 
       - name: Stage package directory matching the release tarball
-        run: |
-          PKG_DIR=/tmp/pkg-check/packages/preview/${PACKAGE_NAME}/${PKG_VERSION}
-          make stage-package-dir PKG_DIR="${PKG_DIR}"
-          sed -i "s/^version = \".*\"/version = \"${PKG_VERSION}\"/" "${PKG_DIR}/typst.toml"
+        run: make stage-package-dir PKG_DIR="/tmp/pkg-check/packages/preview/${PACKAGE_NAME}/${PKG_VERSION}" PKG_VERSION="${PKG_VERSION}"
 
+      # The tool must run from the `packages` subdir.
       - name: Validate package
-        # The official image's entrypoint is typst-package-check; pass
-        # the subcommand + args directly. --workdir matches the tool's
-        # requirement to be invoked from the `packages` subdir.
         run: |
           docker run --rm \
             -v /tmp/pkg-check:/data \
@@ -119,15 +130,10 @@ jobs:
             ${PCHECK_IMAGE} \
             check @preview/${PACKAGE_NAME}:${PKG_VERSION}
 
-  # release-please reads conventional-commit messages since the last
-  # tag, opens (or updates) a Release PR with the bumped version, and
-  # — when that PR is merged — cuts the tag + GitHub Release.
-  #
-  # The release-please-config.json declares typst.toml's
-  # `package.version` field as an extra-file, so the manifest version
-  # stays in lockstep with the released tag automatically.
+  # release-please-config.json bumps typst.toml's `package.version`
+  # as an extra-file, keeping it in lockstep with the tag.
   release-please:
-    needs: [test]
+    needs: [test, format]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -145,14 +151,7 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Runs only when release-please just created a release. Builds a
-  # `gairm-import-<version>.tar.gz` containing the package files that
-  # should be submitted to typst/packages (typst.toml, lib.typ,
-  # LICENSE, README.md) and attaches it to the release.
-  #
-  # No template/, no thumbnail.png — this is a library package, not a
-  # template; the typst/packages directory for it contains only the
-  # compilable sources + LICENSE + README.
+  # A library, not a template: no template/ or thumbnail to ship.
   attach-release-artifacts:
     needs: [release-please]
     if: needs.release-please.outputs.release_created == 'true'
@@ -167,17 +166,12 @@ jobs:
           persist-credentials: false
           ref: ${{ needs.release-please.outputs.tag_name }}
 
-      # The tarball MUST include every file the package needs at compile
-      # time + every file the README links to relatively, or Universe's
-      # package-check rejects with `compile/error` / `readme/link/file-
-      # not-found`. `internal/` is imported transitively from lib.typ;
-      # CONTRIBUTING.md is referenced from the README's Contributing
-      # section.
+      # File list: the Makefile's PACKAGE_FILES, shared with the PR-time
+      # package-check job. A README link to a file not listed there
+      # will 404 on Universe.
       - name: Build package tarball
         env:
           VERSION: ${{ needs.release-please.outputs.version }}
-        # File list lives in the Makefile's PACKAGE_FILES — single
-        # source of truth shared with the PR-time package-check job.
         run: make package-tarball PACKAGE_TARBALL="${PACKAGE_NAME}-${VERSION}.tar.gz"
 
       - name: Attach tarball to release
@@ -262,11 +256,18 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Clone fork (gh auto-adds upstream remote), branch off upstream/main
+      # Blobless + sparse: the fork mirrors all of typst/packages, and
+      # we only touch our own directory. Plain `git clone`, because
+      # `gh repo clone` fetches upstream without the filter.
+      - name: Clone fork (sparse, blobless) and branch off upstream/main
         if: steps.check.outputs.skip != 'true'
         run: |
-          gh repo clone "$FORK_REPO" pkg -- --no-tags --depth=1
+          git clone --no-tags --depth=1 --filter=blob:none --sparse \
+            "https://github.com/${FORK_REPO}.git" pkg
           cd pkg
+          git sparse-checkout set "packages/preview/${PACKAGE_NAME}"
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
+          git fetch --depth=1 --filter=blob:none upstream main
           git checkout -b "${PACKAGE_NAME}-${VERSION}" upstream/main
 
       - name: Add package files from the release tarball

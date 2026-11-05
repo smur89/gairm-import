@@ -83,20 +83,20 @@ upstream document is the source of truth. To pull a newer upstream version:
 
 ## Development loop
 
-Install Typst at the version CI uses — see `TYPST_VERSION` in
-`.github/workflows/build.yml`.
+Install Typst and typstyle at the versions CI uses — see `TYPST_VERSION` and
+`TYPSTYLE_VERSION` in `.github/workflows/build.yml`.
 
 ```sh
-make              # compile every tests/*.typ fixture, check every panic case, and compile tests/package/ (= `make test`)
-make test         # fixtures, panic cases and package tests; the CI lint job runs this
-make test-panics  # only the tests/panics/ cases
-make test-package # only tests/package/, compiled against the package staged as @preview users get it
-make check        # alias for `make test`
-make help         # summarise the available targets
+make test         # every fixture, panic case and package test (the default target)
+make -k -j8 test  # the same in parallel, reporting every failure
+make check        # test + fmt-check: what CI runs
+make help         # every target, and the variables you can override
 ```
 
-`make test` is the local equivalent of the CI lint job — green here means CI
-lint will pass too.
+Each test file is its own Make target (`check/fixture/…`, `check/panic/…`,
+`check/package/…`), so `make -j` runs them in parallel and `-k` keeps going
+past a failure. A green `make check` locally means CI's test and typstyle
+jobs will pass too.
 
 Panic cases live in `tests/panics/`, one file per panic. Line 1 is
 `// expect: <substring of the error>`, then the imports and the call that

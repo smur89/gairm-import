@@ -12,3 +12,6 @@ target/
 *.iws
 out/
 *.swp
+
+# Staged package for tests/package/ (make stage-test-package)
+.package-path/

@@ -1,29 +1,14 @@
-# gairm-import — local build helper. Mirrors the compile sweep CI runs
-# on every PR.
+# gairm-import — local build helper; CI calls these same targets.
 #
-# Usage:
-#   make             # compile every tests/*.typ fixture (output discarded)
-#                    # and check every tests/panics/*.typ panic case, then
-#                    # every tests/package/*.typ against the staged package
-#   make test        # alias for the default target
-#   make test-panics # only the panic cases
-#   make test-package # only the tests compiled against the staged package
-#   make check       # alias for `make test` — matches the CI lint name
-#   make fmt         # typstyle-format lib.typ, internal/, tests/ in place
-#   make fmt-check   # exit non-zero if any file needs formatting (CI advisory job)
-#   make clean       # no-op today — tests compile to /dev/null, nothing to remove
-#   make help        # summarise the available targets
-#
-# Tool overrides:
-#   make TYPST=/path/to/typst          # use a non-default typst binary
-#   make TYPSTYLE=/path/to/typstyle    # use a non-default typstyle binary
+# `make help` lists the targets and the variables you can override,
+# from the `## ` note on each rule and `?=` default.
 
-# Delete the target of any recipe that exits non-zero so a partially-
-# written file does not look fresh to a subsequent `make` invocation.
+# A failed recipe can leave a partial target that the next `make`
+# would treat as fresh. Delete it instead.
 .DELETE_ON_ERROR:
 
-TYPST    ?= typst
-TYPSTYLE ?= typstyle
+TYPST    ?= typst ## the typst binary
+TYPSTYLE ?= typstyle ## the typstyle binary
 ROOT     := .
 
 # Import lists group semantically (kinds, then combinators, then
@@ -31,124 +16,125 @@ ROOT     := .
 TYPSTYLE_FLAGS := --no-reorder-import-items
 TYPSTYLE_INPUT := lib.typ internal tests
 
-TESTS := $(wildcard tests/*.typ)
+TESTS         := $(wildcard tests/*.typ)
+PANIC_TESTS   := $(wildcard tests/panics/*.typ)
+PACKAGE_TESTS := $(wildcard tests/package/*.typ)
 
-# Files that ship to typst/packages. Single source of truth for the
-# release tarball recipe AND the PR-time package-check stager — pulling
-# the list here keeps the two from drifting (the same drift that
-# slipped CONTRIBUTING.md past altacv 1.4.1's typst-package-check).
+PACKAGE_NAME  := gairm-import
+# Files that ship to typst/packages: shared by the release tarball and
+# the package-check stager so the two can't drift.
 PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md CONTRIBUTING.md
 
-.PHONY: all test test-fixtures test-panics test-package check fmt fmt-check clean help stage-package-dir package-tarball
+# Where tests/package/ compiles against the package as @preview users
+# get it, at version 0.0.0 so its imports never need bumping. Gitignored.
+PACKAGE_PATH  := .package-path
+
+.PHONY: all test test-fixtures test-panics test-package stage-test-package check fmt fmt-check clean help stage-package-dir package-tarball
 
 all: test
 
-# Compile every fixture; output goes to /dev/null. Same shape as the
-# CI lint job, so a green `make test` locally means the CI lint step
-# will also pass. When `GITHUB_ACTIONS` is set, the recipe also emits
-# `::group::` / `::endgroup::` markers for collapsible per-file log
-# sections and `::error file=<path>::` annotations for failing files.
-test-fixtures:
-	@status=0; \
-	for f in $(TESTS); do \
-	  if [ -n "$$GITHUB_ACTIONS" ]; then printf '::group::%s\n' "$$f"; \
-	  else printf '  %s\n' "$$f"; fi; \
-	  if ! $(TYPST) compile --root $(ROOT) --format pdf "$$f" /dev/null; then \
-	    if [ -n "$$GITHUB_ACTIONS" ]; then \
-	      printf '::error file=%s::compile failed\n' "$$f"; \
-	    fi; \
-	    status=1; \
-	  fi; \
-	  if [ -n "$$GITHUB_ACTIONS" ]; then printf '::endgroup::\n'; fi; \
-	done; \
-	exit $$status
+# One target per checked file, so `make -j` parallelises them and `-k`
+# reports every failure. On GitHub Actions each check is a log group
+# with an `::error file=` annotation.
+#   $(call compile-one,<file>[,<extra typst flags>])
+define compile-one
+@if [ -n "$$GITHUB_ACTIONS" ]; then printf '::group::%s\n' "$(1)"; \
+else printf '  %s\n' "$(1)"; fi; \
+status=0; \
+if ! $(TYPST) compile --root $(ROOT) $(2) --format pdf "$(1)" /dev/null; then \
+  if [ -n "$$GITHUB_ACTIONS" ]; then printf '::error file=%s::compile failed\n' "$(1)"; fi; \
+  status=1; \
+fi; \
+if [ -n "$$GITHUB_ACTIONS" ]; then printf '::endgroup::\n'; fi; \
+exit $$status
+endef
 
-PANIC_TESTS := $(wildcard tests/panics/*.typ)
+FIXTURE_CHECKS := $(addprefix check/fixture/,$(TESTS))
+PANIC_CHECKS   := $(addprefix check/panic/,$(PANIC_TESTS))
+PACKAGE_CHECKS := $(addprefix check/package/,$(PACKAGE_TESTS))
+.PHONY: $(FIXTURE_CHECKS) $(PANIC_CHECKS) $(PACKAGE_CHECKS)
 
-PACKAGE_TESTS := $(wildcard tests/package/*.typ)
+# Static pattern rules: make skips implicit rules for .PHONY targets.
+$(FIXTURE_CHECKS): check/fixture/%:
+	$(call compile-one,$*)
 
-test: test-fixtures test-panics test-package
+# A panic case must FAIL to compile, and its error output must contain
+# the text after its leading `// expect: ` line — so a panic that stops
+# firing, or fires with a different message, fails.
+$(PANIC_CHECKS): check/panic/%:
+	@expect=$$(sed -n '1s|^// expect: ||p' "$*"); \
+	if [ -z "$$expect" ]; then \
+	  printf '%s: missing leading `// expect: <message>` line\n' "$*" >&2; exit 1; \
+	fi; \
+	msg=; \
+	if out=$$($(TYPST) compile --root $(ROOT) --format pdf "$*" /dev/null 2>&1); then \
+	  msg="compiled, expected a failure containing: $$expect"; \
+	elif ! printf '%s' "$$out" | grep -qF -- "$$expect"; then \
+	  msg="failed without: $$expect"; \
+	fi; \
+	if [ -n "$$msg" ]; then \
+	  printf '%s: %s\n%s\n' "$*" "$$msg" "$$out" >&2; \
+	  if [ -n "$$GITHUB_ACTIONS" ]; then printf '::error file=%s::%s\n' "$*" "$$msg"; fi; \
+	  exit 1; \
+	fi
 
-# Each tests/panics/*.typ must FAIL to compile, and its error output
-# must contain the text after `// expect: ` on its first line — so a
-# panic that stops firing, or fires with a different message, fails.
-test-panics:
-	@status=0; \
-	for f in $(PANIC_TESTS); do \
-	  printf '  %s\n' "$$f"; \
-	  expect=$$(sed -n '1s|^// expect: ||p' "$$f"); \
-	  if [ -z "$$expect" ]; then \
-	    msg="missing '// expect: ' on line 1"; \
-	  elif out=$$($(TYPST) compile --root $(ROOT) --format pdf "$$f" /dev/null 2>&1); then \
-	    msg="compiled, expected a panic"; \
-	  elif ! printf '%s' "$$out" | grep -qF -- "$$expect"; then \
-	    msg="error output lacks: $$expect"; printf '%s\n' "$$out"; \
-	  else msg=""; fi; \
-	  if [ -n "$$msg" ]; then \
-	    if [ -n "$$GITHUB_ACTIONS" ]; then printf '::error file=%s::%s\n' "$$f" "$$msg"; \
-	    else printf '    %s\n' "$$msg"; fi; \
-	    status=1; \
-	  fi; \
-	done; \
-	exit $$status
+# Against the staged package, so a path that only resolves because the
+# repo root and the package root coincide fails here (#132).
+$(PACKAGE_CHECKS): check/package/%: stage-test-package
+	$(call compile-one,$*,--package-path $(PACKAGE_PATH))
 
-# Compile tests/package/*.typ against the package as @preview users
-# get it: staged into a throwaway package path at version 0.0.0, so a
-# path that only resolves because the repo root and the package root
-# coincide fails here (#132).
-test-package:
-	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
-	dir="$$tmp/preview/gairm-import/0.0.0"; \
-	$(MAKE) --no-print-directory stage-package-dir PKG_DIR="$$dir" || exit 1; \
-	sed 's/^version = ".*"/version = "0.0.0"/' typst.toml > "$$dir/typst.toml"; \
-	status=0; \
-	for f in $(PACKAGE_TESTS); do \
-	  printf '  %s\n' "$$f"; \
-	  if ! $(TYPST) compile --root $(ROOT) --package-path "$$tmp" --format pdf "$$f" /dev/null; then \
-	    if [ -n "$$GITHUB_ACTIONS" ]; then printf '::error file=%s::compile failed\n' "$$f"; fi; \
-	    status=1; \
-	  fi; \
-	done; \
-	exit $$status
+stage-test-package: ## stage the package as @preview users get it, for tests/package/
+	@rm -rf "$(PACKAGE_PATH)"
+	@$(MAKE) --no-print-directory stage-package-dir \
+	  PKG_DIR="$(PACKAGE_PATH)/preview/$(PACKAGE_NAME)/0.0.0" PKG_VERSION=0.0.0
 
-check: test
+# Every check CI's test job runs, so a green `make test` locally means
+# it will pass too.
+test: test-fixtures test-panics test-package ## compile every fixture, check every panic case and package test
 
-fmt:
+test-fixtures: $(FIXTURE_CHECKS) ## compile every tests/*.typ fixture, output discarded
+
+test-panics: $(PANIC_CHECKS) ## check each tests/panics/*.typ fails with its `// expect:` text
+
+test-package: $(PACKAGE_CHECKS) ## compile tests/package/*.typ against the staged package
+
+check: test fmt-check ## test + fmt-check: the local equivalent of CI
+
+fmt: ## typstyle-format lib.typ, internal/ and tests/ in place
 	$(TYPSTYLE) $(TYPSTYLE_FLAGS) -i $(TYPSTYLE_INPUT)
 
-# Same flags as `fmt` so the CI advisory job and the local formatter
-# can never disagree about what "formatted" means.
-fmt-check:
+# Same flags as `fmt`, so CI and the local formatter agree.
+fmt-check: ## check formatting without writing (the CI gate)
 	$(TYPSTYLE) $(TYPSTYLE_FLAGS) --check $(TYPSTYLE_INPUT)
 
-# Stage every file that ships to typst/packages into PKG_DIR. Used by
-# the CI package-check job (PR-time) to lay out the same file set the
-# release tarball would publish — typst-package-check then validates
-# THAT directory, so a missing file is caught at review time.
+# Stage PACKAGE_FILES into PKG_DIR, so a missing file is caught at
+# review time. PKG_VERSION, when set, is stamped into the staged
+# manifest so the directory matches what @preview/<name>:<version>
+# resolves to.
 #
-#   make stage-package-dir PKG_DIR=/tmp/.../gairm-import/0.0.0
+#   make stage-package-dir PKG_DIR=/tmp/.../gairm-import/0.0.0 PKG_VERSION=0.0.0
 #
-# `bash -eo pipefail` so a missing file makes the tar producer fail
-# the recipe — without pipefail the consumer's clean exit would
-# silently mask a partial stage. Invoked explicitly (not via
-# .SHELLFLAGS) so this works on Make < 3.82.
-stage-package-dir:
+# `pipefail` so a failing tar producer isn't masked by the consumer's
+# clean exit; invoked via bash, not .SHELLFLAGS, for Make < 3.82.
+stage-package-dir: ## stage the files that ship to typst/packages (PKG_DIR=, PKG_VERSION=)
 	@test -n "$(PKG_DIR)" || { echo "stage-package-dir: PKG_DIR=/path required" >&2; exit 2; }
 	@mkdir -p "$(PKG_DIR)"
 	@bash -eo pipefail -c 'tar cf - $(PACKAGE_FILES) | tar xf - -C "$(PKG_DIR)"'
+	@if [ -n "$(PKG_VERSION)" ]; then \
+	  sed 's/^version = ".*"/version = "$(PKG_VERSION)"/' typst.toml > "$(PKG_DIR)/typst.toml"; \
+	fi
 
-# Same file set, gzipped — the artifact attached to the GitHub Release
-# and uploaded to typst/packages.
+# Same file set, gzipped: the release asset submitted to typst/packages.
 #
 #   make package-tarball PACKAGE_TARBALL=$(PACKAGE_NAME)-$(VERSION).tar.gz
-package-tarball:
+package-tarball: ## build the release tarball (PACKAGE_TARBALL=)
 	@test -n "$(PACKAGE_TARBALL)" || { echo "package-tarball: PACKAGE_TARBALL=/path.tar.gz required" >&2; exit 2; }
 	tar czf "$(PACKAGE_TARBALL)" $(PACKAGE_FILES)
 
-clean:
-	@:
+clean: ## remove the staged test package
+	rm -rf "$(PACKAGE_PATH)"
 
-help:
-	@printf '%s\n' 'Targets: all (default) | test (alias: check) | test-panics | test-package | fmt | fmt-check | clean' \
-	  'Per-target detail: see the header comment in this Makefile.' \
-	  'Overrides: TYPST=path/to/typst | TYPSTYLE=path/to/typstyle'
+help: ## list these targets and the variables you can override
+	@awk -F':[^=]*## ' '/^[a-zA-Z0-9_.-]+:[^=]*## /{printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo 'Overrides (make VAR=value):'
+	@awk -F' *[?]= *| *## ' '/^[A-Z_]+ *[?]=.*## /{printf "  %-20s %s (default %s)\n", $$1, $$3, $$2}' $(MAKEFILE_LIST)
