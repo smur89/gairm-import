@@ -250,3 +250,10 @@
   schema-from-json-schema(bytes("{\"type\": \"string\"}")),
   str-type,
 )
+
+// Another JSON type's keyword is ignored, as in draft 7 (a `type` array
+// builds each member from the whole node, so this must hold).
+#assert.eq(
+  schema-from-json-schema((type: "string", minimum: 1, items: (:))),
+  str-type,
+)

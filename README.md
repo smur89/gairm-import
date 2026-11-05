@@ -740,6 +740,12 @@ message rather than silently dropping the constraint:
 - `allOf` with non-object members, and schema-bearing sibling keywords
   beside any composition keyword or `$ref` (move them into the members or
   the referenced definition)
+- Any keyword not listed under "Supported keywords" — e.g.
+  `minProperties`, `maxProperties`, `patternProperties`, `propertyNames`,
+  `contains`, `additionalItems`, or a misspelling like `minLenght`. Draft 7
+  would ignore an unknown keyword; here it panics, naming the keyword. A
+  supported keyword of another JSON type (`minimum` on a string) is
+  ignored, as in draft 7
 
 ## Contributing
 

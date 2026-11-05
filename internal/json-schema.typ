@@ -126,6 +126,38 @@
   "$defs",
 )
 
+// Keywords each JSON type supports. A node may carry another type's
+// keywords — draft 7 ignores them, and each `type`-array member is
+// translated from the whole node — so the allow-list is their union.
+#let _type-keywords = (
+  string: ("format", "pattern", "minLength", "maxLength"),
+  number: (
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "multipleOf",
+  ),
+  array: ("items", "minItems", "maxItems", "uniqueItems"),
+  object: (
+    "properties",
+    "required",
+    "additionalProperties",
+    "dependentRequired",
+    "dependencies",
+  ),
+)
+
+// Anything else (`minProperties`, `patternProperties`, `contains`, a
+// typo like `minLenght`, ...) bails: draft 7 would ignore an unknown
+// key, and an unsupported one would lose its constraint.
+#let _known-keywords = (
+  ("type", "enum", "const", "$ref")
+    + _composition-keywords
+    + _annotation-keywords
+    + _type-keywords.values().join()
+)
+
 #let _require-lone-composition(js, keyword) = {
   let extras = js
     .keys()
@@ -490,6 +522,14 @@
           + ". Conditional schemas (if/then/else, dependentSchemas, schema-form dependencies) are out of scope.",
       )
     }
+  }
+  let unknown = js.keys().filter(k => k not in _known-keywords)
+  if unknown.len() > 0 {
+    _bail(
+      "unsupported JSON Schema keyword(s): "
+        + unknown.map(repr).join(", ")
+        + ". They are outside the supported subset (see the README); translating would silently drop their constraints.",
+    )
   }
   let dependent = _dependent-required(js)
   // Only an object (possibly nullable) can carry it; elsewhere it
