@@ -171,12 +171,11 @@
 #assert.eq(missing-id.len(), 1)
 #assert(missing-id.at(0).message.contains("missing required key \"id\""))
 
-// --- all-none extras collapse the object to none --------------------
+// --- all-none extras leave an empty object -------------------------
 //
-// Symmetry with the leaf-null policy: an object whose every key
-// coerced to none collapses to none itself. With `additional`, the
-// open keys participate in that collapse.
-#assert.eq(coerce((a: none, b: none), schema: map(str-type)), none)
+// Null extras are dropped like declared null keys, but the object
+// itself is present, so it stays a (possibly empty) dict.
+#assert.eq(coerce((a: none, b: none), schema: map(str-type)), (:))
 #assert.eq(
   coerce((id: "x", a: none, b: none), schema: map(str-type, required-keys: (
     "id",

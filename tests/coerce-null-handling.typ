@@ -3,7 +3,7 @@
 // `none` value to special-case. This mirrors the validate-side
 // policy in tests/validate-null-handling.typ.
 
-#import "../lib.typ": coerce, resume-schema-strict
+#import "../lib.typ": coerce, parse, validate, resume-schema-strict
 #import "../internal/coerce.typ": _coerce
 #import "../internal/kinds.typ": (
   str-type, content-type, number-type, array-of, object,
@@ -110,24 +110,64 @@
 #assert("skills" not in model)
 #assert("meta" not in model)
 
-// An object whose every key is null coerces to `none` — symmetric
-// with the leaf-null policy. The parent filter then drops the key.
-#assert.eq(_coerce(person, (name: none, age: none, summary: none)), none)
-#assert.eq(_coerce(person, (:)), none)
+// Only `none` is absent: an object whose every key is null, or an
+// empty object, stays an (empty) dict. Validate counts it as present,
+// so the model must too.
+#assert.eq(_coerce(person, (name: none, age: none, summary: none)), (:))
+#assert.eq(_coerce(person, (:)), (:))
 
-// Unknown keys are dropped, so an object with only unknown keys is
-// also all-empty after the shape filter and becomes `none`.
-#assert.eq(_coerce(person, (nickname: "Al", color: "blue")), none)
+// Unknown keys are dropped, leaving an empty dict, not `none`.
+#assert.eq(_coerce(person, (nickname: "Al", color: "blue")), (:))
 
-// Recursively: an all-null nested object propagates outward. A
-// top-level resume whose only present section is itself all-null
-// coerces to `none` (consistent extension of the policy — every key
-// in the root coerced to absent, so the root is absent too).
+// Recursively: an all-null nested object stays as an empty section,
+// and an empty document stays an empty dict.
 #let all-null-basics = coerce(
   (basics: (name: none, email: none, summary: none)),
   schema: resume-schema-strict,
 )
-#assert.eq(all-null-basics, none)
+#assert.eq(all-null-basics, (basics: (:)))
+#assert.eq(parse(bytes("{}")), (:))
+#assert.eq(parse(bytes("{\"basics\":{\"name\":null}}")), (basics: (:)))
+
+// A required key holding `{}` validates, so it must survive coercion.
+#let holder = object((cfg: object((x: str-type))), required-keys: ("cfg",))
+#assert.eq(validate((cfg: (:)), schema: holder), ())
+#assert.eq(coerce((cfg: (:)), schema: holder), (cfg: (:)))
+
+// Array constraints: the coerced model keeps what validate counted.
+#let at-least-one = (..array-of(object((y: str-type))), min-items: 1)
+#assert.eq(validate((ys: ((y: none),)), schema: object((ys: at-least-one))), ())
+#assert.eq(_coerce(at-least-one, ((y: none),)), ((:),))
+#let unique = (
+  ..array-of(object((x: str-type, y: object((:))))),
+  unique-items: true,
+)
+#let distinct = ((x: "a", y: (:)), (x: "a"))
+#assert.eq(validate((us: distinct), schema: object((us: unique))), ())
+#assert.eq(_coerce(unique, distinct), distinct)
+// Uniqueness compares items with nulls removed, as coerce will see
+// them: these differ only by a null key, so they are duplicates.
+#let null-dupes = ((x: "a", y: none), (x: "a"))
+#assert.eq(_coerce(unique, null-dupes), ((x: "a"), (x: "a")))
+#let dupe-errs = validate((us: null-dupes), schema: object((us: unique)))
+#assert.eq(dupe-errs.len(), 1)
+#assert(dupe-errs.at(0).message.contains("indices 0 and 1"))
+// Nested too: a null inside a nested object is stripped before comparing.
+#let unique-nested = (
+  ..array-of(object((y: object((z: str-type))))),
+  unique-items: true,
+)
+#assert.eq(
+  validate(((y: (z: none)), (y: (:))), schema: unique-nested).len(),
+  1,
+)
+#assert.eq(
+  validate(
+    (us: ((x: "a", y: none), (x: "b"))),
+    schema: object((us: unique)),
+  ),
+  (),
+)
 
 // And a single live leaf anywhere keeps the chain intact.
 #let one-leaf = coerce(

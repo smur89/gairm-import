@@ -154,6 +154,24 @@
 #assert(no-match.at(0).message.contains("none matched"))
 #assert(no-match.at(0).message.contains("str | number"))
 
+// Which member claims a value is read from its schema, not its error
+// text: an enum of strings does not claim a bool, though its error
+// never reads like a type error.
+#let letter-or-num = any-of((enum-of(("a", "b")), number-type))
+#let bool-err = validate(true, schema: letter-or-num)
+#assert.eq(bool-err.len(), 1)
+#assert(bool-err.at(0).message.contains("none matched"))
+// A string it does claim reports the enum's own error.
+#let letter-err = validate("c", schema: letter-or-num)
+#assert.eq(letter-err.len(), 1)
+#assert(letter-err.at(0).message.starts-with("expected one of \"a\", \"b\""))
+// A number breaking a range claims via the number member.
+#let ranged = any-of((
+  enum-of(("a", "b")),
+  (..number-type, minimum: 0),
+))
+#assert(validate(-1, schema: ranged).at(0).message.contains("≥ 0"))
+
 // Union nested inside an object keeps path-qualified reporting.
 #let holder = object((value: any-of((str-type, array-of(number-type)))))
 #assert.eq(validate((value: (1, 2)), schema: holder), ())
@@ -164,6 +182,17 @@
 
 // Null at a union position is "key absent", like every other kind.
 #assert.eq(validate((value: none), schema: holder), ())
+
+// Nesting stays affordable: each level validates every member once.
+// Twelve levels of a member that recurses through an array, failing at
+// the bottom so every branch is walked.
+#let deep = str-type
+#let deep-value = true
+#for _ in range(12) {
+  deep = any-of((deep, number-type, array-of(deep)))
+  deep-value = (deep-value,)
+}
+#assert.eq(validate(deep-value, schema: deep).len(), 1)
 
 // --- validator: union (one-of, exactly-one) ---------------------------
 

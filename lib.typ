@@ -54,7 +54,8 @@
 // panic.
 /// Turns `data` into the typed model without checking it first, so run
 /// `validate` before it. Keys the schema does not declare are dropped,
-/// unless the object allows extras.
+/// unless the object allows extras. Null values are dropped as absent
+/// keys; an object left with no keys stays an empty dictionary.
 ///
 /// - data (dictionary): The document to convert.
 /// - schema (dictionary): The schema that says what each field becomes.

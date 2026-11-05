@@ -26,7 +26,9 @@
 // a format kind with an extra pattern).
 #let _pattern-errs(schema, value, path) = {
   if "pattern" in schema and value.match(schema.pattern) == none {
-    _err(path, "expected " + schema.expected + ".")
+    // Hand-built nodes may omit `expected`; default as pattern-string does.
+    let expected = schema.at("expected", default: "matching pattern")
+    _err(path, "expected " + expected + ".")
   } else { () }
 }
 
@@ -71,13 +73,46 @@
     errs += _err(path, "expected < " + str(emx) + ", got " + str(value) + ".")
   }
   let mult = schema.at("multiple-of", default: none)
-  if mult != none and calc.rem(value, mult) != 0 {
+  // A schema bug, not a data error: the translator rejects it, but a
+  // hand-built node can carry it.
+  if mult != none and mult <= 0 {
+    panic(
+      "gairm-import: multiple-of must be positive, got " + str(mult) + ".",
+    )
+  }
+  // Integers stay exact; floats compare the ratio with a tolerance, since
+  // calc.rem(0.3, 0.1) is not 0.
+  let off = if mult == none { false } else if (
+    type(value) == int and type(mult) == int
+  ) {
+    calc.rem(value, mult) != 0
+  } else {
+    let q = value / mult
+    calc.abs(q - calc.round(q)) >= 1e-9
+  }
+  if off {
     errs += _err(
       path,
       "expected multiple of " + str(mult) + ", got " + str(value) + ".",
     )
   }
   errs
+}
+
+// A value as coerce's null-as-absent rule leaves it: null keys and
+// null elements removed at every depth. Uniqueness compares these, or
+// items differing only by a null key would pass and then coerce to
+// duplicates.
+#let _strip-nulls(value) = {
+  if type(value) == dictionary {
+    value
+      .pairs()
+      .filter(((_, v)) => v != none)
+      .map(((k, v)) => (k, _strip-nulls(v)))
+      .to-dict()
+  } else if type(value) == array {
+    value.filter(v => v != none).map(_strip-nulls)
+  } else { value }
 }
 
 // Filter `none` first — coerce drops them, so raw counts would
@@ -102,11 +137,12 @@
     )
   }
   if schema.at("unique-items", default: false) {
+    let stripped = present.map(((_, elem)) => _strip-nulls(elem))
     for i in range(n) {
       for j in range(i + 1, n) {
-        let (orig-i, left) = present.at(i)
-        let (orig-j, right) = present.at(j)
-        if left == right {
+        let orig-i = present.at(i).at(0)
+        let orig-j = present.at(j).at(0)
+        if stripped.at(i) == stripped.at(j) {
           errs += _err(
             path,
             "expected unique items, duplicate at indices "
@@ -208,6 +244,36 @@
   _format-specs.keys().sorted() == _format-string-kinds.sorted(),
   message: "gairm-import: internal — _format-specs is out of sync with kinds._format-string-kinds.",
 )
+
+// Whether a union member takes values of this one's type at all, read
+// from the schema rather than from its error text, which enum, range
+// and pattern errors would otherwise mimic.
+#let _accepts-type(schema, value) = {
+  let kind = schema.kind
+  let t = type(value)
+  if kind in ("str", "content", "pattern-string") { return t == str }
+  if kind in _format-specs {
+    return t == str or (t == datetime and kind in _datetime-kinds)
+  }
+  if kind == "number" { return t in (int, float) }
+  if kind == "bool" { return t == bool }
+  if kind == "array" { return t == array }
+  if kind == "object" { return t == dictionary }
+  // int and float are one JSON number type.
+  if kind == "enum" {
+    let numeric = (int, float)
+    return schema.values.any(v => (
+      type(v) == t or (type(v) in numeric and t in numeric)
+    ))
+  }
+  if kind == "union" {
+    return schema.members.any(m => _accepts-type(m, value))
+  }
+  // `not` admits every type its member rejects, so it can't be ruled out.
+  if kind == "not" { return true }
+  // `null` takes only `none`, which never reaches a union branch.
+  false
+}
 
 #let _validate(schema, value, path) = {
   // Null at any value position is "key absent" — no error, no
@@ -342,36 +408,27 @@
   // than every member's failure list — member errors describe branches
   // the value never claimed to match, so replaying them all is noise.
   if kind == "union" {
-    // Exclusivity needs the full match count; any-of only needs "at
-    // least one", so it short-circuits on the first matching member.
-    if schema.exclusive {
-      let matches = schema
-        .members
-        .filter(m => _validate(m, value, path).len() == 0)
-        .len()
-      if matches == 1 { return () }
-      if matches > 1 {
-        return _err(
-          path,
-          "expected exactly one alternative to match, but "
-            + str(matches)
-            + " matched.",
-        )
-      }
-    } else if schema.members.any(m => _validate(m, value, path).len() == 0) {
-      return ()
+    // Each member validated once: re-validating per check made nested
+    // unions exponential in depth.
+    let results = schema.members.map(m => _validate(m, value, path))
+    let matches = results.filter(errs => errs.len() == 0).len()
+    if matches == 1 or (matches > 1 and not schema.exclusive) { return () }
+    if matches > 1 {
+      return _err(
+        path,
+        "expected exactly one alternative to match, but "
+          + str(matches)
+          + " matched.",
+      )
     }
     // When exactly one member accepts the value's type, its own errors
     // say what is wrong; the generic summary would read like a type
     // error for a right-typed value that merely broke a constraint.
-    let type-error-tail = ", got " + _type-name-of(value) + "."
     let claimed = schema
       .members
-      .map(m => _validate(m, value, path))
-      .filter(errs => errs.any(e => (
-        e.path != path or not e.message.ends-with(type-error-tail)
-      )))
-    if claimed.len() == 1 { return claimed.at(0) }
+      .zip(results)
+      .filter(((m, _)) => _accepts-type(m, value))
+    if claimed.len() == 1 { return claimed.at(0).at(1) }
     let alternatives = schema.members.map(m => m.kind).join(" | ")
     let quantifier = if schema.exclusive { "exactly one" } else { "one" }
     return _err(
