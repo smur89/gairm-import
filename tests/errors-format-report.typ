@@ -1,15 +1,15 @@
-// _format-report turns a list of errors into a panic-ready string.
+// format-errors turns a list of errors into a panic-ready string.
 
-#import "../internal/errors.typ": _format-report
+#import "../lib.typ": format-errors
 
-#let one = _format-report((
+#let one = format-errors((
   (path: ("basics", "email"), message: "expected string, got integer."),
 ))
 #assert(one.contains("1 problem"))
 #assert(one.contains("basics.email"))
 #assert(one.contains("expected string"))
 
-#let many = _format-report((
+#let many = format-errors((
   (path: ("basics", "email"), message: "expected string, got integer."),
   (path: ("work", 0, "positon"), message: "unknown key \"positon\"."),
 ))

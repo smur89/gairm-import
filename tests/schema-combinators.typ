@@ -1,8 +1,6 @@
 // Schema combinators produce dispatchable type nodes.
 
-#import "../internal/kinds.typ": (
-  str-type, content-type, number-type, array-of, object,
-)
+#import "../lib.typ": str-type, content-type, number-type, array-of, object
 
 #assert.eq(str-type, (kind: "str"))
 #assert.eq(content-type, (kind: "content"))

@@ -8,8 +8,9 @@
 //  - default `expected` hint when caller omits it
 //  - nested under array-of / object: paths stay correct
 
+#import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
-#import "../internal/kinds.typ": pattern-string, object, array-of
+#import "../lib.typ": pattern-string, object, array-of
 
 // ---- positive --------------------------------------------------------
 
@@ -74,13 +75,12 @@
   primary: country-code,
 ))
 
-#let nested-errs = _validate(
-  schema,
+#let nested-errs = validate(
   (
     codes: ("US", "usa", "IE"),
     primary: "x",
   ),
-  (),
+  schema: schema,
 )
 #assert.eq(nested-errs.len(), 2)
 #let paths = nested-errs.map(e => e.path)
@@ -89,5 +89,5 @@
 
 // A regex value works where a pattern string does (#135).
 #let by-regex = object((code: pattern-string(regex("^[A-Z]{3}$"))))
-#assert.eq(_validate(by-regex, (code: "ABC"), ()), ())
-#assert.eq(_validate(by-regex, (code: "abc"), ()).len(), 1)
+#assert.eq(validate((code: "ABC"), schema: by-regex), ())
+#assert.eq(validate((code: "abc"), schema: by-regex).len(), 1)

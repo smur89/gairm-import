@@ -1,8 +1,9 @@
 // `dependent-required`: when a key is present, its dependents must be
 // too. Null counts as absent for trigger and dependent alike.
 
+#import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
-#import "../internal/kinds.typ": str-type, object
+#import "../lib.typ": str-type, object
 #import "../lib.typ": schema-from-json-schema, remove-field, lens
 
 #let contact = object(
@@ -11,10 +12,10 @@
 )
 
 // Trigger absent: nothing required.
-#assert.eq(_validate(contact, (:), ()), ())
-#assert.eq(_validate(contact, (email: "a@x"), ()), ())
+#assert.eq(validate((:), schema: contact), ())
+#assert.eq(validate((email: "a@x"), schema: contact), ())
 // Trigger present, dependents present.
-#assert.eq(_validate(contact, (phone: "1", email: "a@x", name: "A"), ()), ())
+#assert.eq(validate((phone: "1", email: "a@x", name: "A"), schema: contact), ())
 
 // One error per missing dependent, at the object's path.
 #let errs = _validate(contact, (phone: "1", name: "A"), ("basics",))
@@ -24,12 +25,12 @@
   errs.at(0).message,
   "\"email\" is required when \"phone\" is present.",
 )
-#assert.eq(_validate(contact, (phone: "1"), ()).len(), 2)
+#assert.eq(validate((phone: "1"), schema: contact).len(), 2)
 
 // Null-as-absent: a null trigger does not fire; a null dependent is missing.
-#assert.eq(_validate(contact, (phone: none), ()), ())
+#assert.eq(validate((phone: none), schema: contact), ())
 #assert.eq(
-  _validate(contact, (phone: "1", email: none, name: "A"), ()).len(),
+  validate((phone: "1", email: none, name: "A"), schema: contact).len(),
   1,
 )
 
@@ -42,8 +43,8 @@
   dependent-required: (a: ("x",)),
   additional: true,
 )
-#assert.eq(_validate(open, (a: "1"), ()).len(), 1)
-#assert.eq(_validate(open, (a: "1", x: 2), ()), ())
+#assert.eq(validate((a: "1"), schema: open).len(), 1)
+#assert.eq(validate((a: "1", x: 2), schema: open), ())
 
 // Translator: dependentRequired and draft 7's array-form dependencies.
 #let props = (
@@ -110,6 +111,6 @@
   properties: (a: (type: "string"), b: (type: "string")),
   dependentRequired: (a: ("b",)),
 ))
-#assert.eq(_validate(mixed, "x", ()), ())
-#assert.eq(_validate(mixed, (a: "1", b: "2"), ()), ())
-#assert(_validate(mixed, (a: "1"), ()).len() > 0)
+#assert.eq(validate("x", schema: mixed), ())
+#assert.eq(validate((a: "1", b: "2"), schema: mixed), ())
+#assert(validate((a: "1"), schema: mixed).len() > 0)
