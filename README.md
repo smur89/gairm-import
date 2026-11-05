@@ -681,6 +681,9 @@ in sync:
   composition (e.g. string + extra constraints) panics
 - `type: [X, "null"]` nullable unions (under the engine's null-as-absent
   policy these translate to plain `X`)
+- `type: [A, B, ...]` unions → `any-of` over one member per type (`"null"`
+  members drop). Type-specific keywords (`minLength`, `minimum`, `items`,
+  ...) apply only to the member of their own type, as in JSON Schema
 - String constraints: `minLength`, `maxLength`
 - Number constraints: `minimum`, `maximum`, `exclusiveMinimum`,
   `exclusiveMaximum`, `multipleOf`
@@ -699,8 +702,9 @@ message rather than silently dropping the constraint:
 - `if` / `then` / `else`
 - `dependencies` (and the `dependentRequired` / `dependentSchemas` variants)
 - `type: "object"` with neither `properties` nor `additionalProperties`
-  (fully open)
-- `type: [...]` unions with more than one non-null member
+  (fully open). This one is deliberate, not a gap: the engine rejects
+  undeclared keys by default, so a schema that wants an open object says
+  so with `additionalProperties: true`
 - External `$ref`
 - String formats other than the four listed above
 - `allOf` with non-object members, and schema-bearing sibling keywords
