@@ -342,35 +342,26 @@
   // than every member's failure list — member errors describe branches
   // the value never claimed to match, so replaying them all is noise.
   if kind == "union" {
-    // Exclusivity needs the full match count; any-of only needs "at
-    // least one", so it short-circuits on the first matching member.
-    if schema.exclusive {
-      let matches = schema
-        .members
-        .filter(m => _validate(m, value, path).len() == 0)
-        .len()
-      if matches == 1 { return () }
-      if matches > 1 {
-        return _err(
-          path,
-          "expected exactly one alternative to match, but "
-            + str(matches)
-            + " matched.",
-        )
-      }
-    } else if schema.members.any(m => _validate(m, value, path).len() == 0) {
-      return ()
+    // Each member validated once: re-validating per check made nested
+    // unions exponential in depth.
+    let results = schema.members.map(m => _validate(m, value, path))
+    let matches = results.filter(errs => errs.len() == 0).len()
+    if matches == 1 or (matches > 1 and not schema.exclusive) { return () }
+    if matches > 1 {
+      return _err(
+        path,
+        "expected exactly one alternative to match, but "
+          + str(matches)
+          + " matched.",
+      )
     }
     // When exactly one member accepts the value's type, its own errors
     // say what is wrong; the generic summary would read like a type
     // error for a right-typed value that merely broke a constraint.
     let type-error-tail = ", got " + _type-name-of(value) + "."
-    let claimed = schema
-      .members
-      .map(m => _validate(m, value, path))
-      .filter(errs => errs.any(e => (
-        e.path != path or not e.message.ends-with(type-error-tail)
-      )))
+    let claimed = results.filter(errs => errs.any(e => (
+      e.path != path or not e.message.ends-with(type-error-tail)
+    )))
     if claimed.len() == 1 { return claimed.at(0) }
     let alternatives = schema.members.map(m => m.kind).join(" | ")
     let quantifier = if schema.exclusive { "exactly one" } else { "one" }

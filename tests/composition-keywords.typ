@@ -129,6 +129,17 @@
 // Null at a union position is "key absent", like every other kind.
 #assert.eq(validate((value: none), schema: holder), ())
 
+// Nesting stays affordable: each level validates every member once.
+// Twelve levels of a member that recurses through an array, failing at
+// the bottom so every branch is walked.
+#let deep = str-type
+#let deep-value = true
+#for _ in range(12) {
+  deep = any-of((deep, number-type, array-of(deep)))
+  deep-value = (deep-value,)
+}
+#assert.eq(validate(deep-value, schema: deep).len(), 1)
+
 // --- validator: union (one-of, exactly-one) ---------------------------
 
 #let exclusive = one-of((number-type, enum-of((1, 2))))
