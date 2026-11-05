@@ -198,14 +198,31 @@
   members
 }
 
+// Whether a raw allOf member declares `additionalProperties` false or a
+// schema, through `$ref` and nested allOf. Read from the JSON because
+// the translated kind can't tell an explicit `false` from an undeclared
+// one (both `none`), and draft 7 reads undeclared as open. Runs after
+// the member translated, so refs are known to resolve without cycles.
+#let _restricts-extras(js, root) = {
+  if "$ref" in js {
+    return _restricts-extras(_resolve-ref(js.at("$ref"), root, ()), root)
+  }
+  if "allOf" in js {
+    return js.at("allOf").any(m => _restricts-extras(m, root))
+  }
+  js.at("additionalProperties", default: true) != true
+}
+
 // allOf: the object-merge subset — every member must translate to an
 // object schema; shapes union (a duplicate key must carry an EQUAL
 // sub-schema), required-keys and dependent-required union,
 // additionalProperties must agree across all members (undeclared counts
-// as closed). Non-object composition (e.g. string + extra constraints) stays out of scope;
+// as closed), and members that restrict extras (`restricts`, see
+// _restricts-extras) need identical property sets. Non-object
+// composition (e.g. string + extra constraints) stays out of scope;
 // deep-merging conflicting sub-schemas is a rabbit hole the engine's
 // flat kinds can't express.
-#let _merge-all-of(members) = {
+#let _merge-all-of(members, restricts) = {
   for m in members {
     if m.kind != "object" {
       _bail(
@@ -253,6 +270,16 @@
         "allOf members declare conflicting additionalProperties (open, closed, and typed members must all agree).",
       )
     }
+  }
+  // Draft 7 applies each member's additionalProperties to that member's
+  // own properties only: a closed member rejects, and a typed one
+  // checks, keys only another member declares, which the union would
+  // accept unchecked.
+  let keys = members.map(m => m.shape.keys().sorted())
+  if restricts.any(r => r) and keys.any(k => k != keys.at(0)) {
+    _bail(
+      "allOf members with `additionalProperties: false` or a schema must all declare the same properties: draft 7 applies each member's additionalProperties to its own properties only, so a merged schema would accept keys that member rejects. Declare the properties in every member, or drop the restriction.",
+    )
   }
   object(
     shape,
@@ -547,12 +574,10 @@
     )
   }
   if "allOf" in js {
+    let raw = _require-member-array(js, "allOf")
     return _merge-all-of(
-      _require-member-array(js, "allOf").map(m => _from-json-schema(
-        m,
-        root,
-        seen,
-      )),
+      raw.map(m => _from-json-schema(m, root, seen)),
+      raw.map(m => _restricts-extras(m, root)),
     )
   }
   if "anyOf" in js {
