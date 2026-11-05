@@ -741,6 +741,9 @@ message rather than silently dropping the constraint:
   undeclared keys by default, so a schema that wants an open object says
   so with `additionalProperties: true`
 - External `$ref`
+- Boolean schemas (`true` / `false` as a subschema, e.g.
+  `properties: (a: true)`); `additionalProperties: true` / `false` is
+  supported
 - String formats other than the nine listed above
 - `allOf` with non-object members, `allOf` whose closed or typed members
   declare different properties, and schema-bearing sibling keywords

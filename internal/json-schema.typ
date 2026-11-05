@@ -539,6 +539,15 @@
 )
 
 #let _from-json-schema(js, root, seen) = {
+  // A `properties` value or `$ref` target reaches here unchecked; a
+  // boolean would otherwise fail with a raw Typst error on `in` below.
+  if type(js) != dictionary {
+    _bail(
+      "a subschema must be a schema object, got: "
+        + repr(js)
+        + ". Boolean schemas (true / false) are out of scope.",
+    )
+  }
   // Before the $ref early return: resolving the ref first would
   // silently drop any non-annotation sibling of `$ref` (a composition
   // keyword, `minLength`, ...), so bail on those instead.
@@ -573,10 +582,36 @@
         + ". They are outside the supported subset (see the README); translating would silently drop their constraints.",
     )
   }
+  // Before the enum / const fold, which would otherwise report a typo
+  // like `type: "strng"` as "no value satisfies ...".
+  let js-type = js.at("type", default: none)
+  if type(js-type) == array {
+    if js-type.len() == 0 or js-type.any(x => type(x) != str) {
+      _bail(
+        "\"type\" array must be a non-empty array of type names, got: "
+          + repr(js-type)
+          + ".",
+      )
+    }
+  }
+  if js-type != none {
+    let names = if type(js-type) == array { js-type } else { (js-type,) }
+    for m in names {
+      if m not in _type-names {
+        _bail(
+          "unknown `type` name "
+            + repr(m)
+            + if type(js-type) == array { " in " + repr(js-type) }
+            + "; expected one of: "
+            + _type-names.join(", ")
+            + ".",
+        )
+      }
+    }
+  }
   let dependent = _dependent-required(js)
   // Only an object (possibly nullable) can carry it; elsewhere it
   // would be silently dropped.
-  let js-type = js.at("type", default: none)
   let is-object = (
     js-type == "object"
       or (
@@ -722,26 +757,6 @@
   if t == "boolean" { return bool-type }
   if t == "null" { return null-type }
   if type(t) == array {
-    if t.len() == 0 or t.any(x => type(x) != str) {
-      _bail(
-        "\"type\" array must be a non-empty array of type names, got: "
-          + repr(t)
-          + ".",
-      )
-    }
-    for m in t {
-      if m not in _type-names {
-        _bail(
-          "unknown `type` name "
-            + repr(m)
-            + " in "
-            + repr(t)
-            + "; expected one of: "
-            + _type-names.join(", ")
-            + ".",
-        )
-      }
-    }
     // "null" members drop: under null-as-absent every kind already
     // accepts null, so [X, "null"] is plain X and a wrapper would be a
     // no-op.
