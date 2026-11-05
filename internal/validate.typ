@@ -209,6 +209,36 @@
   message: "gairm-import: internal — _format-specs is out of sync with kinds._format-string-kinds.",
 )
 
+// Whether a union member takes values of this one's type at all, read
+// from the schema rather than from its error text, which enum, range
+// and pattern errors would otherwise mimic.
+#let _accepts-type(schema, value) = {
+  let kind = schema.kind
+  let t = type(value)
+  if kind in ("str", "content", "pattern-string") { return t == str }
+  if kind in _format-specs {
+    return t == str or (t == datetime and kind in _datetime-kinds)
+  }
+  if kind == "number" { return t in (int, float) }
+  if kind == "bool" { return t == bool }
+  if kind == "array" { return t == array }
+  if kind == "object" { return t == dictionary }
+  // int and float are one JSON number type.
+  if kind == "enum" {
+    let numeric = (int, float)
+    return schema.values.any(v => (
+      type(v) == t or (type(v) in numeric and t in numeric)
+    ))
+  }
+  if kind == "union" {
+    return schema.members.any(m => _accepts-type(m, value))
+  }
+  // `not` admits every type its member rejects, so it can't be ruled out.
+  if kind == "not" { return true }
+  // `null` takes only `none`, which never reaches a union branch.
+  false
+}
+
 #let _validate(schema, value, path) = {
   // Null at any value position is "key absent" — no error, no
   // recursion. Single early return handles every shape uniformly:
@@ -358,11 +388,11 @@
     // When exactly one member accepts the value's type, its own errors
     // say what is wrong; the generic summary would read like a type
     // error for a right-typed value that merely broke a constraint.
-    let type-error-tail = ", got " + _type-name-of(value) + "."
-    let claimed = results.filter(errs => errs.any(e => (
-      e.path != path or not e.message.ends-with(type-error-tail)
-    )))
-    if claimed.len() == 1 { return claimed.at(0) }
+    let claimed = schema
+      .members
+      .zip(results)
+      .filter(((m, _)) => _accepts-type(m, value))
+    if claimed.len() == 1 { return claimed.at(0).at(1) }
     let alternatives = schema.members.map(m => m.kind).join(" | ")
     let quantifier = if schema.exclusive { "exactly one" } else { "one" }
     return _err(
