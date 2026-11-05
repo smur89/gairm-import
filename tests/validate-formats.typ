@@ -7,8 +7,9 @@
 //  - email-string    → local@domain.tld (permissive)
 //  - uuid-string, hostname-string, ipv4-string, ipv6-string, time-string
 
+#import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
-#import "../internal/kinds.typ": (
+#import "../lib.typ": (
   date-string, datetime-string, uri-string, email-string, uuid-string,
   hostname-string, ipv4-string, ipv6-string, time-string, object, array-of,
 )
@@ -219,8 +220,7 @@
 #let _work = object((url: uri-string, startDate: date-string))
 #let schema = object((work: array-of(_work), email: email-string))
 
-#let nested-errs = _validate(
-  schema,
+#let nested-errs = validate(
   (
     work: (
       (url: "https://ok.example", startDate: "2024-01"),
@@ -228,7 +228,7 @@
     ),
     email: "name@",
   ),
-  (),
+  schema: schema,
 )
 #assert.eq(nested-errs.len(), 3)
 

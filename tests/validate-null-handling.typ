@@ -7,9 +7,7 @@
 
 #import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
-#import "../internal/kinds.typ": (
-  str-type, content-type, number-type, array-of, object,
-)
+#import "../lib.typ": str-type, content-type, number-type, array-of, object
 
 // Null at a primitive value position: no error.
 #assert.eq(_validate(str-type, none, ("basics", "summary")), ())
@@ -49,8 +47,8 @@
 #assert.eq(_validate(person, none, ("basics",)), ())
 
 // Per-key null inside an object: skipped, no error.
-#assert.eq(_validate(person, (name: "Alice", age: none), ()), ())
-#assert.eq(_validate(person, (name: none, age: none), ()), ())
+#assert.eq(validate((name: "Alice", age: none), schema: person), ())
+#assert.eq(validate((name: none, age: none), schema: person), ())
 
 // Unknown key with a null value still errors — typos must not slip
 // through just because the user wrote `null`.
@@ -65,7 +63,7 @@
   (title: str-type, body: content-type),
   required-keys: ("title", "body"),
 )
-#let errs-required = _validate(strict, (title: "hi", body: none), ())
+#let errs-required = validate((title: "hi", body: none), schema: strict)
 #assert.eq(errs-required.len(), 1)
 #assert.eq(errs-required.at(0).path, ("body",))
 #assert(errs-required.at(0).message.contains("missing required key"))
@@ -99,7 +97,7 @@
 // position — that's the right rule for LEAVES inside a document.
 // Verified here at the engine level so the wrapper can layer its
 // own root-level guard on top without changing the leaf rule.
-#import "../internal/schema.typ": resume-schema
+#import "../lib.typ": resume-schema
 #import "../internal/validate.typ": _validate
 #assert.eq(_validate(resume-schema, none, ()), ())
 

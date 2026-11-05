@@ -1,16 +1,17 @@
 // _validate on object: type-check container, recurse into known keys,
 // reject unknown keys with a path-qualified error.
 
+#import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
-#import "../internal/kinds.typ": str-type, number-type, object
+#import "../lib.typ": str-type, number-type, object
 
 #let person = object((name: str-type, age: number-type))
 
 // Valid: all known keys, correct types.
-#assert.eq(_validate(person, (name: "Alice", age: 30), ()), ())
+#assert.eq(validate((name: "Alice", age: 30), schema: person), ())
 
 // Missing optional key: no error (everything is optional).
-#assert.eq(_validate(person, (name: "Alice"), ()), ())
+#assert.eq(validate((name: "Alice"), schema: person), ())
 
 // Not an object.
 #let errs = _validate(person, "oops", ("basics",))

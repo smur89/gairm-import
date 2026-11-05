@@ -6,7 +6,7 @@
 //  - Spot-checks pinning specific fields that callers and the README
 //    depend on (free-text vs identifier vs tag-array).
 
-#import "../internal/schema.typ": resume-schema
+#import "../lib.typ": resume-schema
 #import "../lib.typ": str-type
 
 #assert.eq(resume-schema.kind, "object")

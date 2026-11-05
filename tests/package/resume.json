@@ -1,0 +1,16 @@
+{
+  "basics": {
+    "name": "Seán Ó Murchú",
+    "label": "Senior Software Engineer",
+    "email": "sean@example.com",
+    "summary": "Backend engineer with eight years of experience."
+  },
+  "work": [
+    {
+      "name": "Acme Corp",
+      "position": "Senior Software Engineer",
+      "startDate": "2022-01",
+      "highlights": ["Led the event-sourcing platform migration."]
+    }
+  ]
+}

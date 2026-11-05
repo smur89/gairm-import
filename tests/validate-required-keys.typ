@@ -2,8 +2,9 @@
 // Default is `()` so v0.1's all-optional behaviour for resume-schema is
 // preserved; extension schemas can opt in.
 
+#import "../lib.typ": validate
 #import "../internal/validate.typ": _validate
-#import "../internal/kinds.typ": str-type, object
+#import "../lib.typ": str-type, object
 
 #let strict-person = object(
   (name: str-type, email: str-type),
@@ -11,11 +12,11 @@
 )
 
 // Required key present: clean.
-#assert.eq(_validate(strict-person, (name: "Alice", email: "a@x"), ()), ())
-#assert.eq(_validate(strict-person, (name: "Alice"), ()), ())
+#assert.eq(validate((name: "Alice", email: "a@x"), schema: strict-person), ())
+#assert.eq(validate((name: "Alice"), schema: strict-person), ())
 
 // Required key absent: one error at the missing path.
-#let errs = _validate(strict-person, (email: "a@x"), ())
+#let errs = validate((email: "a@x"), schema: strict-person)
 #assert.eq(errs.len(), 1)
 #assert.eq(errs.at(0).path, ("name",))
 #assert(errs.at(0).message.contains("missing required key"))
@@ -31,4 +32,4 @@
 
 // Default — no required-keys — preserves all-optional behaviour.
 #let lax-person = object((name: str-type, email: str-type))
-#assert.eq(_validate(lax-person, (:), ()), ())
+#assert.eq(validate((:), schema: lax-person), ())
