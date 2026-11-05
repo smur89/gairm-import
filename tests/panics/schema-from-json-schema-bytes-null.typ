@@ -1,3 +1,3 @@
-// expect: expected a parsed JSON Schema dict, path(...), or bytes, got: type(none).
+// expect: input must be a dict, got null.
 #import "../../lib.typ": schema-from-json-schema
 #schema-from-json-schema(bytes("null"))
