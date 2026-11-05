@@ -26,7 +26,9 @@
 // a format kind with an extra pattern).
 #let _pattern-errs(schema, value, path) = {
   if "pattern" in schema and value.match(schema.pattern) == none {
-    _err(path, "expected " + schema.expected + ".")
+    // Hand-built nodes may omit `expected`; default as pattern-string does.
+    let expected = schema.at("expected", default: "matching pattern")
+    _err(path, "expected " + expected + ".")
   } else { () }
 }
 
@@ -71,7 +73,24 @@
     errs += _err(path, "expected < " + str(emx) + ", got " + str(value) + ".")
   }
   let mult = schema.at("multiple-of", default: none)
-  if mult != none and calc.rem(value, mult) != 0 {
+  // A schema bug, not a data error: the translator rejects it, but a
+  // hand-built node can carry it.
+  if mult != none and mult <= 0 {
+    panic(
+      "gairm-import: multiple-of must be positive, got " + str(mult) + ".",
+    )
+  }
+  // Integers stay exact; floats compare the ratio with a tolerance, since
+  // calc.rem(0.3, 0.1) is not 0.
+  let off = if mult == none { false } else if (
+    type(value) == int and type(mult) == int
+  ) {
+    calc.rem(value, mult) != 0
+  } else {
+    let q = value / mult
+    calc.abs(q - calc.round(q)) >= 1e-9
+  }
+  if off {
     errs += _err(
       path,
       "expected multiple of " + str(mult) + ", got " + str(value) + ".",

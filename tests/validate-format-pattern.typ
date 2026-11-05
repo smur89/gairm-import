@@ -21,6 +21,14 @@
 #assert.eq(errs.len(), 1)
 #assert(not errs.first().message.contains("matching"))
 
+// A hand-built node may carry `pattern` without `expected`.
+#let bare = (kind: "email-string", pattern: regex("@example\\.com$"))
+#assert.eq(validate("a@example.com", schema: bare), ())
+#assert.eq(
+  validate("a@other.org", schema: bare).first().message,
+  "expected matching pattern.",
+)
+
 // The pattern also applies to the ISO string a datetime converts to.
 #let year = schema-from-json-schema((
   type: "string",

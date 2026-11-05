@@ -64,6 +64,13 @@
 #assert.eq(off-mult.len(), 1)
 #assert(off-mult.at(0).message.contains("multiple of 3"))
 
+// Float multiples tolerate rounding: calc.rem(0.3, 0.1) is not 0.
+#let mult-tenth = (kind: "number", multiple-of: 0.1)
+#assert.eq(validate(0.3, schema: mult-tenth), ())
+#assert.eq(validate(3, schema: mult-tenth), ())
+#assert.eq(validate(0.35, schema: mult-tenth).len(), 1)
+#assert.eq(validate(1.5, schema: mult-3).len(), 1)
+
 // --- array constraints -----------------------------------------------
 
 #let arr-2-3 = (kind: "array", elem: str-type, min-items: 2, max-items: 3)
