@@ -8,14 +8,10 @@
 // Downstream renderers see "key not in dict" instead of a stray
 // `none` value to special-case.
 //
-// An object whose every key coerced to none is itself coerced to
-// `none` (rather than an empty dict). That propagates "every key was
-// null" upward so the parent filter drops the object too — symmetric
-// with the leaf-null policy. Applied recursively, a resume whose only
-// section is itself all-null collapses all the way to `none` — the
-// consistent extension of the policy. Public callers go through the
-// lib.typ wrappers, which reject a null root explicitly so this
-// collapse never surprises a direct user of the engine.
+// Only `none` is absent. An object whose keys were all null, or an
+// empty object, stays an (empty) dictionary: validate counts it as
+// present, so dropping it here would hand callers a model that breaks
+// the schema it just passed (a missing required key, a short array).
 
 #import "errors.typ": _type-name-of
 #import "kinds.typ": (
@@ -84,11 +80,11 @@
   }
   if kind == "object" {
     if type(value) != dictionary { panic(_expect("an object", value)) }
-    // Opaque, like an `additional: true` extra: no null or empty-object
-    // cleanup, so `custom: (a: none)` and `custom: (:)` survive as given.
+    // Opaque, like an `additional: true` extra: no null cleanup, so
+    // `custom: (a: none)` survives as given.
     if _is-free-form(schema) { return value }
     let additional = schema.at("additional", default: none)
-    let coerced = value
+    return value
       .pairs()
       .filter(((key, _)) => key in schema.shape or additional != none)
       .map(((key, sub-value)) => {
@@ -105,8 +101,6 @@
       })
       .filter(((_, coerced)) => coerced != none)
       .to-dict()
-    if coerced.len() == 0 { return none }
-    return coerced
   }
   // Union: delegate to the first member the value validates against.
   // For one-of, validation already guaranteed exactly one; direct

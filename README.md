@@ -283,6 +283,9 @@ JSON `null` is treated as if the key were absent — no validation error,
 dropped from the coerced model. Null elements inside arrays are dropped the
 same way. This matches the convention used by most JSON Resume emitters,
 where `"summary": null` is semantically equivalent to omitting the key.
+Only `null` itself is absent: an object whose keys are all `null`, or an
+empty object, stays in the model as an empty dictionary, so
+`{"basics": {"name": null}}` coerces to `(basics: (:))`.
 Unknown keys are still flagged even when their value is `null`, so typos do
 not slip through silently. The one exception is a free-form object with no
 declared fields (JSON Resume's `custom`): it is passed through exactly as
