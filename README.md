@@ -657,7 +657,13 @@ in sync:
   `format`, both apply (the format kind gains the pattern as an extra gate,
   checked after the format's own check, also for a `datetime` given to a
   date kind)
-- `enum` → `enum-of`, `const` → `const-of`
+- `enum` → `enum-of`, `const` → `const-of` — `type` and constraint keywords
+  beside them (`minLength`, `minimum`, `minItems`, `pattern`, `format`, …) are
+  folded in at translate time: only values satisfying them are kept, and
+  a keyword ignores values of a type it does not apply to (`minimum`
+  leaves a string value alone, per JSON Schema). If no value survives the
+  schema is unsatisfiable and panics. `properties` / `required` /
+  `additionalProperties` / `items` beside them panic
 - `properties`, `required`, `items`
 - Internal `$ref` (`#/definitions/…` / `#/$defs/…`) — like a composition
   keyword, `$ref` must stand alone (annotation-only siblings excepted); a
@@ -692,10 +698,6 @@ message rather than silently dropping the constraint:
 
 - `if` / `then` / `else`
 - `dependencies` (and the `dependentRequired` / `dependentSchemas` variants)
-- Constraint keywords (`minLength`, `minimum`, `minItems`, …) combined with
-  `enum` / `const` — membership already pins the exact values, so fold the
-  constraint into the value list instead (`type` alongside `enum` / `const`
-  remains accepted as redundant)
 - `type: "object"` with neither `properties` nor `additionalProperties`
   (fully open)
 - `type: [...]` unions with more than one non-null member

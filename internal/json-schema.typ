@@ -2,10 +2,11 @@
 // not supported panics rather than silently dropping the constraint.
 
 #import "decode.typ": _decode-json
+#import "validate.typ": _validate
 #import "kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
   array-of, object, date-string, datetime-string, uri-string, email-string,
-  pattern-string, enum-of, const-of, any-of, one-of, not-of,
+  pattern-string, enum-of, any-of, one-of, not-of,
 )
 
 #let _format-kinds = (
@@ -180,26 +181,6 @@
   object(shape, required-keys: required, additional: additionals.at(0))
 }
 
-// Constraint keywords that would genuinely tighten an enum / const
-// value set. The engine's enum kind checks membership only, so these
-// must bail rather than translate to a schema that silently ignores
-// them. (`type` beside enum/const stays accepted: membership already
-// pins the shape, so it's redundant rather than dropped.)
-#let _membership-incompatible-keywords = (
-  "format",
-  "pattern",
-  "minLength",
-  "maxLength",
-  "minimum",
-  "maximum",
-  "exclusiveMinimum",
-  "exclusiveMaximum",
-  "multipleOf",
-  "minItems",
-  "maxItems",
-  "uniqueItems",
-)
-
 // Bail at translate time on bad-shape values; better than a kind
 // dict the validator can't reason about.
 #let _require-nonneg-int(js, key) = {
@@ -328,6 +309,100 @@
   result
 }
 
+// Both keywords apply when both are present (JSON Schema's "all
+// keywords apply"): the format kind carries the pattern as an extra
+// gate, checked after the format regex.
+#let _string-base(js) = {
+  let fmt = js.at("format", default: none)
+  let pat = js.at("pattern", default: none)
+  if pat != none and type(pat) != str {
+    _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
+  }
+  let expected = if pat != none { "matching " + repr(pat) }
+  if fmt != none {
+    if fmt not in _format-kinds {
+      _bail("unsupported string format: " + repr(fmt) + ".")
+    }
+    if pat == none { _format-kinds.at(fmt) } else {
+      _format-kinds.at(fmt) + (pattern: regex(pat), expected: expected)
+    }
+  } else if pat != none {
+    pattern-string(pat, expected: expected)
+  } else {
+    str-type
+  }
+}
+
+// Typst type name → JSON Schema `type` name, for the types that map
+// one-to-one (numbers are classified separately).
+#let _json-type-names = (
+  string: "string",
+  boolean: "boolean",
+  "none": "null",
+  array: "array",
+  dictionary: "object",
+)
+
+// Object / array keywords describe structure that an enum / const
+// value list cannot be filtered by here; they bail rather than being
+// silently dropped.
+#let _membership-structural-keywords = (
+  "properties",
+  "required",
+  "additionalProperties",
+  "items",
+)
+
+// Accepts any value; constraints that never look at array items need an
+// element schema all the same.
+#let _any-elem = not-of(enum-of(()))
+
+// Folds the constraint keywords beside `enum` / `const` into the value
+// set: each value is checked against the schema the translator would
+// have emitted for its JSON type without the membership keyword, and
+// only survivors are kept. Type-specific keywords ignore other types
+// (JSON Schema semantics), so a value of a type no keyword applies to
+// — a bool, null, object, or a string beside only `minimum` — survives.
+#let _fold-constraints(js, values) = {
+  let by-type = (
+    string: _with-string-constraints(js, _string-base(js)),
+    number: _with-number-constraints(js, number-type),
+    array: _with-array-constraints(js, array-of(_any-elem)),
+  )
+  let types = js.at("type", default: none)
+  if types != none and type(types) != array { types = (types,) }
+  let survivors = values.filter(v => {
+    let kind = if type(v) in (int, float) { "number" } else {
+      _json-type-names.at(str(type(v)), default: "other")
+    }
+    // `type` keeps a value whose JSON type it names; `integer` is a
+    // number with no fractional part (`1.0` passes, per draft 7).
+    let allowed = (
+      types == none
+        or (
+          kind in types
+            or (
+              kind == "number" and "integer" in types and calc.fract(v) == 0
+            )
+        )
+    )
+    (
+      allowed
+        and (
+          kind not in by-type or _validate(by-type.at(kind), v, ()).len() == 0
+        )
+    )
+  })
+  // `enum: []` was always accepted; only report values that constraints
+  // eliminated.
+  if values.len() > 0 and survivors.len() == 0 {
+    _bail(
+      "no enum/const value satisfies the accompanying type/constraints, so the schema is unsatisfiable.",
+    )
+  }
+  survivors
+}
+
 #let _from-json-schema(js, root, seen) = {
   // Before the $ref early return: resolving the ref first would
   // silently drop any non-annotation sibling of `$ref` (a composition
@@ -389,14 +464,14 @@
     }
     return not-of(_from-json-schema(member, root, seen))
   }
-  // enum / const take precedence over `type` — membership constrains
-  // shape on its own, so any accompanying type keyword is redundant.
+  // enum / const fold the accompanying `type` and constraint keywords
+  // into the value list (see _fold-constraints).
   if "enum" in js or "const" in js {
-    for keyword in _membership-incompatible-keywords {
+    for keyword in _membership-structural-keywords {
       if keyword in js {
         _bail(
           repr(keyword)
-            + " cannot be combined with enum/const — membership already pins the exact values; fold the constraint into the values instead.",
+            + " cannot be combined with enum/const — it describes object/array structure, which membership does not check.",
         )
       }
     }
@@ -408,33 +483,14 @@
         "\"enum\" must be an array of values, got: " + repr(type(values)) + ".",
       )
     }
-    return enum-of(values)
+    return enum-of(_fold-constraints(js, values))
   }
-  if "const" in js { return const-of(js.at("const")) }
+  if "const" in js {
+    return enum-of(_fold-constraints(js, (js.at("const"),)))
+  }
   let t = js.at("type", default: none)
   if t == "string" {
-    // Both keywords apply when both are present (JSON Schema's "all
-    // keywords apply"): the format kind carries the pattern as an extra
-    // gate, checked after the format regex.
-    let fmt = js.at("format", default: none)
-    let pat = js.at("pattern", default: none)
-    if pat != none and type(pat) != str {
-      _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
-    }
-    let expected = if pat != none { "matching " + repr(pat) }
-    let base = if fmt != none {
-      if fmt not in _format-kinds {
-        _bail("unsupported string format: " + repr(fmt) + ".")
-      }
-      if pat == none { _format-kinds.at(fmt) } else {
-        _format-kinds.at(fmt) + (pattern: regex(pat), expected: expected)
-      }
-    } else if pat != none {
-      pattern-string(pat, expected: expected)
-    } else {
-      str-type
-    }
-    return _with-string-constraints(js, base)
+    return _with-string-constraints(js, _string-base(js))
   }
   if t == "number" or t == "integer" {
     // `integer` keeps its integral constraint (kinds.typ's integer-type)

@@ -136,6 +136,63 @@
   const-of("fixed"),
 )
 
+// Constraint keywords beside enum / const fold into the value set: only
+// values that satisfy them survive.
+#assert.eq(
+  schema-from-json-schema((enum: (1, 5, 20), minimum: 4)),
+  enum-of((5, 20)),
+)
+#assert.eq(
+  schema-from-json-schema((
+    enum: ("a", "bb", "ccc"),
+    minLength: 2,
+    maxLength: 2,
+  )),
+  enum-of(("bb",)),
+)
+#assert.eq(
+  schema-from-json-schema((enum: ("ab1", "abc", "x"), pattern: "^ab")),
+  enum-of(("ab1", "abc")),
+)
+// `type` beside enum / const filters values too.
+#assert.eq(
+  schema-from-json-schema((type: "integer", enum: (1.5, 2, 3.0))),
+  enum-of((2, 3.0)),
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", enum: ("a", 1))),
+  enum-of(("a",)),
+)
+#assert.eq(
+  schema-from-json-schema((type: ("string", "null"), enum: ("a", 1, none))),
+  enum-of(("a", none)),
+)
+// An empty enum stays as it always was.
+#assert.eq(schema-from-json-schema((enum: ())), enum-of(()))
+// A string value must satisfy format AND pattern.
+#assert.eq(
+  schema-from-json-schema((
+    enum: ("a@x.io", "b@y.io", "nope"),
+    format: "email",
+    pattern: "^a",
+  )),
+  enum-of(("a@x.io",)),
+)
+#assert.eq(
+  schema-from-json-schema((enum: ((1,), (1, 2), (3,)), minItems: 2)),
+  enum-of(((1, 2),)),
+)
+#assert.eq(
+  schema-from-json-schema((const: 5, minimum: 4)),
+  const-of(5),
+)
+// Type-specific keywords ignore other types, so values of a type the
+// keyword does not apply to survive.
+#assert.eq(
+  schema-from-json-schema((enum: (1, "x", true, none), minimum: 4)),
+  enum-of(("x", true, none)),
+)
+
 // Equality holds because Typst's regex compares by source.
 #assert.eq(
   schema-from-json-schema((type: "string", pattern: "^[A-Z]{2}$")),
