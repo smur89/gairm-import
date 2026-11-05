@@ -194,6 +194,12 @@ A string path is rejected: inside a package Typst resolves it against the
 package, not your project, so `parse("/resume.json")` could never find your
 file. Pass `path("resume.json")`.
 
+The same input forms apply to `parse`, `validate`, `coerce` and
+`schema-from-json-schema`: a dictionary, `path(..)` or bytes. `parse` and
+`schema-from-json-schema` panic on a string path. `validate` and `coerce`
+take a string as the value itself, for a scalar schema such as
+`date-string`, so read a file there with `path(..)` or `json(..)`.
+
 ### The returned model
 
 The returned dict is a 1:1 mirror of the canonical schema — every kind comes
@@ -292,7 +298,7 @@ declared fields (JSON Resume's `custom`): it is passed through exactly as
 given, nulls and all, as upstream asks tools to do.
 
 Root null is rejected: if the entire input document is `null`, `validate`,
-`coerce`, and `parse` panic with
+`coerce`, `parse` and `schema-from-json-schema` panic with
 `gairm-import: input must be a dict, got null.` The null-as-absent policy
 applies to leaf positions inside a document, not to the document itself.
 

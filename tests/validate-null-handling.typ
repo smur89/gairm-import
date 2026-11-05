@@ -104,14 +104,8 @@
 // Public wrappers reject a null root explicitly so callers passing
 // the wrong thing get a friendly panic, not silent garbage. We can't
 // catch the panic from inside the compiled test (Typst has no
-// try/catch), so the actual panic is exercised by the wrapper's unit
-// usage and by the source assertion below. The empty-dict input is
+// try/catch), so the panic is exercised by tests/panics/*-null-root.typ.
+// The empty-dict input is
 // the closest non-panicking sibling — it should still succeed,
 // confirming the guard fires only on `none`.
 #assert.eq(validate((:)), ())
-
-// Source-level assertion: the friendly panic message is present in
-// lib.typ. Compile-time pin so a future refactor that drops the
-// guard or rewords the message trips this test.
-#let lib-source = read("../lib.typ")
-#assert(lib-source.contains("input must be a dict, got null."))

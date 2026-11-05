@@ -14,21 +14,13 @@
 #import "internal/coerce.typ": _coerce
 #import "internal/errors.typ": _format-report
 #import "internal/json-schema.typ": schema-from-json-schema
-#import "internal/decode.typ": _decode-json
+#import "internal/input.typ": _decode-input
 #import "internal/lens.typ": (
   lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
   set-required, unset-required,
 )
 #import "internal/introspect.typ": describe-schema, paths-of-kind, kind-at
 #import "internal/json-pointer.typ": path-to-pointer, pointer-to-path
-
-// Engines treat `none` at any value position as "key absent" — right
-// for leaves inside a document, but a null root is always invalid
-// (no schema can validate "missing document"). One source of truth
-// for the message so docs and tests have something stable to pin.
-#let _reject-none-root(data) = {
-  if data == none { panic("gairm-import: input must be a dict, got null.") }
-}
 
 /// Turns a list of validation errors, as `validate` returns them, into
 /// the combined report `parse` panics with. Use it when you handle the
@@ -41,12 +33,15 @@
 /// Checks `data` against `schema` and returns every problem found. An
 /// empty array means the data is valid.
 ///
-/// - data (dictionary): The document to check.
+/// - data (dictionary, path, bytes): The document, or where to read it.
+///   A `path` resolves from your file. A string is the value itself (a
+///   scalar schema checks it), never a path; use `path(..)` or
+///   `json(..)` to read a file. Null panics.
 /// - schema (dictionary): The schema to check against.
 /// -> array
 #let validate(data, schema: resume-schema) = {
-  _reject-none-root(data)
-  _validate(schema, data, ())
+  let value = _decode-input("validate", data, str-is-data: true)
+  _validate(schema, value, ())
 }
 
 // Unknown keys are dropped silently rather than panicking, so direct
@@ -57,12 +52,15 @@
 /// unless the object allows extras. Null values are dropped as absent
 /// keys; an object left with no keys stays an empty dictionary.
 ///
-/// - data (dictionary): The document to convert.
+/// - data (dictionary, path, bytes): The document, or where to read it.
+///   A `path` resolves from your file. A string is the value itself (a
+///   scalar schema converts it), never a path; use `path(..)` or
+///   `json(..)` to read a file. Null panics.
 /// - schema (dictionary): The schema that says what each field becomes.
 /// -> dictionary
 #let coerce(data, schema: resume-schema) = {
-  _reject-none-root(data)
-  _coerce(schema, data)
+  let value = _decode-input("coerce", data, str-is-data: true)
+  _coerce(schema, value)
 }
 
 /// Validates `data` against `schema`, then coerces it into the typed
@@ -76,19 +74,7 @@
 /// - schema (dictionary): The schema to check against.
 /// -> dictionary
 #let parse(data, schema: resume-schema) = {
-  if type(data) == str {
-    panic(
-      "gairm-import: parse does not take a string path: inside a "
-        + "package it resolves from the package, not your project. "
-        + "Pass path("
-        + repr(data)
-        + ") or json("
-        + repr(data)
-        + ") instead.",
-    )
-  }
-  let dict-data = _decode-json(data)
-  _reject-none-root(dict-data)
+  let dict-data = _decode-input("parse", data)
   if type(dict-data) != dictionary {
     panic(
       "gairm-import: parse expected a dict, a path, or bytes, got "

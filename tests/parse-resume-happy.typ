@@ -30,3 +30,15 @@
 // bytes entry, as Typst's own decoders take: json(bytes) under parse.
 #let from-bytes = parse(read("fixtures/resume-minimal.json", encoding: none))
 #assert.eq(from-bytes.basics.name, from-path.basics.name)
+
+// validate and coerce take a path and bytes as parse does.
+#assert.eq(validate(path("fixtures/resume-minimal.json")), ())
+#assert.eq(validate(read("fixtures/resume-minimal.json", encoding: none)), ())
+#assert.eq(
+  coerce(path("fixtures/resume-minimal.json")).basics.name,
+  from-path.basics.name,
+)
+#assert.eq(
+  coerce(read("fixtures/resume-minimal.json", encoding: none)).basics.name,
+  from-path.basics.name,
+)

@@ -1,7 +1,7 @@
 // JSON Schema (draft 7 subset) → Typst-schema translator. Anything
 // not supported panics rather than silently dropping the constraint.
 
-#import "decode.typ": _decode-json
+#import "input.typ": _decode-input
 #import "json-pointer.typ": _invalid-escape-re, pointer-to-path
 #import "validate.typ": _validate
 #import "kinds.typ": (
@@ -797,7 +797,7 @@
 ///   A `path` resolves from your file.
 /// -> dictionary
 #let schema-from-json-schema(js) = {
-  let parsed = _decode-json(js)
+  let parsed = _decode-input("schema-from-json-schema", js)
   if type(parsed) != dictionary {
     _bail(
       "expected a parsed JSON Schema dict, path(...), or bytes, got: "
