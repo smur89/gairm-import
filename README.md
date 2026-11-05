@@ -263,8 +263,42 @@ valid-keys list shown for `meta.foo`.
 
 ### Handling validation errors yourself
 
-Each error is a record
-`(path: ("basics", "email"), message: "expected string, got integer.")`.
+Each error is a record `(path, code, message, expected, got)`:
+
+```typst
+(
+  path: ("basics", "email"),
+  code: "type",
+  message: "expected string, got integer.",
+  expected: "string",
+  got: "integer",
+)
+```
+
+`code` says what kind of problem it is, so you can branch on it rather
+than on the message. `expected` and `got` hold the data behind the
+message, or `none` where a code has nothing to put there:
+
+| `code` | Meaning | `expected` | `got` |
+|---|---|---|---|
+| `type` | The value's JSON type is wrong (also: an enum or union none of whose members takes that type) | The type name(s) | The value's type name |
+| `required` | A required key is missing | | |
+| `unknown-key` | A key the object doesn't declare | The valid keys | The key |
+| `dependent` | A key required by another key's presence is missing | The missing key | The key that requires it |
+| `enum` | Not one of the enum's values | The values | The value |
+| `format` | Not in the format's shape (date, email, …) | The format's description | The value |
+| `pattern` | Doesn't match the pattern | The pattern's description | The value |
+| `length` | String too short or too long | The broken bound, keyed by its constraint: `(min-length: 3)` or `(max-length: 80)` | The length |
+| `range` | Number below the minimum or above the maximum | The broken bound, keyed by its constraint: `(minimum: 1)`, `(exclusive-minimum: 1)`, `(maximum: 10)` or `(exclusive-maximum: 10)` | The number |
+| `multiple` | Number not a multiple of `multiple-of` | `(multiple-of: 0.1)` | The number |
+| `integer` | A number with a fractional part where an integer is expected | | The number |
+| `items` | Too few or too many array items | The broken bound, keyed by its constraint: `(min-items: 1)` or `(max-items: 5)` | The item count |
+| `unique` | Duplicate array items | | The two duplicate indices |
+| `union` | Several alternatives take the value's type but none matches, or more than one matches a `one-of` | The alternatives' kinds | |
+| `not` | The value matches a `not-of` schema | | |
+
+`format-errors` reads only `path` and `message`.
+
 To present errors yourself instead of letting `parse` abort compilation,
 run the two steps separately:
 

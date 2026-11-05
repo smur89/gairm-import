@@ -10,17 +10,21 @@
 // required key must still count as missing). See README "Errors"
 // section for the user-facing rationale.
 
-#import "core/error.typ": _type-name-of, _closest-match
+#import "core/error.typ": _error, _type-name-of, _closest-match
 #import "kinds.typ": (
   _format-string-kinds, _datetime-kinds, _datetime-expected, _from-datetime,
 )
 
-#let _err(path, msg) = ((path: path, message: msg),)
-
-#let _type-error(path, expected, value) = _err(
-  path,
-  "expected " + expected + ", got " + _type-name-of(value) + ".",
-)
+#let _type-error(path, expected, value) = {
+  let got = _type-name-of(value)
+  _error(
+    path,
+    "type",
+    "expected " + expected + ", got " + got + ".",
+    expected: expected,
+    got: got,
+  )
+}
 
 // The node's own `pattern` gate, if it carries one (a pattern-string, or
 // a format kind with an extra pattern).
@@ -28,7 +32,13 @@
   if "pattern" in schema and value.match(schema.pattern) == none {
     // Hand-built nodes may omit `expected`; default as pattern-string does.
     let expected = schema.at("expected", default: "matching pattern")
-    _err(path, "expected " + expected + ".")
+    _error(
+      path,
+      "pattern",
+      "expected " + expected + ".",
+      expected: expected,
+      got: value,
+    )
   } else { () }
 }
 
@@ -40,15 +50,21 @@
   let n = value.clusters().len()
   let errs = ()
   if min != none and n < min {
-    errs += _err(
+    errs += _error(
       path,
+      "length",
       "expected string length ≥ " + str(min) + ", got " + str(n) + ".",
+      expected: (min-length: min),
+      got: n,
     )
   }
   if max != none and n > max {
-    errs += _err(
+    errs += _error(
       path,
+      "length",
       "expected string length ≤ " + str(max) + ", got " + str(n) + ".",
+      expected: (max-length: max),
+      got: n,
     )
   }
   errs
@@ -58,19 +74,43 @@
   let errs = ()
   let mn = schema.at("minimum", default: none)
   if mn != none and value < mn {
-    errs += _err(path, "expected ≥ " + str(mn) + ", got " + str(value) + ".")
+    errs += _error(
+      path,
+      "range",
+      "expected ≥ " + str(mn) + ", got " + str(value) + ".",
+      expected: (minimum: mn),
+      got: value,
+    )
   }
   let mx = schema.at("maximum", default: none)
   if mx != none and value > mx {
-    errs += _err(path, "expected ≤ " + str(mx) + ", got " + str(value) + ".")
+    errs += _error(
+      path,
+      "range",
+      "expected ≤ " + str(mx) + ", got " + str(value) + ".",
+      expected: (maximum: mx),
+      got: value,
+    )
   }
   let emn = schema.at("exclusive-minimum", default: none)
   if emn != none and value <= emn {
-    errs += _err(path, "expected > " + str(emn) + ", got " + str(value) + ".")
+    errs += _error(
+      path,
+      "range",
+      "expected > " + str(emn) + ", got " + str(value) + ".",
+      expected: (exclusive-minimum: emn),
+      got: value,
+    )
   }
   let emx = schema.at("exclusive-maximum", default: none)
   if emx != none and value >= emx {
-    errs += _err(path, "expected < " + str(emx) + ", got " + str(value) + ".")
+    errs += _error(
+      path,
+      "range",
+      "expected < " + str(emx) + ", got " + str(value) + ".",
+      expected: (exclusive-maximum: emx),
+      got: value,
+    )
   }
   let mult = schema.at("multiple-of", default: none)
   // A schema bug, not a data error: the translator rejects it, but a
@@ -91,9 +131,12 @@
     calc.abs(q - calc.round(q)) >= 1e-9
   }
   if off {
-    errs += _err(
+    errs += _error(
       path,
+      "multiple",
       "expected multiple of " + str(mult) + ", got " + str(value) + ".",
+      expected: (multiple-of: mult),
+      got: value,
     )
   }
   errs
@@ -124,16 +167,22 @@
   let n = present.len()
   let min = schema.at("min-items", default: none)
   if min != none and n < min {
-    errs += _err(
+    errs += _error(
       path,
+      "items",
       "expected array length ≥ " + str(min) + ", got " + str(n) + ".",
+      expected: (min-items: min),
+      got: n,
     )
   }
   let max = schema.at("max-items", default: none)
   if max != none and n > max {
-    errs += _err(
+    errs += _error(
       path,
+      "items",
       "expected array length ≤ " + str(max) + ", got " + str(n) + ".",
+      expected: (max-items: max),
+      got: n,
     )
   }
   if schema.at("unique-items", default: false) {
@@ -143,13 +192,15 @@
         let orig-i = present.at(i).at(0)
         let orig-j = present.at(j).at(0)
         if stripped.at(i) == stripped.at(j) {
-          errs += _err(
+          errs += _error(
             path,
+            "unique",
             "expected unique items, duplicate at indices "
               + str(orig-i)
               + " and "
               + str(orig-j)
               + ".",
+            got: (orig-i, orig-j),
           )
           return errs
         }
@@ -245,34 +296,10 @@
   message: "gairm-import: internal — _format-specs is out of sync with kinds._format-string-kinds.",
 )
 
-// Whether a union member takes values of this one's type at all, read
-// from the schema rather than from its error text, which enum, range
-// and pattern errors would otherwise mimic.
-#let _accepts-type(schema, value) = {
-  let kind = schema.kind
-  let t = type(value)
-  if kind in ("str", "content", "pattern-string") { return t == str }
-  if kind in _format-specs {
-    return t == str or (t == datetime and kind in _datetime-kinds)
-  }
-  if kind == "number" { return t in (int, float) }
-  if kind == "bool" { return t == bool }
-  if kind == "array" { return t == array }
-  if kind == "object" { return t == dictionary }
-  // int and float are one JSON number type.
-  if kind == "enum" {
-    let numeric = (int, float)
-    return schema.values.any(v => (
-      type(v) == t or (type(v) in numeric and t in numeric)
-    ))
-  }
-  if kind == "union" {
-    return schema.members.any(m => _accepts-type(m, value))
-  }
-  // `not` admits every type its member rejects, so it can't be ruled out.
-  if kind == "not" { return true }
-  // `null` takes only `none`, which never reaches a union branch.
-  false
+// A JSON type name per value, with int and float as the one number
+// type JSON has.
+#let _json-type-name(value) = {
+  if type(value) in (int, float) { "number" } else { _type-name-of(value) }
 }
 
 #let _validate(schema, value, path) = {
@@ -288,22 +315,37 @@
   }
   if kind == "enum" {
     if value in schema.values { return () }
-    return _err(
-      path,
+    let message = (
       "expected one of "
         + schema.values.map(repr).join(", ")
         + ", got "
         + repr(value)
-        + ".",
+        + "."
     )
+    // `type` when no value shares the value's JSON type, so a union
+    // doesn't count this member as claiming it; `enum` otherwise.
+    let names = schema.values.map(_json-type-name).dedup()
+    if _json-type-name(value) not in names {
+      return _error(
+        path,
+        "type",
+        message,
+        expected: names.join(" or "),
+        got: _type-name-of(value),
+      )
+    }
+    return _error(path, "enum", message, expected: schema.values, got: value)
   }
   if kind in _format-specs {
     let value = if type(value) == datetime and kind in _datetime-kinds {
       let converted = _from-datetime(kind, value)
       if converted == none {
-        return _err(
+        return _error(
           path,
+          "format",
           "expected " + _datetime-expected(kind) + ", got datetime.",
+          expected: _datetime-expected(kind),
+          got: value,
         )
       }
       converted
@@ -311,7 +353,13 @@
     if type(value) != str { return _type-error(path, "string", value) }
     let spec = _format-specs.at(kind)
     if value.match(spec.pattern) == none {
-      return _err(path, "expected " + spec.expected + ".")
+      return _error(
+        path,
+        "format",
+        "expected " + spec.expected + ".",
+        expected: spec.expected,
+        got: value,
+      )
     }
     // Extra pattern gate (format + pattern), on the converted string.
     let errs = _pattern-errs(schema, value, path)
@@ -335,7 +383,14 @@
     let errs = if (
       schema.at("integer", default: false) and calc.fract(value) != 0
     ) {
-      _err(path, "expected an integer, got " + str(value) + ".")
+      // `integer`, not `type`: the member still takes numbers, so a
+      // union counts it as claiming the value.
+      _error(
+        path,
+        "integer",
+        "expected an integer, got " + str(value) + ".",
+        got: value,
+      )
     } else { () }
     return errs + _number-range-errs(schema, value, path)
   }
@@ -378,7 +433,13 @@
           } else {
             "Valid keys: " + schema.shape.keys().join(", ") + "."
           }
-          _err(path + (key,), "unknown key " + repr(key) + ". " + tail)
+          _error(
+            path + (key,),
+            "unknown-key",
+            "unknown key " + repr(key) + ". " + tail,
+            expected: schema.shape.keys(),
+            got: key,
+          )
         }
       })
       .flatten()
@@ -387,7 +448,11 @@
     let required = schema.at("required-keys", default: ())
     let missing-errs = required
       .filter(k => k not in value or value.at(k) == none)
-      .map(k => _err(path + (k,), "missing required key " + repr(k) + "."))
+      .map(k => _error(
+        path + (k,),
+        "required",
+        "missing required key " + repr(k) + ".",
+      ))
       .flatten()
     // Null-as-absent again: a none trigger does not fire, and a none
     // dependent is missing.
@@ -397,9 +462,12 @@
       .filter(((trigger, _)) => value.at(trigger, default: none) != none)
       .map(((trigger, dependents)) => dependents
         .filter(d => value.at(d, default: none) == none)
-        .map(d => _err(
+        .map(d => _error(
           path,
+          "dependent",
           repr(d) + " is required when " + repr(trigger) + " is present.",
+          expected: d,
+          got: trigger,
         )))
       .flatten()
     return per-key-errs + missing-errs + dependent-errs
@@ -413,39 +481,56 @@
     let results = schema.members.map(m => _validate(m, value, path))
     let matches = results.filter(errs => errs.len() == 0).len()
     if matches == 1 or (matches > 1 and not schema.exclusive) { return () }
+    let kinds = schema.members.map(m => m.kind)
     if matches > 1 {
-      return _err(
+      return _error(
         path,
+        "union",
         "expected exactly one alternative to match, but "
           + str(matches)
           + " matched.",
+        expected: kinds,
       )
     }
-    // When exactly one member accepts the value's type, its own errors
-    // say what is wrong; the generic summary would read like a type
-    // error for a right-typed value that merely broke a constraint.
-    let claimed = schema
-      .members
-      .zip(results)
-      .filter(((m, _)) => _accepts-type(m, value))
-    if claimed.len() == 1 { return claimed.at(0).at(1) }
-    let alternatives = schema.members.map(m => m.kind).join(" | ")
+    // A member claims the value when it has no `type` error at the
+    // union's own path. When exactly one claims, its own errors say what
+    // is wrong; the generic summary would read like a type error for a
+    // right-typed value that merely broke a constraint.
+    let claimed = results.filter(errs => {
+      not errs.any(e => (
+        e.code == "type" and e.path == path
+      ))
+    })
+    if claimed.len() == 1 { return claimed.first() }
+    let alternatives = kinds.join(" | ")
     let quantifier = if schema.exclusive { "exactly one" } else { "one" }
-    return _err(
-      path,
+    let message = (
       "expected a value matching "
         + quantifier
         + " of: "
         + alternatives
-        + "; none matched.",
+        + "; none matched."
     )
+    // No member takes the value's type at all: a type error, so an
+    // enclosing union doesn't count this one as claiming it either.
+    if claimed.len() == 0 {
+      return _error(
+        path,
+        "type",
+        message,
+        expected: alternatives,
+        got: _type-name-of(value),
+      )
+    }
+    return _error(path, "union", message, expected: kinds)
   }
   // `not` inverts the member verdict; the member's own errors are
   // discarded (they describe why the value is ACCEPTABLE here).
   if kind == "not" {
     if _validate(schema.member, value, path).len() == 0 {
-      return _err(
+      return _error(
         path,
+        "not",
         "expected a value not matching the negated "
           + schema.member.kind
           + " schema.",
