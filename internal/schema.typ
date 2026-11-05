@@ -91,15 +91,67 @@
       message: "gairm-import: "
         + list-name
         + " must target "
-        + repr(expected-source.kind)
+        + repr(expected-source)
         + " leaves only — "
         + repr(p)
         + " is now "
-        + repr(current.kind)
+        + repr(current)
         + ". Audit upstream schema bump.",
     )
     lens-put(l, s, replacement)
   })
+}
+
+// Every path (as a lens path, with `items` for array elements) of a leaf
+// equal to `leaf` anywhere in `schema`. Unlike `paths-of-kind`, descends
+// into union members and a `not` member, and into typed `additional`;
+// those have no lens path, so they are marked `"<any-of>"`, `"<one-of>"`,
+// `"<not>"` and `"<additional>"` — enough to locate the field in a message.
+#let _leaf-paths(schema, leaf, prefix: ()) = {
+  if schema == leaf {
+    (prefix,)
+  } else if schema.kind == "object" {
+    let found = ()
+    for (k, v) in schema.shape.pairs() {
+      found += _leaf-paths(v, leaf, prefix: prefix + (k,))
+    }
+    let ap = schema.at("additional", default: none)
+    if type(ap) == dictionary {
+      found += _leaf-paths(ap, leaf, prefix: prefix + ("<additional>",))
+    }
+    found
+  } else if schema.kind == "array" {
+    _leaf-paths(schema.elem, leaf, prefix: prefix + ("items",))
+  } else if schema.kind == "union" {
+    let tag = if schema.exclusive { "<one-of>" } else { "<any-of>" }
+    schema
+      .members
+      .map(m => _leaf-paths(m, leaf, prefix: prefix + (tag,)))
+      .flatten()
+  } else if schema.kind == "not" {
+    _leaf-paths(schema.member, leaf, prefix: prefix + ("<not>",))
+  } else {
+    ()
+  }
+}
+
+// Completeness guard for the iso8601 override: `_override-fold` only
+// checks the listed paths, so an upstream bump that ADDS an iso8601 field
+// would otherwise stay a pattern-string in the strict schema unnoticed.
+// Run on the folded schema, no leaf may still be `_iso8601-source`.
+#let _assert-no-iso8601-leaves(schema, list-name) = {
+  let left = _leaf-paths(schema, _iso8601-source)
+  assert(
+    left.len() == 0,
+    message: "gairm-import: "
+      + list-name
+      + " is missing iso8601 leaves — "
+      + left.map(repr).join(", ")
+      + " still match the iso8601 pattern-string. Add the path(s) to "
+      + list-name
+      + " (or audit the upstream schema bump).",
+  )
+  schema
 }
 
 // Strip `additional: true` (the JSON Resume upstream's permissive
@@ -169,6 +221,7 @@
     date-string,
     "_iso8601-date-paths",
   )
+  _assert-no-iso8601-leaves(with-iso, "_iso8601-date-paths")
   _override-fold(
     with-iso,
     _last-modified-paths,
