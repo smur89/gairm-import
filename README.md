@@ -354,6 +354,13 @@ fractional part and `Z` / `±HH:MM` offset). The canonical document carries
 no `date-time` annotations, so that kind only fires via
 `schema-from-json-schema` or a lens override.
 
+Data written in Typst can give `date-string` a `datetime` with a date and no
+time, and `datetime-string` one with both; each is checked and returned as
+the ISO string (`"2024-01-05"`, `"2024-01-05T09:03:07"`). A `datetime` of
+the other shape is rejected rather than truncated. In `resume-schema` the
+resume's date fields are pattern-strings (see below), so a `datetime` there
+needs `resume-schema-strict`.
+
 Every date field in JSON Resume (`work[].startDate`, `awards[].date`,
 `certificates[].date`, …) uses `$ref: "#/definitions/iso8601"` rather than
 `format: "date"`. That definition is a string with a regex, so in
@@ -367,7 +374,7 @@ with `lens-put(lens(path), schema, date-string)`.
 
 Coercion is pass-through: format-checked values flow through to the model as
 plain strings, so renderers receive `model.basics.email == "name@example.com"`
-unchanged.
+unchanged (a `datetime` given to a date kind becomes its ISO string).
 
 For ad-hoc constraints outside the four built-in formats, build a
 `pattern-string(re, expected: …)` and target it via a lens or splice it

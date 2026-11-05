@@ -18,7 +18,10 @@
 // collapse never surprises a direct user of the engine.
 
 #import "errors.typ": _type-name-of
-#import "kinds.typ": _format-string-kinds, _is-free-form
+#import "kinds.typ": (
+  _datetime-expected, _datetime-kinds, _format-string-kinds, _from-datetime,
+  _is-free-form,
+)
 // Union coercion must pick a member, and Typst has no try/catch to
 // probe with — so coerce leans on the validator's verdict. Acyclic:
 // validate.typ does not import coerce.
@@ -40,6 +43,11 @@
   if kind == "content" {
     if type(value) != str { panic(_expect("a string", value)) }
     return [#value]
+  }
+  if kind in _datetime-kinds and type(value) == datetime {
+    let converted = _from-datetime(kind, value)
+    if converted == none { panic(_expect(_datetime-expected(kind), value)) }
+    return converted
   }
   // Format-specialised string kinds pass through identically to `str`
   // — the regex gate fires in _validate, not here.
