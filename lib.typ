@@ -46,33 +46,27 @@
 }
 
 // `path("…")` resolves against the caller's .typ rather than the
-// @preview cache where this file lives — that's the headline form.
-// The "/…" string and pre-parsed dict are also accepted.
+// @preview cache where this file lives. A string is rejected: inside
+// a package Typst resolves it against the package root (#132).
 #let parse(data, schema: resume-schema) = {
   _reject-none-root(data)
   let dict-data = if type(data) == path {
     json(data)
   } else if type(data) == str {
-    if not data.starts-with("/") {
-      panic(
-        "gairm-import: parse with a string path requires the path "
-          + "to start with \"/\" (resolved from the typst root). Got: "
-          + repr(data)
-          + ". "
-          + "For paths relative to your own .typ file, pass "
-          + "path("
-          + repr(data)
-          + ") (or json("
-          + repr(data)
-          + ")) in place of the path string.",
-      )
-    }
-    json(data)
+    panic(
+      "gairm-import: parse does not take a string path: inside a "
+        + "package it resolves from the package, not your project. "
+        + "Pass path("
+        + repr(data)
+        + ") or json("
+        + repr(data)
+        + ") instead.",
+    )
   } else if type(data) == dictionary {
     data
   } else {
     panic(
-      "gairm-import: parse expected a dict, a path, or a string path, got "
+      "gairm-import: parse expected a dict or a path, got "
         + repr(type(data))
         + ".",
     )

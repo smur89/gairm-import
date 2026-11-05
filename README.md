@@ -176,17 +176,17 @@ natural relative path:
 ```
 <!-- x-release-please-end -->
 
-A parsed dict, a `json("…")` wrap, or a Typst-root-relative `"/…"` string
-are also accepted — useful on older callers or when you've already loaded
-the document yourself:
+A parsed dict or a `json("…")` wrap is also accepted — useful when you've
+already loaded the document yourself:
 
 ```typst
 // json() resolves the path against your .typ; parse takes the dict.
 #let resume = parse(json("resume.json"))
-
-// Typst-root-relative path string, resolved by parse itself.
-#let resume = parse("/resume.json")
 ```
+
+A string path is rejected: inside a package Typst resolves it against the
+package, not your project, so `parse("/resume.json")` could never find your
+file. Pass `path("resume.json")`.
 
 ### The returned model
 
