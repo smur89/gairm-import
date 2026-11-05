@@ -6,6 +6,7 @@
 #import "kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
   array-of, object, date-string, datetime-string, uri-string, email-string,
+  uuid-string, hostname-string, ipv4-string, ipv6-string, time-string,
   pattern-string, enum-of, any-of, one-of, not-of,
 )
 
@@ -14,6 +15,11 @@
   "email": email-string,
   "date": date-string,
   "date-time": datetime-string,
+  "uuid": uuid-string,
+  "hostname": hostname-string,
+  "ipv4": ipv4-string,
+  "ipv6": ipv6-string,
+  "time": time-string,
 )
 
 // One panic prefix so every diagnostic from this module is grep-able
@@ -62,10 +68,39 @@
   "if",
   "then",
   "else",
-  "dependencies",
-  "dependentRequired",
   "dependentSchemas",
 )
+
+// `dependentRequired` (2019-09) and draft 7's array-form `dependencies`
+// are the same constraint. The schema form of `dependencies` needs
+// conditional schemas, like `dependentSchemas`.
+#let _dependent-required(js) = {
+  let has-dr = "dependentRequired" in js
+  let has-dep = "dependencies" in js
+  if has-dr and has-dep {
+    _bail(
+      "\"dependencies\" and \"dependentRequired\" cannot both be set; use one.",
+    )
+  }
+  if not has-dr and not has-dep { return (:) }
+  let keyword = if has-dr { "dependentRequired" } else { "dependencies" }
+  let map = js.at(keyword)
+  if type(map) != dictionary {
+    _bail("\"" + keyword + "\" must be an object, got: " + repr(map) + ".")
+  }
+  // Value shapes are checked by `object()`; only the schema form is
+  // invisible to it.
+  for (trigger, dependents) in map {
+    if type(dependents) == dictionary {
+      _bail(
+        "unsupported JSON Schema keyword: the schema form of \"dependencies\" (for "
+          + repr(trigger)
+          + "). Conditional schemas are out of scope.",
+      )
+    }
+  }
+  map
+}
 
 // Composition keywords (#108). Each must stand alone on its node
 // (annotation-only siblings excepted; `$ref` is held to the same rule)
@@ -133,9 +168,9 @@
 
 // allOf: the object-merge subset — every member must translate to an
 // object schema; shapes union (a duplicate key must carry an EQUAL
-// sub-schema), required-keys union, additionalProperties must agree
-// across all members (undeclared counts as closed). Non-object
-// composition (e.g. string + extra constraints) stays out of scope;
+// sub-schema), required-keys and dependent-required union,
+// additionalProperties must agree across all members (undeclared counts
+// as closed). Non-object composition (e.g. string + extra constraints) stays out of scope;
 // deep-merging conflicting sub-schemas is a rabbit hole the engine's
 // flat kinds can't express.
 #let _merge-all-of(members) = {
@@ -150,6 +185,7 @@
   }
   let shape = (:)
   let required = ()
+  let dependent = (:)
   let additional = none
   for m in members {
     for (key, sub) in m.shape {
@@ -165,6 +201,14 @@
     required += m
       .at("required-keys", default: ())
       .filter(k => k not in required)
+    // Same-trigger dependency lists union, like required-keys.
+    for (trigger, dependents) in m.at("dependent-required", default: (:)) {
+      let merged = dependent.at(trigger, default: ())
+      dependent.insert(
+        trigger,
+        merged + dependents.filter(d => d not in merged),
+      )
+    }
   }
   // additionalProperties must agree across ALL members, with an
   // undeclared member counting as closed (`none`) — silently taking
@@ -178,7 +222,12 @@
       )
     }
   }
-  object(shape, required-keys: required, additional: additionals.at(0))
+  object(
+    shape,
+    required-keys: required,
+    dependent-required: dependent,
+    additional: additionals.at(0),
+  )
 }
 
 // Bail at translate time on bad-shape values; better than a kind
@@ -351,6 +400,8 @@
   "required",
   "additionalProperties",
   "items",
+  "dependentRequired",
+  "dependencies",
 )
 
 // Accepts any value; constraints that never look at array items need an
@@ -436,9 +487,24 @@
       _bail(
         "unsupported JSON Schema keyword: "
           + repr(keyword)
-          + ". Conditional schemas (if/then/else) and dependencies are out of scope.",
+          + ". Conditional schemas (if/then/else, dependentSchemas, schema-form dependencies) are out of scope.",
       )
     }
+  }
+  let dependent = _dependent-required(js)
+  // Only an object (possibly nullable) can carry it; elsewhere it
+  // would be silently dropped.
+  let js-type = js.at("type", default: none)
+  let is-object = (
+    js-type == "object"
+      or (
+        type(js-type) == array and "object" in js-type
+      )
+  )
+  if dependent.len() > 0 and not is-object {
+    _bail(
+      "\"dependencies\" / \"dependentRequired\" are only supported on `type: \"object\"` schemas.",
+    )
   }
   if "allOf" in js {
     return _merge-all-of(
@@ -569,6 +635,7 @@
         .map(((k, v)) => (k, _from-json-schema(v, root, seen)))
         .to-dict(),
       required-keys: required,
+      dependent-required: dependent,
       additional: additional,
     )
   }
@@ -605,11 +672,16 @@
     // items, ...) reach only the member they belong to — JSON Schema
     // ignores them for other types. any-of, not one-of: `["number",
     // "integer"]` overlaps and must still accept 1.
-    let members = non-null.map(m => _from-json-schema(
-      (..js, type: m),
-      root,
-      seen,
-    ))
+    // Dependency keywords belong to the object member only; the others
+    // would reject them.
+    let members = non-null.map(m => {
+      let member = (..js, type: m)
+      if m != "object" {
+        let _ = member.remove("dependentRequired", default: none)
+        let _ = member.remove("dependencies", default: none)
+      }
+      _from-json-schema(member, root, seen)
+    })
     return if members.len() == 1 { members.at(0) } else { any-of(members) }
   }
   _bail(

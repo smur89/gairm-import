@@ -40,6 +40,20 @@
 #let uri-string = (kind: "uri-string")
 /// A string that looks like an email address (a permissive check).
 #let email-string = (kind: "email-string")
+/// A string that looks like a UUID: 8-4-4-4-12 hex digits (a permissive
+/// check; the version and variant are not inspected).
+#let uuid-string = (kind: "uuid-string")
+/// A string that looks like a hostname: dot-separated labels of letters,
+/// digits and inner hyphens (a permissive check).
+#let hostname-string = (kind: "hostname-string")
+/// A string in dotted-quad IPv4 form, each octet 0-255.
+#let ipv4-string = (kind: "ipv4-string")
+/// A string that looks like an IPv6 address, including `::` compression
+/// (a permissive check; the embedded-IPv4 tail form is not accepted).
+#let ipv6-string = (kind: "ipv6-string")
+/// A string in `HH:MM:SS` time form, with an optional fraction and `Z`
+/// or `±HH:MM` offset.
+#let time-string = (kind: "time-string")
 
 // The format-gated kinds above as one list — validate.typ owns their
 // regex table (keyed by these names, drift-guarded at load), coerce.typ
@@ -51,6 +65,11 @@
   "datetime-string",
   "uri-string",
   "email-string",
+  "uuid-string",
+  "hostname-string",
+  "ipv4-string",
+  "ipv6-string",
+  "time-string",
 )
 
 // Typst-native input for the date kinds (#134): a datetime of the
@@ -176,18 +195,27 @@
 // it. `false` is accepted as a synonym for `none` so callers fluent
 // in JSON Schema can pass either. Bad-shape `additional` and
 // required-keys-not-covered both fail at construction, not as a
-// phantom validation error.
+// phantom validation error. `dependent-required` follows the same
+// rule: a malformed map always panics, and trigger / dependent keys
+// outside `shape` panic only when strict.
 /// A dictionary with the fields in `shape`. Panics if `additional` is
 /// the wrong shape, or, when `additional` is `none` or `false`, if
-/// `required-keys` names a field not in `shape`.
+/// `required-keys` or `dependent-required` names a field not in `shape`.
 ///
 /// - shape (dictionary): Field name to schema.
 /// - required-keys (array): Fields that must be present.
+/// - dependent-required (dictionary): Field name to the fields that must
+///   also be present whenever it is.
 /// - additional (none, bool, dictionary): What to do with keys not in
 ///   `shape`. `none` or `false` rejects them, `true` lets them through
 ///   unchecked, and a schema validates each one against it.
 /// -> dictionary
-#let object(shape, required-keys: (), additional: none) = {
+#let object(
+  shape,
+  required-keys: (),
+  dependent-required: (:),
+  additional: none,
+) = {
   // false ≡ none in our model; normalise so the constructor and the
   // translator agree on what they accept.
   let normalized = if additional == false { none } else { additional }
@@ -217,13 +245,52 @@
         + ".",
     )
   }
-  let base = (
+  if type(dependent-required) != dictionary {
+    panic(
+      "gairm-import: object() dependent-required must be a dictionary of key to array of keys; got: "
+        + repr(dependent-required)
+        + ".",
+    )
+  }
+  for (trigger, dependents) in dependent-required {
+    if type(dependents) != array or dependents.any(d => type(d) != str) {
+      panic(
+        "gairm-import: object() dependent-required for "
+          + repr(trigger)
+          + " must be an array of key names; got: "
+          + repr(dependents)
+          + ".",
+      )
+    }
+  }
+  let unknown-dependent = if normalized == none {
+    dependent-required
+      .pairs()
+      .map(((trigger, dependents)) => (trigger,) + dependents)
+      .flatten()
+      .filter(k => k not in shape)
+  } else {
+    ()
+  }
+  if unknown-dependent.len() > 0 {
+    panic(
+      "gairm-import: object() dependent-required references keys not in shape: "
+        + unknown-dependent.dedup().join(", ")
+        + ".",
+    )
+  }
+  let result = (
     kind: "object",
     shape: shape,
     required-keys: required-keys,
   )
-  // Omitted when `none` so existing strict dicts keep their shape.
-  if normalized == none { base } else { (..base, additional: normalized) }
+  // Optional fields are omitted when empty / `none` so existing dicts
+  // keep their shape.
+  if dependent-required.len() > 0 {
+    result.insert("dependent-required", dependent-required)
+  }
+  if normalized != none { result.insert("additional", normalized) }
+  result
 }
 
 // An object that declares no fields and lets anything through is a

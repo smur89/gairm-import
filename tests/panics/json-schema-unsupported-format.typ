@@ -1,3 +1,3 @@
-// expect: unsupported string format: "ipv4".
+// expect: unsupported string format: "iri".
 #import "../../lib.typ": schema-from-json-schema
-#schema-from-json-schema((type: "string", format: "ipv4"))
+#schema-from-json-schema((type: "string", format: "iri"))
