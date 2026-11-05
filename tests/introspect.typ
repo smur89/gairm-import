@@ -4,7 +4,8 @@
 #import "../lib.typ": (
   describe-schema, paths-of-kind, kind-at, resume-schema, resume-schema-strict,
   object, array-of, str-type, content-type, number-type, date-string,
-  uri-string, email-string, enum-of,
+  uri-string, email-string, enum-of, pattern-string, any-of, const-of, one-of,
+  not-of,
 )
 
 // --- describe-schema -------------------------------------------------
@@ -187,3 +188,49 @@ work[]:
 #assert.eq(kind-at(resume-schema, ("work",)), "array")
 // Empty path is the identity — root kind.
 #assert.eq(kind-at(resume-schema, ()), "object")
+
+// Kind values (#135): a schema node matches by its kind; a constructor
+// stands for the kind it builds; the name string still works
+// (deprecated).
+#assert.eq(
+  paths-of-kind(resume-schema-strict, date-string),
+  paths-of-kind(resume-schema-strict, "date-string"),
+)
+#assert.eq(
+  paths-of-kind(resume-schema, pattern-string),
+  paths-of-kind(resume-schema, "pattern-string"),
+)
+#assert.eq(
+  paths-of-kind(resume-schema, pattern-string("x")),
+  paths-of-kind(resume-schema, "pattern-string"),
+)
+#assert.eq(
+  paths-of-kind(resume-schema, str-type),
+  paths-of-kind(resume-schema, "str"),
+)
+#assert.eq(paths-of-kind(resume-schema, any-of), paths-of-kind(
+  resume-schema,
+  "union",
+))
+// Guard against vacuous equalities above: these kinds are present.
+#assert(paths-of-kind(resume-schema-strict, date-string).len() > 0)
+#assert(paths-of-kind(resume-schema, pattern-string).len() > 0)
+#assert(paths-of-kind(resume-schema, str-type).len() > 0)
+#assert(paths-of-kind(resume-schema, any-of).len() > 0)
+
+// resume-schema has no enum or not nodes, so cover every constructor
+// against a toy schema where the result is non-empty.
+#let kinds-toy = object((
+  level: enum-of(("a", "b")),
+  fixed: const-of("x"),
+  either: any-of((str-type, number-type)),
+  exactly: one-of((str-type, number-type)),
+  other: not-of(str-type),
+))
+#assert.eq(paths-of-kind(kinds-toy, enum-of), (("fixed",), ("level",)))
+#assert.eq(paths-of-kind(kinds-toy, const-of), (("fixed",), ("level",)))
+#assert.eq(paths-of-kind(kinds-toy, any-of), (("either",), ("exactly",)))
+#assert.eq(paths-of-kind(kinds-toy, one-of), (("either",), ("exactly",)))
+#assert.eq(paths-of-kind(kinds-toy, not-of), (("other",),))
+#assert.eq(paths-of-kind(kinds-toy, enum-of), paths-of-kind(kinds-toy, "enum"))
+#assert.eq(paths-of-kind(kinds-toy, not-of), paths-of-kind(kinds-toy, "not"))
