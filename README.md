@@ -439,6 +439,17 @@ only operator you need to extend it. Per-section combinators (`work-item`,
 `volunteer-item`, …) are intentionally not exposed yet — splice the
 canonical top-level fields whole and add your own siblings.
 
+`object` also takes `dependent-required`, a map from a key to the keys that
+must be present whenever it is; a `null` value counts as absent, as with
+`required-keys`.
+
+```typst
+#object(
+  (phone: str-type, email: str-type),
+  dependent-required: (phone: ("email",)),
+)
+```
+
 ### Targeted edits with lenses
 
 Splicing `..resume-schema.shape` works for top-level additions but is
@@ -665,6 +676,9 @@ in sync:
   schema is unsatisfiable and panics. `properties` / `required` /
   `additionalProperties` / `items` beside them panic
 - `properties`, `required`, `items`
+- `dependentRequired`, and draft 7's array-form `dependencies`
+  (`dependencies: (a: ("b", "c"))`) → `dependent-required`; only on
+  `type: "object"` schemas, and `allOf` unions the lists per trigger
 - Internal `$ref` (`#/definitions/…` / `#/$defs/…`) — like a composition
   keyword, `$ref` must stand alone (annotation-only siblings excepted); a
   sibling `minLength`, `type`, etc. panics rather than being silently
@@ -700,7 +714,8 @@ validated inline.
 message rather than silently dropping the constraint:
 
 - `if` / `then` / `else`
-- `dependencies` (and the `dependentRequired` / `dependentSchemas` variants)
+- `dependentSchemas`, and the schema form of `dependencies` — these need
+  conditional schemas, which are out of scope
 - `type: "object"` with neither `properties` nor `additionalProperties`
   (fully open). This one is deliberate, not a gap: the engine rejects
   undeclared keys by default, so a schema that wants an open object says
