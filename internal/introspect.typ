@@ -10,46 +10,20 @@
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "lens.typ": lens, lens-get
-#import "kinds.typ": _constructor-kinds
-#import "kinds/format.typ": _formats
+#import "kinds/registry.typ": _kinds, _descriptor
 
-// "union" and "not" are composite, but lens paths cannot descend into
-// them (no segment addresses a member), so walks terminate there —
-// they are findable via paths-of-kind("union") / ("not"), while their
-// members are not walked individually.
-#let _leaf-kinds = (
-  "str",
-  "content",
-  "number",
-  "bool",
-  "null",
-  .._formats.keys(),
-  "pattern-string",
-  "enum",
-  "union",
-  "not",
-)
+// The kinds paths-of-kind can look for. Unions and `not` are composite,
+// but lens paths cannot descend into them (no segment addresses a
+// member), so walks terminate there — they are findable via
+// paths-of-kind("union") / ("not"), while their members are not walked
+// individually.
+#let _leaf-kinds = _kinds.keys().filter(k => _kinds.at(k).leaf)
 
 // Alphabetical pair ordering — diff-stable output regardless of
 // dictionary insertion order in the source.
 #let _sorted-pairs(d) = d.pairs().sorted(key: p => p.at(0))
 
-// enum nodes carry their values inline for at-a-glance debugging, and
-// union / not name their member kinds (one level — nested members
-// show as their kind name only); every other kind speaks for itself.
-#let _leaf-suffix(sub) = if sub.kind == "enum" {
-  "enum (" + sub.values.map(repr).join(", ") + ")"
-} else if sub.kind == "union" {
-  let junction = if sub.exclusive { "one of" } else { "any of" }
-  junction + " (" + sub.members.map(m => m.kind).join(" | ") + ")"
-} else if sub.kind == "not" {
-  "not " + sub.member.kind
-} else if sub.kind in _formats and "pattern" in sub {
-  // A format kind with an extra pattern gate (JSON Schema format + pattern).
-  sub.kind + " + pattern"
-} else {
-  sub.kind
-}
+#let _leaf-suffix(sub) = (_descriptor(sub).suffix)(sub)
 
 #let _pad-right(s, width) = s + " " * (width - s.len())
 
@@ -164,8 +138,8 @@
 #let _kind-name-of(kind) = {
   if type(kind) == dictionary and "kind" in kind { return kind.kind }
   if type(kind) == function {
-    let hit = _constructor-kinds.find(((f, _)) => f == kind)
-    if hit != none { return hit.at(1) }
+    let hit = _kinds.pairs().find(((_, d)) => d.constructors.contains(kind))
+    if hit != none { return hit.at(0) }
   }
   kind
 }

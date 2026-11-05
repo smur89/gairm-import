@@ -4,10 +4,11 @@
 #import "core/input.typ": _decode-input
 #import "core/pointer.typ": _invalid-escape-re, pointer-to-path
 #import "validate.typ": _validate
-#import "kinds.typ": (
-  str-type, number-type, integer-type, bool-type, null-type, array-of, object,
-  pattern-string, enum-of, any-of, one-of, not-of,
+#import "kinds/leaf.typ": (
+  str-type, number-type, integer-type, bool-type, null-type, pattern-string,
+  enum-of,
 )
+#import "kinds/structure.typ": array-of, object, any-of, one-of, not-of
 #import "kinds/format.typ": _format-for-json-schema
 #import "kinds/constraint.typ": (
   _constraint-rows, _constraints, _value-problem, _bounds-conflict,
@@ -575,7 +576,7 @@
     return _with-constraints(_string-base(js), js, "string")
   }
   if t == "number" or t == "integer" {
-    // `integer` keeps its integral constraint (kinds.typ's integer-type)
+    // `integer` keeps its integral constraint (kinds/leaf.typ's integer-type)
     // rather than flattening to plain number — silently dropping the
     // constraint would violate this module's contract.
     return _with-constraints(

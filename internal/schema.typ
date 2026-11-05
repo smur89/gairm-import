@@ -6,11 +6,10 @@
 // See README "Two schemas" for the trade-off.
 
 // Only the kinds this module itself uses — the full combinator surface
-// is re-exported to callers by lib.typ directly from kinds.typ.
-#import "kinds.typ": (
-  str-type, content-type, date-string, datetime-string, pattern-string, object,
-  any-of, _is-free-form,
-)
+// is re-exported to callers by lib.typ directly from kinds/.
+#import "kinds/leaf.typ": str-type, content-type, pattern-string
+#import "kinds/format.typ": date-string, datetime-string
+#import "kinds/structure.typ": object, any-of, _is-free-form
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
 
