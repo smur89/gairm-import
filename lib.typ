@@ -78,8 +78,6 @@
     )
   }
   let errors = _validate(schema, dict-data, ())
-  // assert preserves newlines in the diagnostic; panic repr-escapes
-  // them and collapses the bullet list onto one line.
-  assert(errors.len() == 0, message: format-errors(errors))
+  if errors.len() > 0 { panic(format-errors(errors)) }
   _coerce(schema, dict-data)
 }

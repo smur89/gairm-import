@@ -40,6 +40,7 @@ internal/introspect.typ              # read-only schema inspection (describe-sch
 internal/json-pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop
 internal/errors.typ                  # error formatting (paths, type names, did-you-mean)
 tests/                               # fixtures — CI compiles each as a regression guard
+tests/panics/                        # one file per panic; each must fail with its expected message
 ```
 
 ## Bumping the vendored JSON Resume schema
@@ -86,14 +87,21 @@ Install Typst at the version CI uses — see `TYPST_VERSION` in
 `.github/workflows/build.yml`.
 
 ```sh
-make             # compile every tests/*.typ fixture (= `make test`)
-make test        # same as above; the CI lint job runs this
+make             # compile every tests/*.typ fixture and check every panic case (= `make test`)
+make test        # fixtures plus panic cases; the CI lint job runs this
+make test-panics # only the tests/panics/ cases
 make check       # alias for `make test`
 make help        # summarise the available targets
 ```
 
 `make test` is the local equivalent of the CI lint job — green here means CI
 lint will pass too.
+
+Panic cases live in `tests/panics/`, one file per panic. Line 1 is
+`// expect: <substring of the error>`, then the imports and the call that
+panics. `make test-panics` checks that each file fails to compile and that
+its error contains that substring, so a panic that stops firing, or fires
+with a different message, fails the build.
 
 If you'd rather drive Typst directly:
 

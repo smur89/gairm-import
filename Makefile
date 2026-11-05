@@ -3,7 +3,9 @@
 #
 # Usage:
 #   make             # compile every tests/*.typ fixture (output discarded)
+#                    # and check every tests/panics/*.typ panic case
 #   make test        # alias for the default target
+#   make test-panics # only the panic cases
 #   make check       # alias for `make test` — matches the CI lint name
 #   make fmt         # typstyle-format lib.typ, internal/, tests/ in place
 #   make fmt-check   # exit non-zero if any file needs formatting (CI advisory job)
@@ -35,7 +37,7 @@ TESTS := $(wildcard tests/*.typ)
 # slipped CONTRIBUTING.md past altacv 1.4.1's typst-package-check).
 PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md CONTRIBUTING.md
 
-.PHONY: all test check fmt fmt-check clean help stage-package-dir package-tarball
+.PHONY: all test test-fixtures test-panics check fmt fmt-check clean help stage-package-dir package-tarball
 
 all: test
 
@@ -44,7 +46,7 @@ all: test
 # will also pass. When `GITHUB_ACTIONS` is set, the recipe also emits
 # `::group::` / `::endgroup::` markers for collapsible per-file log
 # sections and `::error file=<path>::` annotations for failing files.
-test:
+test-fixtures:
 	@status=0; \
 	for f in $(TESTS); do \
 	  if [ -n "$$GITHUB_ACTIONS" ]; then printf '::group::%s\n' "$$f"; \
@@ -56,6 +58,33 @@ test:
 	    status=1; \
 	  fi; \
 	  if [ -n "$$GITHUB_ACTIONS" ]; then printf '::endgroup::\n'; fi; \
+	done; \
+	exit $$status
+
+PANIC_TESTS := $(wildcard tests/panics/*.typ)
+
+test: test-fixtures test-panics
+
+# Each tests/panics/*.typ must FAIL to compile, and its error output
+# must contain the text after `// expect: ` on its first line — so a
+# panic that stops firing, or fires with a different message, fails.
+test-panics:
+	@status=0; \
+	for f in $(PANIC_TESTS); do \
+	  printf '  %s\n' "$$f"; \
+	  expect=$$(sed -n '1s|^// expect: ||p' "$$f"); \
+	  if [ -z "$$expect" ]; then \
+	    msg="missing '// expect: ' on line 1"; \
+	  elif out=$$($(TYPST) compile --root $(ROOT) --format pdf "$$f" /dev/null 2>&1); then \
+	    msg="compiled, expected a panic"; \
+	  elif ! printf '%s' "$$out" | grep -qF -- "$$expect"; then \
+	    msg="error output lacks: $$expect"; printf '%s\n' "$$out"; \
+	  else msg=""; fi; \
+	  if [ -n "$$msg" ]; then \
+	    if [ -n "$$GITHUB_ACTIONS" ]; then printf '::error file=%s::%s\n' "$$f" "$$msg"; \
+	    else printf '    %s\n' "$$msg"; fi; \
+	    status=1; \
+	  fi; \
 	done; \
 	exit $$status
 
@@ -97,6 +126,6 @@ clean:
 	@:
 
 help:
-	@printf '%s\n' 'Targets: all (default) | test (alias: check) | fmt | fmt-check | clean' \
+	@printf '%s\n' 'Targets: all (default) | test (alias: check) | test-panics | fmt | fmt-check | clean' \
 	  'Per-target detail: see the header comment in this Makefile.' \
 	  'Overrides: TYPST=path/to/typst | TYPSTYLE=path/to/typstyle'

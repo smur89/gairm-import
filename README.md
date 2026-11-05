@@ -239,7 +239,7 @@ combined report on the first invocation that finds issues, so every problem
 in the document surfaces in one error:
 
 ```text
-error: assertion failed: gairm-import: found 3 problems in the input:
+error: panicked with: gairm-import: found 3 problems in the input:
   - basics.email: expected string, got integer.
   - work[0].positon: unknown key "positon". Did you mean "position"?
   - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
