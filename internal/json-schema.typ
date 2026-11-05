@@ -1,6 +1,7 @@
 // JSON Schema (draft 7 subset) → Typst-schema translator. Anything
 // not supported panics rather than silently dropping the constraint.
 
+#import "decode.typ": _decode-json
 #import "kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
   array-of, object, date-string, datetime-string, uri-string, email-string,
@@ -525,19 +526,16 @@
   )
 }
 
-// `path("…")` is read via json() so callers can skip the double-wrap.
-// Non-dict/non-path inputs are rejected at the boundary so the
+// `path("…")` and bytes are read via json() so callers can skip the
+// double-wrap. Other inputs are rejected at the boundary so the
 // diagnostic carries the standard schema-from-json-schema prefix
 // instead of failing deep inside _from-json-schema.
 #let schema-from-json-schema(js) = {
-  let parsed = if type(js) == path {
-    json(js)
-  } else if type(js) == dictionary {
-    js
-  } else {
+  let parsed = _decode-json(js)
+  if type(parsed) != dictionary {
     _bail(
-      "expected a parsed JSON Schema dict or path(...), got: "
-        + repr(type(js))
+      "expected a parsed JSON Schema dict, path(...), or bytes, got: "
+        + repr(type(parsed))
         + ".",
     )
   }

@@ -165,3 +165,9 @@
   )),
   datetime-string,
 )
+
+// bytes entry mirrors path and dict.
+#assert.eq(
+  schema-from-json-schema(bytes("{\"type\": \"string\"}")),
+  str-type,
+)

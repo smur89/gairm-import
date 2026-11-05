@@ -155,7 +155,7 @@ schema-building helpers are introduced later in [Schemas and composition](#schem
 | `coerce(data, schema: ...)` | Coerce a (validated) document into the typed model. |
 | `resume-schema` | Default schema — faithful 1:1 derivation of the canonical JSON Resume document. |
 | `resume-schema-strict` | Renderer-friendly overlay — free-text fields typed as Typst `content`, iso8601 `$ref` fields validated as dates. |
-| `schema-from-json-schema(doc)` | Translate an existing JSON Schema (draft 7 subset) document into a Typst schema. Pair with `parse(..., schema: ...)`. |
+| `schema-from-json-schema(doc)` | Translate an existing JSON Schema (draft 7 subset) document — a dictionary, `path(..)` or bytes — into a Typst schema. Pair with `parse(..., schema: ...)`. |
 | `object`, `array-of`, kind primitives | Build a Typst schema directly. See [Schemas and composition](#schemas-and-composition). |
 
 ## Usage
@@ -182,6 +182,12 @@ already loaded the document yourself:
 ```typst
 // json() resolves the path against your .typ; parse takes the dict.
 #let resume = parse(json("resume.json"))
+```
+
+Bytes work too, as with Typst's own `json`:
+
+```typst
+#let resume = parse(read("resume.json", encoding: none))
 ```
 
 A string path is rejected: inside a package Typst resolves it against the
