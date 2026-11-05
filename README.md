@@ -377,9 +377,9 @@ plain strings, so renderers receive `model.basics.email == "name@example.com"`
 unchanged (a `datetime` given to a date kind becomes its ISO string).
 
 For ad-hoc constraints outside the four built-in formats, build a
-`pattern-string(re, expected: …)` and target it via a lens or splice it
-into an extension schema. JSON Schema's `pattern` keyword on a plain string
-maps to this kind too — see
+`pattern-string(re, expected: …)` (`re` is a `regex` or a pattern string)
+and target it via a lens or splice it into an extension schema. JSON
+Schema's `pattern` keyword on a plain string maps to this kind too — see
 [Starting from a JSON Schema document](#starting-from-a-json-schema-document)
 for the precedence rule when both `format` and `pattern` are present:
 
@@ -524,7 +524,7 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.10.1": (
-  resume-schema-strict, describe-schema, paths-of-kind, kind-at,
+  resume-schema-strict, describe-schema, paths-of-kind, kind-at, date-string,
 )
 
 // Tree view of every leaf, with array sections suffixed `[]`.
@@ -540,13 +540,19 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 //   …
 
 // Every lens-compatible path whose terminal kind matches.
-#paths-of-kind(resume-schema-strict, "date-string")
+#paths-of-kind(resume-schema-strict, date-string)
 // → (("work", "items", "startDate"), …)
 
 // Kind at a single path — thin wrapper over lens-get.
 #kind-at(resume-schema-strict, ("basics", "summary"))  // "content"
 ```
 <!-- x-release-please-end -->
+
+`paths-of-kind` takes the kind as a value: a schema node such as
+`date-string` (matched by kind, so `integer-type` finds every number), or a
+constructor such as `pattern-string`. The kind name as a string
+(`"date-string"`) still works but is deprecated, and will be removed in the
+next major version.
 
 Array segments in returned path tuples use `"items"` so they plug straight
 into `lens(path)`; the `[]` suffix in `describe-schema`'s output is
@@ -561,7 +567,7 @@ bump introduces are covered automatically:
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.10.1": (
-  resume-schema, paths-of-kind, lens, lens-put, pattern-string,
+  resume-schema, paths-of-kind, lens, lens-put, pattern-string, uri-string,
 )
 
 // Tighten every uri-string field to a corporate-domain pattern,
@@ -570,7 +576,7 @@ bump introduces are covered automatically:
   "^https://(corp|docs)\.example\.com/",
   expected: "a corporate URL",
 )
-#let corporate-schema = paths-of-kind(resume-schema, "uri-string").fold(
+#let corporate-schema = paths-of-kind(resume-schema, uri-string).fold(
   resume-schema,
   (schema, path) => lens-put(lens(path), schema, corporate-uri),
 )

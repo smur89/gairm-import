@@ -63,7 +63,7 @@
 // each schema node carries its own regex and hint.
 #let pattern-string(re, expected: "matching pattern") = (
   kind: "pattern-string",
-  pattern: regex(re),
+  pattern: if type(re) == regex { re } else { regex(re) },
   expected: expected,
 )
 
@@ -182,4 +182,16 @@
   (:),
   required-keys: required-keys,
   additional: value-schema,
+)
+
+// Each constructor beside the kind it builds, so paths-of-kind can
+// take `pattern-string` as written in a schema. Functions compare by
+// identity.
+#let _constructor-kinds = (
+  (pattern-string, "pattern-string"),
+  (enum-of, "enum"),
+  (const-of, "enum"),
+  (any-of, "union"),
+  (one-of, "union"),
+  (not-of, "not"),
 )

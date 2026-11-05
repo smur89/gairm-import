@@ -86,3 +86,8 @@
 #let paths = nested-errs.map(e => e.path)
 #assert(("codes", 1) in paths)
 #assert(("primary",) in paths)
+
+// A regex value works where a pattern string does (#135).
+#let by-regex = object((code: pattern-string(regex("^[A-Z]{3}$"))))
+#assert.eq(_validate(by-regex, (code: "ABC"), ()), ())
+#assert.eq(_validate(by-regex, (code: "abc"), ()).len(), 1)

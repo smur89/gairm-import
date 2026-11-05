@@ -10,7 +10,7 @@
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "lens.typ": lens, lens-get
-#import "kinds.typ": _format-string-kinds
+#import "kinds.typ": _format-string-kinds, _constructor-kinds
 
 // "union" and "not" are composite, but lens paths cannot descend into
 // them (no segment addresses a member), so walks terminate there —
@@ -148,15 +148,30 @@
   }
 }
 
+// A schema node matches by its kind (so integer-type finds every
+// number). A kind name string is deprecated, for removal in the next
+// major.
+#let _kind-name-of(kind) = {
+  if type(kind) == dictionary and "kind" in kind { return kind.kind }
+  if type(kind) == function {
+    let hit = _constructor-kinds.find(((f, _)) => f == kind)
+    if hit != none { return hit.at(1) }
+  }
+  kind
+}
+
 // Container kinds (`object`, `array`) are deliberately rejected — the
 // walker descends through them, so accepting them would silently
 // return () for every call and mask the typo.
-#let paths-of-kind(schema, kind-name) = {
+#let paths-of-kind(schema, kind) = {
+  let kind-name = _kind-name-of(kind)
   if kind-name not in _leaf-kinds {
     panic(
-      "gairm-import: paths-of-kind kind-name "
-        + repr(kind-name)
-        + " is not a recognised leaf kind. Expected one of: "
+      "gairm-import: paths-of-kind kind "
+        + repr(kind)
+        + " is not a recognised leaf kind. Pass a leaf schema "
+        + "(e.g. date-string), a constructor (e.g. pattern-string), "
+        + "or one of: "
         + _leaf-kinds.join(", ")
         + ".",
     )
