@@ -403,6 +403,16 @@
   survivors
 }
 
+#let _type-names = (
+  "string",
+  "number",
+  "integer",
+  "array",
+  "object",
+  "boolean",
+  "null",
+)
+
 #let _from-json-schema(js, root, seen) = {
   // Before the $ref early return: resolving the ref first would
   // silently drop any non-annotation sibling of `$ref` (a composition
@@ -565,20 +575,42 @@
   if t == "boolean" { return bool-type }
   if t == "null" { return null-type }
   if type(t) == array {
-    // [X, "null"] → X: under null-as-absent every kind already accepts
-    // null, so a wrapper would be a no-op. Multi-non-null unions need
-    // discriminated-union machinery that's out of scope.
-    if t.len() == 2 and "null" in t {
-      let non-null = t.filter(x => x != "null")
-      if non-null.len() == 1 {
-        return _from-json-schema((..js, type: non-null.at(0)), root, seen)
+    if t.len() == 0 or t.any(x => type(x) != str) {
+      _bail(
+        "\"type\" array must be a non-empty array of type names, got: "
+          + repr(t)
+          + ".",
+      )
+    }
+    for m in t {
+      if m not in _type-names {
+        _bail(
+          "unknown `type` name "
+            + repr(m)
+            + " in "
+            + repr(t)
+            + "; expected one of: "
+            + _type-names.join(", ")
+            + ".",
+        )
       }
     }
-    _bail(
-      "union `type` arrays are only supported as nullable wraps `[X, \"null\"]`, got: "
-        + repr(t)
-        + ".",
-    )
+    // "null" members drop: under null-as-absent every kind already
+    // accepts null, so [X, "null"] is plain X and a wrapper would be a
+    // no-op.
+    let non-null = t.filter(x => x != "null").dedup()
+    if non-null.len() == 0 { return null-type }
+    // Each member is translated from the whole node with `type` narrowed
+    // to that member, so type-specific keywords (minLength, minimum,
+    // items, ...) reach only the member they belong to — JSON Schema
+    // ignores them for other types. any-of, not one-of: `["number",
+    // "integer"]` overlaps and must still accept 1.
+    let members = non-null.map(m => _from-json-schema(
+      (..js, type: m),
+      root,
+      seen,
+    ))
+    return if members.len() == 1 { members.at(0) } else { any-of(members) }
   }
   _bail(
     "unrecognised JSON Schema fragment (no recognised \"type\" or \"$ref\"); keys: "
