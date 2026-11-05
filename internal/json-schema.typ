@@ -5,23 +5,10 @@
 #import "core/pointer.typ": _invalid-escape-re, pointer-to-path
 #import "validate.typ": _validate
 #import "kinds.typ": (
-  str-type, content-type, number-type, integer-type, bool-type, null-type,
-  array-of, object, date-string, datetime-string, uri-string, email-string,
-  uuid-string, hostname-string, ipv4-string, ipv6-string, time-string,
+  str-type, number-type, integer-type, bool-type, null-type, array-of, object,
   pattern-string, enum-of, any-of, one-of, not-of,
 )
-
-#let _format-kinds = (
-  "uri": uri-string,
-  "email": email-string,
-  "date": date-string,
-  "date-time": datetime-string,
-  "uuid": uuid-string,
-  "hostname": hostname-string,
-  "ipv4": ipv4-string,
-  "ipv6": ipv6-string,
-  "time": time-string,
-)
+#import "kinds/format.typ": _format-for-json-schema
 
 // One panic prefix so every diagnostic from this module is grep-able
 // by "schema-from-json-schema —".
@@ -443,11 +430,12 @@
   }
   let expected = if pat != none { "matching " + repr(pat) }
   if fmt != none {
-    if fmt not in _format-kinds {
+    if fmt not in _format-for-json-schema {
       _bail("unsupported string format: " + repr(fmt) + ".")
     }
-    if pat == none { _format-kinds.at(fmt) } else {
-      _format-kinds.at(fmt) + (pattern: regex(pat), expected: expected)
+    let base = _format-for-json-schema.at(fmt)
+    if pat == none { base } else {
+      base + (pattern: regex(pat), expected: expected)
     }
   } else if pat != none {
     pattern-string(pat, expected: expected)

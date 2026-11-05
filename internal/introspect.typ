@@ -10,7 +10,8 @@
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "lens.typ": lens, lens-get
-#import "kinds.typ": _format-string-kinds, _constructor-kinds
+#import "kinds.typ": _constructor-kinds
+#import "kinds/format.typ": _formats
 
 // "union" and "not" are composite, but lens paths cannot descend into
 // them (no segment addresses a member), so walks terminate there —
@@ -22,7 +23,7 @@
   "number",
   "bool",
   "null",
-  .._format-string-kinds,
+  .._formats.keys(),
   "pattern-string",
   "enum",
   "union",
@@ -43,7 +44,7 @@
   junction + " (" + sub.members.map(m => m.kind).join(" | ") + ")"
 } else if sub.kind == "not" {
   "not " + sub.member.kind
-} else if sub.kind in _format-string-kinds and "pattern" in sub {
+} else if sub.kind in _formats and "pattern" in sub {
   // A format kind with an extra pattern gate (JSON Schema format + pattern).
   sub.kind + " + pattern"
 } else {

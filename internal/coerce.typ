@@ -14,10 +14,8 @@
 // the schema it just passed (a missing required key, a short array).
 
 #import "core/error.typ": _type-name-of
-#import "kinds.typ": (
-  _datetime-expected, _datetime-kinds, _format-string-kinds, _from-datetime,
-  _is-free-form,
-)
+#import "kinds.typ": _is-free-form
+#import "kinds/format.typ": _formats, _datetime-expected, _from-datetime
 // Union coercion must pick a member, and Typst has no try/catch to
 // probe with — so coerce leans on the validator's verdict. Acyclic:
 // validate.typ does not import coerce.
@@ -40,14 +38,15 @@
     if type(value) != str { panic(_expect("a string", value)) }
     return [#value]
   }
-  if kind in _datetime-kinds and type(value) == datetime {
-    let converted = _from-datetime(kind, value)
-    if converted == none { panic(_expect(_datetime-expected(kind), value)) }
+  let row = _formats.at(kind, default: none)
+  if row != none and row.datetime != none and type(value) == datetime {
+    let converted = _from-datetime(row, value)
+    if converted == none { panic(_expect(_datetime-expected(row), value)) }
     return converted
   }
   // Format-specialised string kinds pass through identically to `str`
   // — the regex gate fires in _validate, not here.
-  if kind == "str" or kind == "pattern-string" or kind in _format-string-kinds {
+  if kind == "str" or kind == "pattern-string" or kind in _formats {
     if type(value) != str { panic(_expect("a string", value)) }
     return value
   }

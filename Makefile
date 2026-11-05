@@ -100,16 +100,28 @@ test-package: $(PACKAGE_CHECKS) ## compile tests/package/*.typ against the stage
 
 check: test fmt-check check-layers ## test + fmt-check + check-layers: the local equivalent of CI
 
-# internal/core/ is the bottom layer: it imports nothing outside itself.
-# Any import that is not a bare sibling filename (a path leaving core/,
-# or a package) is a violation.
-check-layers: ## fail if internal/core/*.typ imports anything outside internal/core/
-	@bad=$$(grep -nE '#import +"' internal/core/*.typ \
-	  | grep -vE '#import +"[a-z][a-z0-9-]*\.typ"' || true); \
+# Layer rules, bottom up. internal/core/ (L0) imports nothing outside
+# itself: any import that is not a bare sibling filename (a path
+# leaving core/, or a package) is a violation. internal/kinds/ (L1)
+# may also import from core/ (`../core/<name>.typ`), and nothing else.
+SIBLING_IMPORT := \#import +"[a-z][a-z0-9-]*\.typ"
+CORE_IMPORT    := \#import +"\.\./core/[a-z][a-z0-9-]*\.typ"
+
+check-layers: ## fail if internal/core/ or internal/kinds/ import above their layer
+	@status=0; \
+	bad=$$(grep -HnE '#import +"' internal/core/*.typ \
+	  | grep -vE '$(SIBLING_IMPORT)' || true); \
 	if [ -n "$$bad" ]; then \
 	  printf 'check-layers: internal/core/ may import only its own siblings:\n%s\n' "$$bad" >&2; \
-	  exit 1; \
-	fi
+	  status=1; \
+	fi; \
+	bad=$$(grep -HnE '#import +"' internal/kinds/*.typ \
+	  | grep -vE '$(SIBLING_IMPORT)|$(CORE_IMPORT)' || true); \
+	if [ -n "$$bad" ]; then \
+	  printf 'check-layers: internal/kinds/ may import only internal/core/ and its own siblings:\n%s\n' "$$bad" >&2; \
+	  status=1; \
+	fi; \
+	exit $$status
 
 fmt: ## typstyle-format lib.typ, internal/ and tests/ in place
 	$(TYPSTYLE) $(TYPSTYLE_FLAGS) -i $(TYPSTYLE_INPUT)
