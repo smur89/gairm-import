@@ -60,14 +60,15 @@
       and members.len() > 0
       and members.all(m => type(m) == dictionary and "kind" in m)
   )
-  assert(
-    ok,
-    message: "gairm-import: "
-      + fn-name
-      + " members must be a non-empty array of schema dicts (each with a `kind` field); got: "
-      + repr(members)
-      + ".",
-  )
+  if not ok {
+    panic(
+      "gairm-import: "
+        + fn-name
+        + " members must be a non-empty array of schema dicts (each with a `kind` field); got: "
+        + repr(members)
+        + ".",
+    )
+  }
 }
 
 // JSON Schema anyOf / oneOf. Both share the union kind; `exclusive`
@@ -86,12 +87,13 @@
 // JSON Schema `not` — the value must NOT match the negated schema.
 // Named not-of because `not` is a Typst keyword.
 #let not-of(member) = {
-  assert(
-    type(member) == dictionary and "kind" in member,
-    message: "gairm-import: not-of member must be a schema dict (with a `kind` field); got: "
-      + repr(member)
-      + ".",
-  )
+  if not (type(member) == dictionary and "kind" in member) {
+    panic(
+      "gairm-import: not-of member must be a schema dict (with a `kind` field); got: "
+        + repr(member)
+        + ".",
+    )
+  }
   (kind: "not", member: member)
 }
 
@@ -111,12 +113,13 @@
       or normalized == true
       or (type(normalized) == dictionary and "kind" in normalized)
   )
-  assert(
-    additional-ok,
-    message: "gairm-import: object() additional must be none, false, true, or a schema dict (with a `kind` field); got: "
-      + repr(additional)
-      + ".",
-  )
+  if not additional-ok {
+    panic(
+      "gairm-import: object() additional must be none, false, true, or a schema dict (with a `kind` field); got: "
+        + repr(additional)
+        + ".",
+    )
+  }
   // With `additional`, undeclared required keys are covered by the
   // additional schema, so the subset check only applies when strict.
   let unknown = if normalized == none {
@@ -124,12 +127,13 @@
   } else {
     ()
   }
-  assert(
-    unknown.len() == 0,
-    message: "gairm-import: object() required-keys references keys not in shape: "
-      + unknown.join(", ")
-      + ".",
-  )
+  if unknown.len() > 0 {
+    panic(
+      "gairm-import: object() required-keys references keys not in shape: "
+        + unknown.join(", ")
+        + ".",
+    )
+  }
   let base = (
     kind: "object",
     shape: shape,

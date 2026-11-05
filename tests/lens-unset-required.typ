@@ -50,5 +50,3 @@
 #assert.eq(strict.shape.basics.required-keys, ("name", "email", "summary"))
 #assert.eq(mixed.shape.basics.required-keys, ("name", "summary"))
 
-// Panic-message pins live in lens-panic-messages.typ alongside
-// set-required / add-field / remove-field counterparts.

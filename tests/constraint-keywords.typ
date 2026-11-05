@@ -140,18 +140,6 @@
   (kind: "email-string", max-length: 254),
 )
 
-// --- translator: source-shape errors panic at translate time --------
-//
-// Source-level pin on each bail message — Typst can't catch panics so
-// we assert the diagnostic exists rather than triggering it.
-#let src = read("../internal/json-schema.typ")
-#assert(src.contains("must be a non-negative integer"))
-#assert(src.contains("must be a number"))
-#assert(src.contains("must be > 0"))
-#assert(src.contains("must be a boolean"))
-#assert(src.contains("is unsatisfiable"))
-#assert(src.contains("leave no satisfying value"))
-
 // --- end-to-end roundtrip: translator → validator catches field typos
 //
 // Each constraint goes source → schema-from-json-schema → validate.

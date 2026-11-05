@@ -116,21 +116,8 @@
 ))
 #assert.eq(t-pure-map, map(str-type))
 
-// (f) no properties, no additionalProperties → still bails (unchanged)
-#let bail-src = read("../internal/json-schema.typ")
-#assert(bail-src.contains("open object schemas"))
-#assert(bail-src.contains("must be a schema, true, or false"))
-
-// --- constructor: `additional` validated up front -------------------
-//
-// `object()` rejects anything that isn't `none`, `true`, or a schema
-// dict, so a hand-built schema with e.g. `additional: false` fails
-// at construction instead of crashing inside _validate when `.kind`
-// is read.
-#let kinds-src = read("../internal/kinds.typ")
-#assert(
-  kinds-src.contains("additional must be none, false, true, or a schema dict"),
-)
+// (f) no properties, no additionalProperties → still bails; see
+// tests/panics/json-schema-open-object.typ.
 
 // `additional` + required-key-not-in-shape is now allowed — the
 // extra key gets validated by `additional`, so the construction-time
@@ -233,11 +220,6 @@
 // Shape outside the lensed path is untouched.
 #assert.eq(updated.shape.name, str-type)
 
-// Trying to lens through `additionalProperties` when `additional` is
-// true (no schema) bails with a grep-able message.
-#let lens-src = read("../internal/lens.typ")
-#assert(lens-src.contains("requires the object's"))
-
 // --- describe-schema renders `additional` --------------------------
 #let described = describe-schema(map(str-type))
 #assert(described.contains("*"))
@@ -248,14 +230,6 @@
 ))
 #assert(described-true.contains("*"))
 #assert(described-true.contains("any"))
-
-// --- lens "additionalProperties" on array errors --------------------
-//
-// Arrays use "items"; the additional-schema segment is object-only.
-// _descend bails with the "must be \"items\"" message before any
-// additional-schema logic runs.
-#let arr-src = read("../internal/lens.typ")
-#assert(arr-src.contains("lens segment for an array schema must be"))
 
 // --- lens-put trusts the caller for replacement shape --------------
 //

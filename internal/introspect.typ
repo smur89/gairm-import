@@ -152,14 +152,15 @@
 // walker descends through them, so accepting them would silently
 // return () for every call and mask the typo.
 #let paths-of-kind(schema, kind-name) = {
-  assert(
-    kind-name in _leaf-kinds,
-    message: "gairm-import: paths-of-kind kind-name "
-      + repr(kind-name)
-      + " is not a recognised leaf kind. Expected one of: "
-      + _leaf-kinds.join(", ")
-      + ".",
-  )
+  if kind-name not in _leaf-kinds {
+    panic(
+      "gairm-import: paths-of-kind kind-name "
+        + repr(kind-name)
+        + " is not a recognised leaf kind. Expected one of: "
+        + _leaf-kinds.join(", ")
+        + ".",
+    )
+  }
   _walk-paths(schema, (), kind-name)
 }
 

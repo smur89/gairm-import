@@ -1,6 +1,5 @@
-// Source-level pin pattern — see tests/lens-panic-messages.typ for
-// the basic shape and tests/json-schema-panic-messages.typ for the
-// coverage + substring rules.
+// Source-level pin for the internal `_override-fold` guard, which no
+// API call reaches; user-facing panics are in tests/panics/.
 //
 // `_override-fold`'s assert is exercised behaviorally by
 // tests/schema-strict.typ (loads the strict variant, would trip on
