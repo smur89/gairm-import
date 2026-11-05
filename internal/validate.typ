@@ -297,6 +297,17 @@
     } else if schema.members.any(m => _validate(m, value, path).len() == 0) {
       return ()
     }
+    // When exactly one member accepts the value's type, its own errors
+    // say what is wrong; the generic summary would read like a type
+    // error for a right-typed value that merely broke a constraint.
+    let type-error-tail = ", got " + _type-name-of(value) + "."
+    let claimed = schema
+      .members
+      .map(m => _validate(m, value, path))
+      .filter(errs => errs.any(e => (
+        e.path != path or not e.message.ends-with(type-error-tail)
+      )))
+    if claimed.len() == 1 { return claimed.at(0) }
     let alternatives = schema.members.map(m => m.kind).join(" | ")
     let quantifier = if schema.exclusive { "exactly one" } else { "one" }
     return _err(
