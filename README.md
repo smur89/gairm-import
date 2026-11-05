@@ -659,7 +659,10 @@ in sync:
   both)
 - `enum` → `enum-of`, `const` → `const-of`
 - `properties`, `required`, `items`
-- Internal `$ref` (`#/definitions/…` / `#/$defs/…`)
+- Internal `$ref` (`#/definitions/…` / `#/$defs/…`) — like a composition
+  keyword, `$ref` must stand alone (annotation-only siblings excepted); a
+  sibling `minLength`, `type`, etc. panics rather than being silently
+  dropped as draft 7 would
 - `anyOf` → `any-of` (at least one member matches), `oneOf` → `one-of`
   (exactly one member matches), `not` → `not-of` (value must not match) —
   the composition keyword must stand alone on its node (annotation-only
@@ -699,7 +702,8 @@ message rather than silently dropping the constraint:
 - External `$ref`
 - String formats other than the four listed above
 - `allOf` with non-object members, and schema-bearing sibling keywords
-  beside any composition keyword (move them into the members)
+  beside any composition keyword or `$ref` (move them into the members or
+  the referenced definition)
 
 ## Contributing
 

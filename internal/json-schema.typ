@@ -67,13 +67,14 @@
 )
 
 // Composition keywords (#108). Each must stand alone on its node
-// (annotation-only siblings excepted) — a sibling `type` / `properties`
-// / constraint would be silently ignored otherwise, and this module's
-// contract is to bail rather than drop.
+// (annotation-only siblings excepted; `$ref` is held to the same rule)
+// — a sibling `type` / `properties` / constraint would be silently
+// ignored otherwise, and this module's contract is to bail rather than
+// drop.
 #let _composition-keywords = ("allOf", "anyOf", "oneOf", "not")
 
-// Annotation-only keywords tolerated beside a composition keyword —
-// they carry no validation semantics the engine could drop.
+// Annotation-only keywords tolerated beside a composition keyword or
+// `$ref` — they carry no validation semantics the engine could drop.
 #let _annotation-keywords = (
   "$schema",
   "$id",
@@ -99,7 +100,9 @@
         + repr(keyword)
         + " are not supported: "
         + extras.map(repr).join(", ")
-        + ". Move them into the composition members.",
+        + if keyword == "$ref" {
+          ". Draft 7 ignores them; move them into the referenced definition."
+        } else { ". Move them into the composition members." },
     )
   }
 }
@@ -326,10 +329,10 @@
 }
 
 #let _from-json-schema(js, root, seen) = {
-  // Before the $ref early return: `$ref` beside a composition keyword
-  // must bail as a non-annotation sibling — resolving the ref first
-  // would silently drop the composition.
-  for keyword in _composition-keywords {
+  // Before the $ref early return: resolving the ref first would
+  // silently drop any non-annotation sibling of `$ref` (a composition
+  // keyword, `minLength`, ...), so bail on those instead.
+  for keyword in _composition-keywords + ("$ref",) {
     if keyword in js { _require-lone-composition(js, keyword) }
   }
   if "$ref" in js {
