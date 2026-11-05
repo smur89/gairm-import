@@ -1,3 +1,32 @@
+// Every validation error carries one of these codes. Engine logic
+// branches on the code, never on message text.
+#let _codes = (
+  "type",
+  "required",
+  "unknown-key",
+  "dependent",
+  "enum",
+  "format",
+  "pattern",
+  "length",
+  "range",
+  "multiple",
+  "integer",
+  "items",
+  "unique",
+  "union",
+  "not",
+)
+
+/// One validation error, as a one-element array so results concatenate.
+#let _error(path, code, message, expected: none, got: none) = {
+  assert(
+    code in _codes,
+    message: "gairm-import: internal — unknown error code " + repr(code),
+  )
+  ((path: path, code: code, message: message, expected: expected, got: got),)
+}
+
 // Empty path renders as "<root>" so a top-level type error reads
 // `"<root>: expected object, got …"`.
 #let _format-path(parts) = {

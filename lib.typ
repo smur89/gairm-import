@@ -25,12 +25,13 @@
 /// the combined report `parse` panics with. Use it when you handle the
 /// errors yourself.
 ///
-/// - errors (array): `(path, message)` records.
+/// - errors (array): Records with at least `path` and `message`.
 /// -> str
 #let format-errors(errors) = _error-mod._format-report(errors)
 
-/// Checks `data` against `schema` and returns every problem found. An
-/// empty array means the data is valid.
+/// Checks `data` against `schema` and returns every problem found, as
+/// `(path, code, message, expected, got)` records; the README lists the
+/// codes. An empty array means the data is valid.
 ///
 /// - data (dictionary, path, bytes): The document, or where to read it.
 ///   A `path` resolves from your file. A string is the value itself (a
