@@ -526,10 +526,16 @@
   )
 }
 
-// `path("…")` and bytes are read via json() so callers can skip the
-// double-wrap. Other inputs are rejected at the boundary so the
-// diagnostic carries the standard schema-from-json-schema prefix
-// instead of failing deep inside _from-json-schema.
+// Non-dictionaries are rejected at the boundary so the diagnostic
+// carries the schema-from-json-schema prefix instead of failing deep
+// inside _from-json-schema.
+/// Translates a JSON Schema document (a draft 7 subset) into a schema
+/// for `parse`, `validate` and `coerce`. Panics on anything it does not
+/// support, rather than dropping the constraint.
+///
+/// - js (dictionary, path, bytes): The JSON Schema, or where to read it.
+///   A `path` resolves from your file.
+/// -> dictionary
 #let schema-from-json-schema(js) = {
   let parsed = _decode-json(js)
   if type(parsed) != dictionary {

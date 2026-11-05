@@ -62,6 +62,12 @@
 
 // Convert a path tuple to an RFC 6901 JSON Pointer string. Empty
 // path → empty string (whole-document reference per spec).
+/// Writes a path as an RFC 6901 JSON Pointer: `("basics", "email")`
+/// becomes `"/basics/email"`. `()` becomes `""`. Panics on a segment that
+/// is not a `str` or a non-negative `int`.
+///
+/// - path (array): Field names and array indices.
+/// -> str
 #let path-to-pointer(path) = {
   if path.len() == 0 { return "" }
   let parts = path.map(seg => {
@@ -95,6 +101,12 @@
 // Inverse. Empty string → empty path. A bare "/" decodes to a
 // single empty-string segment (RFC 6901: "/" means "the empty
 // string key at root"). Otherwise the pointer must start with "/".
+/// Reads an RFC 6901 JSON Pointer as a path: `"/work/0/highlights/1"`
+/// becomes `("work", 0, "highlights", 1)`. `""` becomes `()`. Panics on a
+/// pointer that does not start with `/` or has a bad `~` escape.
+///
+/// - pointer (str): The pointer.
+/// -> array
 #let pointer-to-path(pointer) = {
   if pointer == "" { return () }
   if not pointer.starts-with("/") {
