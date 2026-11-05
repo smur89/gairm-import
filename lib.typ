@@ -6,6 +6,7 @@
 #import "internal/kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
   array-of, object, map, date-string, datetime-string, uri-string, email-string,
+  uuid-string, hostname-string, ipv4-string, ipv6-string, time-string,
   pattern-string, enum-of, const-of, any-of, one-of, not-of,
 )
 #import "internal/schema.typ": resume-schema, resume-schema-strict

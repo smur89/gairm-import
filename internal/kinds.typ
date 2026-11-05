@@ -40,6 +40,20 @@
 #let uri-string = (kind: "uri-string")
 /// A string that looks like an email address (a permissive check).
 #let email-string = (kind: "email-string")
+/// A string that looks like a UUID: 8-4-4-4-12 hex digits (a permissive
+/// check; the version and variant are not inspected).
+#let uuid-string = (kind: "uuid-string")
+/// A string that looks like a hostname: dot-separated labels of letters,
+/// digits and inner hyphens (a permissive check).
+#let hostname-string = (kind: "hostname-string")
+/// A string in dotted-quad IPv4 form, each octet 0-255.
+#let ipv4-string = (kind: "ipv4-string")
+/// A string that looks like an IPv6 address, including `::` compression
+/// (a permissive check; the embedded-IPv4 tail form is not accepted).
+#let ipv6-string = (kind: "ipv6-string")
+/// A string in `HH:MM:SS` time form, with an optional fraction and `Z`
+/// or `±HH:MM` offset.
+#let time-string = (kind: "time-string")
 
 // The format-gated kinds above as one list — validate.typ owns their
 // regex table (keyed by these names, drift-guarded at load), coerce.typ
@@ -51,6 +65,11 @@
   "datetime-string",
   "uri-string",
   "email-string",
+  "uuid-string",
+  "hostname-string",
+  "ipv4-string",
+  "ipv6-string",
+  "time-string",
 )
 
 // Typst-native input for the date kinds (#134): a datetime of the
