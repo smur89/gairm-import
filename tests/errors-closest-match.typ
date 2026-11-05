@@ -3,7 +3,7 @@
 // underlying _edit-distance helper is exercised here too so a refactor
 // of the DP table can't silently regress.
 
-#import "../internal/errors.typ": _edit-distance, _closest-match
+#import "../internal/core/error.typ": _edit-distance, _closest-match
 
 // _edit-distance: identity, single-edit cases, a transposition (2 edits
 // under classic Levenshtein), and an empty-string baseline.

@@ -1,8 +1,8 @@
 // JSON Schema (draft 7 subset) → Typst-schema translator. Anything
 // not supported panics rather than silently dropping the constraint.
 
-#import "input.typ": _decode-input
-#import "json-pointer.typ": _invalid-escape-re, pointer-to-path
+#import "core/input.typ": _decode-input
+#import "core/pointer.typ": _invalid-escape-re, pointer-to-path
 #import "validate.typ": _validate
 #import "kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,

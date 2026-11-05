@@ -37,11 +37,17 @@ internal/coerce.typ                  # coercion engine (content wrapping, null a
 internal/json-schema.typ             # JSON Schema → Typst-schema translator
 internal/lens.typ                    # path-based functional editing of schemas
 internal/introspect.typ              # read-only schema inspection (describe-schema, paths-of-kind, kind-at)
-internal/json-pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop
-internal/errors.typ                  # error formatting (paths, type names, did-you-mean)
+internal/core/pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop
+internal/core/error.typ              # error formatting (paths, type names, did-you-mean)
+internal/core/input.typ              # the input forms every entry point shares
 tests/                               # fixtures — CI compiles each as a regression guard
 tests/panics/                        # one file per panic; each must fail with its expected message
 ```
+
+`internal/core/` is the bottom layer and imports nothing else internal
+(`make check-layers` enforces it). `lib.typ` is the only public surface;
+it reaches internals through underscore module aliases, so a name that
+starts with an underscore is internal and never part of the API.
 
 ## Bumping the vendored JSON Resume schema
 

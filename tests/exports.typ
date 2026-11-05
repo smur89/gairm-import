@@ -1,5 +1,6 @@
 // The public surface: adding or removing an export must be a deliberate
-// change to this list. Underscore names are internals lib.typ imports.
+// change to this list. Underscore names are module aliases for internals,
+// never values.
 #import "../lib.typ"
 
 #let public = (
@@ -52,3 +53,9 @@
   "uuid-string",
   "validate",
 ))
+
+#for (k, v) in dictionary(lib) {
+  if k.starts-with("_") {
+    assert.eq(type(v), module, message: k + " leaks a private value")
+  }
+}

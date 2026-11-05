@@ -10,7 +10,7 @@
 // required key must still count as missing). See README "Errors"
 // section for the user-facing rationale.
 
-#import "errors.typ": _type-name-of, _closest-match
+#import "core/error.typ": _type-name-of, _closest-match
 #import "kinds.typ": (
   _format-string-kinds, _datetime-kinds, _datetime-expected, _from-datetime,
 )

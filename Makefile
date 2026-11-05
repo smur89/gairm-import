@@ -29,7 +29,7 @@ PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md CONTRIBUTING.md
 # get it, at version 0.0.0 so its imports never need bumping. Gitignored.
 PACKAGE_PATH  := .package-path
 
-.PHONY: all test test-fixtures test-panics test-package stage-test-package check fmt fmt-check clean help stage-package-dir package-tarball
+.PHONY: all test test-fixtures test-panics test-package stage-test-package check fmt fmt-check check-layers clean help stage-package-dir package-tarball
 
 all: test
 
@@ -98,7 +98,18 @@ test-panics: $(PANIC_CHECKS) ## check each tests/panics/*.typ fails with its `//
 
 test-package: $(PACKAGE_CHECKS) ## compile tests/package/*.typ against the staged package
 
-check: test fmt-check ## test + fmt-check: the local equivalent of CI
+check: test fmt-check check-layers ## test + fmt-check + check-layers: the local equivalent of CI
+
+# internal/core/ is the bottom layer: it imports nothing outside itself.
+# Any import that is not a bare sibling filename (a path leaving core/,
+# or a package) is a violation.
+check-layers: ## fail if internal/core/*.typ imports anything outside internal/core/
+	@bad=$$(grep -nE '#import +"' internal/core/*.typ \
+	  | grep -vE '#import +"[a-z][a-z0-9-]*\.typ"' || true); \
+	if [ -n "$$bad" ]; then \
+	  printf 'check-layers: internal/core/ may import only its own siblings:\n%s\n' "$$bad" >&2; \
+	  exit 1; \
+	fi
 
 fmt: ## typstyle-format lib.typ, internal/ and tests/ in place
 	$(TYPSTYLE) $(TYPSTYLE_FLAGS) -i $(TYPSTYLE_INPUT)

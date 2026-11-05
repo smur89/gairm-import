@@ -1,7 +1,6 @@
-// Strict loader for canonical JSON Resume data
-// (https://jsonresume.org/schema). The engines under internal/ are
-// pure functions of (schema, value); see
-// tests/engine-schema-agnostic.typ for the BYO-schema contract.
+// gairm-import: validate and coerce JSON data (JSON Resume by default,
+// or your own JSON Schema) into typed Typst values. This file is the
+// package's only public surface; underscore names are internal.
 
 #import "internal/kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
@@ -10,17 +9,17 @@
   pattern-string, enum-of, const-of, any-of, one-of, not-of,
 )
 #import "internal/schema.typ": resume-schema, resume-schema-strict
-#import "internal/validate.typ": _validate
-#import "internal/coerce.typ": _coerce
-#import "internal/errors.typ": _format-report
+#import "internal/validate.typ" as _validate-mod
+#import "internal/coerce.typ" as _coerce-mod
+#import "internal/core/error.typ" as _error-mod
 #import "internal/json-schema.typ": schema-from-json-schema
-#import "internal/input.typ": _decode-input
+#import "internal/core/input.typ" as _input-mod
 #import "internal/lens.typ": (
   lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
   set-required, unset-required,
 )
 #import "internal/introspect.typ": describe-schema, paths-of-kind, kind-at
-#import "internal/json-pointer.typ": path-to-pointer, pointer-to-path
+#import "internal/core/pointer.typ": path-to-pointer, pointer-to-path
 
 /// Turns a list of validation errors, as `validate` returns them, into
 /// the combined report `parse` panics with. Use it when you handle the
@@ -28,7 +27,7 @@
 ///
 /// - errors (array): `(path, message)` records.
 /// -> str
-#let format-errors(errors) = _format-report(errors)
+#let format-errors(errors) = _error-mod._format-report(errors)
 
 /// Checks `data` against `schema` and returns every problem found. An
 /// empty array means the data is valid.
@@ -40,8 +39,8 @@
 /// - schema (dictionary): The schema to check against.
 /// -> array
 #let validate(data, schema: resume-schema) = {
-  let value = _decode-input("validate", data, str-is-data: true)
-  _validate(schema, value, ())
+  let value = _input-mod._decode-input("validate", data, str-is-data: true)
+  _validate-mod._validate(schema, value, ())
 }
 
 // Unknown keys are dropped silently rather than panicking, so direct
@@ -59,8 +58,8 @@
 /// - schema (dictionary): The schema that says what each field becomes.
 /// -> dictionary
 #let coerce(data, schema: resume-schema) = {
-  let value = _decode-input("coerce", data, str-is-data: true)
-  _coerce(schema, value)
+  let value = _input-mod._decode-input("coerce", data, str-is-data: true)
+  _coerce-mod._coerce(schema, value)
 }
 
 /// Validates `data` against `schema`, then coerces it into the typed
@@ -74,7 +73,7 @@
 /// - schema (dictionary): The schema to check against.
 /// -> dictionary
 #let parse(data, schema: resume-schema) = {
-  let dict-data = _decode-input("parse", data)
+  let dict-data = _input-mod._decode-input("parse", data)
   if type(dict-data) != dictionary {
     panic(
       "gairm-import: parse expected a dict, a path, or bytes, got "
@@ -82,7 +81,7 @@
         + ".",
     )
   }
-  let errors = _validate(schema, dict-data, ())
+  let errors = _validate-mod._validate(schema, dict-data, ())
   if errors.len() > 0 { panic(format-errors(errors)) }
-  _coerce(schema, dict-data)
+  _coerce-mod._coerce(schema, dict-data)
 }
