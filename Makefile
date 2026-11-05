@@ -3,9 +3,11 @@
 #
 # Usage:
 #   make             # compile every tests/*.typ fixture (output discarded)
-#                    # and check every tests/panics/*.typ panic case
+#                    # and check every tests/panics/*.typ panic case, then
+#                    # every tests/package/*.typ against the staged package
 #   make test        # alias for the default target
 #   make test-panics # only the panic cases
+#   make test-package # only the tests compiled against the staged package
 #   make check       # alias for `make test` — matches the CI lint name
 #   make fmt         # typstyle-format lib.typ, internal/, tests/ in place
 #   make fmt-check   # exit non-zero if any file needs formatting (CI advisory job)
@@ -37,7 +39,7 @@ TESTS := $(wildcard tests/*.typ)
 # slipped CONTRIBUTING.md past altacv 1.4.1's typst-package-check).
 PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md CONTRIBUTING.md
 
-.PHONY: all test test-fixtures test-panics check fmt fmt-check clean help stage-package-dir package-tarball
+.PHONY: all test test-fixtures test-panics test-package check fmt fmt-check clean help stage-package-dir package-tarball
 
 all: test
 
@@ -63,7 +65,9 @@ test-fixtures:
 
 PANIC_TESTS := $(wildcard tests/panics/*.typ)
 
-test: test-fixtures test-panics
+PACKAGE_TESTS := $(wildcard tests/package/*.typ)
+
+test: test-fixtures test-panics test-package
 
 # Each tests/panics/*.typ must FAIL to compile, and its error output
 # must contain the text after `// expect: ` on its first line — so a
@@ -83,6 +87,25 @@ test-panics:
 	  if [ -n "$$msg" ]; then \
 	    if [ -n "$$GITHUB_ACTIONS" ]; then printf '::error file=%s::%s\n' "$$f" "$$msg"; \
 	    else printf '    %s\n' "$$msg"; fi; \
+	    status=1; \
+	  fi; \
+	done; \
+	exit $$status
+
+# Compile tests/package/*.typ against the package as @preview users
+# get it: staged into a throwaway package path at version 0.0.0, so a
+# path that only resolves because the repo root and the package root
+# coincide fails here (#132).
+test-package:
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+	dir="$$tmp/preview/gairm-import/0.0.0"; \
+	$(MAKE) --no-print-directory stage-package-dir PKG_DIR="$$dir" || exit 1; \
+	sed 's/^version = ".*"/version = "0.0.0"/' typst.toml > "$$dir/typst.toml"; \
+	status=0; \
+	for f in $(PACKAGE_TESTS); do \
+	  printf '  %s\n' "$$f"; \
+	  if ! $(TYPST) compile --root $(ROOT) --package-path "$$tmp" --format pdf "$$f" /dev/null; then \
+	    if [ -n "$$GITHUB_ACTIONS" ]; then printf '::error file=%s::compile failed\n' "$$f"; fi; \
 	    status=1; \
 	  fi; \
 	done; \
@@ -126,6 +149,6 @@ clean:
 	@:
 
 help:
-	@printf '%s\n' 'Targets: all (default) | test (alias: check) | test-panics | fmt | fmt-check | clean' \
+	@printf '%s\n' 'Targets: all (default) | test (alias: check) | test-panics | test-package | fmt | fmt-check | clean' \
 	  'Per-target detail: see the header comment in this Makefile.' \
 	  'Overrides: TYPST=path/to/typst | TYPSTYLE=path/to/typstyle'

@@ -1,3 +1,3 @@
-// expect: parse expected a dict, a path, or a string path, got int.
+// expect: parse expected a dict or a path, got int.
 #import "../../lib.typ": parse
 #parse(1)

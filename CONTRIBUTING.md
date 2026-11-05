@@ -87,11 +87,12 @@ Install Typst at the version CI uses — see `TYPST_VERSION` in
 `.github/workflows/build.yml`.
 
 ```sh
-make             # compile every tests/*.typ fixture and check every panic case (= `make test`)
-make test        # fixtures plus panic cases; the CI lint job runs this
-make test-panics # only the tests/panics/ cases
-make check       # alias for `make test`
-make help        # summarise the available targets
+make              # compile every tests/*.typ fixture, check every panic case, and compile tests/package/ (= `make test`)
+make test         # fixtures, panic cases and package tests; the CI lint job runs this
+make test-panics  # only the tests/panics/ cases
+make test-package # only tests/package/, compiled against the package staged as @preview users get it
+make check        # alias for `make test`
+make help         # summarise the available targets
 ```
 
 `make test` is the local equivalent of the CI lint job — green here means CI
