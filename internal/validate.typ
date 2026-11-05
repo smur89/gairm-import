@@ -11,9 +11,8 @@
 // section for the user-facing rationale.
 
 #import "core/error.typ": _error, _type-name-of, _closest-match
-#import "kinds.typ": (
-  _format-string-kinds, _datetime-kinds, _datetime-expected, _from-datetime,
-)
+#import "kinds/format.typ": _formats, _datetime-expected, _from-datetime
+#import "kinds/constraint.typ": _constraint-rows, _constraint-miss
 
 #let _type-error(path, expected, value) = {
   let got = _type-name-of(value)
@@ -42,259 +41,25 @@
   } else { () }
 }
 
-// Clusters, not bytes — JSON Schema talks "length" without pinning.
-#let _string-length-errs(schema, value, path) = {
-  let min = schema.at("min-length", default: none)
-  let max = schema.at("max-length", default: none)
-  if min == none and max == none { return () }
-  let n = value.clusters().len()
+// Every constraint row of `family` the node sets, in row order.
+#let _constraint-errors(schema, family, value, path) = {
   let errs = ()
-  if min != none and n < min {
-    errs += _error(
-      path,
-      "length",
-      "expected string length ≥ " + str(min) + ", got " + str(n) + ".",
-      expected: (min-length: min),
-      got: n,
-    )
-  }
-  if max != none and n > max {
-    errs += _error(
-      path,
-      "length",
-      "expected string length ≤ " + str(max) + ", got " + str(n) + ".",
-      expected: (max-length: max),
-      got: n,
-    )
-  }
-  errs
-}
-
-#let _number-range-errs(schema, value, path) = {
-  let errs = ()
-  let mn = schema.at("minimum", default: none)
-  if mn != none and value < mn {
-    errs += _error(
-      path,
-      "range",
-      "expected ≥ " + str(mn) + ", got " + str(value) + ".",
-      expected: (minimum: mn),
-      got: value,
-    )
-  }
-  let mx = schema.at("maximum", default: none)
-  if mx != none and value > mx {
-    errs += _error(
-      path,
-      "range",
-      "expected ≤ " + str(mx) + ", got " + str(value) + ".",
-      expected: (maximum: mx),
-      got: value,
-    )
-  }
-  let emn = schema.at("exclusive-minimum", default: none)
-  if emn != none and value <= emn {
-    errs += _error(
-      path,
-      "range",
-      "expected > " + str(emn) + ", got " + str(value) + ".",
-      expected: (exclusive-minimum: emn),
-      got: value,
-    )
-  }
-  let emx = schema.at("exclusive-maximum", default: none)
-  if emx != none and value >= emx {
-    errs += _error(
-      path,
-      "range",
-      "expected < " + str(emx) + ", got " + str(value) + ".",
-      expected: (exclusive-maximum: emx),
-      got: value,
-    )
-  }
-  let mult = schema.at("multiple-of", default: none)
-  // A schema bug, not a data error: the translator rejects it, but a
-  // hand-built node can carry it.
-  if mult != none and mult <= 0 {
-    panic(
-      "gairm-import: multiple-of must be positive, got " + str(mult) + ".",
-    )
-  }
-  // Integers stay exact; floats compare the ratio with a tolerance, since
-  // calc.rem(0.3, 0.1) is not 0.
-  let off = if mult == none { false } else if (
-    type(value) == int and type(mult) == int
-  ) {
-    calc.rem(value, mult) != 0
-  } else {
-    let q = value / mult
-    calc.abs(q - calc.round(q)) >= 1e-9
-  }
-  if off {
-    errs += _error(
-      path,
-      "multiple",
-      "expected multiple of " + str(mult) + ", got " + str(value) + ".",
-      expected: (multiple-of: mult),
-      got: value,
-    )
-  }
-  errs
-}
-
-// A value as coerce's null-as-absent rule leaves it: null keys and
-// null elements removed at every depth. Uniqueness compares these, or
-// items differing only by a null key would pass and then coerce to
-// duplicates.
-#let _strip-nulls(value) = {
-  if type(value) == dictionary {
-    value
-      .pairs()
-      .filter(((_, v)) => v != none)
-      .map(((k, v)) => (k, _strip-nulls(v)))
-      .to-dict()
-  } else if type(value) == array {
-    value.filter(v => v != none).map(_strip-nulls)
-  } else { value }
-}
-
-// Filter `none` first — coerce drops them, so raw counts would
-// validate inputs whose rendered model violates min-items. Duplicate
-// reports cite original positions so callers can find them.
-#let _array-constraint-errs(schema, value, path) = {
-  let errs = ()
-  let present = value.enumerate().filter(((_, elem)) => elem != none)
-  let n = present.len()
-  let min = schema.at("min-items", default: none)
-  if min != none and n < min {
-    errs += _error(
-      path,
-      "items",
-      "expected array length ≥ " + str(min) + ", got " + str(n) + ".",
-      expected: (min-items: min),
-      got: n,
-    )
-  }
-  let max = schema.at("max-items", default: none)
-  if max != none and n > max {
-    errs += _error(
-      path,
-      "items",
-      "expected array length ≤ " + str(max) + ", got " + str(n) + ".",
-      expected: (max-items: max),
-      got: n,
-    )
-  }
-  if schema.at("unique-items", default: false) {
-    let stripped = present.map(((_, elem)) => _strip-nulls(elem))
-    for i in range(n) {
-      for j in range(i + 1, n) {
-        let orig-i = present.at(i).at(0)
-        let orig-j = present.at(j).at(0)
-        if stripped.at(i) == stripped.at(j) {
-          errs += _error(
-            path,
-            "unique",
-            "expected unique items, duplicate at indices "
-              + str(orig-i)
-              + " and "
-              + str(orig-j)
-              + ".",
-            got: (orig-i, orig-j),
-          )
-          return errs
-        }
-      }
+  for row in _constraint-rows {
+    let bound = schema.at(row.field, default: none)
+    if row.family != family or bound == none { continue }
+    let miss = _constraint-miss(row, bound, value)
+    if miss != none {
+      errs += _error(
+        path,
+        row.code,
+        miss.message,
+        expected: miss.expected,
+        got: miss.got,
+      )
     }
   }
   errs
 }
-
-// IPv6 is spelled as the eight-group form plus each place a single `::`
-// can sit: `h` is one 1-4 digit hex group, and every alternative below
-// is "n groups, `::`, m groups" with n + m <= 7. Embedded-IPv4 tails
-// (`::ffff:1.2.3.4`) are not accepted.
-#let _hex-group = "[0-9A-Fa-f]{1,4}"
-#let _ipv6-pattern = {
-  let h = _hex-group
-  let alternatives = (
-    h + "(?::" + h + "){7}",
-    "(?:" + h + ":){1,7}:",
-    "(?:" + h + ":){1,6}:" + h,
-    // Up to n groups, `::`, up to 7 - n groups, for n = 2..5.
-    ..range(2, 6).map(n => (
-      "(?:" + h + ":){1," + str(n) + "}(?::" + h + "){1," + str(7 - n) + "}"
-    )),
-    h + ":(?::" + h + "){1,6}",
-    ":(?::" + h + "){1,7}",
-    "::",
-  )
-  "^(?:" + alternatives.join("|") + ")$"
-}
-
-// One DNS label (1-63 characters, no leading or trailing hyphen) and one
-// IPv4 octet (0-255, no leading zeros), each used twice below.
-#let _label = "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
-#let _octet = "(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
-
-// Tightened over the upstream JSON Resume regexes, which accept
-// impossible months / days because they use [0-1][0-9] / [0-3][0-9].
-// Deliberately permissive (no full RFC compliance). Message omits the
-// offending value — the path already names the field, the canonical
-// example in `expected` is the actionable hint.
-#let _format-specs = (
-  "date-string": (
-    pattern: regex(
-      "^([0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[0-9]{4}-(0[1-9]|1[0-2])|[0-9]{4})$",
-    ),
-    expected: "an ISO-8601 date (e.g. \"2024-01-15\")",
-  ),
-  "datetime-string": (
-    pattern: regex(
-      "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])?$",
-    ),
-    expected: "an ISO-8601 datetime (e.g. \"2024-01-15T10:00:00Z\")",
-  ),
-  "uri-string": (
-    pattern: regex("^[A-Za-z][A-Za-z0-9+.\-]*://\S+$"),
-    expected: "a URI (e.g. \"https://example.com\")",
-  ),
-  "email-string": (
-    pattern: regex("^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$"),
-    expected: "an email (e.g. \"name@example.com\")",
-  ),
-  "uuid-string": (
-    pattern: regex(
-      "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$",
-    ),
-    expected: "a UUID (e.g. \"123e4567-e89b-12d3-a456-426614174000\")",
-  ),
-  "hostname-string": (
-    pattern: regex("^" + _label + "(\." + _label + ")*$"),
-    expected: "a hostname (e.g. \"example.com\")",
-  ),
-  "ipv4-string": (
-    pattern: regex("^" + _octet + "(\." + _octet + "){3}$"),
-    expected: "an IPv4 address (e.g. \"192.0.2.1\")",
-  ),
-  "ipv6-string": (
-    pattern: regex(_ipv6-pattern),
-    expected: "an IPv6 address (e.g. \"2001:db8::1\")",
-  ),
-  "time-string": (
-    pattern: regex(
-      "^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])?$",
-    ),
-    expected: "an ISO-8601 time (e.g. \"10:00:00Z\")",
-  ),
-)
-
-// Load-time drift guard: a format kind added to kinds.typ but not here
-// (or vice versa) fails at import, not at validate time on unlucky input.
-#assert(
-  _format-specs.keys().sorted() == _format-string-kinds.sorted(),
-  message: "gairm-import: internal — _format-specs is out of sync with kinds._format-string-kinds.",
-)
 
 // A JSON type name per value, with int and float as the one number
 // type JSON has.
@@ -311,7 +76,7 @@
   let kind = schema.kind
   if kind in ("str", "content") {
     if type(value) != str { return _type-error(path, "string", value) }
-    return _string-length-errs(schema, value, path)
+    return _constraint-errors(schema, "string", value, path)
   }
   if kind == "enum" {
     if value in schema.values { return () }
@@ -336,43 +101,43 @@
     }
     return _error(path, "enum", message, expected: schema.values, got: value)
   }
-  if kind in _format-specs {
-    let value = if type(value) == datetime and kind in _datetime-kinds {
-      let converted = _from-datetime(kind, value)
+  if kind in _formats {
+    let row = _formats.at(kind)
+    let value = if type(value) == datetime and row.datetime != none {
+      let converted = _from-datetime(row, value)
       if converted == none {
         return _error(
           path,
           "format",
-          "expected " + _datetime-expected(kind) + ", got datetime.",
-          expected: _datetime-expected(kind),
+          "expected " + _datetime-expected(row) + ", got datetime.",
+          expected: _datetime-expected(row),
           got: value,
         )
       }
       converted
     } else { value }
     if type(value) != str { return _type-error(path, "string", value) }
-    let spec = _format-specs.at(kind)
-    if value.match(spec.pattern) == none {
+    if value.match(row.pattern) == none {
       return _error(
         path,
         "format",
-        "expected " + spec.expected + ".",
-        expected: spec.expected,
+        "expected " + row.expected + ".",
+        expected: row.expected,
         got: value,
       )
     }
     // Extra pattern gate (format + pattern), on the converted string.
     let errs = _pattern-errs(schema, value, path)
     if errs != () { return errs }
-    return _string-length-errs(schema, value, path)
+    return _constraint-errors(schema, "string", value, path)
   }
   // pattern + hint travel on the schema node rather than via the
-  // _format-specs table above, since each instance is unique.
+  // format table, since each instance is unique.
   if kind == "pattern-string" {
     if type(value) != str { return _type-error(path, "string", value) }
     let errs = _pattern-errs(schema, value, path)
     if errs != () { return errs }
-    return _string-length-errs(schema, value, path)
+    return _constraint-errors(schema, "string", value, path)
   }
   if kind == "number" {
     if type(value) not in (int, float) {
@@ -392,7 +157,7 @@
         got: value,
       )
     } else { () }
-    return errs + _number-range-errs(schema, value, path)
+    return errs + _constraint-errors(schema, "number", value, path)
   }
   if kind == "bool" {
     if type(value) != bool { return _type-error(path, "boolean", value) }
@@ -406,7 +171,7 @@
       .enumerate()
       .map(((i, elem)) => _validate(schema.elem, elem, path + (i,)))
       .flatten()
-    return elem-errs + _array-constraint-errs(schema, value, path)
+    return elem-errs + _constraint-errors(schema, "array", value, path)
   }
   if kind == "object" {
     if type(value) != dictionary { return _type-error(path, "object", value) }

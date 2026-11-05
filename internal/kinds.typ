@@ -25,74 +25,12 @@
 /// `null` or an absent key. Any other value is an error.
 #let null-type = (kind: "null")
 
-// Format-specialised string kinds — regex-gated in _validate;
-// deliberately permissive (reject obvious malformations, not full RFC).
-/// A string in ISO 8601 date form: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`.
-/// Data written in Typst may give a `datetime` with a date and no time;
-/// it is checked and returned as the ISO string.
-#let date-string = (kind: "date-string")
-/// A string in ISO 8601 date and time form, `YYYY-MM-DDTHH:MM:SS`, with
-/// an optional fraction and `Z` or `±HH:MM` offset. Data written in Typst
-/// may give a `datetime` with a date and a time; it is checked and
-/// returned as the ISO string.
-#let datetime-string = (kind: "datetime-string")
-/// A string that looks like a URI (a permissive check).
-#let uri-string = (kind: "uri-string")
-/// A string that looks like an email address (a permissive check).
-#let email-string = (kind: "email-string")
-/// A string that looks like a UUID: 8-4-4-4-12 hex digits (a permissive
-/// check; the version and variant are not inspected).
-#let uuid-string = (kind: "uuid-string")
-/// A string that looks like a hostname: dot-separated labels of letters,
-/// digits and inner hyphens (a permissive check).
-#let hostname-string = (kind: "hostname-string")
-/// A string in dotted-quad IPv4 form, each octet 0-255.
-#let ipv4-string = (kind: "ipv4-string")
-/// A string that looks like an IPv6 address, including `::` compression
-/// (a permissive check; the embedded-IPv4 tail form is not accepted).
-#let ipv6-string = (kind: "ipv6-string")
-/// A string in `HH:MM:SS` time form, with an optional fraction and `Z`
-/// or `±HH:MM` offset.
-#let time-string = (kind: "time-string")
-
-// The format-gated kinds above as one list — validate.typ owns their
-// regex table (keyed by these names, drift-guarded at load), coerce.typ
-// passes them through as plain strings, introspect.typ lists them as
-// leaf kinds. One list so adding a format kind is this line plus a
-// regex, instead of three hand-synced module-local lists.
-#let _format-string-kinds = (
-  "date-string",
-  "datetime-string",
-  "uri-string",
-  "email-string",
-  "uuid-string",
-  "hostname-string",
-  "ipv4-string",
-  "ipv6-string",
-  "time-string",
+// The format kinds live in kinds/format.typ, one table row each;
+// re-exported here so lib.typ imports every kind from one module.
+#import "kinds/format.typ": (
+  date-string, datetime-string, uri-string, email-string, uuid-string,
+  hostname-string, ipv4-string, ipv6-string, time-string,
 )
-
-// Typst-native input for the date kinds (#134): a datetime of the
-// right shape converts to the ISO string the kind's regex checks, so
-// validate and coerce treat it exactly like the JSON string. Wrong
-// shape returns none — a time is never dropped to make a date fit.
-// Each kind maps to whether its datetime carries a time.
-#let _datetime-kinds = ("date-string": false, "datetime-string": true)
-
-#let _datetime-expected(kind) = (
-  "a string or a datetime with a date and "
-    + if _datetime-kinds.at(kind) { "a time" } else { "no time" }
-)
-
-#let _from-datetime(kind, value) = {
-  let time = _datetime-kinds.at(kind)
-  if value.year() != none and (value.hour() != none) == time {
-    value.display(
-      "[year]-[month]-[day]"
-        + if time { "T[hour]:[minute]:[second]" } else { "" },
-    )
-  }
-}
 
 // Per-instance regex gate — a constructor, not a constant, because
 // each schema node carries its own regex and hint.
