@@ -347,6 +347,18 @@ basics.url:             expected a URI (e.g. "https://example.com").
 certificates[0].date:   expected an ISO-8601 date (e.g. "2024-01-15").
 ```
 
+Five more formats are available through `schema-from-json-schema` or a lens
+override (the canonical document doesn't use them), each with the same
+permissive philosophy:
+
+| `format`   | kind              | accepts                                                  |
+| ---------- | ----------------- | -------------------------------------------------------- |
+| `uuid`     | `uuid-string`     | 8-4-4-4-12 hex digits, any case                          |
+| `hostname` | `hostname-string` | dot-separated labels of letters, digits, inner hyphens   |
+| `ipv4`     | `ipv4-string`     | dotted quad, octets 0-255, no leading zeros              |
+| `ipv6`     | `ipv6-string`     | hex groups with `::` compression; no embedded-IPv4 tail  |
+| `time`     | `time-string`     | `HH:MM:SS`, optional fraction, optional `Z` / `±HH:MM`   |
+
 `format: "date-time"` maps to the separate `datetime-string` kind:
 `date-string` accepts `YYYY` / `YYYY-MM` / `YYYY-MM-DD`, while
 `datetime-string` requires the full `YYYY-MM-DDTHH:MM:SS` shape (optional
@@ -376,7 +388,7 @@ Coercion is pass-through: format-checked values flow through to the model as
 plain strings, so renderers receive `model.basics.email == "name@example.com"`
 unchanged (a `datetime` given to a date kind becomes its ISO string).
 
-For ad-hoc constraints outside the four built-in formats, build a
+For ad-hoc constraints outside the built-in formats, build a
 `pattern-string(re, expected: …)` (`re` is a `regex` or a pattern string)
 and target it via a lens or splice it into an extension schema. JSON
 Schema's `pattern` keyword on a plain string maps to this kind too — see
@@ -663,7 +675,9 @@ in sync:
   (`1.0` passes, per draft-7 semantics); the matching Typst-side
   primitive is `integer-type`
 - `format`: `uri` → `uri-string`, `email` → `email-string`,
-  `date` → `date-string`, `date-time` → `datetime-string`
+  `date` → `date-string`, `date-time` → `datetime-string`,
+  `uuid` → `uuid-string`, `hostname` → `hostname-string`,
+  `ipv4` → `ipv4-string`, `ipv6` → `ipv6-string`, `time` → `time-string`
 - `pattern` → `pattern-string` on a plain string schema; alongside
   `format`, both apply (the format kind gains the pattern as an extra gate,
   checked after the format's own check, also for a `datetime` given to a
@@ -674,7 +688,8 @@ in sync:
   a keyword ignores values of a type it does not apply to (`minimum`
   leaves a string value alone, per JSON Schema). If no value survives the
   schema is unsatisfiable and panics. `properties` / `required` /
-  `additionalProperties` / `items` beside them panic
+  `additionalProperties` / `items` / `dependentRequired` / `dependencies`
+  beside them panic
 - `properties`, `required`, `items`
 - `dependentRequired`, and draft 7's array-form `dependencies`
   (`dependencies: (a: ("b", "c"))`) → `dependent-required`; only on
@@ -721,7 +736,7 @@ message rather than silently dropping the constraint:
   undeclared keys by default, so a schema that wants an open object says
   so with `additionalProperties: true`
 - External `$ref`
-- String formats other than the four listed above
+- String formats other than the nine listed above
 - `allOf` with non-object members, and schema-bearing sibling keywords
   beside any composition keyword or `$ref` (move them into the members or
   the referenced definition)

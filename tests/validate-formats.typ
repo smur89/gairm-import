@@ -5,10 +5,12 @@
 //  - datetime-string → iso8601 datetime (date + T + HH:MM:SS, optional fractional + offset)
 //  - uri-string      → scheme://rest (permissive)
 //  - email-string    → local@domain.tld (permissive)
+//  - uuid-string, hostname-string, ipv4-string, ipv6-string, time-string
 
 #import "../internal/validate.typ": _validate
 #import "../internal/kinds.typ": (
-  date-string, datetime-string, uri-string, email-string, object, array-of,
+  date-string, datetime-string, uri-string, email-string, uuid-string,
+  hostname-string, ipv4-string, ipv6-string, time-string, object, array-of,
 )
 
 // ---- date-string ----------------------------------------------------
@@ -236,3 +238,113 @@
 #assert(("work", 1, "url") in paths)
 #assert(("work", 1, "startDate") in paths)
 #assert(("email",) in paths)
+
+// ---- uuid / hostname / ipv4 / ipv6 / time ---------------------------
+
+#let fmt-fail(kind, value, hint) = {
+  let errs = _validate(kind, value, ("f",))
+  assert.eq(errs.len(), 1, message: "expected one error for " + repr(value))
+  assert.eq(errs.at(0).path, ("f",))
+  assert(errs.at(0).message.contains(hint), message: repr(value))
+}
+#let fmt-ok(kind, value) = assert.eq(
+  _validate(kind, value, ("f",)),
+  (),
+  message: "expected valid: " + repr(value),
+)
+
+#for v in (
+  "123e4567-e89b-12d3-a456-426614174000",
+  "123E4567-E89B-12D3-A456-426614174000",
+) { fmt-ok(uuid-string, v) }
+#for v in (
+  "",
+  "123e4567e89b12d3a456426614174000",
+  "123e4567-e89b-12d3-a456-42661417400",
+  "123e4567-e89b-12d3-a456-4266141740000",
+  "123e4567-e89b-12d3-a456-42661417400g",
+  "{123e4567-e89b-12d3-a456-426614174000}",
+) { fmt-fail(uuid-string, v, "a UUID") }
+
+#for v in (
+  "example.com",
+  "localhost",
+  "a-b.c-d.example.org",
+  "EXAMPLE.COM",
+  "1host.io",
+) {
+  fmt-ok(hostname-string, v)
+}
+#for v in (
+  "",
+  "-bad.com",
+  "bad-.com",
+  "bad..com",
+  ".bad.com",
+  "bad.com.",
+  "has space.com",
+  "under_score.com",
+  "http://example.com",
+  "a" * 64 + ".com",
+) { fmt-fail(hostname-string, v, "a hostname") }
+
+#for v in ("192.0.2.1", "0.0.0.0", "255.255.255.255", "10.0.0.1") {
+  fmt-ok(ipv4-string, v)
+}
+#for v in (
+  "",
+  "256.0.0.1",
+  "1.2.3",
+  "1.2.3.4.5",
+  "01.2.3.4",
+  "1.2.3.-4",
+  "1.2.3.4 ",
+  "a.b.c.d",
+) { fmt-fail(ipv4-string, v, "an IPv4 address") }
+
+#for v in (
+  "2001:db8:0:0:0:0:0:1",
+  "2001:db8::1",
+  "::1",
+  "::",
+  "fe80::",
+  "1::",
+  "1:2:3:4:5:6:7::",
+  "::2:3:4:5:6:7:8",
+  "2001:DB8::ff00:42:8329",
+  "1:2:3:4:5:6:7:8",
+) { fmt-ok(ipv6-string, v) }
+#for v in (
+  "",
+  ":",
+  ":::",
+  "1::2::3",
+  "12345::1",
+  "2001:db8:::1",
+  "1:2:3:4:5:6:7",
+  "1:2:3:4:5:6:7:8:9",
+  "1:2:3:4:5:6:7:8::",
+  "g::1",
+  "::1 ",
+  "192.0.2.1",
+) { fmt-fail(ipv6-string, v, "an IPv6 address") }
+
+#for v in (
+  "10:00:00",
+  "10:00:00Z",
+  "00:00:00.5Z",
+  "23:59:59.999+14:00",
+  "10:00:00-05:30",
+) { fmt-ok(time-string, v) }
+#for v in (
+  "",
+  "10:00",
+  "1:00:00",
+  "24:00:00",
+  "10:60:00",
+  "10:00:60",
+  "10:00:00z",
+  "10:00:00+0100",
+  "10:00:00.Z",
+  "2024-01-15T10:00:00Z",
+) { fmt-fail(time-string, v, "an ISO-8601 time") }

@@ -6,6 +6,7 @@
 #import "kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
   array-of, object, date-string, datetime-string, uri-string, email-string,
+  uuid-string, hostname-string, ipv4-string, ipv6-string, time-string,
   pattern-string, enum-of, any-of, one-of, not-of,
 )
 
@@ -14,6 +15,11 @@
   "email": email-string,
   "date": date-string,
   "date-time": datetime-string,
+  "uuid": uuid-string,
+  "hostname": hostname-string,
+  "ipv4": ipv4-string,
+  "ipv6": ipv6-string,
+  "time": time-string,
 )
 
 // One panic prefix so every diagnostic from this module is grep-able

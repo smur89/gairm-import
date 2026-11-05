@@ -1,7 +1,8 @@
 #import "../lib.typ": (
   schema-from-json-schema, str-type, number-type, integer-type, array-of,
-  object, date-string, datetime-string, uri-string, email-string,
-  pattern-string, enum-of, const-of,
+  object, date-string, datetime-string, uri-string, email-string, uuid-string,
+  hostname-string, ipv4-string, ipv6-string, time-string, pattern-string,
+  enum-of, const-of,
 )
 
 #assert.eq(schema-from-json-schema((type: "string")), str-type)
@@ -26,6 +27,26 @@
 #assert.eq(
   schema-from-json-schema((type: "string", format: "date-time")),
   datetime-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "uuid")),
+  uuid-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "hostname")),
+  hostname-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "ipv4")),
+  ipv4-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "ipv6")),
+  ipv6-string,
+)
+#assert.eq(
+  schema-from-json-schema((type: "string", format: "time")),
+  time-string,
 )
 
 #assert.eq(
