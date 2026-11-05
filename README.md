@@ -694,7 +694,9 @@ in sync:
 - `dependentRequired`, and draft 7's array-form `dependencies`
   (`dependencies: (a: ("b", "c"))`) → `dependent-required`; only on
   `type: "object"` schemas, and `allOf` unions the lists per trigger
-- Internal `$ref` (`#/definitions/…` / `#/$defs/…`) — like a composition
+- Internal `$ref` (`#/definitions/…` / `#/$defs/…`), read as an RFC 6901
+  pointer: `~1` is `/`, `~0` is `~`, and a numeric segment indexes an
+  array (`#/definitions/pair/anyOf/0`) — like a composition
   keyword, `$ref` must stand alone (annotation-only siblings excepted); a
   sibling `minLength`, `type`, etc. panics rather than being silently
   dropped as draft 7 would

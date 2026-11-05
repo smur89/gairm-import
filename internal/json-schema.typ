@@ -2,6 +2,7 @@
 // not supported panics rather than silently dropping the constraint.
 
 #import "decode.typ": _decode-json
+#import "json-pointer.typ": _invalid-escape-re, pointer-to-path
 #import "validate.typ": _validate
 #import "kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
@@ -49,14 +50,28 @@
   if ref == "#/" {
     _bail("$ref \"#/\" cannot reference the document root.")
   }
-  let parts = ref.slice(2).split("/").filter(p => p != "")
-  parts.fold(root, (acc, key) => {
-    if type(acc) != dictionary or key not in acc {
+  // Checked here so a bad escape reports under this module's prefix
+  // rather than pointer-to-path's.
+  if ref.match(_invalid-escape-re) != none {
+    _bail(
+      "$ref "
+        + repr(ref)
+        + " has an invalid escape; RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
+    )
+  }
+  // RFC 6901: `~1` / `~0` unescape, empty segments are the "" key, and
+  // a numeric segment indexes an array (e.g. "#/allOf/0") or names a key.
+  pointer-to-path(ref.slice(1)).fold(root, (acc, seg) => {
+    let key = if type(acc) == dictionary { str(seg) } else { seg }
+    let found = if type(acc) == dictionary { key in acc } else {
+      type(acc) == array and type(seg) == int and seg < acc.len()
+    }
+    if not found {
       _bail(
         "$ref "
           + repr(ref)
           + " could not be resolved (segment "
-          + repr(key)
+          + repr(str(seg))
           + " missing).",
       )
     }
