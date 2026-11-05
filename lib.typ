@@ -13,6 +13,7 @@
 #import "internal/coerce.typ": _coerce
 #import "internal/errors.typ": _format-report
 #import "internal/json-schema.typ": schema-from-json-schema
+#import "internal/decode.typ": _decode-json
 #import "internal/lens.typ": (
   lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
   set-required, unset-required,
@@ -46,13 +47,11 @@
 }
 
 // `path("…")` resolves against the caller's .typ rather than the
-// @preview cache where this file lives. A string is rejected: inside
-// a package Typst resolves it against the package root (#132).
+// @preview cache where this file lives. Bytes are decoded as json()
+// does. A string is rejected: inside a package Typst resolves it
+// against the package root (#132).
 #let parse(data, schema: resume-schema) = {
-  _reject-none-root(data)
-  let dict-data = if type(data) == path {
-    json(data)
-  } else if type(data) == str {
+  if type(data) == str {
     panic(
       "gairm-import: parse does not take a string path: inside a "
         + "package it resolves from the package, not your project. "
@@ -62,12 +61,13 @@
         + repr(data)
         + ") instead.",
     )
-  } else if type(data) == dictionary {
-    data
-  } else {
+  }
+  let dict-data = _decode-json(data)
+  _reject-none-root(dict-data)
+  if type(dict-data) != dictionary {
     panic(
-      "gairm-import: parse expected a dict or a path, got "
-        + repr(type(data))
+      "gairm-import: parse expected a dict, a path, or bytes, got "
+        + repr(type(dict-data))
         + ".",
     )
   }

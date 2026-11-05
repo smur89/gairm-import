@@ -26,3 +26,7 @@
 #let from-dict = coerce(raw)
 #assert.eq(from-dict.basics.name, from-path.basics.name)
 #assert.eq(parse(raw).basics.name, from-path.basics.name)
+
+// bytes entry, as Typst's own decoders take: json(bytes) under parse.
+#let from-bytes = parse(read("fixtures/resume-minimal.json", encoding: none))
+#assert.eq(from-bytes.basics.name, from-path.basics.name)
