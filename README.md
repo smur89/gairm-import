@@ -702,7 +702,9 @@ message rather than silently dropping the constraint:
 - `if` / `then` / `else`
 - `dependencies` (and the `dependentRequired` / `dependentSchemas` variants)
 - `type: "object"` with neither `properties` nor `additionalProperties`
-  (fully open)
+  (fully open). This one is deliberate, not a gap: the engine rejects
+  undeclared keys by default, so a schema that wants an open object says
+  so with `additionalProperties: true`
 - External `$ref`
 - String formats other than the four listed above
 - `allOf` with non-object members, and schema-bearing sibling keywords
