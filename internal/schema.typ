@@ -14,6 +14,8 @@
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
 
+/// The JSON Resume schema, translated from the upstream document as it stands.
+/// The default for `parse`, `validate` and `coerce`.
 #let resume-schema = schema-from-json-schema(
   json("assets/jsonresume-schema.json"),
 )
@@ -143,6 +145,10 @@
   }
 }
 
+/// `resume-schema` with four changes: free-text fields are Typst `content`,
+/// the iso8601 date fields are checked as dates, `meta.lastModified` is
+/// checked as a date or date-time, and undeclared keys are rejected
+/// everywhere.
 #let resume-schema-strict = {
   // Strip first so the override-folds run against a schema that
   // doesn't carry the `additional: true` markers — paths and

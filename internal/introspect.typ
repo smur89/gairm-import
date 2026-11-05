@@ -124,6 +124,12 @@
   }
 }
 
+/// Draws a schema as an indented tree, one line per field with its kind.
+/// Keys are sorted, arrays are suffixed `[]`, and `*` stands for any
+/// other key.
+///
+/// - schema (dictionary): The schema to draw.
+/// -> str
 #let describe-schema(schema) = _describe(schema, "")
 
 // Collect every path whose terminal kind matches `kind-name`.
@@ -163,6 +169,17 @@
 // Container kinds (`object`, `array`) are deliberately rejected — the
 // walker descends through them, so accepting them would silently
 // return () for every call and mask the typo.
+/// Lists the lens path of every node in `schema` that has the given
+/// kind. The paths work with `lens`. Panics for `object` and `array`,
+/// which the search walks through, and for kinds it does not know.
+///
+/// - schema (dictionary): The schema to search.
+/// - kind (dictionary, function, str): The kind to find: a schema node
+///   such as `date-string` (matched by its kind, so `integer-type` finds
+///   every number), or a constructor such as `pattern-string`, `enum-of`,
+///   `const-of`, `any-of`, `one-of` or `not-of`. A kind name as a `str`
+///   still works but is deprecated.
+/// -> array
 #let paths-of-kind(schema, kind) = {
   let kind-name = _kind-name-of(kind)
   if kind-name not in _leaf-kinds {
@@ -181,4 +198,10 @@
 
 // Thin wrapper over `lens-get(lens(path), schema).kind` — keeps the
 // common "what kind is at X" debugging step a single call.
+/// The kind name of the schema node at `path`, such as `"str"` or
+/// `"object"`. Panics if the path does not exist.
+///
+/// - schema (dictionary): The schema to look in.
+/// - path (array): The lens path to the node.
+/// -> str
 #let kind-at(schema, path) = lens-get(lens(path), schema).kind
