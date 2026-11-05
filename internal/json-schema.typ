@@ -2,6 +2,7 @@
 // not supported panics rather than silently dropping the constraint.
 
 #import "decode.typ": _decode-json
+#import "json-pointer.typ": _invalid-escape-re, pointer-to-path
 #import "validate.typ": _validate
 #import "kinds.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
@@ -49,14 +50,28 @@
   if ref == "#/" {
     _bail("$ref \"#/\" cannot reference the document root.")
   }
-  let parts = ref.slice(2).split("/").filter(p => p != "")
-  parts.fold(root, (acc, key) => {
-    if type(acc) != dictionary or key not in acc {
+  // Checked here so a bad escape reports under this module's prefix
+  // rather than pointer-to-path's.
+  if ref.match(_invalid-escape-re) != none {
+    _bail(
+      "$ref "
+        + repr(ref)
+        + " has an invalid escape; RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
+    )
+  }
+  // RFC 6901: `~1` / `~0` unescape, empty segments are the "" key, and
+  // a numeric segment indexes an array (e.g. "#/allOf/0") or names a key.
+  pointer-to-path(ref.slice(1)).fold(root, (acc, seg) => {
+    let key = if type(acc) == dictionary { str(seg) } else { seg }
+    let found = if type(acc) == dictionary { key in acc } else {
+      type(acc) == array and type(seg) == int and seg < acc.len()
+    }
+    if not found {
       _bail(
         "$ref "
           + repr(ref)
           + " could not be resolved (segment "
-          + repr(key)
+          + repr(str(seg))
           + " missing).",
       )
     }
@@ -126,6 +141,38 @@
   "$defs",
 )
 
+// Keywords each JSON type supports. A node may carry another type's
+// keywords — draft 7 ignores them, and each `type`-array member is
+// translated from the whole node — so the allow-list is their union.
+#let _type-keywords = (
+  string: ("format", "pattern", "minLength", "maxLength"),
+  number: (
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "multipleOf",
+  ),
+  array: ("items", "minItems", "maxItems", "uniqueItems"),
+  object: (
+    "properties",
+    "required",
+    "additionalProperties",
+    "dependentRequired",
+    "dependencies",
+  ),
+)
+
+// Anything else (`minProperties`, `patternProperties`, `contains`, a
+// typo like `minLenght`, ...) bails: draft 7 would ignore an unknown
+// key, and an unsupported one would lose its constraint.
+#let _known-keywords = (
+  ("type", "enum", "const", "$ref")
+    + _composition-keywords
+    + _annotation-keywords
+    + _type-keywords.values().join()
+)
+
 #let _require-lone-composition(js, keyword) = {
   let extras = js
     .keys()
@@ -166,14 +213,31 @@
   members
 }
 
+// Whether a raw allOf member declares `additionalProperties` false or a
+// schema, through `$ref` and nested allOf. Read from the JSON because
+// the translated kind can't tell an explicit `false` from an undeclared
+// one (both `none`), and draft 7 reads undeclared as open. Runs after
+// the member translated, so refs are known to resolve without cycles.
+#let _restricts-extras(js, root) = {
+  if "$ref" in js {
+    return _restricts-extras(_resolve-ref(js.at("$ref"), root, ()), root)
+  }
+  if "allOf" in js {
+    return js.at("allOf").any(m => _restricts-extras(m, root))
+  }
+  js.at("additionalProperties", default: true) != true
+}
+
 // allOf: the object-merge subset — every member must translate to an
 // object schema; shapes union (a duplicate key must carry an EQUAL
 // sub-schema), required-keys and dependent-required union,
 // additionalProperties must agree across all members (undeclared counts
-// as closed). Non-object composition (e.g. string + extra constraints) stays out of scope;
+// as closed), and members that restrict extras (`restricts`, see
+// _restricts-extras) need identical property sets. Non-object
+// composition (e.g. string + extra constraints) stays out of scope;
 // deep-merging conflicting sub-schemas is a rabbit hole the engine's
 // flat kinds can't express.
-#let _merge-all-of(members) = {
+#let _merge-all-of(members, restricts) = {
   for m in members {
     if m.kind != "object" {
       _bail(
@@ -221,6 +285,16 @@
         "allOf members declare conflicting additionalProperties (open, closed, and typed members must all agree).",
       )
     }
+  }
+  // Draft 7 applies each member's additionalProperties to that member's
+  // own properties only: a closed member rejects, and a typed one
+  // checks, keys only another member declares, which the union would
+  // accept unchecked.
+  let keys = members.map(m => m.shape.keys().sorted())
+  if restricts.any(r => r) and keys.any(k => k != keys.at(0)) {
+    _bail(
+      "allOf members with `additionalProperties: false` or a schema must all declare the same properties: draft 7 applies each member's additionalProperties to its own properties only, so a merged schema would accept keys that member rejects. Declare the properties in every member, or drop the restriction.",
+    )
   }
   object(
     shape,
@@ -465,6 +539,15 @@
 )
 
 #let _from-json-schema(js, root, seen) = {
+  // A `properties` value or `$ref` target reaches here unchecked; a
+  // boolean would otherwise fail with a raw Typst error on `in` below.
+  if type(js) != dictionary {
+    _bail(
+      "a subschema must be a schema object, got: "
+        + repr(js)
+        + ". Boolean schemas (true / false) are out of scope.",
+    )
+  }
   // Before the $ref early return: resolving the ref first would
   // silently drop any non-annotation sibling of `$ref` (a composition
   // keyword, `minLength`, ...), so bail on those instead.
@@ -491,10 +574,44 @@
       )
     }
   }
+  let unknown = js.keys().filter(k => k not in _known-keywords)
+  if unknown.len() > 0 {
+    _bail(
+      "unsupported JSON Schema keyword(s): "
+        + unknown.map(repr).join(", ")
+        + ". They are outside the supported subset (see the README); translating would silently drop their constraints.",
+    )
+  }
+  // Before the enum / const fold, which would otherwise report a typo
+  // like `type: "strng"` as "no value satisfies ...".
+  let js-type = js.at("type", default: none)
+  if type(js-type) == array {
+    if js-type.len() == 0 or js-type.any(x => type(x) != str) {
+      _bail(
+        "\"type\" array must be a non-empty array of type names, got: "
+          + repr(js-type)
+          + ".",
+      )
+    }
+  }
+  if js-type != none {
+    let names = if type(js-type) == array { js-type } else { (js-type,) }
+    for m in names {
+      if m not in _type-names {
+        _bail(
+          "unknown `type` name "
+            + repr(m)
+            + if type(js-type) == array { " in " + repr(js-type) }
+            + "; expected one of: "
+            + _type-names.join(", ")
+            + ".",
+        )
+      }
+    }
+  }
   let dependent = _dependent-required(js)
   // Only an object (possibly nullable) can carry it; elsewhere it
   // would be silently dropped.
-  let js-type = js.at("type", default: none)
   let is-object = (
     js-type == "object"
       or (
@@ -507,12 +624,10 @@
     )
   }
   if "allOf" in js {
+    let raw = _require-member-array(js, "allOf")
     return _merge-all-of(
-      _require-member-array(js, "allOf").map(m => _from-json-schema(
-        m,
-        root,
-        seen,
-      )),
+      raw.map(m => _from-json-schema(m, root, seen)),
+      raw.map(m => _restricts-extras(m, root)),
     )
   }
   if "anyOf" in js {
@@ -642,26 +757,6 @@
   if t == "boolean" { return bool-type }
   if t == "null" { return null-type }
   if type(t) == array {
-    if t.len() == 0 or t.any(x => type(x) != str) {
-      _bail(
-        "\"type\" array must be a non-empty array of type names, got: "
-          + repr(t)
-          + ".",
-      )
-    }
-    for m in t {
-      if m not in _type-names {
-        _bail(
-          "unknown `type` name "
-            + repr(m)
-            + " in "
-            + repr(t)
-            + "; expected one of: "
-            + _type-names.join(", ")
-            + ".",
-        )
-      }
-    }
     // "null" members drop: under null-as-absent every kind already
     // accepts null, so [X, "null"] is plain X and a wrapper would be a
     // no-op.

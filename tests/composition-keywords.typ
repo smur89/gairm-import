@@ -75,6 +75,42 @@
 ))
 #assert.eq(with-ap.additional, true)
 
+// Closed or typed members merge when they declare the same properties —
+// each member's additionalProperties then sees the same extras.
+#let closed-same = schema-from-json-schema((
+  allOf: (
+    (
+      type: "object",
+      properties: (a: (type: "string")),
+      additionalProperties: false,
+    ),
+    (
+      type: "object",
+      properties: (a: (type: "string")),
+      required: ("a",),
+      additionalProperties: false,
+    ),
+  ),
+))
+#assert.eq(closed-same.shape, (a: str-type))
+#assert.eq(closed-same.required-keys, ("a",))
+#assert.eq(closed-same.at("additional", default: none), none)
+#let typed-same = schema-from-json-schema((
+  allOf: (
+    (
+      type: "object",
+      properties: (a: (type: "string")),
+      additionalProperties: (type: "number"),
+    ),
+    (
+      type: "object",
+      properties: (a: (type: "string")),
+      additionalProperties: (type: "number"),
+    ),
+  ),
+))
+#assert.eq(typed-same.additional, number-type)
+
 // Annotation-only siblings (title, description, …) are tolerated.
 #let annotated = schema-from-json-schema((
   title: "combined",
