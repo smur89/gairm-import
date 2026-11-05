@@ -1,6 +1,6 @@
 // _format-path renders a path tuple as a human-readable string.
 
-#import "../internal/errors.typ": _format-path
+#import "../internal/core/error.typ": _format-path
 
 #assert.eq(_format-path(()), "<root>")
 #assert.eq(_format-path(("basics",)), "basics")

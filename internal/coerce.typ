@@ -13,7 +13,7 @@
 // present, so dropping it here would hand callers a model that breaks
 // the schema it just passed (a missing required key, a short array).
 
-#import "errors.typ": _type-name-of
+#import "core/error.typ": _type-name-of
 #import "kinds.typ": (
   _datetime-expected, _datetime-kinds, _format-string-kinds, _from-datetime,
   _is-free-form,

@@ -2,7 +2,7 @@
 // messages read "got null" / "got integer" / "got object" instead of
 // Typst's raw "type(none)" / "int" / "dictionary" reprs.
 
-#import "../internal/errors.typ": _type-name-of
+#import "../internal/core/error.typ": _type-name-of
 
 #assert.eq(_type-name-of("hi"), "string")
 #assert.eq(_type-name-of(42), "integer")

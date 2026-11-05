@@ -62,6 +62,9 @@ jobs:
       - name: Compile fixtures, check panic cases and package tests
         run: make -k -j4 -O test
 
+      - name: Check layering
+        run: make check-layers
+
   # typstyle parses source only, so no Typst needed. The flags live in
   # the Makefile, so this job and `make fmt` agree.
   format:
