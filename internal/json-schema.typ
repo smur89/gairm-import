@@ -9,6 +9,9 @@
   pattern-string, enum-of, any-of, one-of, not-of,
 )
 #import "kinds/format.typ": _format-for-json-schema
+#import "kinds/constraint.typ": (
+  _constraint-rows, _constraints, _value-problem, _bounds-conflict,
+)
 
 // One panic prefix so every diagnostic from this module is grep-able
 // by "schema-from-json-schema —".
@@ -131,16 +134,13 @@
 // Keywords each JSON type supports. A node may carry another type's
 // keywords — draft 7 ignores them, and each `type`-array member is
 // translated from the whole node — so the allow-list is their union.
+#let _family-keywords(family) = (
+  _constraint-rows.filter(row => row.family == family).map(row => row.json)
+)
 #let _type-keywords = (
-  string: ("format", "pattern", "minLength", "maxLength"),
-  number: (
-    "minimum",
-    "maximum",
-    "exclusiveMinimum",
-    "exclusiveMaximum",
-    "multipleOf",
-  ),
-  array: ("items", "minItems", "maxItems", "uniqueItems"),
+  string: ("format", "pattern") + _family-keywords("string"),
+  number: _family-keywords("number"),
+  array: ("items",) + _family-keywords("array"),
   object: (
     "properties",
     "required",
@@ -291,131 +291,34 @@
   )
 }
 
-// Bail at translate time on bad-shape values; better than a kind
-// dict the validator can't reason about.
-#let _require-nonneg-int(js, key) = {
-  let v = js.at(key)
-  if type(v) != int or v < 0 {
-    _bail(repr(key) + " must be a non-negative integer, got: " + repr(v) + ".")
-  }
-  v
-}
-
-#let _require-number(js, key) = {
-  let v = js.at(key)
-  if type(v) not in (int, float) {
-    _bail(repr(key) + " must be a number, got: " + repr(v) + ".")
-  }
-  v
-}
-
-// Cross-constraint contradictions (min > max, etc.) translate cleanly
-// but reject every input — catch them up front so the diagnostic
-// fires at translate time, not as a mystery validation failure.
-#let _require-ordered(lower-key, lower, upper-key, upper, sep) = {
-  if lower != none and upper != none and not (lower <= upper) {
-    _bail(
-      lower-key
-        + " ("
-        + repr(lower)
-        + ") "
-        + sep
-        + " "
-        + upper-key
-        + " ("
-        + repr(upper)
-        + ") is unsatisfiable.",
-    )
-  }
-}
-#let _require-strict(lower-key, lower, upper-key, upper) = {
-  if lower != none and upper != none and not (lower < upper) {
-    _bail(
-      lower-key
-        + " ("
-        + repr(lower)
-        + ") and "
-        + upper-key
-        + " ("
-        + repr(upper)
-        + ") leave no satisfying value.",
-    )
-  }
-}
-
-#let _with-string-constraints(js, dict) = {
-  let result = dict
-  if "minLength" in js {
-    result.insert("min-length", _require-nonneg-int(js, "minLength"))
-  }
-  if "maxLength" in js {
-    result.insert("max-length", _require-nonneg-int(js, "maxLength"))
-  }
-  _require-ordered(
-    "minLength",
-    result.at("min-length", default: none),
-    "maxLength",
-    result.at("max-length", default: none),
-    ">",
-  )
-  result
-}
-
-#let _with-number-constraints(js, dict) = {
-  let result = dict
-  if "minimum" in js {
-    result.insert("minimum", _require-number(js, "minimum"))
-  }
-  if "maximum" in js {
-    result.insert("maximum", _require-number(js, "maximum"))
-  }
-  if "exclusiveMinimum" in js {
-    result.insert("exclusive-minimum", _require-number(js, "exclusiveMinimum"))
-  }
-  if "exclusiveMaximum" in js {
-    result.insert("exclusive-maximum", _require-number(js, "exclusiveMaximum"))
-  }
-  if "multipleOf" in js {
-    let v = _require-number(js, "multipleOf")
-    if v <= 0 { _bail("\"multipleOf\" must be > 0, got: " + repr(v) + ".") }
-    result.insert("multiple-of", v)
-  }
-  let mn = result.at("minimum", default: none)
-  let mx = result.at("maximum", default: none)
-  let emn = result.at("exclusive-minimum", default: none)
-  let emx = result.at("exclusive-maximum", default: none)
-  _require-ordered("minimum", mn, "maximum", mx, ">")
-  // Exclusive bound leaves no value when it meets/crosses an inclusive
-  // bound on the same side (e.g. exclusiveMinimum: 5 demands > 5,
-  // maximum: 5 demands ≤ 5).
-  _require-strict("exclusiveMinimum", emn, "maximum", mx)
-  _require-strict("minimum", mn, "exclusiveMaximum", emx)
-  _require-strict("exclusiveMinimum", emn, "exclusiveMaximum", emx)
-  result
-}
-
-#let _with-array-constraints(js, dict) = {
-  let result = dict
-  if "minItems" in js {
-    result.insert("min-items", _require-nonneg-int(js, "minItems"))
-  }
-  if "maxItems" in js {
-    result.insert("max-items", _require-nonneg-int(js, "maxItems"))
-  }
-  if "uniqueItems" in js {
-    let v = js.at("uniqueItems")
-    if type(v) != bool {
-      _bail("\"uniqueItems\" must be a boolean, got: " + repr(v) + ".")
+// Reads the constraint keywords of `family` onto `node`, bailing at
+// translate time on a bad-shape value — better than a kind dict the
+// validator can't reason about — and on bounds no value can satisfy
+// (min > max, etc.), which would translate cleanly but reject every
+// input as a mystery validation failure.
+#let _with-constraints(node, js, family) = {
+  let result = node
+  for row in _constraint-rows {
+    if row.family != family or row.json not in js { continue }
+    let v = js.at(row.json)
+    let must = _value-problem(row, v)
+    if must != none {
+      _bail(repr(row.json) + " must be " + must + ", got: " + repr(v) + ".")
     }
-    if v { result.insert("unique-items", true) }
+    // `uniqueItems: false` is the default: leave it off the node.
+    if v != false { result.insert(row.field, v) }
   }
-  _require-ordered(
-    "minItems",
-    result.at("min-items", default: none),
-    "maxItems",
-    result.at("max-items", default: none),
-    ">",
-  )
+  let clash = _bounds-conflict(result)
+  if clash != none {
+    let (lower, upper) = (clash.lower, clash.upper).map(field => (
+      _constraints.at(field).json + " (" + repr(result.at(field)) + ")"
+    ))
+    _bail(
+      if clash.strict {
+        lower + " and " + upper + " leave no satisfying value."
+      } else { lower + " > " + upper + " is unsatisfiable." },
+    )
+  }
   result
 }
 
@@ -478,9 +381,9 @@
 // — a bool, null, object, or a string beside only `minimum` — survives.
 #let _fold-constraints(js, values) = {
   let by-type = (
-    string: _with-string-constraints(js, _string-base(js)),
-    number: _with-number-constraints(js, number-type),
-    array: _with-array-constraints(js, array-of(_any-elem)),
+    string: _with-constraints(_string-base(js), js, "string"),
+    number: _with-constraints(number-type, js, "number"),
+    array: _with-constraints(array-of(_any-elem), js, "array"),
   )
   let types = js.at("type", default: none)
   if types != none and type(types) != array { types = (types,) }
@@ -669,15 +572,17 @@
   }
   let t = js.at("type", default: none)
   if t == "string" {
-    return _with-string-constraints(js, _string-base(js))
+    return _with-constraints(_string-base(js), js, "string")
   }
   if t == "number" or t == "integer" {
     // `integer` keeps its integral constraint (kinds.typ's integer-type)
     // rather than flattening to plain number — silently dropping the
     // constraint would violate this module's contract.
-    return _with-number-constraints(js, if t == "integer" {
-      integer-type
-    } else { number-type })
+    return _with-constraints(
+      if t == "integer" { integer-type } else { number-type },
+      js,
+      "number",
+    )
   }
   if t == "array" {
     let items = js.at("items", default: none)
@@ -689,11 +594,11 @@
         "\"items\" must be a schema object, got: " + repr(type(items)) + ".",
       )
     }
-    return _with-array-constraints(js, array-of(_from-json-schema(
-      items,
-      root,
-      seen,
-    )))
+    return _with-constraints(
+      array-of(_from-json-schema(items, root, seen)),
+      js,
+      "array",
+    )
   }
   if t == "object" {
     let has-props = "properties" in js

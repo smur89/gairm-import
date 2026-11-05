@@ -12,6 +12,7 @@
 
 #import "core/error.typ": _error, _type-name-of, _closest-match
 #import "kinds/format.typ": _formats, _datetime-expected, _from-datetime
+#import "kinds/constraint.typ": _constraint-rows, _constraint-miss
 
 #let _type-error(path, expected, value) = {
   let got = _type-name-of(value)
@@ -40,169 +41,21 @@
   } else { () }
 }
 
-// Clusters, not bytes — JSON Schema talks "length" without pinning.
-#let _string-length-errs(schema, value, path) = {
-  let min = schema.at("min-length", default: none)
-  let max = schema.at("max-length", default: none)
-  if min == none and max == none { return () }
-  let n = value.clusters().len()
+// Every constraint row of `family` the node sets, in row order.
+#let _constraint-errors(schema, family, value, path) = {
   let errs = ()
-  if min != none and n < min {
-    errs += _error(
-      path,
-      "length",
-      "expected string length ≥ " + str(min) + ", got " + str(n) + ".",
-      expected: (min-length: min),
-      got: n,
-    )
-  }
-  if max != none and n > max {
-    errs += _error(
-      path,
-      "length",
-      "expected string length ≤ " + str(max) + ", got " + str(n) + ".",
-      expected: (max-length: max),
-      got: n,
-    )
-  }
-  errs
-}
-
-#let _number-range-errs(schema, value, path) = {
-  let errs = ()
-  let mn = schema.at("minimum", default: none)
-  if mn != none and value < mn {
-    errs += _error(
-      path,
-      "range",
-      "expected ≥ " + str(mn) + ", got " + str(value) + ".",
-      expected: (minimum: mn),
-      got: value,
-    )
-  }
-  let mx = schema.at("maximum", default: none)
-  if mx != none and value > mx {
-    errs += _error(
-      path,
-      "range",
-      "expected ≤ " + str(mx) + ", got " + str(value) + ".",
-      expected: (maximum: mx),
-      got: value,
-    )
-  }
-  let emn = schema.at("exclusive-minimum", default: none)
-  if emn != none and value <= emn {
-    errs += _error(
-      path,
-      "range",
-      "expected > " + str(emn) + ", got " + str(value) + ".",
-      expected: (exclusive-minimum: emn),
-      got: value,
-    )
-  }
-  let emx = schema.at("exclusive-maximum", default: none)
-  if emx != none and value >= emx {
-    errs += _error(
-      path,
-      "range",
-      "expected < " + str(emx) + ", got " + str(value) + ".",
-      expected: (exclusive-maximum: emx),
-      got: value,
-    )
-  }
-  let mult = schema.at("multiple-of", default: none)
-  // A schema bug, not a data error: the translator rejects it, but a
-  // hand-built node can carry it.
-  if mult != none and mult <= 0 {
-    panic(
-      "gairm-import: multiple-of must be positive, got " + str(mult) + ".",
-    )
-  }
-  // Integers stay exact; floats compare the ratio with a tolerance, since
-  // calc.rem(0.3, 0.1) is not 0.
-  let off = if mult == none { false } else if (
-    type(value) == int and type(mult) == int
-  ) {
-    calc.rem(value, mult) != 0
-  } else {
-    let q = value / mult
-    calc.abs(q - calc.round(q)) >= 1e-9
-  }
-  if off {
-    errs += _error(
-      path,
-      "multiple",
-      "expected multiple of " + str(mult) + ", got " + str(value) + ".",
-      expected: (multiple-of: mult),
-      got: value,
-    )
-  }
-  errs
-}
-
-// A value as coerce's null-as-absent rule leaves it: null keys and
-// null elements removed at every depth. Uniqueness compares these, or
-// items differing only by a null key would pass and then coerce to
-// duplicates.
-#let _strip-nulls(value) = {
-  if type(value) == dictionary {
-    value
-      .pairs()
-      .filter(((_, v)) => v != none)
-      .map(((k, v)) => (k, _strip-nulls(v)))
-      .to-dict()
-  } else if type(value) == array {
-    value.filter(v => v != none).map(_strip-nulls)
-  } else { value }
-}
-
-// Filter `none` first — coerce drops them, so raw counts would
-// validate inputs whose rendered model violates min-items. Duplicate
-// reports cite original positions so callers can find them.
-#let _array-constraint-errs(schema, value, path) = {
-  let errs = ()
-  let present = value.enumerate().filter(((_, elem)) => elem != none)
-  let n = present.len()
-  let min = schema.at("min-items", default: none)
-  if min != none and n < min {
-    errs += _error(
-      path,
-      "items",
-      "expected array length ≥ " + str(min) + ", got " + str(n) + ".",
-      expected: (min-items: min),
-      got: n,
-    )
-  }
-  let max = schema.at("max-items", default: none)
-  if max != none and n > max {
-    errs += _error(
-      path,
-      "items",
-      "expected array length ≤ " + str(max) + ", got " + str(n) + ".",
-      expected: (max-items: max),
-      got: n,
-    )
-  }
-  if schema.at("unique-items", default: false) {
-    let stripped = present.map(((_, elem)) => _strip-nulls(elem))
-    for i in range(n) {
-      for j in range(i + 1, n) {
-        let orig-i = present.at(i).at(0)
-        let orig-j = present.at(j).at(0)
-        if stripped.at(i) == stripped.at(j) {
-          errs += _error(
-            path,
-            "unique",
-            "expected unique items, duplicate at indices "
-              + str(orig-i)
-              + " and "
-              + str(orig-j)
-              + ".",
-            got: (orig-i, orig-j),
-          )
-          return errs
-        }
-      }
+  for row in _constraint-rows {
+    let bound = schema.at(row.field, default: none)
+    if row.family != family or bound == none { continue }
+    let miss = _constraint-miss(row, bound, value)
+    if miss != none {
+      errs += _error(
+        path,
+        row.code,
+        miss.message,
+        expected: miss.expected,
+        got: miss.got,
+      )
     }
   }
   errs
@@ -223,7 +76,7 @@
   let kind = schema.kind
   if kind in ("str", "content") {
     if type(value) != str { return _type-error(path, "string", value) }
-    return _string-length-errs(schema, value, path)
+    return _constraint-errors(schema, "string", value, path)
   }
   if kind == "enum" {
     if value in schema.values { return () }
@@ -276,7 +129,7 @@
     // Extra pattern gate (format + pattern), on the converted string.
     let errs = _pattern-errs(schema, value, path)
     if errs != () { return errs }
-    return _string-length-errs(schema, value, path)
+    return _constraint-errors(schema, "string", value, path)
   }
   // pattern + hint travel on the schema node rather than via the
   // format table, since each instance is unique.
@@ -284,7 +137,7 @@
     if type(value) != str { return _type-error(path, "string", value) }
     let errs = _pattern-errs(schema, value, path)
     if errs != () { return errs }
-    return _string-length-errs(schema, value, path)
+    return _constraint-errors(schema, "string", value, path)
   }
   if kind == "number" {
     if type(value) not in (int, float) {
@@ -304,7 +157,7 @@
         got: value,
       )
     } else { () }
-    return errs + _number-range-errs(schema, value, path)
+    return errs + _constraint-errors(schema, "number", value, path)
   }
   if kind == "bool" {
     if type(value) != bool { return _type-error(path, "boolean", value) }
@@ -318,7 +171,7 @@
       .enumerate()
       .map(((i, elem)) => _validate(schema.elem, elem, path + (i,)))
       .flatten()
-    return elem-errs + _array-constraint-errs(schema, value, path)
+    return elem-errs + _constraint-errors(schema, "array", value, path)
   }
   if kind == "object" {
     if type(value) != dictionary { return _type-error(path, "object", value) }
