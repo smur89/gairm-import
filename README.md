@@ -694,7 +694,9 @@ in sync:
 - `dependentRequired`, and draft 7's array-form `dependencies`
   (`dependencies: (a: ("b", "c"))`) → `dependent-required`; only on
   `type: "object"` schemas, and `allOf` unions the lists per trigger
-- Internal `$ref` (`#/definitions/…` / `#/$defs/…`) — like a composition
+- Internal `$ref` (`#/definitions/…` / `#/$defs/…`), read as an RFC 6901
+  pointer: `~1` is `/`, `~0` is `~`, and a numeric segment indexes an
+  array (`#/definitions/pair/anyOf/0`) — like a composition
   keyword, `$ref` must stand alone (annotation-only siblings excepted); a
   sibling `minLength`, `type`, etc. panics rather than being silently
   dropped as draft 7 would
@@ -706,8 +708,11 @@ in sync:
 - `allOf` — merged at translate time; every member must be an object
   schema (shapes union, `required` union; a duplicate key must carry an
   identical sub-schema; `additionalProperties` must agree across all
-  members, with an undeclared member counting as closed). Non-object
-  composition (e.g. string + extra constraints) panics
+  members, with an undeclared member counting as closed). Members with
+  `additionalProperties: false` or a schema must declare the same
+  properties, since draft 7 applies each member's `additionalProperties`
+  to its own properties only. Non-object composition (e.g. string + extra
+  constraints) panics
 - `type: [X, "null"]` nullable unions (under the engine's null-as-absent
   policy these translate to plain `X`)
 - `type: [A, B, ...]` unions → `any-of` over one member per type (`"null"`
@@ -736,10 +741,20 @@ message rather than silently dropping the constraint:
   undeclared keys by default, so a schema that wants an open object says
   so with `additionalProperties: true`
 - External `$ref`
+- Boolean schemas (`true` / `false` as a subschema, e.g.
+  `properties: (a: true)`); `additionalProperties: true` / `false` is
+  supported
 - String formats other than the nine listed above
-- `allOf` with non-object members, and schema-bearing sibling keywords
+- `allOf` with non-object members, `allOf` whose closed or typed members
+  declare different properties, and schema-bearing sibling keywords
   beside any composition keyword or `$ref` (move them into the members or
   the referenced definition)
+- Any keyword not listed under "Supported keywords" — e.g.
+  `minProperties`, `maxProperties`, `patternProperties`, `propertyNames`,
+  `contains`, `additionalItems`, or a misspelling like `minLenght`. Draft 7
+  would ignore an unknown keyword; here it panics, naming the keyword. A
+  supported keyword of another JSON type (`minimum` on a string) is
+  ignored, as in draft 7
 
 ## Contributing
 

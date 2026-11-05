@@ -120,15 +120,26 @@
 ))
 #assert.eq(chained.shape.startDate, str-type)
 
-// Trailing-slash $ref tolerated — empty path segments dropped.
-#let trailing = schema-from-json-schema((
-  definitions: (foo: (type: "string")),
+// $ref is an RFC 6901 pointer: `~1` is `/`, `~0` is `~`, and a numeric
+// segment indexes an array. (An empty segment is the "" key, so a
+// trailing slash no longer resolves — see
+// tests/panics/json-schema-ref-trailing-slash.typ.)
+#let escaped = schema-from-json-schema((
+  definitions: (
+    "a/b": (type: "string"),
+    "a~b": (type: "number"),
+    pair: (anyOf: ((type: "string"), (type: "integer"))),
+  ),
   type: "object",
   properties: (
-    x: ("$ref": "#/definitions/foo/"),
+    slash: ("$ref": "#/definitions/a~1b"),
+    tilde: ("$ref": "#/definitions/a~0b"),
+    indexed: ("$ref": "#/definitions/pair/anyOf/1"),
   ),
 ))
-#assert.eq(trailing.shape.x, str-type)
+#assert.eq(escaped.shape.slash, str-type)
+#assert.eq(escaped.shape.tilde, number-type)
+#assert.eq(escaped.shape.indexed, integer-type)
 
 // enum maps to enum-of regardless of accompanying `type`. The values
 // array is preserved verbatim; the type keyword (if present) is
@@ -248,5 +259,12 @@
 // bytes entry mirrors path and dict.
 #assert.eq(
   schema-from-json-schema(bytes("{\"type\": \"string\"}")),
+  str-type,
+)
+
+// Another JSON type's keyword is ignored, as in draft 7 (a `type` array
+// builds each member from the whole node, so this must hold).
+#assert.eq(
+  schema-from-json-schema((type: "string", minimum: 1, items: (:))),
   str-type,
 )

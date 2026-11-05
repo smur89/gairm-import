@@ -61,10 +61,11 @@ upstream document is the source of truth. To pull a newer upstream version:
    `sample.resume.json`.
 2. Run `make test`. The translator handles the draft-04/-07 subset that the
    canonical document uses; unsupported constructs (`if`/`then`/`else`,
-   `dependencies`, string formats beyond uri/email/date/date-time, fully
-   open objects, `type` unions with more than one non-null member, external
-   `$ref`, `allOf` with non-object members) panic with an "unsupported"
-   message. If a panic surfaces, extend `internal/json-schema.typ` rather
+   the schema form of `dependencies`, string formats beyond the README's
+   list, fully open objects, external `$ref`, `allOf` with non-object
+   members, and any keyword outside the README's supported list, such as
+   `minProperties` or `patternProperties`) panic with a message naming
+   them. If a panic surfaces, extend `internal/json-schema.typ` rather
    than silently dropping the constraint.
 3. Audit `_content-paths`, `_iso8601-date-paths`, and `_last-modified-paths` in
    `internal/schema.typ` against the bumped document. These lists are the
