@@ -34,6 +34,7 @@ internal/kinds/format.typ            # string formats, one table row each (date-
 internal/kinds/structure.typ         # containers and combinators (object, map, array-of, any-of, not-of, …)
 internal/kinds/constraint.typ        # constraint rows (min-length, maximum, …)
 internal/kinds/registry.typ          # one descriptor per kind, checked for coverage at load
+internal/kinds/traverse.typ          # the one schema traversal (children, get/set at a path, every node)
 internal/schema.typ                  # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
 internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.7.0
 internal/validate.typ                # validation engine (path-typed errors)

@@ -12,6 +12,7 @@
 #import "kinds/structure.typ": object, any-of, _is-free-form
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
+#import "kinds/traverse.typ": _map-children, _nodes
 
 /// The JSON Resume schema, translated from the upstream document as it stands.
 /// The default for `parse`, `validate` and `coerce`.
@@ -101,38 +102,22 @@
   })
 }
 
-// Every path (as a lens path, with `items` for array elements) of a leaf
-// equal to `leaf` anywhere in `schema`. Unlike `paths-of-kind`, descends
-// into union members and a `not` member, and into typed `additional`;
-// those have no lens path, so they are marked `"<any-of>"`, `"<one-of>"`,
-// `"<not>"` and `"<additional>"` — enough to locate the field in a message.
-#let _leaf-paths(schema, leaf, prefix: ()) = {
-  if schema == leaf {
-    (prefix,)
-  } else if schema.kind == "object" {
-    let found = ()
-    for (k, v) in schema.shape.pairs() {
-      found += _leaf-paths(v, leaf, prefix: prefix + (k,))
-    }
-    let ap = schema.at("additional", default: none)
-    if type(ap) == dictionary {
-      found += _leaf-paths(ap, leaf, prefix: prefix + ("<additional>",))
-    }
-    found
-  } else if schema.kind == "array" {
-    _leaf-paths(schema.elem, leaf, prefix: prefix + ("items",))
-  } else if schema.kind == "union" {
-    let tag = if schema.exclusive { "<one-of>" } else { "<any-of>" }
-    schema
-      .members
-      .map(m => _leaf-paths(m, leaf, prefix: prefix + (tag,)))
-      .flatten()
-  } else if schema.kind == "not" {
-    _leaf-paths(schema.member, leaf, prefix: prefix + ("<not>",))
-  } else {
-    ()
-  }
-}
+// Union members and a `not` member: the traversal stops at both for
+// now, but the completeness guard below looks inside them. They have
+// no lens path, so their segments are markers (`"<any-of>"`,
+// `"<one-of>"`, `"<not>"`), enough to locate the field in a message.
+#let _members(s) = if s.kind == "union" {
+  let tag = if s.exclusive { "<one-of>" } else { "<any-of>" }
+  s.members.map(m => (tag, m))
+} else if s.kind == "not" { (("<not>", s.member),) } else { () }
+
+// Every path of a leaf equal to `leaf` anywhere in `schema`, including
+// inside union members, a `not` member and typed `additional`.
+#let _leaf-paths(schema, leaf) = (
+  _nodes(schema, more: _members)
+    .filter(((_, n)) => n == leaf)
+    .map(((p, _)) => p)
+)
 
 // Completeness guard for the iso8601 override: `_override-fold` only
 // checks the listed paths, so an upstream bump that ADDS an iso8601 field
@@ -162,39 +147,26 @@
 // A free-form bag (`_is-free-form`, upstream's `custom`) keeps its
 // `additional: true` — stripping it would accept only `{}`.
 #let _strip-permissive-additional(schema) = {
-  if _is-free-form(schema) {
-    schema
-  } else if schema.kind == "object" {
-    let new-shape = (:)
-    for (k, v) in schema.shape.pairs() {
-      new-shape.insert(k, _strip-permissive-additional(v))
-    }
-    let ap = schema.at("additional", default: none)
-    let new-additional = if type(ap) == dictionary {
-      _strip-permissive-additional(ap)
-    } else {
-      none
-    }
-    // Route through the public constructor so any future invariant
-    // added to `object()` applies here too.
-    object(
-      new-shape,
-      required-keys: schema.required-keys,
-      dependent-required: schema.at("dependent-required", default: (:)),
-      additional: new-additional,
-    )
-  } else if schema.kind == "array" {
-    (..schema, elem: _strip-permissive-additional(schema.elem))
-  } else if schema.kind == "union" {
+  if _is-free-form(schema) { return schema }
+  let s = _map-children(schema, _strip-permissive-additional)
+  if s.kind == "union" {
     // Union members are positive matchers for the document, so
-    // stripping tightens them — same promise as everywhere else.
-    (..schema, members: schema.members.map(_strip-permissive-additional))
-  } else {
-    // Leaves — and, deliberately, `not`: its member is a NEGATED
+    // stripping tightens them — same promise as everywhere else. A
+    // `not` member is deliberately left alone: it is a NEGATED
     // matcher, so stripping there would make the negation accept more
     // documents, loosening the strict variant instead of tightening it.
-    schema
+    s = (..s, members: s.members.map(_strip-permissive-additional))
   }
+  // Only objects carry `additional`. Route through the public
+  // constructor so any future invariant added to `object()` applies
+  // here too.
+  if s.at("additional", default: none) == true {
+    object(
+      s.shape,
+      required-keys: s.required-keys,
+      dependent-required: s.at("dependent-required", default: (:)),
+    )
+  } else { s }
 }
 
 /// `resume-schema` with four changes: free-text fields are Typst `content`,

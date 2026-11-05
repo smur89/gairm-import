@@ -8,6 +8,8 @@
 //   with-child    (schema, segment, sub) => the node with that child
 //                 replaced
 //   suffix        schema => what describe-schema prints for it as a leaf
+//   bad-segment   (schema, segment) => what a lens says when the segment
+//                 names no child
 //   constructors  the public functions that build this kind
 
 #import "leaf.typ" as _leaf-mod
@@ -21,12 +23,20 @@
   children: s => (),
   with-child: none,
   suffix: s => s.kind,
+  bad-segment: (s, seg) => (
+    "lens cannot descend into a leaf schema (kind="
+      + repr(s.kind)
+      + ") with segment "
+      + repr(seg)
+      + "."
+  ),
   constructors: (),
 ) = (
   leaf: leaf,
   children: children,
   with-child: with-child,
   suffix: suffix,
+  bad-segment: bad-segment,
   constructors: constructors,
 )
 
@@ -53,6 +63,11 @@
     leaf: false,
     children: s => (("items", s.elem),),
     with-child: (s, _, sub) => (..s, elem: sub),
+    bad-segment: (s, seg) => (
+      "lens segment for an array schema must be \"items\", got "
+        + repr(seg)
+        + "."
+    ),
     constructors: (array-of,),
   ),
   // Fields in key order, so every walk is diff-stable whatever order
@@ -74,6 +89,23 @@
       shape.insert(seg, sub)
       (..s, shape: shape)
     } else { (..s, additional: sub) },
+    bad-segment: (s, seg) => if seg == "additionalProperties" {
+      (
+        "lens segment \"additionalProperties\" requires the object's "
+          + "`additional` field to be a schema dict, got: "
+          + repr(s.at("additional", default: none))
+          + "."
+      )
+    } else {
+      (
+        "lens path segment "
+          + repr(seg)
+          + " not in object shape. "
+          + "Valid keys: "
+          + s.shape.keys().join(", ")
+          + "."
+      )
+    },
     constructors: (object, map),
   ),
   // Members name their kind only, one level deep.
