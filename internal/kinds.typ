@@ -37,6 +37,28 @@
   "email-string",
 )
 
+// Typst-native input for the date kinds (#134): a datetime of the
+// right shape converts to the ISO string the kind's regex checks, so
+// validate and coerce treat it exactly like the JSON string. Wrong
+// shape returns none — a time is never dropped to make a date fit.
+// Each kind maps to whether its datetime carries a time.
+#let _datetime-kinds = ("date-string": false, "datetime-string": true)
+
+#let _datetime-expected(kind) = (
+  "a string or a datetime with a date and "
+    + if _datetime-kinds.at(kind) { "a time" } else { "no time" }
+)
+
+#let _from-datetime(kind, value) = {
+  let time = _datetime-kinds.at(kind)
+  if value.year() != none and (value.hour() != none) == time {
+    value.display(
+      "[year]-[month]-[day]"
+        + if time { "T[hour]:[minute]:[second]" } else { "" },
+    )
+  }
+}
+
 // Per-instance regex gate — a constructor, not a constant, because
 // each schema node carries its own regex and hint.
 #let pattern-string(re, expected: "matching pattern") = (

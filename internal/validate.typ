@@ -11,7 +11,9 @@
 // section for the user-facing rationale.
 
 #import "errors.typ": _type-name-of, _closest-match
-#import "kinds.typ": _format-string-kinds
+#import "kinds.typ": (
+  _format-string-kinds, _datetime-kinds, _datetime-expected, _from-datetime,
+)
 
 #let _err(path, msg) = ((path: path, message: msg),)
 
@@ -171,6 +173,16 @@
     )
   }
   if kind in _format-specs {
+    let value = if type(value) == datetime and kind in _datetime-kinds {
+      let converted = _from-datetime(kind, value)
+      if converted == none {
+        return _err(
+          path,
+          "expected " + _datetime-expected(kind) + ", got datetime.",
+        )
+      }
+      converted
+    } else { value }
     if type(value) != str { return _type-error(path, "string", value) }
     let spec = _format-specs.at(kind)
     if value.match(spec.pattern) == none {
