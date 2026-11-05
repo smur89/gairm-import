@@ -272,7 +272,20 @@
       .filter(k => k not in value or value.at(k) == none)
       .map(k => _err(path + (k,), "missing required key " + repr(k) + "."))
       .flatten()
-    return per-key-errs + missing-errs
+    // Null-as-absent again: a none trigger does not fire, and a none
+    // dependent is missing.
+    let dependent-errs = schema
+      .at("dependent-required", default: (:))
+      .pairs()
+      .filter(((trigger, _)) => value.at(trigger, default: none) != none)
+      .map(((trigger, dependents)) => dependents
+        .filter(d => value.at(d, default: none) == none)
+        .map(d => _err(
+          path,
+          repr(d) + " is required when " + repr(trigger) + " is present.",
+        )))
+      .flatten()
+    return per-key-errs + missing-errs + dependent-errs
   }
   // anyOf / oneOf. One summary error at the union's own path rather
   // than every member's failure list — member errors describe branches

@@ -129,6 +129,7 @@
     object(
       new-shape,
       required-keys: schema.required-keys,
+      dependent-required: schema.at("dependent-required", default: (:)),
       additional: new-additional,
     )
   } else if schema.kind == "array" {

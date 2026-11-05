@@ -176,18 +176,27 @@
 // it. `false` is accepted as a synonym for `none` so callers fluent
 // in JSON Schema can pass either. Bad-shape `additional` and
 // required-keys-not-covered both fail at construction, not as a
-// phantom validation error.
+// phantom validation error. `dependent-required` follows the same
+// rule: a malformed map always panics, and trigger / dependent keys
+// outside `shape` panic only when strict.
 /// A dictionary with the fields in `shape`. Panics if `additional` is
 /// the wrong shape, or, when `additional` is `none` or `false`, if
-/// `required-keys` names a field not in `shape`.
+/// `required-keys` or `dependent-required` names a field not in `shape`.
 ///
 /// - shape (dictionary): Field name to schema.
 /// - required-keys (array): Fields that must be present.
+/// - dependent-required (dictionary): Field name to the fields that must
+///   also be present whenever it is.
 /// - additional (none, bool, dictionary): What to do with keys not in
 ///   `shape`. `none` or `false` rejects them, `true` lets them through
 ///   unchecked, and a schema validates each one against it.
 /// -> dictionary
-#let object(shape, required-keys: (), additional: none) = {
+#let object(
+  shape,
+  required-keys: (),
+  dependent-required: (:),
+  additional: none,
+) = {
   // false ≡ none in our model; normalise so the constructor and the
   // translator agree on what they accept.
   let normalized = if additional == false { none } else { additional }
@@ -217,13 +226,52 @@
         + ".",
     )
   }
-  let base = (
+  if type(dependent-required) != dictionary {
+    panic(
+      "gairm-import: object() dependent-required must be a dictionary of key to array of keys; got: "
+        + repr(dependent-required)
+        + ".",
+    )
+  }
+  for (trigger, dependents) in dependent-required {
+    if type(dependents) != array or dependents.any(d => type(d) != str) {
+      panic(
+        "gairm-import: object() dependent-required for "
+          + repr(trigger)
+          + " must be an array of key names; got: "
+          + repr(dependents)
+          + ".",
+      )
+    }
+  }
+  let unknown-dependent = if normalized == none {
+    dependent-required
+      .pairs()
+      .map(((trigger, dependents)) => (trigger,) + dependents)
+      .flatten()
+      .filter(k => k not in shape)
+  } else {
+    ()
+  }
+  if unknown-dependent.len() > 0 {
+    panic(
+      "gairm-import: object() dependent-required references keys not in shape: "
+        + unknown-dependent.dedup().join(", ")
+        + ".",
+    )
+  }
+  let result = (
     kind: "object",
     shape: shape,
     required-keys: required-keys,
   )
-  // Omitted when `none` so existing strict dicts keep their shape.
-  if normalized == none { base } else { (..base, additional: normalized) }
+  // Optional fields are omitted when empty / `none` so existing dicts
+  // keep their shape.
+  if dependent-required.len() > 0 {
+    result.insert("dependent-required", dependent-required)
+  }
+  if normalized != none { result.insert("additional", normalized) }
+  result
 }
 
 // An object that declares no fields and lets anything through is a

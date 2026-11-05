@@ -255,8 +255,8 @@
 
 // Absent-key panics rather than being a silent no-op so caller typos surface.
 /// Returns a new schema with `key` removed from the object at
-/// `parent-lens`, and from its required keys. Panics if the target is not
-/// an object or has no such key.
+/// `parent-lens`, and from its required keys and dependent-required
+/// entries. Panics if the target is not an object or has no such key.
 ///
 /// - schema (dictionary): The schema to edit.
 /// - parent-lens (dictionary): Lens to the object.
@@ -280,6 +280,22 @@
     let new-shape = parent.shape
     let _ = new-shape.remove(key)
     let new-required = parent.required-keys.filter(k => k != key)
-    (..parent, shape: new-shape, required-keys: new-required)
+    // Like required-keys, drop `key` from every dependency: its own
+    // trigger entry and its place in other triggers' lists. A trigger
+    // left with no dependents goes too.
+    let new-dependent = (:)
+    for (trigger, dependents) in parent.at("dependent-required", default: (:)) {
+      let kept = dependents.filter(d => d != key)
+      if trigger != key and kept.len() > 0 {
+        new-dependent.insert(trigger, kept)
+      }
+    }
+    let result = (..parent, shape: new-shape, required-keys: new-required)
+    if new-dependent.len() > 0 {
+      result.insert("dependent-required", new-dependent)
+    } else if "dependent-required" in result {
+      let _ = result.remove("dependent-required")
+    }
+    result
   },
 )
