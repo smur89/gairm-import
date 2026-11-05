@@ -22,6 +22,14 @@
   "expected " + expected + ", got " + _type-name-of(value) + ".",
 )
 
+// The node's own `pattern` gate, if it carries one (a pattern-string, or
+// a format kind with an extra pattern).
+#let _pattern-errs(schema, value, path) = {
+  if "pattern" in schema and value.match(schema.pattern) == none {
+    _err(path, "expected " + schema.expected + ".")
+  } else { () }
+}
+
 // Clusters, not bytes — JSON Schema talks "length" without pinning.
 #let _string-length-errs(schema, value, path) = {
   let min = schema.at("min-length", default: none)
@@ -188,15 +196,17 @@
     if value.match(spec.pattern) == none {
       return _err(path, "expected " + spec.expected + ".")
     }
+    // Extra pattern gate (format + pattern), on the converted string.
+    let errs = _pattern-errs(schema, value, path)
+    if errs != () { return errs }
     return _string-length-errs(schema, value, path)
   }
   // pattern + hint travel on the schema node rather than via the
   // _format-specs table above, since each instance is unique.
   if kind == "pattern-string" {
     if type(value) != str { return _type-error(path, "string", value) }
-    if value.match(schema.pattern) == none {
-      return _err(path, "expected " + schema.expected + ".")
-    }
+    let errs = _pattern-errs(schema, value, path)
+    if errs != () { return errs }
     return _string-length-errs(schema, value, path)
   }
   if kind == "number" {

@@ -413,24 +413,26 @@
   if "const" in js { return const-of(js.at("const")) }
   let t = js.at("type", default: none)
   if t == "string" {
-    // Format wins over pattern when both are present — composing two
-    // gates is more moving parts than the engine needs.
+    // Both keywords apply when both are present (JSON Schema's "all
+    // keywords apply"): the format kind carries the pattern as an extra
+    // gate, checked after the format regex.
     let fmt = js.at("format", default: none)
+    let pat = js.at("pattern", default: none)
+    if pat != none and type(pat) != str {
+      _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
+    }
+    let expected = if pat != none { "matching " + repr(pat) }
     let base = if fmt != none {
       if fmt not in _format-kinds {
         _bail("unsupported string format: " + repr(fmt) + ".")
       }
-      _format-kinds.at(fmt)
-    } else {
-      let pat = js.at("pattern", default: none)
-      if pat != none {
-        if type(pat) != str {
-          _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
-        }
-        pattern-string(pat, expected: "matching " + repr(pat))
-      } else {
-        str-type
+      if pat == none { _format-kinds.at(fmt) } else {
+        _format-kinds.at(fmt) + (pattern: regex(pat), expected: expected)
       }
+    } else if pat != none {
+      pattern-string(pat, expected: expected)
+    } else {
+      str-type
     }
     return _with-string-constraints(js, base)
   }
