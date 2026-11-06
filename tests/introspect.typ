@@ -1,11 +1,15 @@
-// Schema introspection — `describe-schema` pretty-printer,
-// `paths-of-kind` leaf enumeration, `kind-at` lens-shortcut.
+// Schema introspection: `describe-schema` draws a schema, `paths-of-kind`
+// lists the lens path of every node of a kind, and `kind-at` names the
+// kind at a location. All three reach into union and `not` members
+// (#164): a union member's segment is its index, a `not` member's is
+// "not".
 
 #import "../lib.typ": (
-  describe-schema, paths-of-kind, kind-at, resume-schema, resume-schema-strict,
-  object, array-of, str-type, content-type, number-type, date-string,
+  describe-schema, paths-of-kind, kind-at, lens-get, resume-schema,
+  resume-schema-strict, object, array-of, map, str-type, content-type,
+  number-type, integer-type, bool-type, null-type, date-string, datetime-string,
   uri-string, email-string, enum-of, pattern-string, any-of, const-of, one-of,
-  not-of,
+  not-of, nullable,
 )
 
 // --- describe-schema -------------------------------------------------
@@ -91,11 +95,7 @@ work[]:
 ))
 
 // `items` segments are lens-compatible — feed one back in.
-#import "../lib.typ": lens, lens-get
-#assert.eq(
-  lens-get(lens(content-paths.at(0)), resume-schema-strict),
-  content-type,
-)
+#assert.eq(lens-get(resume-schema-strict, content-paths.at(0)), content-type)
 
 // Format kinds carry through to the strict schema from the faithful
 // base (translator-emitted `format: "uri"` / `format: "email"`).
@@ -193,32 +193,19 @@ work[]:
 
 // Kind values (#135): a schema node matches by its kind; a constructor
 // stands for the kind it builds; the name string still works
-// (deprecated).
-#assert.eq(
-  paths-of-kind(resume-schema-strict, date-string),
-  paths-of-kind(resume-schema-strict, "date-string"),
-)
-#assert.eq(
-  paths-of-kind(resume-schema, pattern-string),
-  paths-of-kind(resume-schema, "pattern-string"),
-)
-#assert.eq(
-  paths-of-kind(resume-schema, pattern-string("x")),
-  paths-of-kind(resume-schema, "pattern-string"),
-)
-#assert.eq(
-  paths-of-kind(resume-schema, str-type),
-  paths-of-kind(resume-schema, "str"),
-)
-#assert.eq(paths-of-kind(resume-schema, any-of), paths-of-kind(
-  resume-schema,
-  "union",
-))
-// Guard against vacuous equalities above: these kinds are present.
-#assert(paths-of-kind(resume-schema-strict, date-string).len() > 0)
-#assert(paths-of-kind(resume-schema, pattern-string).len() > 0)
-#assert(paths-of-kind(resume-schema, str-type).len() > 0)
-#assert(paths-of-kind(resume-schema, any-of).len() > 0)
+// (deprecated). Each kind is present, so no equality is vacuous.
+#for (schema, kind, name) in (
+  (resume-schema-strict, date-string, "date-string"),
+  (resume-schema, pattern-string, "pattern-string"),
+  (resume-schema, pattern-string("x"), "pattern-string"),
+  (resume-schema, str-type, "str"),
+  (resume-schema, any-of, "union"),
+  (resume-schema, bool-type, "bool"),
+) {
+  let found = paths-of-kind(schema, kind)
+  assert.eq(found, paths-of-kind(schema, name), message: name)
+  assert(found.len() > 0, message: name)
+}
 
 // resume-schema has no enum or not nodes, so cover every constructor
 // against a toy schema where the result is non-empty.
@@ -236,3 +223,151 @@ work[]:
 #assert.eq(paths-of-kind(kinds-toy, not-of), (("other",),))
 #assert.eq(paths-of-kind(kinds-toy, enum-of), paths-of-kind(kinds-toy, "enum"))
 #assert.eq(paths-of-kind(kinds-toy, not-of), paths-of-kind(kinds-toy, "not"))
+
+// bool-type and null-type are leaves like any other.
+#let flags = object((flag: bool-type, marker: null-type, name: str-type))
+#assert.eq(paths-of-kind(flags, "bool"), (("flag",),))
+#assert.eq(paths-of-kind(flags, "null"), (("marker",),))
+
+// --- unions and `not` --------------------------------------------------
+
+// meta.lastModified is any-of((datetime-string, date-string)) in the
+// strict schema: its date member is found alongside the 13 iso8601
+// fields, and the union node itself is still found.
+#assert.eq(
+  paths-of-kind(resume-schema-strict, datetime-string),
+  (("meta", "lastModified", 0),),
+)
+#assert(("meta", "lastModified") in paths-of-kind(resume-schema-strict, any-of))
+#assert.eq(
+  kind-at(resume-schema-strict, ("meta", "lastModified", 0)),
+  "datetime-string",
+)
+#assert.eq(
+  kind-at(resume-schema-strict, ("meta", "lastModified", 1)),
+  "date-string",
+)
+
+// `location` is one-of((str, object)): its free-text member and the
+// object member's fields are reachable.
+#let str-paths = paths-of-kind(resume-schema, str-type)
+#assert(("work", "items", "location", 0) in str-paths)
+#assert(("work", "items", "location", 1, "city") in str-paths)
+#assert.eq(kind-at(resume-schema, ("work", "items", "location", 1)), "object")
+
+#let union-toy = object((
+  when: any-of((datetime-string, date-string)),
+  place: one-of((str-type, object((city: str-type)))),
+  other: not-of(array-of(number-type)),
+))
+#assert.eq(kind-at(union-toy, ("other", "not", "items")), "number")
+#assert.eq(kind-at(union-toy, ("place", 1, "city")), "str")
+#assert.eq(paths-of-kind(union-toy, str-type), (
+  ("place", 0),
+  ("place", 1, "city"),
+))
+#assert.eq(paths-of-kind(union-toy, number-type), (("other", "not", "items"),))
+// Every path paths-of-kind returns round-trips through a lens.
+#for p in paths-of-kind(union-toy, str-type) {
+  assert.eq(lens-get(union-toy, p), str-type)
+}
+
+// --- describe-schema: every feature it draws ----------------------------
+//
+// The exact output for one small schema that carries every feature, so
+// a format change shows up as a diff here.
+
+#let schema = object(
+  (
+    name: (..str-type, min-length: 1, max-length: 80),
+    email: email-string,
+    phone: str-type,
+    age: (..integer-type, minimum: 0),
+    code: pattern-string("^[A-Z]{3}$"),
+    role: enum-of(("ic", "manager")),
+    tags: (kind: "array", elem: str-type, min-items: 1, unique-items: true),
+    jobs: array-of(object(
+      (title: str-type, start: date-string),
+      required-keys: ("title",),
+    )),
+    when: any-of((datetime-string, date-string)),
+    place: one-of((str-type, object((city: str-type)))),
+    other: not-of(number-type),
+    extra: map(str-type),
+  ),
+  required-keys: ("name", "email"),
+  dependent-required: (phone: ("email",)),
+)
+
+#assert.eq(
+  describe-schema(schema),
+  "age     integer (minimum 0)
+code    pattern-string
+email*  email-string
+extra:
+  *  str
+jobs[]:
+  start   date-string
+  title*  str
+name*   str (min-length 1, max-length 80)
+other:
+  not  number
+phone   str
+place   one of:
+  [0]  str
+  [1]:
+    city  str
+role    enum (\"ic\", \"manager\")
+tags[]  str (min-items 1, unique-items)
+when    any of:
+  [0]  datetime-string
+  [1]  date-string
+phone → email",
+)
+
+// At the root: a union's header leads, a `not` member is labelled, and
+// an array's constraints follow its element.
+#assert.eq(
+  describe-schema(any-of((str-type, array-of(number-type)))),
+  "any of:\n  [0]    str\n  [1][]  number",
+)
+#assert.eq(describe-schema(not-of(object((a: str-type)))), "not:\n  a  str")
+#assert.eq(
+  describe-schema((kind: "array", elem: str-type, min-items: 2)),
+  "[] str (min-items 2)",
+)
+#assert.eq(
+  describe-schema(array-of(one-of((str-type, number-type)))),
+  "[] one of:\n  [0]  str\n  [1]  number",
+)
+
+// A nullable node is marked `?` after a leaf's kind, a header, or the
+// label of a node drawn by its label alone, so a nullable array and an
+// array of nullables differ. Only the exact (X, null-type) any-of pair
+// draws as X?.
+#for (schema, drawn) in (
+  (nullable(str-type), "str?"),
+  (
+    object((
+      a: nullable((..str-type, min-length: 1)),
+      b: nullable(object((c: str-type))),
+      d: nullable(array-of(str-type)),
+      e: array-of(nullable(str-type)),
+    )),
+    "a     str? (min-length 1)\nb?:\n  c  str\nd?[]  str\ne[]   str?",
+  ),
+  (
+    object((
+      d: nullable(array-of(object((c: str-type)))),
+      e: array-of(nullable(object((c: str-type)))),
+      u: nullable(one-of((str-type, enum-of((1,))))),
+    )),
+    "d?[]:\n  c  str\ne[]?:\n  c  str\nu  one of?:\n  [0]  str\n  [1]  enum (1)",
+  ),
+  (nullable(array-of(str-type)), "?[] str"),
+  (nullable(object((c: str-type))), "?:\n  c  str"),
+  (any-of((null-type, str-type)), "any of:\n  [0]  null\n  [1]  str"),
+  (one-of((str-type, null-type)), "one of:\n  [0]  str\n  [1]  null"),
+) {
+  assert.eq(describe-schema(schema), drawn)
+}
