@@ -176,7 +176,7 @@ kind-tests.says  := a test for a named kind outside internal/kinds/ (use a kinds
 panics.says      := panic outside internal/core/error.typ (use its helpers)
 panic-names.says := panic cases must be named <public-function>-<problem>.typ or import-<problem>.typ
 
-kind-tests.find  = awk '/\.kind *[!=]= *"/ && !/kind-check:/ && prev !~ /kind-check:/ { print FILENAME ":" FNR ": " $$0 } { prev = $$0 }' $(KIND_TEST_FILES)
+kind-tests.find  = awk '/\.kind *[!=]= *"|" *[!=]= *[^ ]*\.kind/ && !/^[[:space:]]*\/\// && !/kind-check:/ && prev !~ /kind-check:/ { print FILENAME ":" FNR ": " $$0 } { prev = $$0 }' $(KIND_TEST_FILES)
 panics.find      = grep -HnE '(^|[^a-z_-])panic\(' $(PANIC_FILES) | grep -vE '^[^:]+:[0-9]+: *//'
 panic-names.find = printf '%s\n' $(PANIC_TESTS) | grep -vE '/($(PANIC_PREFIXES))-[^/]*$$'
 

@@ -90,21 +90,26 @@
 
 // ---- REFERENCE.md ----------------------------------------------------------
 //
-// Every row's constructor argument and JSON keyword, and every format,
-// is documented.
+// Every row's constructor argument is in the constructors section, its
+// JSON keyword in the supported keywords, and every format in the
+// formats section, each as a whole name in backticks.
 
 #let reference = read("../REFERENCE.md")
-#for row in _constraint-rows {
-  for name in (row.field, row.json) {
+// The text under `heading`, up to the next heading.
+#let section(heading) = {
+  let rest = reference.split(heading + "\n").at(1)
+  rest.split("\n#").first()
+}
+#for (heading, names) in (
+  ("## Constructors", _constraint-rows.map(row => row.field)),
+  ("### Supported keywords", _constraint-rows.map(row => row.json)),
+  ("## Formats", _formats.keys()),
+) {
+  let text = section(heading)
+  for name in names {
     assert(
-      reference.contains("`" + name),
-      message: name + " is not in REFERENCE.md",
+      text.contains("`" + name + "`"),
+      message: name + " is not under " + repr(heading) + " in REFERENCE.md",
     )
   }
-}
-#for format in _formats.keys() {
-  assert(
-    reference.contains("`" + format + "`"),
-    message: format + " is not in REFERENCE.md",
-  )
 }
