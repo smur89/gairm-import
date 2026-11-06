@@ -4,6 +4,7 @@
 // keywords. Anything not supported panics rather than silently dropping
 // the constraint; keyword.typ says which keywords those are.
 
+#import "../core/error.typ": _json-type-name
 #import "../core/input.typ": _decode-input
 #import "../core/pointer.typ": _percent-decode, _read-pointer, _pointer-get
 #import "../kinds/leaf.typ": any-type, enum-of
@@ -205,13 +206,13 @@
 ///   A `path` resolves from your file.
 /// -> dictionary
 #let schema-from-json-schema(js) = {
-  let parsed = _decode-input("schema-from-json-schema", js)
+  let parsed = _decode-input("schema-from-json-schema", js, null-ok: true)
   // Non-dictionaries are rejected at the boundary so the diagnostic
   // carries the schema-from-json-schema prefix.
   if type(parsed) != dictionary {
     _bail(
       "expected a parsed JSON Schema dict, path(...), or bytes, got: "
-        + repr(type(parsed))
+        + _json-type-name(parsed)
         + ".",
     )
   }
