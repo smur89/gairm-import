@@ -10,14 +10,16 @@
 )
 #import "constraint.typ": _constraint-errors, _constrain
 
-/// A string, passed through as it is. The same as `string()`, which
-/// also takes constraints; prefer it. Kept until 1.0.
+/// Deprecated: use `string()` instead. Kept until 1.0.
+///
+/// A string, passed through as it is. The same as `string()`.
 #let str-type = (kind: "string")
 /// A string that the model returns as Typst `content`, so it splices into
 /// markup.
 #let content-type = (kind: "content")
-/// An integer or a float. The same as `number()`, which also takes
-/// constraints; prefer it. Kept until 1.0.
+/// Deprecated: use `number()` instead. Kept until 1.0.
+///
+/// An integer or a float. The same as `number()`.
 #let number-type = (kind: "number")
 /// A boolean.
 #let bool-type = (kind: "bool")
@@ -26,9 +28,10 @@
 // (draft-7 semantics — 1.0 passes, 1.5 fails). A kind of its own, so
 // introspection tells it from a number; the engine judges it as a
 // number plus the integral gate.
+/// Deprecated: use `integer()` instead. Kept until 1.0.
+///
 /// A number with no fractional part. `1.0` passes and `1.5` fails. The
-/// same as `integer()`, which also takes constraints; prefer it. Kept
-/// until 1.0.
+/// same as `integer()`.
 #let integer-type = (kind: "integer")
 
 // The constructors take their constraints as named arguments, as

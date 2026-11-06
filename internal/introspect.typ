@@ -169,18 +169,18 @@
 // walker descends through them, and a search for one is more likely a
 // typo for a leaf than a question.
 /// Lists the lens path of every node in `schema` that has the given
-/// kind, including inside union and `not` members. The paths work with
-/// `lens`. Panics for `object` and `array`, which the search walks
-/// through, and for kinds it does not know.
+/// kind, including inside union and `not` members. The paths work
+/// wherever a location does. Panics for `object` and `array`, which the
+/// search walks through, and for kinds it does not know.
 ///
 /// - schema (dictionary): The schema to search.
 /// - kind (dictionary, function, str): The kind to find: a schema node
-///   such as `date-string` (matched by its kind, so `number-type` finds
-///   numbers and `integer-type` integers, and `string()` every plain or
-///   patterned string; a node with a `pattern` finds only patterned
-///   ones), or a constructor such as `string`, `enum-of`, `const-of`,
-///   `any-of`, `one-of` or `not-of`. A kind name as a `str` still works
-///   but is deprecated.
+///   such as `string(format: "date")` (matched by its kind, so
+///   `number()` finds numbers and `integer()` integers, and `string()`
+///   every plain or patterned string; a node with a `pattern` finds
+///   only patterned ones), or a constructor such as `string`,
+///   `enum-of`, `const-of`, `any-of`, `one-of` or `not-of`. A kind name
+///   as a `str` still works but is deprecated.
 /// -> array
 #let paths-of-kind(schema, kind) = {
   let q = _query(kind)
@@ -190,7 +190,7 @@
       "kind "
         + repr(kind)
         + " is not a recognised leaf kind. Pass a leaf schema "
-        + "(e.g. date-string), a constructor (e.g. pattern-string), "
+        + "(e.g. string(format: \"date\")), a constructor (e.g. enum-of), "
         + "or one of: "
         + _searchable-kinds.join(", ")
         + ".",
@@ -203,6 +203,8 @@
 
 // Same as `lens-get(schema, at).kind` — keeps the common
 // "what kind is at X" debugging step a single call.
+/// Deprecated: use `lens-get(schema, at).kind` instead. Kept until 1.0.
+///
 /// The kind name of the schema node at `at`, such as `"string"` or
 /// `"object"`. Panics if the path does not exist.
 ///

@@ -152,32 +152,59 @@
 // format kinds.
 #let _formats = _format-rows.map(row => (row.kind, row)).to-dict()
 
+/// Deprecated: use `string(format: "date")` instead. Kept until
+/// 1.0.
+///
 /// A string in ISO 8601 date form: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`.
 /// Data written in Typst may give a `datetime` with a date and no time;
 /// it is checked and returned as the ISO string.
 #let date-string = (kind: "date-string")
+/// Deprecated: use `string(format: "date-time")` instead. Kept until
+/// 1.0.
+///
 /// A string in ISO 8601 date and time form, `YYYY-MM-DDTHH:MM:SS`, with
 /// an optional fraction and `Z` or `±HH:MM` offset; `T` and `Z` may be
 /// lowercase and a leap second (`:60`) is allowed. Data written in Typst
 /// may give a `datetime` with a date and a time; it is checked and
 /// returned as the ISO string.
 #let datetime-string = (kind: "datetime-string")
+/// Deprecated: use `string(format: "uri")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like a URI: a scheme, `:`, then no whitespace (a
 /// permissive check).
 #let uri-string = (kind: "uri-string")
+/// Deprecated: use `string(format: "email")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like an email address (a permissive check).
 #let email-string = (kind: "email-string")
+/// Deprecated: use `string(format: "uuid")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like a UUID: 8-4-4-4-12 hex digits (a permissive
 /// check; the version and variant are not inspected).
 #let uuid-string = (kind: "uuid-string")
+/// Deprecated: use `string(format: "hostname")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like a hostname: dot-separated labels of letters,
 /// digits and inner hyphens (a permissive check).
 #let hostname-string = (kind: "hostname-string")
+/// Deprecated: use `string(format: "ipv4")` instead. Kept until
+/// 1.0.
+///
 /// A string in dotted-quad IPv4 form, each octet 0-255.
 #let ipv4-string = (kind: "ipv4-string")
+/// Deprecated: use `string(format: "ipv6")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like an IPv6 address, including `::` compression
 /// (a permissive check; the embedded-IPv4 tail form is not accepted).
 #let ipv6-string = (kind: "ipv6-string")
+/// Deprecated: use `string(format: "time")` instead. Kept until
+/// 1.0.
+///
 /// A string in `HH:MM:SS` time form, with an optional fraction and `Z`
 /// or `±HH:MM` offset; `Z` may be lowercase and a leap second (`:60`) is
 /// allowed.
@@ -261,6 +288,9 @@
   ))
 }
 
+/// Deprecated: use `string(pattern: re, expected: …)` instead. Kept
+/// until 1.0.
+///
 /// A string that must match a regular expression. The same as
 /// `string(pattern: re, expected: expected)`.
 ///

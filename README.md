@@ -480,6 +480,13 @@ equals `email-string`, and `string(pattern: p, expected: e)` equals
 keep working (in `paths-of-kind`, too). `content-type`, `bool-type`,
 `null-type` and `any-type` take no constraints and stay constants.
 
+**Deprecated, accepted until 1.0:** `str-type`, `number-type` and
+`integer-type` (use `string()`, `number()`, `integer()`), the nine format
+constants `date-string` … `time-string` (use `string(format: "date")`
+and so on), and `pattern-string(re, expected: …)` (use
+`string(pattern: re, expected: …)`). A hand-built node of the old kind
+names `"str"` and `"pattern-string"` is read as `"string"`.
+
 ### Format validation
 
 Fields the canonical schema annotates with `format: "uri"`, `format: "email"`,
@@ -697,7 +704,9 @@ too.
 **Deprecated, accepted until 1.0:** the lens-first order
 `lens-get(at, schema)`, `lens-put(at, schema, value)` and
 `lens-over(at, schema, fn)`, and the old lens shape
-`(kind: "lens", path: …)` wherever a location is taken. Arguments are
+`(kind: "lens", path: …)` wherever a location is taken; `lens(path)`
+(pass the path, or `(lens: path)`) and `lens-then(a, b)` (use `a + b` on
+the paths). Arguments are
 told apart by type, so an old call still works unchanged; a call that is
 neither a schema then a location nor the old order panics.
 
@@ -772,6 +781,9 @@ fields or constraints, so they show none of these.
 `integer-type` integers), or a constructor such as `pattern-string`. The kind
 name as a string (`"date-string"`) still works but is deprecated, and will be
 removed in the next major version.
+
+**Deprecated, accepted until 1.0:** `kind-at(schema, at)`; use
+`lens-get(schema, at).kind`.
 
 `integer` is a kind of its own: `kind-at` returns `"integer"` for an integer
 field, `paths-of-kind(s, number-type)` no longer lists integers, and

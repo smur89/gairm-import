@@ -48,6 +48,9 @@
   if node.kind == "object" { _object-with(node) } else { node }
 }
 
+/// Deprecated: use the path array itself, or `(lens: path)`, instead;
+/// every function that takes a location takes either. Kept until 1.0.
+///
 /// A lens: a path to one node in a schema, as `(lens: path)`. A path is
 /// an array of segments: a field name to enter an object, `"items"` to
 /// enter an array's elements, `"additionalProperties"` to enter an
@@ -138,6 +141,8 @@
 }
 
 // `lens-then(a, b)` applies a then b — paths concatenate in that order.
+/// Deprecated: use `a + b` on the path arrays instead. Kept until 1.0.
+///
 /// Joins two locations into one lens: follows `a`, then `b` from there.
 ///
 /// - a (dictionary, array): The first lens or path.
