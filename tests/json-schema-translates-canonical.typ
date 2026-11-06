@@ -5,12 +5,12 @@
 
 #import "../lib.typ": schema-from-json-schema, validate, str-type
 
-#let canonical-js = json("../internal/assets/jsonresume-schema.json")
+#let canonical-js = json("../internal/json-resume/schema.json")
 #let canonical = schema-from-json-schema(canonical-js)
 
 // path() route: same translation as the dict form above.
 #let canonical-from-path = schema-from-json-schema(
-  path("../internal/assets/jsonresume-schema.json"),
+  path("../internal/json-resume/schema.json"),
 )
 #assert.eq(
   canonical-from-path.shape.keys().sorted(),

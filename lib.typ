@@ -13,7 +13,7 @@
 #import "internal/kinds/structure.typ": (
   array-of, object, map, any-of, one-of, not-of, nullable,
 )
-#import "internal/schema.typ": resume-schema, resume-schema-strict
+#import "internal/json-resume/schema.typ": resume-schema, resume-schema-strict
 #import "internal/engine.typ" as _engine-mod
 #import "internal/core/ctx.typ" as _ctx-mod
 #import "internal/core/error.typ" as _error-mod
@@ -94,10 +94,9 @@
 #let parse(data, schema: resume-schema, strict-null: false) = {
   let dict-data = _input-mod._decode-input("parse", data)
   if type(dict-data) != dictionary {
-    panic(
-      "gairm-import: parse expected a dict, a path, or bytes, got "
-        + repr(type(dict-data))
-        + ".",
+    _error-mod._bail(
+      "parse",
+      "expected a dict, a path, or bytes, got " + repr(type(dict-data)) + ".",
     )
   }
   _engine-mod._parse-result(_engine-mod._walk(

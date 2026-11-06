@@ -5,7 +5,8 @@
 
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": (
-  _error, _type-miss, _type-name-of, _closest-match, _require-key-names,
+  _bail, _error, _type-miss, _type-name-of, _closest-match, _problem, _fail,
+  _key-names-problem,
 )
 #import "constraint.typ": _constraint-errors, _constrain
 #import "leaf.typ": null-type
@@ -42,10 +43,9 @@
 // here, naming what took it, not later as an unknown kind mid-walk.
 #let _require-schema(node, who) = {
   if not _is-schema(node) {
-    panic(
-      "gairm-import: "
-        + who
-        + " must be a schema; got: "
+    _bail(
+      who,
+      "must be a schema; got: "
         + repr(node)
         + ". Build schemas with the constructors.",
     )
@@ -93,10 +93,9 @@
     type(members) == array and members.len() > 0 and members.all(_is-schema)
   )
   if not ok {
-    panic(
-      "gairm-import: "
-        + fn-name
-        + " members must be a non-empty array of schema dicts (each built with the constructors); got: "
+    _bail(
+      fn-name,
+      "members must be a non-empty array of schema dicts (each built with the constructors); got: "
         + repr(members)
         + ".",
     )
@@ -138,8 +137,9 @@
 /// -> dictionary
 #let nullable(member) = {
   if not _is-schema(member) {
-    panic(
-      "gairm-import: nullable member must be a schema dict (built with the constructors); got: "
+    _bail(
+      "nullable",
+      "member must be a schema dict (built with the constructors); got: "
         + repr(member)
         + ".",
     )
@@ -156,8 +156,9 @@
 /// -> dictionary
 #let not-of(member) = {
   if not _is-schema(member) {
-    panic(
-      "gairm-import: not-of member must be a schema dict (built with the constructors); got: "
+    _bail(
+      "not-of",
+      "member must be a schema dict (built with the constructors); got: "
         + repr(member)
         + ".",
     )
@@ -174,6 +175,42 @@
 // phantom validation error. `dependent-required` follows the same
 // rule: a malformed map always panics, and trigger / dependent keys
 // outside `shape` panic only when strict.
+//
+// The argument shapes are checked by _object-problem, which the
+// translator words for its own keywords; whether the names are in
+// `shape` is object()'s alone.
+#let _object-problem(required-keys, dependent-required, additional) = {
+  let additional-ok = (
+    additional in (none, false, true) or _is-schema(additional)
+  )
+  if not additional-ok {
+    return _problem(
+      "additional",
+      "none, false, true, or a schema dict (built with the constructors)",
+      repr(additional),
+    )
+  }
+  // Checked whatever `additional` is: an open object reads the names as
+  // keys too, so a non-string one would pass here and fail at validation.
+  let p = _key-names-problem(required-keys, "required-keys")
+  if p != none { return p }
+  if type(dependent-required) != dictionary {
+    return _problem(
+      "dependent-required",
+      "a dictionary of key to array of keys",
+      repr(dependent-required),
+    )
+  }
+  for (trigger, dependents) in dependent-required {
+    let p = _key-names-problem(
+      dependents,
+      "dependent-required",
+      entry: trigger,
+    )
+    if p != none { return p }
+  }
+}
+
 /// A dictionary with the fields in `shape`. Panics if a field is not a
 /// schema, if `additional` is the wrong shape, if `required-keys` or a
 /// `dependent-required` entry is not an array of key names, or, when
@@ -194,25 +231,14 @@
   dependent-required: (:),
   additional: none,
 ) = {
+  let p = _object-problem(required-keys, dependent-required, additional)
+  if p != none { _fail("object()", p) }
   // false ≡ none in our model; normalise so the constructor and the
   // translator agree on what they accept.
   let normalized = if additional == false { none } else { additional }
-  let additional-ok = (
-    normalized == none or normalized == true or _is-schema(normalized)
-  )
-  if not additional-ok {
-    panic(
-      "gairm-import: object() additional must be none, false, true, or a schema dict (built with the constructors); got: "
-        + repr(additional)
-        + ".",
-    )
-  }
   for (key, sub) in shape {
     _require-schema(sub, "object() field " + repr(key))
   }
-  // Checked whatever `additional` is: an open object reads the names as
-  // keys too, so a non-string one would pass here and fail at validation.
-  _require-key-names(required-keys, "object() required-keys")
   // With `additional`, undeclared required keys are covered by the
   // additional schema, so the subset check only applies when strict.
   let unknown = if normalized == none {
@@ -221,23 +247,9 @@
     ()
   }
   if unknown.len() > 0 {
-    panic(
-      "gairm-import: object() required-keys references keys not in shape: "
-        + unknown.join(", ")
-        + ".",
-    )
-  }
-  if type(dependent-required) != dictionary {
-    panic(
-      "gairm-import: object() dependent-required must be a dictionary of key to array of keys; got: "
-        + repr(dependent-required)
-        + ".",
-    )
-  }
-  for (trigger, dependents) in dependent-required {
-    _require-key-names(
-      dependents,
-      "object() dependent-required for " + repr(trigger),
+    _bail(
+      "object()",
+      "required-keys references keys not in shape: " + unknown.join(", ") + ".",
     )
   }
   let unknown-dependent = if normalized == none {
@@ -250,8 +262,9 @@
     ()
   }
   if unknown-dependent.len() > 0 {
-    panic(
-      "gairm-import: object() dependent-required references keys not in shape: "
+    _bail(
+      "object()",
+      "dependent-required references keys not in shape: "
         + unknown-dependent.dedup().join(", ")
         + ".",
     )
@@ -336,7 +349,7 @@
 
 #let _array-walk(schema, value, ctx, recur) = {
   if type(value) != array {
-    return _type-miss(ctx.path, "array", "an array", value)
+    return _type-miss(ctx.path, "array", value)
   }
   let errors = ()
   let fatal = none
@@ -371,7 +384,7 @@
 // dictionary, since validate counts it as present.
 #let _object-walk(schema, value, ctx, recur) = {
   if type(value) != dictionary {
-    return _type-miss(ctx.path, "object", "an object", value)
+    return _type-miss(ctx.path, "object", value)
   }
   let additional = schema.at("additional", default: none)
   let errors = ()

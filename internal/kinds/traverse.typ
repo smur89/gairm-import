@@ -4,6 +4,7 @@
 // for an object's additional schema, an int index for a union member,
 // "not" for a `not` member.
 
+#import "../core/error.typ": _bail
 #import "registry.typ": _descriptor
 
 #let _children(s) = (_descriptor(s).children)(s)
@@ -11,9 +12,9 @@
 // Segments match by type as well as value, so `1.0` or `"0"` names no
 // union member.
 #let _child(s, seg) = {
-  let hit = _children(s).find(((k, _)) => type(k) == type(seg) and k == seg)
+  let hit = _children(s).find(((k, ..)) => type(k) == type(seg) and k == seg)
   if hit == none {
-    panic("gairm-import: " + (_descriptor(s).bad-segment)(s, seg))
+    _bail(none, (_descriptor(s).bad-segment)(s, seg))
   }
   hit.at(1)
 }
@@ -30,16 +31,21 @@
 // Every (path, node) pair, pre-order.
 #let _nodes(s, path: ()) = {
   let out = ((path, s),)
-  for (seg, sub) in _children(s) {
+  for (seg, sub, _) in _children(s) {
     out += _nodes(sub, path: path + (seg,))
   }
   out
 }
 
+// The path of every node in `s` that `keep` holds for, pre-order.
+#let _paths-where(s, keep) = (
+  _nodes(s).filter(((_, n)) => keep(n)).map(((p, _)) => p)
+)
+
 // `s` with `f` applied to each child. As in lens paths, an object
 // field literally named "additionalProperties" shadows the additional
 // schema, so in that collision both writes land on the field.
-#let _map-children(s, f) = _children(s).fold(s, (acc, (seg, sub)) => (
+#let _map-children(s, f) = _children(s).fold(s, (acc, (seg, sub, _)) => (
   (_descriptor(acc).with-child)(acc, seg, f(sub))
 ))
 
@@ -63,11 +69,8 @@
   if type(at) == array { return at }
   if _is-lens(at) { return at.lens }
   if _is-old-lens(at) { return at.path }
-  panic(
-    "gairm-import: "
-      + who
-      + " location must be a lens or a path array; got: "
-      + repr(at)
-      + ".",
+  _bail(
+    who,
+    "location must be a lens or a path array; got: " + repr(at) + ".",
   )
 }

@@ -1,72 +1,18 @@
 // JSON Schema (draft 7 subset) → Typst-schema translator: the entry
-// point, `$ref` resolution, one builder per JSON type and the
-// dispatcher. Anything not supported panics rather than silently
-// dropping the constraint; keyword.typ says which keywords those are.
+// point, `$ref` resolution and the dispatcher, which reads a node's
+// keywords and hands it to the builders (build.typ) or the composition
+// keywords. Anything not supported panics rather than silently dropping
+// the constraint; keyword.typ says which keywords those are.
 
 #import "../core/input.typ": _decode-input
-#import "../core/pointer.typ": _invalid-escape-re, pointer-to-path
-#import "../core/ctx.typ": _ctx
-#import "../engine.typ": _walk
-#import "../kinds/leaf.typ": (
-  number-type, integer-type, bool-type, null-type, any-type, enum-of,
-)
-#import "../kinds/structure.typ": array-of, object, any-of, one-of, not-of
-#import "../kinds/format.typ": string, _format-for-json-schema
-#import "../kinds/constraint.typ": (
-  _constraints, _read-constraints, _clash-message,
-)
+#import "../core/pointer.typ": _percent-decode, _read-pointer, _pointer-get
+#import "../kinds/leaf.typ": any-type, enum-of
+#import "../kinds/structure.typ": any-of, one-of, not-of
 #import "keyword.typ": (
-  _bail, _check-keywords, _check-keywords-typed, _constraint-family,
-  _has-keyword-for, _membership-structural, _role-of,
+  _bail, _check-keywords, _check-keywords-typed, _has-keyword-for, _role-of,
 )
+#import "build.typ": _builders, _build, _fold-membership
 #import "all-of.typ": _all-of
-
-
-// RFC 3986 percent-decoding of a `$ref` fragment, as UTF-8; none when
-// a `%` is not followed by two hex digits or the bytes are not
-// well-formed UTF-8 (RFC 3629).
-#let _hex-digits = "0123456789abcdef"
-#let _utf8-length(lead) = if lead < 0x80 { 1 } else if (
-  lead >= 0xC2 and lead < 0xE0
-) { 2 } else if lead >= 0xE0 and lead < 0xF0 { 3 } else if (
-  lead >= 0xF0 and lead < 0xF5
-) { 4 }
-// The range a lead byte's second byte must fall in (RFC 3629 §4), as
-// (low, high) inclusive: these leads narrow 0x80–0xBF to rule out an
-// overlong encoding (E0, F0), a UTF-16 surrogate (ED) or a code point
-// past U+10FFFF (F4), which `str(bytes(…))` would reject with a raw
-// Typst error.
-#let _second-byte-range(lead) = if lead == 0xE0 { (0xA0, 0xBF) } else if (
-  lead == 0xED
-) { (0x80, 0x9F) } else if lead == 0xF0 { (0x90, 0xBF) } else if (
-  lead == 0xF4
-) { (0x80, 0x8F) } else { (0x80, 0xBF) }
-#let _percent-decode(s) = {
-  if "%" not in s { return s }
-  let parts = s.split("%")
-  let out = array(bytes(parts.first()))
-  for part in parts.slice(1) {
-    let digits = part
-      .codepoints()
-      .slice(0, calc.min(2, part.codepoints().len()))
-    let values = digits.map(d => _hex-digits.position(lower(d)))
-    if values.len() < 2 or none in values { return none }
-    out.push(values.at(0) * 16 + values.at(1))
-    out += array(bytes(part.slice(2)))
-  }
-  let i = 0
-  while i < out.len() {
-    let n = _utf8-length(out.at(i))
-    if n == none or i + n > out.len() { return none }
-    if out.slice(i + 1, i + n).any(b => b < 0x80 or b >= 0xC0) { return none }
-    if n > 1 {
-      let (low, high) = _second-byte-range(out.at(i))
-      if out.at(i + 1) < low or out.at(i + 1) > high { return none }
-    }
-    i += n
-  }
-  str(bytes(out))
-}
 
 // `seen` is the chain of refs traversed so far; a repeat means a
 // cycle (e.g. `definitions.alias → alias`) — panic before Typst's
@@ -101,9 +47,8 @@
         + " has a malformed percent escape; `%` must start a `%XX` hex escape of UTF-8 bytes (write `%25` for a literal `%`).",
     )
   }
-  // Checked here so a bad escape reports under this module's prefix
-  // rather than pointer-to-path's.
-  if pointer.match(_invalid-escape-re) != none {
+  let read = _read-pointer(pointer)
+  if read.bad != none {
     _bail(
       "$ref "
         + repr(ref)
@@ -112,66 +57,21 @@
   }
   // RFC 6901: `~1` / `~0` unescape, empty segments are the "" key, and
   // a numeric segment indexes an array (e.g. "#/allOf/0") or names a key.
-  pointer-to-path(pointer).fold(root, (acc, seg) => {
-    let key = if type(acc) == dictionary { str(seg) } else { seg }
-    let found = if type(acc) == dictionary { key in acc } else {
-      type(acc) == array and type(seg) == int and seg < acc.len()
-    }
-    if not found {
-      _bail(
-        "$ref "
-          + repr(ref)
-          + " could not be resolved (segment "
-          + repr(str(seg))
-          + " missing).",
-      )
-    }
-    acc.at(key)
-  })
-}
-
-// `dependentRequired` (2019-09) and draft 7's array-form `dependencies`
-// are the same constraint. The schema form of `dependencies` needs
-// conditional schemas, like `dependentSchemas`.
-#let _dependent-required(js) = {
-  let has-dr = "dependentRequired" in js
-  let has-dep = "dependencies" in js
-  if has-dr and has-dep {
+  let found = _pointer-get(root, read.path)
+  if found.missing != none {
     _bail(
-      "\"dependencies\" and \"dependentRequired\" cannot both be set; use one.",
+      "$ref "
+        + repr(ref)
+        + " could not be resolved (segment "
+        + repr(str(found.missing))
+        + " missing).",
     )
   }
-  if not has-dr and not has-dep { return (:) }
-  let keyword = if has-dr { "dependentRequired" } else { "dependencies" }
-  let map = js.at(keyword)
-  if type(map) != dictionary {
-    _bail("\"" + keyword + "\" must be an object, got: " + repr(map) + ".")
-  }
-  // Checked here, though object() checks them too, so a bad value
-  // reports under this module's prefix and the JSON keyword's name.
-  for (trigger, dependents) in map {
-    if type(dependents) == dictionary {
-      _bail(
-        "unsupported JSON Schema keyword: the schema form of \"dependencies\" (for "
-          + repr(trigger)
-          + "). Conditional schemas are out of scope.",
-      )
-    }
-    if type(dependents) != array or dependents.any(d => type(d) != str) {
-      _bail(
-        "\""
-          + keyword
-          + "\" for "
-          + repr(trigger)
-          + " must be an array of field names, got: "
-          + repr(dependents)
-          + ".",
-      )
-    }
-  }
-  map
+  found.value
 }
 
+// A composition keyword's members; each is checked as a subschema when
+// it is translated.
 #let _require-member-array(js, keyword) = {
   let members = js.at(keyword)
   if type(members) != array or members.len() == 0 {
@@ -182,219 +82,7 @@
         + ".",
     )
   }
-  for m in members {
-    if type(m) != dictionary {
-      _bail(
-        repr(keyword)
-          + " members must be schema objects, got: "
-          + repr(m)
-          + ".",
-      )
-    }
-  }
   members
-}
-
-// Both keywords apply when both are present (JSON Schema's "all
-// keywords apply"): string() gives the format kind the pattern as an
-// extra gate, checked after the format regex. The keywords are checked
-// here first, so a bad one bails with the translator's own message.
-#let _string-base(js) = {
-  let fmt = js.at("format", default: none)
-  let pat = js.at("pattern", default: none)
-  if pat != none and type(pat) != str {
-    _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
-  }
-  if fmt != none and type(fmt) != str {
-    _bail("\"format\" must be a string, got: " + repr(type(fmt)) + ".")
-  }
-  if fmt != none and fmt not in _format-for-json-schema {
-    _bail("unsupported string format: " + repr(fmt) + ".")
-  }
-  string(
-    format: fmt,
-    pattern: pat,
-    expected: if pat != none { "matching " + repr(pat) },
-  )
-}
-
-// No `items`: items of any value, as in draft 7.
-#let _array-base(js, ctx, recur) = {
-  let items = js.at("items", default: (:))
-  if type(items) != dictionary {
-    _bail(
-      "\"items\" must be a schema object, got: " + repr(type(items)) + ".",
-    )
-  }
-  array-of(recur(items, ctx))
-}
-
-#let _object-base(js, ctx, recur) = {
-  let has-props = "properties" in js
-  let has-ap = "additionalProperties" in js
-  // Fully open with no constraints inverts the engine's strict intent.
-  if not has-props and not has-ap {
-    _bail(
-      "open object schemas (`type: \"object\"` with no `properties` "
-        + "or `additionalProperties`) are out of scope; every field "
-        + "must be declared or covered by `additionalProperties`.",
-    )
-  }
-  let props = if has-props { js.at("properties") } else { (:) }
-  if type(props) != dictionary {
-    _bail("\"properties\" must be an object, got: " + repr(type(props)) + ".")
-  }
-  let required = js.at("required", default: ())
-  if type(required) != array {
-    _bail(
-      "\"required\" must be an array of field names, got: "
-        + repr(type(required))
-        + ".",
-    )
-  }
-  // Checked here, though object() checks them too, so a bad name
-  // reports under this module's prefix and the JSON keyword's name.
-  if required.any(k => type(k) != str) {
-    _bail(
-      "\"required\" must be an array of field names, got: "
-        + repr(required)
-        + ".",
-    )
-  }
-  let additional = if not has-ap {
-    none
-  } else {
-    let ap = js.at("additionalProperties")
-    if ap == false { none } else if ap == true { true } else if (
-      type(ap) == dictionary
-    ) { recur(ap, ctx) } else {
-      _bail(
-        "\"additionalProperties\" must be a schema, true, or false, got: "
-          + repr(ap)
-          + ".",
-      )
-    }
-  }
-  object(
-    props.pairs().map(((k, v)) => (k, recur(v, ctx))).to-dict(),
-    required-keys: required,
-    dependent-required: _dependent-required(js),
-    additional: additional,
-  )
-}
-
-// One builder per JSON type, keyed by its `type` name, each reading its
-// own keywords from the node and ignoring the others' (JSON Schema
-// semantics); the constraint keywords are folded on afterwards.
-// `integer` keeps its integral constraint rather than flattening to
-// number, which would silently drop it.
-#let _builders = (
-  string: (js, ctx, recur) => _string-base(js),
-  number: (..) => number-type,
-  integer: (..) => integer-type,
-  array: _array-base,
-  object: _object-base,
-  boolean: (..) => bool-type,
-  "null": (..) => null-type,
-)
-
-// Reads the constraint keywords for JSON type `t` onto `node`, bailing
-// at translate time on a bad-shape value — better than a kind dict the
-// validator can't reason about — and on bounds no value can satisfy
-// (min > max, etc.), which would translate cleanly but reject every
-// input as a mystery validation failure.
-#let _with-constraints(node, js, t) = {
-  let family = _constraint-family.at(t, default: none)
-  if family == none { return node }
-  let read = _read-constraints(node, family, js, row => row.json)
-  if read.bad != none {
-    let (row, value, must) = read.bad
-    _bail(
-      repr(row.json) + " must be " + must + ", got: " + repr(value) + ".",
-    )
-  }
-  if read.clash != none {
-    _bail(_clash-message(
-      read.clash,
-      read.node,
-      field => _constraints.at(field).json,
-    ))
-  }
-  read.node
-}
-
-// The schema for the node as JSON type `t`.
-#let _build(js, ctx, t, recur) = _with-constraints(
-  _builders.at(t)(js, ctx, recur),
-  js,
-  t,
-)
-
-// Typst type name → JSON Schema `type` name, for the types that map
-// one-to-one (numbers are classified separately).
-#let _json-type-names = (
-  string: "string",
-  boolean: "boolean",
-  "none": "null",
-  array: "array",
-  dictionary: "object",
-)
-
-// Folds the `type` and constraint keywords beside `enum` / `const` into
-// the value set: each value is checked against the schema the node
-// builds for its JSON type, and only survivors are kept. Type-specific
-// keywords ignore other types (JSON Schema semantics), so a value of a
-// type no keyword applies to — a bool, null, object, or a string beside
-// only `minimum` — survives.
-#let _fold-membership(js, ctx, names, recur) = {
-  for keyword in _membership-structural {
-    if keyword in js {
-      _bail(
-        repr(keyword)
-          + " cannot be combined with enum/const — it describes object/array structure, which membership does not check.",
-      )
-    }
-  }
-  let values = if "enum" in js { js.at("enum") } else { (js.at("const"),) }
-  if type(values) != array {
-    _bail(
-      "\"enum\" must be an array of values, got: " + repr(type(values)) + ".",
-    )
-  }
-  let by-type = ("string", "number", "array")
-    .map(t => (t, _build(js, ctx, t, recur)))
-    .to-dict()
-  let survivors = values.filter(v => {
-    let kind = if type(v) in (int, float) { "number" } else {
-      _json-type-names.at(str(type(v)), default: "other")
-    }
-    // `type` keeps a value whose JSON type it names; `integer` is a
-    // number with no fractional part (`1.0` passes, per draft 7).
-    let allowed = (
-      names == none
-        or (
-          kind in names
-            or (
-              kind == "number" and "integer" in names and calc.fract(v) == 0
-            )
-        )
-    )
-    (
-      allowed
-        and (
-          kind not in by-type
-            or _walk(by-type.at(kind), v, _ctx()).errors.len() == 0
-        )
-    )
-  })
-  // `enum: []` was always accepted; only report values that constraints
-  // eliminated.
-  if values.len() > 0 and survivors.len() == 0 {
-    _bail(
-      "no enum/const value satisfies the accompanying type/constraints, so the schema is unsatisfiable.",
-    )
-  }
-  survivors
 }
 
 // The node's `type` names, checked, or none when it has none. Checked
@@ -446,13 +134,7 @@
   oneOf: (js, ctx, recur) => one-of(
     _require-member-array(js, "oneOf").map(m => recur(m, ctx)),
   ),
-  "not": (js, ctx, recur) => {
-    let member = js.at("not")
-    if type(member) != dictionary {
-      _bail("\"not\" must be a schema object, got: " + repr(member) + ".")
-    }
-    not-of(recur(member, ctx))
-  },
+  "not": (js, ctx, recur) => not-of(recur(js.at("not"), ctx)),
 )
 
 // `ctx` is the document `root` and `seen`, the chain of `$ref`s that

@@ -1,4 +1,4 @@
-// expect: "required" must be an array of field names, got: ("a", 1).
+// expect: "required" must be an array of key names, got: ("a", 1).
 #import "../../lib.typ": schema-from-json-schema
 #schema-from-json-schema((
   type: "object",

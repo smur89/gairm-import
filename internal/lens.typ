@@ -39,26 +39,13 @@
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": _require-schema, _is-schema, _object-with
-#import "core/error.typ": _require-key-names
-
-#let _bail(msg) = panic("gairm-import: " + msg)
+#import "core/error.typ": _bail, _not-in, _require-key-names
 
 // A node entering from user code: a schema, and an object one rebuilt
 // through object() so it can't break the constructor's invariants.
 #let _checked(node, who) = {
   _require-schema(node, who)
   if node.kind == "object" { _object-with(node) } else { node }
-}
-
-#let _require-object(parent, op) = {
-  if parent.kind != "object" {
-    _bail(
-      op
-        + " expects an object schema at the lens target, got kind="
-        + repr(parent.kind)
-        + ".",
-    )
-  }
 }
 
 /// A lens: a path to one node in a schema, as `(lens: path)`. A path is
@@ -72,7 +59,7 @@
 /// -> dictionary
 #let lens(path) = {
   if type(path) != array {
-    _bail("lens path must be an array of segments; got: " + repr(path) + ".")
+    _bail("lens", "path must be an array of segments; got: " + repr(path) + ".")
   }
   (lens: path)
 }
@@ -95,19 +82,13 @@
     return (b, _location-path(a, op))
   }
   _bail(
-    op
-      + " takes a schema, then a location (a lens or a path array); got "
+    op,
+    "takes a schema, then a location (a lens or a path array); got "
       + _what(a)
       + " and "
       + _what(b)
       + ".",
   )
-}
-
-// An edit function's location as a path, after checking its schema.
-#let _edit-path(schema, at, op) = {
-  _require-schema(schema, op + "'s first argument")
-  _location-path(at, op)
 }
 
 /// Reads the schema node at `at`. Panics if the path does not exist.
@@ -166,6 +147,25 @@
   _location-path(a, "lens-then") + _location-path(b, "lens-then"),
 )
 
+// The skeleton the object edits share: check the schema and the
+// location once, find the object at `at`, let `edit` check it and
+// return the fields to change (as object() names them), and write it
+// back rebuilt through object().
+#let _edit-object(schema, at, op, edit) = {
+  _require-schema(schema, op + "'s first argument")
+  let path = _location-path(at, op)
+  let parent = _get-at(schema, path)
+  if parent.kind != "object" {
+    _bail(
+      op,
+      "expects an object schema at the lens target, got kind="
+        + repr(parent.kind)
+        + ".",
+    )
+  }
+  _set-at(schema, path, _object-with(parent, ..edit(parent)))
+}
+
 // Collisions panic instead of overwriting silently — for the
 // overwrite-an-existing-key case, callers can reach for lens-put / lens-over.
 /// Returns a new schema with `key` added to the object at `at`. Panics
@@ -178,23 +178,21 @@
 /// - key (str): The new field's name.
 /// - sub-schema (dictionary): The schema for the field.
 /// -> dictionary
-#let add-field(schema, at, key, sub-schema) = lens-over(
+#let add-field(schema, at, key, sub-schema) = _edit-object(
   schema,
-  _edit-path(schema, at, "add-field"),
+  at,
+  "add-field",
   parent => {
-    _require-object(parent, "add-field")
     if key in parent.shape {
       _bail(
-        "add-field key "
+        "add-field",
+        "key "
           + repr(key)
           + " already in object shape. "
           + "Use lens-put / lens-over to replace an existing field.",
       )
     }
-    // Typst dicts are values: this copy leaves `parent` untouched.
-    let shape = parent.shape
-    shape.insert(key, sub-schema)
-    _object-with(parent, shape: shape)
+    (shape: (..parent.shape, (key): sub-schema))
   },
 )
 
@@ -211,26 +209,21 @@
 /// - keys (array): The fields to require.
 /// -> dictionary
 #let set-required(schema, at, keys) = {
-  _require-key-names(keys, "set-required keys")
-  lens-over(
-    schema,
-    _edit-path(schema, at, "set-required"),
-    parent => {
-      _require-object(parent, "set-required")
-      let closed = parent.at("additional", default: none) == none
-      let unknown = keys.filter(k => closed and k not in parent.shape)
-      if unknown.len() > 0 {
-        _bail(
-          "set-required keys not in object shape: "
-            + unknown.join(", ")
-            + ". Valid keys: "
-            + parent.shape.keys().join(", ")
-            + ".",
-        )
-      }
-      _object-with(parent, required-keys: keys)
-    },
-  )
+  _require-key-names(keys, "set-required", "keys")
+  _edit-object(schema, at, "set-required", parent => {
+    let closed = parent.at("additional", default: none) == none
+    let unknown = keys.filter(k => closed and k not in parent.shape)
+    if unknown.len() > 0 {
+      _bail("set-required", _not-in(
+        "keys",
+        "object shape",
+        "Valid keys",
+        parent.shape.keys(),
+        names: unknown,
+      ))
+    }
+    (required-keys: keys)
+  })
 }
 
 // Symmetric to set-required — relax specific keys without re-listing.
@@ -244,28 +237,20 @@
 /// - keys (array): The fields to stop requiring.
 /// -> dictionary
 #let unset-required(schema, at, keys) = {
-  _require-key-names(keys, "unset-required keys")
-  lens-over(
-    schema,
-    _edit-path(schema, at, "unset-required"),
-    parent => {
-      _require-object(parent, "unset-required")
-      let absent = keys.filter(k => k not in parent.required-keys)
-      if absent.len() > 0 {
-        _bail(
-          "unset-required keys not in required-keys: "
-            + absent.join(", ")
-            + ". Current required: "
-            + parent.required-keys.join(", ")
-            + ".",
-        )
-      }
-      _object-with(
-        parent,
-        required-keys: parent.required-keys.filter(k => k not in keys),
-      )
-    },
-  )
+  _require-key-names(keys, "unset-required", "keys")
+  _edit-object(schema, at, "unset-required", parent => {
+    let absent = keys.filter(k => k not in parent.required-keys)
+    if absent.len() > 0 {
+      _bail("unset-required", _not-in(
+        "keys",
+        "required-keys",
+        "Current required",
+        parent.required-keys,
+        names: absent,
+      ))
+    }
+    (required-keys: parent.required-keys.filter(k => k not in keys))
+  })
 }
 
 // Absent-key panics rather than being a silent no-op so caller typos surface.
@@ -277,39 +262,35 @@
 /// - at (dictionary, array): The object: a lens or a path array.
 /// - key (str): The field to remove.
 /// -> dictionary
-#let remove-field(schema, at, key) = lens-over(
+#let remove-field(schema, at, key) = _edit-object(
   schema,
-  _edit-path(schema, at, "remove-field"),
+  at,
+  "remove-field",
   parent => {
-    _require-object(parent, "remove-field")
     if key not in parent.shape {
-      _bail(
-        "remove-field key "
-          + repr(key)
-          + " not in object shape. "
-          + "Valid keys: "
-          + parent.shape.keys().join(", ")
-          + ".",
-      )
+      _bail("remove-field", _not-in(
+        "key " + repr(key),
+        "object shape",
+        "Valid keys",
+        parent.shape.keys(),
+      ))
     }
-    let new-shape = parent.shape
-    let _ = new-shape.remove(key)
-    let new-required = parent.required-keys.filter(k => k != key)
+    let shape = parent.shape
+    let _ = shape.remove(key)
     // Like required-keys, drop `key` from every dependency: its own
     // trigger entry and its place in other triggers' lists. A trigger
     // left with no dependents goes too, and object() drops an empty map.
-    let new-dependent = (:)
+    let dependent = (:)
     for (trigger, dependents) in parent.at("dependent-required", default: (:)) {
       let kept = dependents.filter(d => d != key)
       if trigger != key and kept.len() > 0 {
-        new-dependent.insert(trigger, kept)
+        dependent.insert(trigger, kept)
       }
     }
-    _object-with(
-      parent,
-      shape: new-shape,
-      required-keys: new-required,
-      dependent-required: new-dependent,
+    (
+      shape: shape,
+      required-keys: parent.required-keys.filter(k => k != key),
+      dependent-required: dependent,
     )
   },
 )

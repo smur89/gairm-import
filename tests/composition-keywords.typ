@@ -233,7 +233,7 @@
 
 // --- strict stripping recurses into union members ----------------------
 
-#import "../internal/schema.typ": _strip-permissive-additional
+#import "../internal/json-resume/schema.typ": _strip-permissive-additional
 
 // `additional: true` inside a union member is stripped like anywhere
 // else — a member is a positive matcher for the document, so stripping

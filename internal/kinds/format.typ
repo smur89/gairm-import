@@ -6,7 +6,9 @@
 // introspection all read this table, so adding a format is one row,
 // one constant below and one export in lib.typ.
 
-#import "../core/error.typ": _error, _type-miss, _type-name-of
+#import "../core/error.typ": (
+  _error, _expected-got, _type-miss, _type-name-of, _problem, _fail,
+)
 #import "leaf.typ": str-type, pattern-string, _pattern-errors
 #import "constraint.typ": _constrain
 
@@ -150,11 +152,6 @@
 // format kinds.
 #let _formats = _format-rows.map(row => (row.kind, row)).to-dict()
 
-// JSON Schema `format` name → the kind's constant, for the translator.
-#let _format-for-json-schema = (
-  _format-rows.map(row => (row.json-schema, (kind: row.kind))).to-dict()
-)
-
 /// A string in ISO 8601 date form: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`.
 /// Data written in Typst may give a `datetime` with a date and no time;
 /// it is checked and returned as the ISO string.
@@ -192,6 +189,29 @@
 // `format:` and `pattern:` compose as the translator composes `format`
 // and `pattern`: the format kind with an extra pattern gate.
 
+/// The first problem (error.typ) with string()'s `format`, `pattern`
+/// and `expected` arguments, or none. The translator words it for the
+/// JSON keywords of the same names.
+#let _string-problem(format: none, pattern: none, expected: none) = {
+  if format != none and _format-rows.all(row => row.json-schema != format) {
+    let names = _format-rows.map(row => repr(row.json-schema))
+    return _problem("format", "one of " + names.join(", "), repr(format))
+  }
+  if expected != none and pattern == none {
+    return (
+      message: "expected describes a pattern, so it needs pattern:; got expected: "
+        + repr(expected)
+        + " alone.",
+    )
+  }
+  if pattern != none and type(pattern) not in (regex, str) {
+    return _problem("pattern", "a regex or a string", _type-name-of(pattern))
+  }
+  if expected != none and type(expected) != str {
+    return _problem("expected", "a string", repr(expected))
+  }
+}
+
 /// A string, with an optional format, pattern and length bounds. An
 /// argument left at `none` sets nothing, so `string()` is `str-type`,
 /// `string(format: "email")` is `email-string` and
@@ -221,42 +241,12 @@
   pattern: none,
   expected: none,
 ) = {
+  let p = _string-problem(format: format, pattern: pattern, expected: expected)
+  if p != none { _fail("string()", p) }
   let base = if format == none { str-type } else {
-    let row = _format-rows.find(row => row.json-schema == format)
-    if row == none {
-      panic(
-        "gairm-import: string() format must be one of "
-          + _format-rows.map(row => repr(row.json-schema)).join(", ")
-          + "; got: "
-          + repr(format)
-          + ".",
-      )
-    }
-    (kind: row.kind)
-  }
-  if expected != none and pattern == none {
-    panic(
-      "gairm-import: string() expected describes a pattern, so it needs "
-        + "pattern:; got expected: "
-        + repr(expected)
-        + " alone.",
-    )
+    (kind: _format-rows.find(row => row.json-schema == format).kind)
   }
   if pattern != none {
-    if type(pattern) not in (regex, str) {
-      panic(
-        "gairm-import: string() pattern must be a regex or a string, got: "
-          + _type-name-of(pattern)
-          + ".",
-      )
-    }
-    if expected != none and type(expected) != str {
-      panic(
-        "gairm-import: string() expected must be a string, got: "
-          + repr(expected)
-          + ".",
-      )
-    }
     let gate = if expected == none { pattern-string(pattern) } else {
       pattern-string(pattern, expected: expected)
     }
@@ -301,7 +291,7 @@
         errors: _error(
           ctx.path,
           "format",
-          "expected " + expected + ", got datetime.",
+          _expected-got(expected, "datetime"),
           expected: expected,
           got: value,
         ),
@@ -312,7 +302,7 @@
     converted
   } else { value }
   if type(value) != str {
-    return _type-miss(ctx.path, "string", "a string", value)
+    return _type-miss(ctx.path, "string", value)
   }
   if value.match(row.pattern) == none {
     let errors = _error(

@@ -2,44 +2,35 @@
 // and the strict-schema walkers ask the registry instead of keeping
 // their own `kind ==` ladders. A descriptor holds:
 //
-//   leaf          no children: traversal stops here
+//   walk          (schema, value, ctx, recur) => (errors, value, fatal):
+//                 what the engine runs (structure.typ; a leaf's is built
+//                 from its check by _leaf-walk, leaf.typ)
 //   searchable    paths-of-kind finds it, rather than only walking
 //                 through it
-//   children      schema => ((segment, sub-schema), ..), segments as lens
-//                 paths spell them
+//   children      schema => ((segment, sub-schema, label), ..): segments
+//                 as lens paths spell them, labels as describe-schema
+//                 draws them
 //   with-child    (schema, segment, sub) => the node with that child
-//                 replaced
+//                 replaced; none for a leaf, which has no children
 //   suffix        schema => what describe-schema prints on the node's own
-//                 row: a leaf's kind, a union's header, none for no
-//                 header
-//   labels        schema => describe-schema's label for each child, in
-//                 children order
+//                 row: by default a leaf's kind, and no header (none)
+//                 for a node with children
+//   inline        describe-schema draws the node's one child on its
+//                 parent's row, extended by the child's label (an
+//                 array's elements as `name[]`)
 //   shorthand     schema => none, or (of, mark): describe-schema draws
 //                 the node as `of` with `mark` (a nullable as `X?`)
 //   bad-segment   (schema, segment) => what a lens says when the segment
 //                 names no child
 //   constructors  the public functions that build this kind
-//
-// and the engine's fields, either the leaf trio
-//
-//   check         (schema, value, ctx) => (errors, value, fatal): judges
-//                 the JSON-level value, may normalise it, and says
-//                 whether it leaves a model (leaf.typ)
-//   model         value => the model value, when the check left one
-//   family        which constraint rows the engine applies after the
-//                 check passes (none: no rows)
-//
-// or, for kinds that contain other schemas,
-//
-//   walk          (schema, value, ctx, recur) => (errors, value, fatal)
-//                 (structure.typ)
 
 #import "leaf.typ" as _leaf-mod
 #import "leaf.typ": (
-  number, integer, pattern-string, enum-of, const-of, _string-check,
+  number, integer, pattern-string, enum-of, const-of, _leaf-walk, _string-check,
   _number-check, _integer-check, _bool-check, _null-check, _any-check,
   _pattern-check, _enum-check,
 )
+#import "../core/error.typ": _internal, _not-in
 #import "format.typ" as _format-mod
 #import "format.typ": string, _formats, _format-check
 #import "structure.typ" as _structure-mod
@@ -48,13 +39,14 @@
   _object-walk, _union-walk, _not-walk, _object-with, _schema-kinds,
 )
 
+// A leaf passes its `check`, constraint `family` and `model` (leaf.typ)
+// instead of a walk.
 #let _kind(
-  leaf: true,
   searchable: true,
   children: s => (),
   with-child: none,
-  suffix: s => s.kind,
-  labels: s => (),
+  suffix: auto,
+  inline: false,
   shorthand: s => none,
   bad-segment: (s, seg) => (
     "lens cannot descend into a leaf schema (kind="
@@ -64,24 +56,22 @@
       + "."
   ),
   constructors: (),
-  family: none,
-  check: none,
-  model: v => v,
   walk: none,
+  check: none,
+  family: none,
+  model: v => v,
 ) = (
-  leaf: leaf,
+  walk: if check != none { _leaf-walk(check, family, model) } else { walk },
   searchable: searchable,
   children: children,
   with-child: with-child,
-  suffix: suffix,
-  labels: labels,
+  suffix: if suffix != auto { suffix } else if with-child == none {
+    s => s.kind
+  } else { s => none },
+  inline: inline,
   shorthand: shorthand,
   bad-segment: bad-segment,
   constructors: constructors,
-  family: family,
-  check: check,
-  model: model,
-  walk: walk,
 )
 
 // A format kind with an extra pattern gate (JSON Schema format +
@@ -127,12 +117,10 @@
   // than a question.
   array: _kind(
     walk: _array-walk,
-    leaf: false,
     searchable: false,
-    children: s => (("items", s.elem),),
+    inline: true,
+    children: s => (("items", s.elem, "[]"),),
     with-child: (s, _, sub) => (..s, elem: sub),
-    suffix: s => none,
-    labels: s => ("[]",),
     bad-segment: (s, seg) => (
       "lens segment for an array schema must be \"items\", got "
         + repr(seg)
@@ -144,16 +132,22 @@
   // the source declared them in; then the additional schema when it
   // is one. A field literally named "additionalProperties" shadows the
   // additional schema, as in lens paths: reach that through the parent.
+  // A required field is labelled `name*`; the additional schema `*`,
+  // the display-only key for "any other key".
   object: _kind(
     walk: _object-walk,
-    leaf: false,
     searchable: false,
     children: s => {
-      let pairs = s.shape.pairs().sorted(key: p => p.at(0))
+      let required = s.at("required-keys", default: ())
+      let fields = s
+        .shape
+        .pairs()
+        .sorted(key: p => p.at(0))
+        .map(((k, sub)) => (k, sub, if k in required { k + "*" } else { k }))
       let additional = s.at("additional", default: none)
       if type(additional) == dictionary {
-        pairs + (("additionalProperties", additional),)
-      } else { pairs }
+        fields + (("additionalProperties", additional, "*"),)
+      } else { fields }
     },
     // Through object(), so a lens write keeps its invariants.
     with-child: (s, seg, sub) => if seg in s.shape {
@@ -162,21 +156,6 @@
       shape.insert(seg, sub)
       _object-with(s, shape: shape)
     } else { _object-with(s, additional: sub) },
-    suffix: s => none,
-    // A required field is marked `name*`; the additional schema shows
-    // as `*`, the display-only key for "any other key".
-    labels: s => {
-      let fields = s
-        .shape
-        .keys()
-        .sorted()
-        .map(k => if k in s.at("required-keys", default: ()) { k + "*" } else {
-          k
-        })
-      if type(s.at("additional", default: none)) == dictionary {
-        fields + ("*",)
-      } else { fields }
-    },
     bad-segment: (s, seg) => if seg == "additionalProperties" {
       (
         "lens segment \"additionalProperties\" requires the object's "
@@ -185,13 +164,11 @@
           + "."
       )
     } else {
-      (
-        "lens path segment "
-          + repr(seg)
-          + " not in object shape. "
-          + "Valid keys: "
-          + s.shape.keys().join(", ")
-          + "."
+      _not-in(
+        "lens path segment " + repr(seg),
+        "object shape",
+        "Valid keys",
+        s.shape.keys(),
       )
     },
     constructors: (object, map),
@@ -200,8 +177,10 @@
   // went through any-of or one-of.
   union: _kind(
     walk: _union-walk,
-    leaf: false,
-    children: s => s.members.enumerate(),
+    children: s => s
+      .members
+      .enumerate()
+      .map(((i, m)) => (i, m, "[" + str(i) + "]")),
     with-child: (s, i, sub) => {
       // Typst arrays are values: this copy leaves `s` untouched.
       let members = s.members
@@ -217,7 +196,6 @@
     ),
     // The header says which union; the members are listed below it.
     suffix: s => if s.exclusive { "one of" } else { "any of" },
-    labels: s => range(s.members.len()).map(i => "[" + str(i) + "]"),
     // `nullable(X)`, an any-of of exactly X then null, draws as `X?`.
     shorthand: s => if s == nullable(s.members.first()) {
       (of: s.members.first(), mark: "?")
@@ -226,15 +204,12 @@
   ),
   "not": _kind(
     walk: _not-walk,
-    leaf: false,
-    children: s => (("not", s.member),),
+    // No header: the member's label, its lens segment, says it.
+    children: s => (("not", s.member, "not"),),
     with-child: (s, _, sub) => (..s, member: sub),
     bad-segment: (s, seg) => (
       "lens segment for a not schema must be \"not\", got " + repr(seg) + "."
     ),
-    // No header: the member's label, its lens segment, says it.
-    suffix: s => none,
-    labels: s => ("not",),
     constructors: (not-of,),
   ),
 )
@@ -247,20 +222,17 @@
     for (name, v) in dictionary(mod) {
       if name.starts-with("_") { continue }
       if type(v) == dictionary {
-        assert(
+        _internal(
           v.at("kind", default: none) in kinds,
-          message: "gairm-import: internal — "
-            + name
+          name
             + " has kind "
             + repr(v.at("kind", default: none))
             + ", which has no descriptor.",
         )
       } else if type(v) == function {
-        assert(
+        _internal(
           kinds.values().any(d => v in d.constructors),
-          message: "gairm-import: internal — constructor "
-            + name
-            + " is in no descriptor's constructors.",
+          "constructor " + name + " is in no descriptor's constructors.",
         )
       }
     }
@@ -269,27 +241,12 @@
 
 #_check-coverage(_kinds, (_leaf-mod, _format-mod, _structure-mod))
 
-// Every registered kind tells the engine how to judge and model a
-// value: a `check` or a `walk`.
-#let _check-engine(kinds) = {
-  for (name, d) in kinds {
-    assert(
-      d.check != none or d.walk != none,
-      message: "gairm-import: internal — kind "
-        + repr(name)
-        + " has neither a check nor a walk.",
-    )
-  }
-}
-
-#_check-engine(_kinds)
-
 // The constructors' schema check (_require-schema) knows the kinds by
 // name, since it sits below this registry: the two lists must agree.
 #let _check-kind-names(kinds, names) = {
-  assert(
+  _internal(
     kinds.keys().sorted() == names.sorted(),
-    message: "gairm-import: internal — the registered kinds "
+    "the registered kinds "
       + repr(kinds.keys().sorted())
       + " differ from structure.typ's _schema-kinds "
       + repr(names.sorted())

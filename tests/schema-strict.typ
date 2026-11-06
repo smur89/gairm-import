@@ -1,8 +1,8 @@
 // Regression pin for `resume-schema-strict`: every path in
-// internal/schema.typ's `_content-paths`, `_iso8601-date-paths`, and
+// internal/json-resume/schema.typ's `_content-paths`, `_iso8601-date-paths`, and
 // `_last-modified-paths` lands at the expected kind. Catches stale paths
 // after an upstream schema bump (renamed/removed field) and refactors
-// that break the lens-fold.
+// that break the override fold.
 
 #import "../lib.typ": (
   resume-schema, resume-schema-strict, str-type, content-type, date-string,

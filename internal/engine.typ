@@ -16,27 +16,21 @@
 // a hand-built node can carry).
 
 #import "core/ctx.typ": _absent
-#import "core/error.typ": _coerce-message, _format-report
+#import "core/error.typ": _bail, _coerce-message, _format-report
 #import "kinds/registry.typ": _kinds
-#import "kinds/constraint.typ": _constraint-errors
 
 #let _walk(schema, value, ctx) = {
   if _absent(value, ctx) { return (errors: (), value: none, fatal: none) }
   let d = _kinds.at(schema.kind, default: none)
   if d == none {
-    panic(
-      "gairm-import: unknown schema kind "
+    _bail(
+      none,
+      "unknown schema kind "
         + repr(schema.kind)
         + "; build schemas with the constructors.",
     )
   }
-  if d.walk != none { return (d.walk)(schema, value, ctx, _walk) }
-  let r = (d.check)(schema, value, ctx)
-  if r.fatal != none { return r }
-  let errors = if r.errors == () and d.family != none {
-    _constraint-errors(schema, d.family, r.value, ctx.path)
-  } else { r.errors }
-  (errors: errors, value: (d.model)(r.value), fatal: none)
+  (d.walk)(schema, value, ctx, _walk)
 }
 
 // The entry points, each over a finished walk result, so lib.typ can
@@ -46,7 +40,7 @@
 /// sound model; every other error is the caller's to have checked.
 #let _coerce-result(r) = {
   if r.fatal != none {
-    panic(_coerce-message(r.fatal.path, r.fatal.expected, r.fatal.got))
+    _bail(none, _coerce-message(r.fatal.path, r.fatal.expected, r.fatal.got))
   }
   r.value
 }

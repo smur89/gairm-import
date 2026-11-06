@@ -4,7 +4,10 @@
 // combinators in structure.typ, and registry.typ holds a descriptor
 // for every kind.
 
-#import "../core/error.typ": _error, _type-miss, _type-name-of, _require-array
+#import "../core/error.typ": (
+  _error, _expected-got, _type-miss, _type-name-of, _json-type-name,
+  _array-problem, _fail,
+)
 #import "constraint.typ": _constraint-errors, _constrain
 
 /// A string, passed through as it is. The same as `string()`, which
@@ -127,7 +130,8 @@
 /// - values (array): The allowed values.
 /// -> dictionary
 #let enum-of(values) = {
-  _require-array(values, "enum-of() values", "an array", "value")
+  let p = _array-problem(values, "values", "an array", "value")
+  if p != none { _fail("enum-of()", p) }
   (kind: "enum", values: values)
 }
 /// Exactly one value. Same as `enum-of` with a single value.
@@ -140,9 +144,9 @@
 //
 // A leaf check is (schema, value, ctx) -> (errors, value, fatal). It
 // judges the JSON-level value and may normalise it (a datetime becomes
-// its ISO string), but never wraps it: the descriptor's `model` does
-// that. When the check passes, the engine adds the family's constraint
-// errors.
+// its ISO string), but never wraps it: the kind's `model` does that.
+// When the check passes, the walk adds the constraint errors of the
+// kind's `family` (none: no rows).
 //
 // `fatal` is none, or (path, expected, got) when the value leaves no
 // model at all; coerce panics with it ("coerce at <path>: expected
@@ -154,17 +158,28 @@
 // the kind: a union counts a member as claiming a value unless the
 // member reports `type` at the union's own path.
 
+/// The engine walk of a leaf kind, from its check, constraint family and
+/// model, so the engine runs every kind the same way.
+#let _leaf-walk(check, family, model) = (schema, value, ctx, recur) => {
+  let r = check(schema, value, ctx)
+  if r.fatal != none { return r }
+  let errors = if r.errors == () and family != none {
+    _constraint-errors(schema, family, r.value, ctx.path)
+  } else { r.errors }
+  (errors: errors, value: model(r.value), fatal: none)
+}
+
 #let _pass(value) = (errors: (), value: value, fatal: none)
 
 /// A check that only gates on the value's Typst type.
-#let _typed-check(types, expected, noun) = (schema, value, ctx) => {
+#let _typed-check(types, expected) = (schema, value, ctx) => {
   if type(value) in types { _pass(value) } else {
-    _type-miss(ctx.path, expected, noun, value)
+    _type-miss(ctx.path, expected, value)
   }
 }
 
-#let _string-check = _typed-check((str,), "string", "a string")
-#let _bool-check = _typed-check((bool,), "boolean", "a boolean")
+#let _string-check = _typed-check((str,), "string")
+#let _bool-check = _typed-check((bool,), "boolean")
 
 // The number gate, then, when `integral`, the integral one: draft-7
 // semantics, so a float with zero fractional part passes. The miss is
@@ -173,13 +188,13 @@
 // still judge the value alongside it.
 #let _numeric-check(schema, value, ctx, integral) = {
   if type(value) not in (int, float) {
-    return _type-miss(ctx.path, "number", "a number", value)
+    return _type-miss(ctx.path, "number", value)
   }
   if integral and calc.fract(value) != 0 {
     let errors = _error(
       ctx.path,
       "integer",
-      "expected an integer, got " + str(value) + ".",
+      _expected-got("an integer", str(value)),
       got: value,
     )
     let constraint-errors = _constraint-errors(
@@ -214,7 +229,7 @@
 // in strict-null mode, where it is this kind's one value. Every other
 // check rejects a null with `type` ("got null") at its type gate.
 #let _null-check(schema, value, ctx) = if value == none { _pass(value) } else {
-  _type-miss(ctx.path, "null", "null", value)
+  _type-miss(ctx.path, "null", value)
 }
 
 // The node's own `pattern` gate, if it carries one (a pattern-string,
@@ -238,21 +253,15 @@
 // table, since each instance is unique.
 #let _pattern-check(schema, value, ctx) = {
   if type(value) != str {
-    return _type-miss(ctx.path, "string", "a string", value)
+    return _type-miss(ctx.path, "string", value)
   }
   (errors: _pattern-errors(schema, value, ctx.path), value: value, fatal: none)
-}
-
-// A JSON type name per value, with int and float as the one number
-// type JSON has.
-#let _json-type-name(value) = {
-  if type(value) in (int, float) { "number" } else { _type-name-of(value) }
 }
 
 #let _enum-check(schema, value, ctx) = {
   if value in schema.values { return _pass(value) }
   let listed = schema.values.map(repr).join(", ")
-  let message = "expected one of " + listed + ", got " + repr(value) + "."
+  let message = _expected-got("one of " + listed, repr(value))
   // `type` when no value shares the value's JSON type, so a union
   // doesn't count this member as claiming it; `enum` otherwise.
   let names = schema.values.map(_json-type-name).dedup()
