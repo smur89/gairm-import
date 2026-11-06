@@ -38,7 +38,7 @@
 )
 
 // iso8601 `$ref` fields. The upstream definition is a string with a
-// `pattern`, so the translator emits the iso8601 pattern-string for
+// `pattern`, so the translator emits the iso8601 patterned string for
 // these — the strict variant retypes them as date-string, so callers
 // and `paths-of-kind` see them as dates.
 #let _iso8601-date-paths = (
@@ -126,7 +126,7 @@
 
 // Completeness guard for the iso8601 override: `_apply-overrides` only
 // checks the listed paths, so an upstream bump that ADDS an iso8601 field
-// would otherwise stay a pattern-string in the strict schema unnoticed.
+// would otherwise stay a patterned string in the strict schema unnoticed.
 // Run on the folded schema, no leaf may still be `_iso8601-source`.
 #let _assert-no-iso8601-leaves(schema, list-name) = {
   let left = _paths-where(schema, n => n == _iso8601-source)
@@ -135,7 +135,7 @@
     list-name
       + " is missing iso8601 leaves — "
       + left.map(repr).join(", ")
-      + " still match the iso8601 pattern-string. Add the path(s) to "
+      + " still match the iso8601 patterned string. Add the path(s) to "
       + list-name
       + " (or audit the upstream schema bump).",
   )

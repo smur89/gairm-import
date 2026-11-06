@@ -9,7 +9,7 @@
 #import "../core/error.typ": (
   _error, _expected-got, _type-miss, _type-name-of, _problem, _fail,
 )
-#import "leaf.typ": str-type, pattern-string, _pattern-errors
+#import "leaf.typ": str-type, _pattern-errors
 #import "constraint.typ": _constrain
 
 // IPv6 is spelled as the eight-group form plus each place a single `::`
@@ -186,8 +186,10 @@
 // The string constructor lives here, beside the format table its
 // `format:` reads; its length parameters are the string rows' fields
 // (constraint.typ), checked by _constrain as number() checks its own.
-// `format:` and `pattern:` compose as the translator composes `format`
-// and `pattern`: the format kind with an extra pattern gate.
+// A pattern is a field on the node, with the hint its error shows, so
+// a patterned string is still the string kind. `format:` and
+// `pattern:` compose as the translator composes `format` and
+// `pattern`: the format kind with an extra pattern gate.
 
 /// The first problem (error.typ) with string()'s `format`, `pattern`
 /// and `expected` arguments, or none. The translator words it for the
@@ -213,9 +215,8 @@
 }
 
 /// A string, with an optional format, pattern and length bounds. An
-/// argument left at `none` sets nothing, so `string()` is `str-type`,
-/// `string(format: "email")` is `email-string` and
-/// `string(pattern: p, expected: e)` is `pattern-string(p, expected: e)`.
+/// argument left at `none` sets nothing, so `string()` is `str-type`
+/// and `string(format: "email")` is `email-string`.
 /// Panics on a value of the wrong type, an unknown format, an
 /// `expected` without a `pattern`, or length bounds no string
 /// satisfies.
@@ -247,11 +248,11 @@
     (kind: _format-rows.find(row => row.json-schema == format).kind)
   }
   if pattern != none {
-    let gate = if expected == none { pattern-string(pattern) } else {
-      pattern-string(pattern, expected: expected)
+    base.pattern = if type(pattern) == regex { pattern } else {
+      regex(pattern)
     }
-    base = if format == none { gate } else {
-      (..base, pattern: gate.pattern, expected: gate.expected)
+    base.expected = if expected == none { "matching pattern" } else {
+      expected
     }
   }
   _constrain("string()", base, "string", (
@@ -259,6 +260,18 @@
     max-length: max-length,
   ))
 }
+
+/// A string that must match a regular expression. The same as
+/// `string(pattern: re, expected: expected)`.
+///
+/// - re (regex, str): The pattern.
+/// - expected (str): What the value should be, for the error message
+///   ("expected …").
+/// -> dictionary
+#let pattern-string(re, expected: "matching pattern") = string(
+  pattern: re,
+  expected: expected,
+)
 
 // Typst-native input for the date kinds (#134): a datetime of the
 // right shape converts to the ISO string the row's regex checks, so

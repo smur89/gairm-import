@@ -11,9 +11,10 @@
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "core/error.typ": _bail
-#import "kinds/registry.typ": _kinds, _descriptor
+#import "kinds/registry.typ": _kinds, _descriptor, _kind-name
 #import "kinds/traverse.typ": _children, _get-at, _paths-where, _location-path
 #import "kinds/constraint.typ": _constraint-rows
+#import "kinds/format.typ": pattern-string
 
 // The kinds paths-of-kind can look for: every kind but the plain
 // containers. A union or `not` is found as a node, and its members
@@ -140,16 +141,28 @@
 /// -> str
 #let describe-schema(schema) = _describe(schema, "", alone: true)
 
-// A schema node matches by its kind (so number-type finds numbers,
-// not integers). A kind name string is deprecated, for removal in the
-// next major.
-#let _kind-name-of(kind) = {
-  if type(kind) == dictionary and "kind" in kind { return kind.kind }
-  if type(kind) == function {
+// What paths-of-kind looks for, as (name, patterned). A schema node
+// matches by its kind (so number-type finds numbers, not integers), and
+// a node with a `pattern` finds only nodes with one, so a search for
+// string() finds every string and one for pattern-string only the
+// patterned ones. A constructor stands for the node it builds, an old
+// kind name (_kind-aliases) for its current one. A kind name string is
+// deprecated, for removal in the next major.
+#let _query(kind) = {
+  if kind == pattern-string { return (name: "string", patterned: true) }
+  let name = if type(kind) == dictionary and "kind" in kind {
+    kind.kind
+  } else if (
+    type(kind) == function
+  ) {
     let hit = _kinds.pairs().find(((_, d)) => d.constructors.contains(kind))
-    if hit != none { return hit.at(0) }
-  }
-  kind
+    if hit != none { hit.at(0) } else { kind }
+  } else { kind }
+  (
+    name: _kind-name(name),
+    patterned: type(kind) == dictionary and "pattern" in kind
+      or name == "pattern-string",
+  )
 }
 
 // Container kinds (`object`, `array`) are deliberately rejected — the
@@ -163,13 +176,15 @@
 /// - schema (dictionary): The schema to search.
 /// - kind (dictionary, function, str): The kind to find: a schema node
 ///   such as `date-string` (matched by its kind, so `number-type` finds
-///   numbers and `integer-type` integers), or a constructor such as `pattern-string`, `enum-of`,
-///   `const-of`, `any-of`, `one-of` or `not-of`. A kind name as a `str`
-///   still works but is deprecated.
+///   numbers and `integer-type` integers, and `string()` every plain or
+///   patterned string; a node with a `pattern` finds only patterned
+///   ones), or a constructor such as `string`, `enum-of`, `const-of`,
+///   `any-of`, `one-of` or `not-of`. A kind name as a `str` still works
+///   but is deprecated.
 /// -> array
 #let paths-of-kind(schema, kind) = {
-  let kind-name = _kind-name-of(kind)
-  if kind-name not in _searchable-kinds {
+  let q = _query(kind)
+  if q.name not in _searchable-kinds {
     _bail(
       "paths-of-kind",
       "kind "
@@ -181,12 +196,14 @@
         + ".",
     )
   }
-  _paths-where(schema, n => n.kind == kind-name)
+  _paths-where(schema, n => (
+    _kind-name(n.kind) == q.name and (not q.patterned or "pattern" in n)
+  ))
 }
 
 // Same as `lens-get(schema, at).kind` — keeps the common
 // "what kind is at X" debugging step a single call.
-/// The kind name of the schema node at `at`, such as `"str"` or
+/// The kind name of the schema node at `at`, such as `"string"` or
 /// `"object"`. Panics if the path does not exist.
 ///
 /// - schema (dictionary): The schema to look in.

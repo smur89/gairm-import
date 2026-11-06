@@ -22,7 +22,7 @@
 #assert.eq(no-match.len(), 1)
 #assert.eq(no-match.at(0).path, ())
 #assert(no-match.at(0).message.contains("none matched"))
-#assert(no-match.at(0).message.contains("str | number"))
+#assert(no-match.at(0).message.contains("string | number"))
 
 // A member claims a value when it has no `type` error at the union's
 // own path, read from its schema, not its error text. When one member
@@ -272,7 +272,7 @@
   lens-put(doc, ("name", 0), (..str-type, min-length: 1)).shape.name,
   nullable((..str-type, min-length: 1)),
 )
-#assert.eq(describe-schema(doc), "name  str?\nwhen  date-string?")
+#assert.eq(describe-schema(doc), "name  string?\nwhen  date-string?")
 
 // allOf over nullable objects merges the objects; the merge is nullable
 // only when every member is.

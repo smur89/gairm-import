@@ -218,7 +218,7 @@
 // --- describe-schema renders `additional` --------------------------
 #let described = describe-schema(map(str-type))
 #assert(described.contains("*"))
-#assert(described.contains("str"))
+#assert(described.contains("string"))
 #let described-true = describe-schema(object(
   (name: str-type),
   additional: true,

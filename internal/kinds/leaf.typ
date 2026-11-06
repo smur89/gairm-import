@@ -1,8 +1,8 @@
-// The leaf kinds' constants and constructors: the scalars, the
-// per-node regex gate and enums, and the checks the engine runs for
-// them. The format constants live in format.typ, the containers and
-// combinators in structure.typ, and registry.typ holds a descriptor
-// for every kind.
+// The leaf kinds' constants and constructors: the scalars and enums,
+// and the checks the engine runs for them, the per-node regex gate
+// among them. string() and the format constants live in format.typ,
+// the containers and combinators in structure.typ, and registry.typ
+// holds a descriptor for every kind.
 
 #import "../core/error.typ": (
   _error, _expected-got, _type-miss, _type-name-of, _json-type-name,
@@ -12,7 +12,7 @@
 
 /// A string, passed through as it is. The same as `string()`, which
 /// also takes constraints; prefer it. Kept until 1.0.
-#let str-type = (kind: "str")
+#let str-type = (kind: "string")
 /// A string that the model returns as Typst `content`, so it splices into
 /// markup.
 #let content-type = (kind: "content")
@@ -105,22 +105,6 @@
 // it.
 /// `null` or an absent key. Any other value is an error.
 #let null-type = (kind: "null")
-
-// Per-instance regex gate — a constructor, not a constant, because
-// each schema node carries its own regex and hint.
-/// A string that must match a regular expression. The match may be
-/// anywhere in the string, so anchor the pattern with `^…$` for a
-/// full match.
-///
-/// - re (regex, str): The pattern.
-/// - expected (str): What the value should be, for the error message
-///   ("expected …").
-/// -> dictionary
-#let pattern-string(re, expected: "matching pattern") = (
-  kind: "pattern-string",
-  pattern: if type(re) == regex { re } else { regex(re) },
-  expected: expected,
-)
 
 // Mixed-type members allowed — the validator's `in` check gates on
 // equality, not type. `const` is a singleton enum.
@@ -232,12 +216,11 @@
   _type-miss(ctx.path, "null", value)
 }
 
-// The node's own `pattern` gate, if it carries one (a pattern-string,
-// or a format kind with an extra pattern).
+// The node's own `pattern` gate, if it carries one (a patterned
+// string, or a format kind with an extra pattern).
 #let _pattern-errors(schema, value, path) = {
   if "pattern" in schema and value.match(schema.pattern) == none {
-    // Hand-built nodes may omit `expected`; default as pattern-string
-    // does.
+    // Hand-built nodes may omit `expected`; default as string() does.
     let expected = schema.at("expected", default: "matching pattern")
     _error(
       path,
@@ -249,8 +232,9 @@
   } else { () }
 }
 
-// pattern + hint travel on the schema node rather than via the format
-// table, since each instance is unique.
+// The string kind's check: the type gate, then the node's own pattern,
+// if it carries one. Pattern and hint travel on the schema node rather
+// than via the format table, since each instance is unique.
 #let _pattern-check(schema, value, ctx) = {
   if type(value) != str {
     return _type-miss(ctx.path, "string", value)

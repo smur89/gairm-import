@@ -16,7 +16,7 @@
 // below the registry, so they check sub-schemas against this list, and
 // the registry asserts at load that the two agree.
 #let _schema-kinds = (
-  "str",
+  "string",
   "content",
   "number",
   "integer",
@@ -24,7 +24,6 @@
   "null",
   "any",
   .._formats.keys(),
-  "pattern-string",
   "enum",
   "array",
   "object",
@@ -32,10 +31,21 @@
   "not",
 )
 
+// Kind names a hand-built node may still carry, deprecated, until 1.0:
+// the plain string was "str", and a patterned one "pattern-string"
+// before it was a string with a `pattern`. Every lookup by kind name
+// goes through _kind-name, so the old names reach the same descriptor
+// and are reported by the new one.
+#let _kind-aliases = (str: "string", pattern-string: "string")
+#let _kind-name(name) = if type(name) == str {
+  _kind-aliases.at(name, default: name)
+} else { name }
+
 // A schema node: a dictionary whose `kind` is registered. Shallow, as
 // its children were checked when they were built.
 #let _is-schema(node) = (
-  type(node) == dictionary and node.at("kind", default: none) in _schema-kinds
+  type(node) == dictionary
+    and _kind-name(node.at("kind", default: none)) in _schema-kinds
 )
 
 // The one gate for a node entering from user code: a lens-put value, a
@@ -83,7 +93,7 @@
 // reads `number`, as it did before integer was a kind of its own, so
 // the messages and `expected` values validate returns stay as they were.
 #let _reported-kind(member) = if member.kind == "integer" { "number" } else {
-  member.kind
+  _kind-name(member.kind)
 }
 
 // Bad-shape members fail at construction, not as a phantom validation

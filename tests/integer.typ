@@ -68,7 +68,7 @@
 #let int-or-str = any-of((integer-type, str-type))
 #assert.eq(
   validate((1, 2), schema: int-or-str).at(0).message,
-  "expected a value matching one of: number | str; none matched.",
+  "expected a value matching one of: number | string; none matched.",
 )
 #assert.eq(
   validate(1, schema: not-of(integer-type)).at(0).message,

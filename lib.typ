@@ -4,11 +4,12 @@
 
 #import "internal/kinds/leaf.typ": (
   number, integer, str-type, content-type, number-type, integer-type, bool-type,
-  null-type, any-type, pattern-string, enum-of, const-of,
+  null-type, any-type, enum-of, const-of,
 )
 #import "internal/kinds/format.typ": (
-  string, date-string, datetime-string, uri-string, email-string, uuid-string,
-  hostname-string, ipv4-string, ipv6-string, time-string,
+  string, pattern-string, date-string, datetime-string, uri-string,
+  email-string, uuid-string, hostname-string, ipv4-string, ipv6-string,
+  time-string,
 )
 #import "internal/kinds/structure.typ": (
   array-of, object, map, any-of, one-of, not-of, nullable,

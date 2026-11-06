@@ -523,15 +523,15 @@ Data written in Typst can give `date-string` a `datetime` with a date and no
 time, and `datetime-string` one with both; each is checked and returned as
 the ISO string (`"2024-01-05"`, `"2024-01-05T09:03:07"`). A `datetime` of
 the other shape is rejected rather than truncated. In `resume-schema` the
-resume's date fields are pattern-strings (see below), so a `datetime` there
+resume's date fields are patterned strings (see below), so a `datetime` there
 needs `resume-schema-strict`.
 
 Every date field in JSON Resume (`work[].startDate`, `awards[].date`,
 `certificates[].date`, …) uses `$ref: "#/definitions/iso8601"` rather than
 `format: "date"`. That definition is a string with a regex, so in
-`resume-schema` those fields are `pattern-string`s gated by upstream's regex
+`resume-schema` those fields are strings with a `pattern`, upstream's regex
 (`YYYY`, `YYYY-MM` or `YYYY-MM-DD`, month and day in range).
-`meta.lastModified` has no regex upstream and stays plain `str`. Switch to
+`meta.lastModified` has no regex upstream and stays a plain `string`. Switch to
 `resume-schema-strict` to type them all as `date-string` (and
 `meta.lastModified` as the upstream-described `YYYY-MM-DDThh:mm:ss`
 `datetime-string`, or a bare `date-string`), or build your own override list
@@ -723,7 +723,7 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 #describe-schema(resume-schema-strict)
 // basics:
 //   email    email-string
-//   name     str
+//   name     string
 //   summary  content
 //   …
 // meta:
@@ -731,14 +731,14 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 //   lastModified  any of:
 //     [0]  datetime-string
 //     [1]  date-string
-//   version       str
+//   version       string
 // …
 // work[]:
 //   highlights[]  content
 //   location      one of:
-//     [0]  str
+//     [0]  string
 //     [1]:
-//       address      str
+//       address      string
 //       …
 //   startDate     date-string
 //   …
@@ -755,9 +755,10 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 <!-- x-release-please-end -->
 
 `describe-schema` marks what a node sets beyond its kind. A required field
-is suffixed `*` (`name*  str`), constraints follow the kind in brackets
-(`str (min-length 1, max-length 80)`, `integer (minimum 0)`,
-`tags[]  str (min-items 1, unique-items)`), a union lists its members as
+is suffixed `*` (`name*  string`), constraints follow the kind in brackets
+(`string (min-length 1, max-length 80)`, `integer (minimum 0)`,
+`tags[]  string (min-items 1, unique-items)`), a string with a pattern
+draws as `string + pattern`, a union lists its members as
 `[0]`, `[1]`, … under an `any of:` or `one of:` header (a `nullable(X)`
 draws as `X?`), a `not` member shows
 under its field as `not`, and an object's `dependent-required` entries close
