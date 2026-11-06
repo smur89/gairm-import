@@ -5,24 +5,91 @@
 // for every kind.
 
 #import "../core/error.typ": _error, _type-miss, _type-name-of
-#import "constraint.typ": _constraint-errors
+#import "constraint.typ": _constraint-errors, _constrain
 
-/// A string, passed through as it is.
+/// A string, passed through as it is. The same as `string()`, which
+/// also takes constraints; prefer it. Kept until 1.0.
 #let str-type = (kind: "str")
 /// A string that the model returns as Typst `content`, so it splices into
 /// markup.
 #let content-type = (kind: "content")
-/// An integer or a float.
+/// An integer or a float. The same as `number()`, which also takes
+/// constraints; prefer it. Kept until 1.0.
 #let number-type = (kind: "number")
 /// A boolean.
 #let bool-type = (kind: "bool")
 
 // JSON Schema `integer`: any number with a zero fractional part
-// (draft-7 semantics — 1.0 passes, 1.5 fails). Same "number" kind with
-// a validation flag rather than a new kind, so coerce / introspect /
-// lens need no extra branch.
-/// A number with no fractional part. `1.0` passes and `1.5` fails.
-#let integer-type = (kind: "number", integer: true)
+// (draft-7 semantics — 1.0 passes, 1.5 fails). A kind of its own, so
+// introspection tells it from a number; the engine judges it as a
+// number plus the integral gate.
+/// A number with no fractional part. `1.0` passes and `1.5` fails. The
+/// same as `integer()`, which also takes constraints; prefer it. Kept
+/// until 1.0.
+#let integer-type = (kind: "integer")
+
+// The constructors take their constraints as named arguments, as
+// Typst's own functions take their options (`text(size:)`,
+// `rect(stroke:)`). The parameters are the number rows' fields
+// (constraint.typ); _constrain checks each against its row, so a
+// constructor holds no rule of its own. An unset argument adds no
+// field, so `number() == number-type`.
+
+/// A number (an integer or a float), with optional bounds. Each
+/// argument is the JSON Schema keyword of the same meaning; an argument
+/// left at `none` sets nothing, so `number()` is `number-type`. Panics
+/// on a value of the wrong type, or on bounds no number satisfies.
+///
+/// - minimum (int, float, none): The smallest allowed value.
+/// - maximum (int, float, none): The largest allowed value.
+/// - exclusive-minimum (int, float, none): A value the number must be
+///   greater than.
+/// - exclusive-maximum (int, float, none): A value the number must be
+///   less than.
+/// - multiple-of (int, float, none): A positive number the value must be
+///   a multiple of.
+/// -> dictionary
+#let number(
+  minimum: none,
+  maximum: none,
+  exclusive-minimum: none,
+  exclusive-maximum: none,
+  multiple-of: none,
+) = _constrain("number()", number-type, "number", (
+  minimum: minimum,
+  maximum: maximum,
+  exclusive-minimum: exclusive-minimum,
+  exclusive-maximum: exclusive-maximum,
+  multiple-of: multiple-of,
+))
+
+/// A number with no fractional part (`1.0` passes, `1.5` fails), with
+/// optional bounds. Takes the same arguments as `number()`; `integer()`
+/// is `integer-type`. Panics on a value of the wrong type, or on bounds
+/// no number satisfies.
+///
+/// - minimum (int, float, none): The smallest allowed value.
+/// - maximum (int, float, none): The largest allowed value.
+/// - exclusive-minimum (int, float, none): A value the number must be
+///   greater than.
+/// - exclusive-maximum (int, float, none): A value the number must be
+///   less than.
+/// - multiple-of (int, float, none): A positive number the value must be
+///   a multiple of.
+/// -> dictionary
+#let integer(
+  minimum: none,
+  maximum: none,
+  exclusive-minimum: none,
+  exclusive-maximum: none,
+  multiple-of: none,
+) = _constrain("integer()", integer-type, "number", (
+  minimum: minimum,
+  maximum: maximum,
+  exclusive-minimum: exclusive-minimum,
+  exclusive-maximum: exclusive-maximum,
+  multiple-of: multiple-of,
+))
 
 // JSON Schema `{}`: no constraint at all. A leaf, so nested values
 // pass through as given; in strict-null mode it takes null too.
@@ -94,16 +161,16 @@
 #let _string-check = _typed-check((str,), "string", "a string")
 #let _bool-check = _typed-check((bool,), "boolean", "a boolean")
 
-// `integer: true` (integer-type / JSON Schema `integer`): draft-7
+// The number gate, then, when `integral`, the integral one: draft-7
 // semantics, so a float with zero fractional part passes. The miss is
 // `integer`, not `type`: the member still takes numbers, so a union
 // counts it as claiming the value. Nor is it a gate: the number rows
 // still judge the value alongside it.
-#let _number-check(schema, value, ctx) = {
+#let _numeric-check(schema, value, ctx, integral) = {
   if type(value) not in (int, float) {
     return _type-miss(ctx.path, "number", "a number", value)
   }
-  if schema.at("integer", default: false) and calc.fract(value) != 0 {
+  if integral and calc.fract(value) != 0 {
     let errors = _error(
       ctx.path,
       "integer",
@@ -120,6 +187,21 @@
   }
   _pass(value)
 }
+
+// A hand-built number node may still carry the `integer: true` flag
+// integer-type used to set; it gates as the integer kind does.
+#let _number-check(schema, value, ctx) = _numeric-check(
+  schema,
+  value,
+  ctx,
+  schema.at("integer", default: false),
+)
+#let _integer-check(schema, value, ctx) = _numeric-check(
+  schema,
+  value,
+  ctx,
+  true,
+)
 
 #let _any-check(schema, value, ctx) = _pass(value)
 

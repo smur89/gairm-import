@@ -13,15 +13,13 @@
 
 // Or build the schema directly in Typst.
 #let from-combinators = {
-  import "@preview/gairm-import:0.0.0": (
-    parse, object, array-of, str-type, number-type,
-  )
+  import "@preview/gairm-import:0.0.0": parse, object, array-of, string, number
 
   let book-schema = object((
-    title: str-type,
-    author: str-type,
-    year: number-type,
-    tags: array-of(str-type),
+    title: string(),
+    author: string(),
+    year: number(),
+    tags: array-of(string()),
   ))
 
   let book = parse(path("book.json"), schema: book-schema)

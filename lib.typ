@@ -3,11 +3,11 @@
 // package's only public surface; underscore names are internal.
 
 #import "internal/kinds/leaf.typ": (
-  str-type, content-type, number-type, integer-type, bool-type, null-type,
-  any-type, pattern-string, enum-of, const-of,
+  number, integer, str-type, content-type, number-type, integer-type, bool-type,
+  null-type, any-type, pattern-string, enum-of, const-of,
 )
 #import "internal/kinds/format.typ": (
-  date-string, datetime-string, uri-string, email-string, uuid-string,
+  string, date-string, datetime-string, uri-string, email-string, uuid-string,
   hostname-string, ipv4-string, ipv6-string, time-string,
 )
 #import "internal/kinds/structure.typ": (

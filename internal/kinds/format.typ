@@ -6,8 +6,9 @@
 // introspection all read this table, so adding a format is one row,
 // one constant below and one export in lib.typ.
 
-#import "../core/error.typ": _error, _type-miss
-#import "leaf.typ": _pattern-errors
+#import "../core/error.typ": _error, _type-miss, _type-name-of
+#import "leaf.typ": str-type, pattern-string, _pattern-errors
+#import "constraint.typ": _constrain
 
 // IPv6 is spelled as the eight-group form plus each place a single `::`
 // can sit: `h` is one 1-4 digit hex group, and every alternative below
@@ -184,6 +185,90 @@
 /// or `±HH:MM` offset; `Z` may be lowercase and a leap second (`:60`) is
 /// allowed.
 #let time-string = (kind: "time-string")
+
+// The string constructor lives here, beside the format table its
+// `format:` reads; its length parameters are the string rows' fields
+// (constraint.typ), checked by _constrain as number() checks its own.
+// `format:` and `pattern:` compose as the translator composes `format`
+// and `pattern`: the format kind with an extra pattern gate.
+
+/// A string, with an optional format, pattern and length bounds. An
+/// argument left at `none` sets nothing, so `string()` is `str-type`,
+/// `string(format: "email")` is `email-string` and
+/// `string(pattern: p, expected: e)` is `pattern-string(p, expected: e)`.
+/// Panics on a value of the wrong type, an unknown format, an
+/// `expected` without a `pattern`, or length bounds no string
+/// satisfies.
+///
+/// - min-length (int, none): The fewest characters (grapheme clusters)
+///   allowed.
+/// - max-length (int, none): The most characters (grapheme clusters)
+///   allowed.
+/// - format (str, none): A JSON Schema format name: `"date"`,
+///   `"date-time"`, `"uri"`, `"email"`, `"uuid"`, `"hostname"`,
+///   `"ipv4"`, `"ipv6"` or `"time"`. The string must have that form.
+/// - pattern (regex, str, none): A regular expression the string must
+///   match, anywhere in it unless anchored with `^…$`. With a `format`,
+///   the string must have the format and match the pattern.
+/// - expected (str, none): What a string matching `pattern` looks like,
+///   for the error message ("expected …"). Only with `pattern`; by
+///   default `"matching pattern"`.
+/// -> dictionary
+#let string(
+  min-length: none,
+  max-length: none,
+  format: none,
+  pattern: none,
+  expected: none,
+) = {
+  let base = if format == none { str-type } else {
+    let row = _format-rows.find(row => row.json-schema == format)
+    if row == none {
+      panic(
+        "gairm-import: string() format must be one of "
+          + _format-rows.map(row => repr(row.json-schema)).join(", ")
+          + "; got: "
+          + repr(format)
+          + ".",
+      )
+    }
+    (kind: row.kind)
+  }
+  if expected != none and pattern == none {
+    panic(
+      "gairm-import: string() expected describes a pattern, so it needs "
+        + "pattern:; got expected: "
+        + repr(expected)
+        + " alone.",
+    )
+  }
+  if pattern != none {
+    if type(pattern) not in (regex, str) {
+      panic(
+        "gairm-import: string() pattern must be a regex or a string, got: "
+          + _type-name-of(pattern)
+          + ".",
+      )
+    }
+    if expected != none and type(expected) != str {
+      panic(
+        "gairm-import: string() expected must be a string, got: "
+          + repr(expected)
+          + ".",
+      )
+    }
+    let gate = if expected == none { pattern-string(pattern) } else {
+      pattern-string(pattern, expected: expected)
+    }
+    base = if format == none { gate } else {
+      (..base, pattern: gate.pattern, expected: gate.expected)
+    }
+  }
+  _constrain("string()", base, "string", (
+    min-length: min-length,
+    max-length: max-length,
+  ))
+}
 
 // Typst-native input for the date kinds (#134): a datetime of the
 // right shape converts to the ISO string the row's regex checks, so

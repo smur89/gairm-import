@@ -31,7 +31,7 @@
 
 #assert.eq(
   describe-schema(schema),
-  "age     number (integer, minimum 0)
+  "age     integer (minimum 0)
 code    pattern-string
 email*  email-string
 extra:

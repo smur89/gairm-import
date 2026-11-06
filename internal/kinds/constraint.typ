@@ -220,6 +220,68 @@
   )
 })
 
+/// `node` with the constraint values in `given` set, as the translator
+/// and the constructors both read them. `given` is keyed by `key(row)`:
+/// the row's JSON keyword for the translator, its field for a
+/// constructor. Only `family`'s rows are read, in row order; each value
+/// is stored as the row reads it, and `false` (uniqueItems' default) is
+/// left off. Returns `(node, bad, clash)`: `bad` is the first value a
+/// row does not accept, as `(row, value, must)`, or none; `clash` is
+/// the bound pair the node leaves unsatisfiable, or none. Callers word
+/// the diagnostics themselves.
+#let _read-constraints(node, family, given, key) = {
+  let result = node
+  for row in _constraint-rows {
+    if row.family != family or key(row) not in given { continue }
+    let v = given.at(key(row))
+    let must = _value-problem(row, v)
+    if must != none {
+      return (node: result, bad: (row: row, value: v, must: must), clash: none)
+    }
+    if v != false {
+      result.insert(row.field, row.at("read", default: x => x)(v))
+    }
+  }
+  (node: result, bad: none, clash: _bounds-conflict(result))
+}
+
+/// The diagnostic for a `clash` on `node`, each bound named by
+/// `label(field)` with its value.
+#let _clash-message(clash, node, label) = {
+  let (lower, upper) = (clash.lower, clash.upper).map(field => (
+    label(field) + " (" + repr(node.at(field)) + ")"
+  ))
+  if clash.strict {
+    lower + " and " + upper + " leave no satisfying value."
+  } else { lower + " > " + upper + " is unsatisfiable." }
+}
+
+/// `node` with a constructor's constraint arguments of `family` set.
+/// `args` holds every constraint parameter the constructor takes, by
+/// field; an argument left at none adds nothing. Panics, naming `who`
+/// and the argument as the signature spells it, on a value its row
+/// does not accept or on bounds no value satisfies.
+#let _constrain(who, node, family, args) = {
+  let given = args.pairs().filter(((_, v)) => v != none).to-dict()
+  let read = _read-constraints(node, family, given, row => row.field)
+  let prefix = "gairm-import: " + who + " "
+  if read.bad != none {
+    panic(
+      prefix
+        + read.bad.row.field
+        + " must be "
+        + read.bad.must
+        + ", got: "
+        + repr(read.bad.value)
+        + ".",
+    )
+  }
+  if read.clash != none {
+    panic(prefix + _clash-message(read.clash, read.node, field => field))
+  }
+  read.node
+}
+
 /// How `value` misses the row's constraint `bound`, as the error's
 /// `(message, expected, got)`, or none when it holds.
 #let _constraint-miss(row, bound, value) = {

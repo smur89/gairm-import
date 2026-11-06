@@ -38,6 +38,7 @@
   - [Strict null](#strict-null)
 - [Schemas and composition](#schemas-and-composition)
   - [Two schemas](#two-schemas)
+  - [Building a schema in Typst](#building-a-schema-in-typst)
   - [Format validation](#format-validation)
   - [Building an extension schema](#building-an-extension-schema)
   - [Targeted edits with lenses](#targeted-edits-with-lenses)
@@ -119,19 +120,20 @@ non-CV shape.
 ```
 <!-- x-release-please-end -->
 
-**Or build the schema directly in Typst** with the public combinators:
+**Or build the schema directly in Typst** with the public constructors (see
+[Building a schema in Typst](#building-a-schema-in-typst)):
 
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.10.1": (
-  parse, object, array-of, str-type, number-type,
+  parse, object, array-of, string, number,
 )
 
 #let book-schema = object((
-  title:  str-type,
-  author: str-type,
-  year:   number-type,
-  tags:   array-of(str-type),
+  title:  string(),
+  author: string(),
+  year:   number(),
+  tags:   array-of(string()),
 ))
 
 #let book = parse(path("book.json"), schema: book-schema)
@@ -157,7 +159,7 @@ schema-building helpers are introduced later in [Schemas and composition](#schem
 | `resume-schema` | Default schema — faithful 1:1 derivation of the canonical JSON Resume document. |
 | `resume-schema-strict` | Renderer-friendly overlay — free-text fields typed as Typst `content`, iso8601 `$ref` fields validated as dates. |
 | `schema-from-json-schema(doc)` | Translate an existing JSON Schema (draft 7 subset) document — a dictionary, `path(..)` or bytes — into a Typst schema. Pair with `parse(..., schema: ...)`. |
-| `object`, `array-of`, kind primitives | Build a Typst schema directly. See [Schemas and composition](#schemas-and-composition). |
+| `object`, `array-of`, `string`, `number`, `integer`, … | Build a Typst schema directly. See [Schemas and composition](#schemas-and-composition). |
 
 ## Usage
 
@@ -418,6 +420,60 @@ renderer-ergonomics overlay. If you want a different mix, build your own by
 lensing over `resume-schema` — see
 [Targeted edits with lenses](#targeted-edits-with-lenses).
 
+### Building a schema in Typst
+
+A schema is a plain dictionary, built by functions. As with Typst's own
+functions (`text(size:)`, `rect(stroke:)`), the options are named
+arguments, and an argument you leave out sets nothing:
+
+| Constructor | Arguments |
+|---|---|
+| `string(..)` | `min-length`, `max-length`, `format`, `pattern`, `expected` |
+| `number(..)` | `minimum`, `maximum`, `exclusive-minimum`, `exclusive-maximum`, `multiple-of` |
+| `integer(..)` | the same as `number`; the value must also have no fractional part (`1.0` passes, `1.5` fails) |
+| `array-of(elem, ..)` | `min-items`, `max-items`, `unique-items` |
+| `object(shape, ..)`, `map(value)` | see [Building an extension schema](#building-an-extension-schema) |
+| `any-of(..)`, `one-of(..)`, `not-of(..)`, `nullable(..)`, `enum-of(..)`, `const-of(..)` | see [Starting from a JSON Schema document](#starting-from-a-json-schema-document) |
+
+Each argument is the JSON Schema keyword of the same meaning in kebab-case
+(`min-length` is `minLength`), checked by the same rule
+`schema-from-json-schema` applies: a value of the wrong type, or bounds no
+value can satisfy, panics when the schema is built.
+
+- `format` takes a JSON Schema format name, one of the nine under
+  [Format validation](#format-validation): `string(format: "email")`.
+- `pattern` takes a `regex` or a pattern string, and `expected` says what a
+  match looks like, for the error message (`expected …`). With a `format`
+  as well, the string must have the format and match the pattern.
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.10.1": (
+  object, array-of, string, number, integer,
+)
+
+#let member = object(
+  (
+    name: string(min-length: 1, max-length: 80),
+    email: string(format: "email"),
+    code: string(pattern: "^[A-Z]{3}$", expected: "a three-letter code"),
+    age: integer(minimum: 0),
+    rating: number(minimum: 0, maximum: 5, multiple-of: 0.5),
+    tags: array-of(string(), min-items: 1, unique-items: true),
+  ),
+  required-keys: ("name", "email"),
+)
+```
+<!-- x-release-please-end -->
+
+With no arguments, `string()`, `number()` and `integer()` equal the
+constants `str-type`, `number-type` and `integer-type`, which stay as
+aliases until 1.0; prefer the constructors. `string(format: "email")`
+equals `email-string`, and `string(pattern: p, expected: e)` equals
+`pattern-string(p, expected: e)`, so those constants and `pattern-string`
+keep working (in `paths-of-kind`, too). `content-type`, `bool-type`,
+`null-type` and `any-type` take no constraints and stay constants.
+
 ### Format validation
 
 Fields the canonical schema annotates with `format: "uri"`, `format: "email"`,
@@ -435,8 +491,9 @@ basics.url:             expected a URI (e.g. "https://example.com").
 certificates[0].date:   expected an ISO-8601 date (e.g. "2024-01-15").
 ```
 
-Five more formats are available through `schema-from-json-schema` or a lens
-override (the canonical document doesn't use them), each with the same
+Five more formats are available through `string(format: …)`,
+`schema-from-json-schema` or a lens override (the canonical document doesn't
+use them), each with the same
 permissive philosophy:
 
 | `format`   | kind              | accepts                                                  |
@@ -479,8 +536,9 @@ plain strings, so renderers receive `model.basics.email == "name@example.com"`
 unchanged (a `datetime` given to a date kind becomes its ISO string).
 
 For ad-hoc constraints outside the built-in formats, build a
-`pattern-string(re, expected: …)` (`re` is a `regex` or a pattern string)
-and target it via a lens or splice it into an extension schema. JSON
+`string(pattern: re, expected: …)` (`re` is a `regex` or a pattern string;
+`pattern-string(re, expected: …)` is the same schema) and target it via a
+lens or splice it into an extension schema. JSON
 Schema's `pattern` keyword on a plain string maps to this kind too — see
 [Starting from a JSON Schema document](#starting-from-a-json-schema-document)
 for how it combines with `format`:
@@ -681,7 +739,7 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 
 `describe-schema` marks what a node sets beyond its kind. A required field
 is suffixed `*` (`name*  str`), constraints follow the kind in brackets
-(`str (min-length 1, max-length 80)`, `number (integer, minimum 0)`,
+(`str (min-length 1, max-length 80)`, `integer (minimum 0)`,
 `tags[]  str (min-items 1, unique-items)`), a union lists its members as
 `[0]`, `[1]`, … under an `any of:` or `one of:` header (a `nullable(X)`
 draws as `X?`), a `not` member shows
@@ -690,10 +748,15 @@ its block as `phone → email`. Neither JSON Resume schema has required
 fields or constraints, so they show none of these.
 
 `paths-of-kind` takes the kind as a value: a schema node such as
-`date-string` (matched by kind, so `integer-type` finds every number), or a
-constructor such as `pattern-string`. The kind name as a string
-(`"date-string"`) still works but is deprecated, and will be removed in the
-next major version.
+`date-string` (matched by kind, so `number-type` finds numbers and
+`integer-type` integers), or a constructor such as `pattern-string`. The kind
+name as a string (`"date-string"`) still works but is deprecated, and will be
+removed in the next major version.
+
+`integer` is a kind of its own: `kind-at` returns `"integer"` for an integer
+field, `paths-of-kind(s, number-type)` no longer lists integers, and
+`describe-schema` prints `integer` where it printed `number (integer)`.
+Validation and coercion are unchanged.
 
 Array segments in returned path tuples use `"items"`, union members their
 index and a `not` member `"not"`, so they plug straight into `lens(path)`;
@@ -795,7 +858,7 @@ in sync:
 - `type`: `string` / `number` / `integer` / `array` / `object` / `boolean` /
   `null` — `integer` rejects numbers with a non-zero fractional part
   (`1.0` passes, per draft-7 semantics); the matching Typst-side
-  primitive is `integer-type`
+  constructor is `integer()`
 - `format`: `uri` → `uri-string`, `email` → `email-string`,
   `date` → `date-string`, `date-time` → `datetime-string`,
   `uuid` → `uuid-string`, `hostname` → `hostname-string`,
@@ -866,7 +929,9 @@ in sync:
   `map(value-schema)` combinator)
 
 Constraint keywords are baked onto the kind dict as kebab-case fields and
-validated inline.
+validated inline: the same fields the constructors' arguments set, so
+`schema-from-json-schema((type: "string", minLength: 3))` equals
+`string(min-length: 3)`.
 
 **Out of scope.** Each keyword below panics with a clear "unsupported"
 message rather than silently dropping the constraint:
