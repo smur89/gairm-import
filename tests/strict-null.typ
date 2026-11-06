@@ -198,3 +198,16 @@
   describe-schema(one-of((str-type, null-type))),
   "one of:\n  [0]  str\n  [1]  null",
 )
+
+// README "Strict null" example.
+#assert.eq(
+  parse(
+    (name: "Ada", nickname: none),
+    schema: object(
+      (name: str-type, nickname: nullable(str-type)),
+      required-keys: ("name", "nickname"),
+    ),
+    strict-null: true,
+  ),
+  (name: "Ada", nickname: none),
+)
