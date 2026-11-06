@@ -26,7 +26,7 @@
 #let _pad-right(s, width) = s + " " * (width - s.len())
 
 // What a node sets beyond its kind, in one shared list: the `integer`
-// flag, then every constraint row it sets, in row order, by the row's
+// flag a hand-built number node may still carry, then every constraint row it sets, in row order, by the row's
 // field name (as the node and the error's `expected` spell it). A
 // flag row shows by name alone.
 #let _extras(s) = {
@@ -149,9 +149,9 @@
   }
 }
 
-// A schema node matches by its kind (so integer-type finds every
-// number). A kind name string is deprecated, for removal in the next
-// major.
+// A schema node matches by its kind (so number-type finds numbers,
+// not integers). A kind name string is deprecated, for removal in the
+// next major.
 #let _kind-name-of(kind) = {
   if type(kind) == dictionary and "kind" in kind { return kind.kind }
   if type(kind) == function {
@@ -171,8 +171,8 @@
 ///
 /// - schema (dictionary): The schema to search.
 /// - kind (dictionary, function, str): The kind to find: a schema node
-///   such as `date-string` (matched by its kind, so `integer-type` finds
-///   every number), or a constructor such as `pattern-string`, `enum-of`,
+///   such as `date-string` (matched by its kind, so `number-type` finds
+///   numbers and `integer-type` integers), or a constructor such as `pattern-string`, `enum-of`,
 ///   `const-of`, `any-of`, `one-of` or `not-of`. A kind name as a `str`
 ///   still works but is deprecated.
 /// -> array

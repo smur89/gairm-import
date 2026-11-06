@@ -681,7 +681,7 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 
 `describe-schema` marks what a node sets beyond its kind. A required field
 is suffixed `*` (`name*  str`), constraints follow the kind in brackets
-(`str (min-length 1, max-length 80)`, `number (integer, minimum 0)`,
+(`str (min-length 1, max-length 80)`, `integer (minimum 0)`,
 `tags[]  str (min-items 1, unique-items)`), a union lists its members as
 `[0]`, `[1]`, … under an `any of:` or `one of:` header (a `nullable(X)`
 draws as `X?`), a `not` member shows
@@ -690,10 +690,15 @@ its block as `phone → email`. Neither JSON Resume schema has required
 fields or constraints, so they show none of these.
 
 `paths-of-kind` takes the kind as a value: a schema node such as
-`date-string` (matched by kind, so `integer-type` finds every number), or a
-constructor such as `pattern-string`. The kind name as a string
-(`"date-string"`) still works but is deprecated, and will be removed in the
-next major version.
+`date-string` (matched by kind, so `number-type` finds numbers and
+`integer-type` integers), or a constructor such as `pattern-string`. The kind
+name as a string (`"date-string"`) still works but is deprecated, and will be
+removed in the next major version.
+
+`integer` is a kind of its own: `kind-at` returns `"integer"` for an integer
+field, `paths-of-kind(s, number-type)` no longer lists integers, and
+`describe-schema` prints `integer` where it printed `number (integer)`.
+Validation and coercion are unchanged.
 
 Array segments in returned path tuples use `"items"`, union members their
 index and a `not` member `"not"`, so they plug straight into `lens(path)`;

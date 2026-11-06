@@ -18,11 +18,11 @@
 #let bool-type = (kind: "bool")
 
 // JSON Schema `integer`: any number with a zero fractional part
-// (draft-7 semantics — 1.0 passes, 1.5 fails). Same "number" kind with
-// a validation flag rather than a new kind, so coerce / introspect /
-// lens need no extra branch.
+// (draft-7 semantics — 1.0 passes, 1.5 fails). A kind of its own, so
+// introspection tells it from a number; the engine judges it as a
+// number plus the integral gate.
 /// A number with no fractional part. `1.0` passes and `1.5` fails.
-#let integer-type = (kind: "number", integer: true)
+#let integer-type = (kind: "integer")
 
 // JSON Schema `{}`: no constraint at all. A leaf, so nested values
 // pass through as given; in strict-null mode it takes null too.
@@ -94,16 +94,16 @@
 #let _string-check = _typed-check((str,), "string", "a string")
 #let _bool-check = _typed-check((bool,), "boolean", "a boolean")
 
-// `integer: true` (integer-type / JSON Schema `integer`): draft-7
+// The number gate, then, when `integral`, the integral one: draft-7
 // semantics, so a float with zero fractional part passes. The miss is
 // `integer`, not `type`: the member still takes numbers, so a union
 // counts it as claiming the value. Nor is it a gate: the number rows
 // still judge the value alongside it.
-#let _number-check(schema, value, ctx) = {
+#let _numeric-check(schema, value, ctx, integral) = {
   if type(value) not in (int, float) {
     return _type-miss(ctx.path, "number", "a number", value)
   }
-  if schema.at("integer", default: false) and calc.fract(value) != 0 {
+  if integral and calc.fract(value) != 0 {
     let errors = _error(
       ctx.path,
       "integer",
@@ -120,6 +120,21 @@
   }
   _pass(value)
 }
+
+// A hand-built number node may still carry the `integer: true` flag
+// integer-type used to set; it gates as the integer kind does.
+#let _number-check(schema, value, ctx) = _numeric-check(
+  schema,
+  value,
+  ctx,
+  schema.at("integer", default: false),
+)
+#let _integer-check(schema, value, ctx) = _numeric-check(
+  schema,
+  value,
+  ctx,
+  true,
+)
 
 #let _any-check(schema, value, ctx) = _pass(value)
 

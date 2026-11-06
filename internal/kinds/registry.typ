@@ -36,8 +36,9 @@
 
 #import "leaf.typ" as _leaf-mod
 #import "leaf.typ": (
-  pattern-string, enum-of, const-of, _string-check, _number-check, _bool-check,
-  _null-check, _any-check, _pattern-check, _enum-check,
+  pattern-string, enum-of, const-of, _string-check, _number-check,
+  _integer-check, _bool-check, _null-check, _any-check, _pattern-check,
+  _enum-check,
 )
 #import "format.typ" as _format-mod
 #import "format.typ": _formats, _format-check
@@ -96,6 +97,8 @@
   // The model wraps the string so it splices into markup.
   content: _kind(check: _string-check, family: "string", model: v => [#v]),
   number: _kind(check: _number-check, family: "number"),
+  // A number with the integral gate; the number rows apply.
+  integer: _kind(check: _integer-check, family: "number"),
   bool: _kind(check: _bool-check),
   null: _kind(check: _null-check),
   any: _kind(check: _any-check),

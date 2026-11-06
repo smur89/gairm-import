@@ -16,6 +16,7 @@
   "str",
   "content",
   "number",
+  "integer",
   "bool",
   "null",
   "any",
@@ -57,6 +58,13 @@
 #let array-of(elem) = {
   _require-schema(elem, "array-of() elem")
   (kind: "array", elem: elem)
+}
+
+// A member's kind as union and `not` errors name it. An integer member
+// reads `number`, as it did before integer was a kind of its own, so
+// the messages and `expected` values validate returns stay as they were.
+#let _reported-kind(member) = if member.kind == "integer" { "number" } else {
+  member.kind
 }
 
 // Bad-shape members fail at construction, not as a phantom validation
@@ -441,7 +449,7 @@
   }
   let clean = results.filter(r => r.errors == ())
   if clean.len() == 1 { return clean.first() }
-  let kinds = schema.members.map(m => m.kind)
+  let kinds = schema.members.map(_reported-kind)
   if clean.len() > 1 {
     // The first match still models the value, as for any-of.
     let errors = _error(
@@ -506,7 +514,7 @@
       ctx.path,
       "not",
       "expected a value not matching the negated "
-        + schema.member.kind
+        + _reported-kind(schema.member)
         + " schema.",
     )
   } else { () }
