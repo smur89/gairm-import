@@ -88,8 +88,6 @@ stage-test-package: ## stage the package as @preview users get it, for tests/pac
 	@$(MAKE) --no-print-directory stage-package-dir \
 	  PKG_DIR="$(PACKAGE_PATH)/preview/$(PACKAGE_NAME)/0.0.0" PKG_VERSION=0.0.0
 
-# Every check CI's test job runs, so a green `make test` locally means
-# it will pass too.
 test: test-fixtures test-panics test-package ## compile every fixture, check every panic case and package test
 
 test-fixtures: $(FIXTURE_CHECKS) ## compile every tests/*.typ fixture, output discarded
@@ -98,7 +96,9 @@ test-panics: $(PANIC_CHECKS) ## check each tests/panics/*.typ fails with its `//
 
 test-package: $(PACKAGE_CHECKS) ## compile tests/package/*.typ against the staged package
 
-check: test fmt-check check-layers ## test + fmt-check + check-layers: the local equivalent of CI
+# Exactly what CI's `test` job runs, so a green `make check` locally
+# means a green required check.
+check: test fmt-check check-layers ## test + fmt-check + check-layers: what CI runs
 
 # Layer rules, bottom up. internal/core/ (L0) imports nothing outside
 # itself: any import that is not a bare sibling filename (a path
