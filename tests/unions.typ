@@ -18,6 +18,16 @@
 #assert.eq(validate("hi", schema: str-or-num), ())
 #assert.eq(validate(42, schema: str-or-num), ())
 
+// The members as separate arguments build the same node as the array
+// form. A lone schema is one member, not an array to unpack.
+#assert.eq(any-of(str-type, number-type), str-or-num)
+#assert.eq(one-of(str-type, number-type), one-of((str-type, number-type)))
+#assert.eq(any-of(str-type), any-of((str-type,)))
+#assert.eq(one-of(str-type).members, (str-type,))
+#let obj = object((a: str-type))
+#assert.eq(any-of(obj), any-of((obj,)))
+#assert.eq(any-of(obj, array-of(obj)).members, (obj, array-of(obj)))
+
 #let no-match = validate(true, schema: str-or-num)
 #assert.eq(no-match.len(), 1)
 #assert.eq(no-match.at(0).path, ())

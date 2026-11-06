@@ -97,12 +97,22 @@
 }
 
 // Bad-shape members fail at construction, not as a phantom validation
-// error — same contract as object() below.
-#let _require-members(fn-name, members) = {
-  let ok = (
-    type(members) == array and members.len() > 0 and members.all(_is-schema)
-  )
-  if not ok {
+// error — same contract as object() below. The members come as
+// separate arguments or as one array; an array is never a schema, so
+// a lone array argument is the array form and anything else (a lone
+// schema included) is the member list.
+#let _members(fn-name, args) = {
+  if args.named() != (:) {
+    _bail(
+      fn-name,
+      "takes no named arguments; got: " + repr(args.named()) + ".",
+    )
+  }
+  let pos = args.pos()
+  let members = if pos.len() == 1 and type(pos.first()) == array {
+    pos.first()
+  } else { pos }
+  if members.len() == 0 or not members.all(_is-schema) {
     _bail(
       fn-name,
       "members must be a non-empty array of schema dicts (each built with the constructors); got: "
@@ -110,6 +120,7 @@
         + ".",
     )
   }
+  members
 }
 
 // JSON Schema anyOf / oneOf. Both share the union kind; `exclusive`
@@ -117,23 +128,29 @@
 // one" (one-of). Match counting lives in _union-walk below, and the
 // model is the first matching member's output.
 /// A value that matches at least one of the member schemas (JSON Schema
-/// `anyOf`). Panics if `members` is empty or holds anything but schemas.
+/// `anyOf`). `any-of(a, b)` and `any-of((a, b))` build the same node.
+/// Panics if there are no members or one is not a schema.
 ///
-/// - members (array): The schemas to try.
+/// - ..members (dictionary, array): The schemas to try, as separate
+///   arguments or as one array.
 /// -> dictionary
-#let any-of(members) = {
-  _require-members("any-of()", members)
-  (kind: "union", members: members, exclusive: false)
-}
+#let any-of(..members) = (
+  kind: "union",
+  members: _members("any-of()", members),
+  exclusive: false,
+)
 /// A value that matches exactly one of the member schemas (JSON Schema
-/// `oneOf`). Panics if `members` is empty or holds anything but schemas.
+/// `oneOf`). `one-of(a, b)` and `one-of((a, b))` build the same node.
+/// Panics if there are no members or one is not a schema.
 ///
-/// - members (array): The schemas to try.
+/// - ..members (dictionary, array): The schemas to try, as separate
+///   arguments or as one array.
 /// -> dictionary
-#let one-of(members) = {
-  _require-members("one-of()", members)
-  (kind: "union", members: members, exclusive: true)
-}
+#let one-of(..members) = (
+  kind: "union",
+  members: _members("one-of()", members),
+  exclusive: true,
+)
 
 // JSON Schema `[X, "null"]`. An any-of, not a kind of its own: in
 // strict-null mode the union walk hands a null to null-type, and in
