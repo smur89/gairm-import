@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/smur89/gairm-import/compare/v0.11.0...v0.12.0) (2026-11-06)
+
+
+### Features
+
+* support if / then / else conditional schemas ([#201](https://github.com/smur89/gairm-import/issues/201)) ([c8383b7](https://github.com/smur89/gairm-import/commit/c8383b7c5c482df29f375680a5b5b5a642dee3ec))
+
 ## [0.11.0](https://github.com/smur89/gairm-import/compare/v0.10.1...v0.11.0) (2026-11-06)
 
 
