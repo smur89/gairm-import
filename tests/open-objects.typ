@@ -230,20 +230,8 @@
 #assert(described-true.contains("*"))
 #assert(described-true.contains("any"))
 
-// --- lens-put trusts the caller for replacement shape --------------
-//
-// The replacement is written verbatim; lens-put doesn't validate it.
-// This pins the contract spelled out in lens.typ's top-of-file
-// comment so a future tightening surfaces here.
-#let trust-test = lens-put(
-  lens(("tags", "additionalProperties")),
-  tags-schema,
-  42,
-)
-#assert.eq(trust-test.shape.tags.additional, 42)
-// The downstream crash that this enables is the caller's
-// responsibility — validate would hit a `.kind` access on the int.
-// Not exercised here; the pin is on the trust contract itself.
+// lens-put rejects a replacement that is not a schema:
+// tests/panics/lens-put-additional-not-schema.typ.
 
 // --- describe-schema with nested map of map ------------------------
 //

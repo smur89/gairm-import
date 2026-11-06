@@ -23,14 +23,23 @@
 // parent — `p => p.additional` to read, `p => (..p, additional: new)`
 // to write.
 //
-// `lens-put` writes the replacement value verbatim — it doesn't
-// validate that the value is a well-formed schema dict at any
-// segment. Use the public `object` / `array-of` / kind constructors
-// to build the replacement.
+// Every edit keeps the constructors' invariants. The node `lens-put`
+// writes, or `lens-over`'s function returns, must be a schema (checked
+// shallowly: its children were checked when it was built), and an
+// edited object, the written node or any object above it, is rebuilt
+// through object(). Build replacements with the constructors.
 
 #import "kinds/traverse.typ": _get-at, _set-at
+#import "kinds/structure.typ": _require-schema, _object-with
 
 #let _bail(msg) = panic("gairm-import: " + msg)
+
+// A node entering from user code: a schema, and an object one rebuilt
+// through object() so it can't break the constructor's invariants.
+#let _checked(node, who) = {
+  _require-schema(node, who)
+  if node.kind == "object" { _object-with(node) } else { node }
+}
 
 #let _require-object(parent, op) = {
   if parent.kind != "object" {
@@ -41,14 +50,6 @@
         + ".",
     )
   }
-}
-
-// Typst dicts are value types — `let new-shape = parent.shape` copies,
-// and `.insert` mutates the local without touching parent.
-#let _with-shape-set(parent, key, value) = {
-  let new-shape = parent.shape
-  new-shape.insert(key, value)
-  (..parent, shape: new-shape)
 }
 
 /// A lens: a path to one node in a schema. A path is an array of
@@ -71,26 +72,30 @@
 
 // `put` because `set` is a Typst keyword.
 /// Returns a new schema with the node at the lens replaced by `value`.
-/// The input schema is not changed. `value` is not checked, so build it
-/// with the schema constructors.
+/// The input schema is not changed. Panics if `value` is not a schema,
+/// or if the edit breaks an object's invariants (as `object` would).
 ///
 /// - l (dictionary): The lens.
 /// - schema (dictionary): The schema to edit.
 /// - value (dictionary): The replacement node.
 /// -> dictionary
-#let lens-put(l, schema, value) = _set-at(schema, l.path, value)
+#let lens-put(l, schema, value) = _set-at(schema, l.path, _checked(
+  value,
+  "lens-put value",
+))
 
 /// Returns a new schema with the node at the lens replaced by `fn` applied
-/// to it.
+/// to it. Panics if `fn` returns anything but a schema, or if the edit
+/// breaks an object's invariants (as `object` would).
 ///
 /// - l (dictionary): The lens.
 /// - schema (dictionary): The schema to edit.
 /// - fn (function): Takes the current node, returns the new one.
 /// -> dictionary
-#let lens-over(l, schema, fn) = _set-at(schema, l.path, fn(_get-at(
-  schema,
-  l.path,
-)))
+#let lens-over(l, schema, fn) = _set-at(schema, l.path, _checked(
+  fn(_get-at(schema, l.path)),
+  "lens-over result",
+))
 
 // `lens-then(a, b)` applies a then b — paths concatenate in that order.
 /// Joins two lenses: follows `a`, then `b` from there.
@@ -124,15 +129,19 @@
           + "Use lens-put / lens-over to replace an existing field.",
       )
     }
-    _with-shape-set(parent, key, sub-schema)
+    // Typst dicts are values: this copy leaves `parent` untouched.
+    let shape = parent.shape
+    shape.insert(key, sub-schema)
+    _object-with(parent, shape: shape)
   },
 )
 
-// Replace, not merge — mirrors lens-put. Keys must exist in shape
-// so a typo fails at edit time, not as a phantom "missing X" error.
+// Replace, not merge — mirrors lens-put. On a closed object keys must
+// exist in shape so a typo fails at edit time, not as a phantom
+// "missing X" error; an open one allows what object() allows.
 /// Returns a new schema where the object at `parent-lens` requires
 /// exactly `keys`, replacing its earlier list. Panics if a key is not in
-/// the object's shape.
+/// the shape of an object that rejects other keys.
 ///
 /// - schema (dictionary): The schema to edit.
 /// - parent-lens (dictionary): Lens to the object.
@@ -143,7 +152,8 @@
   schema,
   parent => {
     _require-object(parent, "set-required")
-    let unknown = keys.filter(k => k not in parent.shape)
+    let closed = parent.at("additional", default: none) == none
+    let unknown = keys.filter(k => closed and k not in parent.shape)
     if unknown.len() > 0 {
       _bail(
         "set-required keys not in object shape: "
@@ -153,7 +163,7 @@
           + ".",
       )
     }
-    (..parent, required-keys: keys)
+    _object-with(parent, required-keys: keys)
   },
 )
 
@@ -181,7 +191,10 @@
           + ".",
       )
     }
-    (..parent, required-keys: parent.required-keys.filter(k => k not in keys))
+    _object-with(
+      parent,
+      required-keys: parent.required-keys.filter(k => k not in keys),
+    )
   },
 )
 
@@ -214,7 +227,7 @@
     let new-required = parent.required-keys.filter(k => k != key)
     // Like required-keys, drop `key` from every dependency: its own
     // trigger entry and its place in other triggers' lists. A trigger
-    // left with no dependents goes too.
+    // left with no dependents goes too, and object() drops an empty map.
     let new-dependent = (:)
     for (trigger, dependents) in parent.at("dependent-required", default: (:)) {
       let kept = dependents.filter(d => d != key)
@@ -222,12 +235,11 @@
         new-dependent.insert(trigger, kept)
       }
     }
-    let result = (..parent, shape: new-shape, required-keys: new-required)
-    if new-dependent.len() > 0 {
-      result.insert("dependent-required", new-dependent)
-    } else if "dependent-required" in result {
-      let _ = result.remove("dependent-required")
-    }
-    result
+    _object-with(
+      parent,
+      shape: new-shape,
+      required-keys: new-required,
+      dependent-required: new-dependent,
+    )
   },
 )

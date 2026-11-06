@@ -44,7 +44,7 @@
 #import "structure.typ" as _structure-mod
 #import "structure.typ": (
   array-of, object, map, any-of, one-of, not-of, nullable, _array-walk,
-  _object-walk, _union-walk, _not-walk,
+  _object-walk, _union-walk, _not-walk, _object-with, _schema-kinds,
 )
 
 #let _kind(
@@ -144,12 +144,13 @@
         pairs + (("additionalProperties", additional),)
       } else { pairs }
     },
+    // Through object(), so a lens write keeps its invariants.
     with-child: (s, seg, sub) => if seg in s.shape {
       // Typst dicts are values: this copy leaves `s` untouched.
       let shape = s.shape
       shape.insert(seg, sub)
-      (..s, shape: shape)
-    } else { (..s, additional: sub) },
+      _object-with(s, shape: shape)
+    } else { _object-with(s, additional: sub) },
     suffix: s => none,
     // A required field is marked `name*`; the additional schema shows
     // as `*`, the display-only key for "any other key".
@@ -271,6 +272,21 @@
 }
 
 #_check-engine(_kinds)
+
+// The constructors' schema check (_require-schema) knows the kinds by
+// name, since it sits below this registry: the two lists must agree.
+#let _check-kind-names(kinds, names) = {
+  assert(
+    kinds.keys().sorted() == names.sorted(),
+    message: "gairm-import: internal — the registered kinds "
+      + repr(kinds.keys().sorted())
+      + " differ from structure.typ's _schema-kinds "
+      + repr(names.sorted())
+      + ".",
+  )
+}
+
+#_check-kind-names(_kinds, _schema-kinds)
 
 // A node of a kind the registry doesn't know (hand-built) behaves as a
 // leaf, as it did before the registry.

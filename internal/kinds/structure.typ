@@ -7,26 +7,69 @@
 #import "../core/error.typ": _error, _type-miss, _type-name-of, _closest-match
 #import "constraint.typ": _constraint-errors
 #import "leaf.typ": null-type
+#import "format.typ": _formats
 
-/// An array whose every element matches `elem`.
+// Every kind registry.typ holds a descriptor for. The constructors sit
+// below the registry, so they check sub-schemas against this list, and
+// the registry asserts at load that the two agree.
+#let _schema-kinds = (
+  "str",
+  "content",
+  "number",
+  "bool",
+  "null",
+  "any",
+  .._formats.keys(),
+  "pattern-string",
+  "enum",
+  "array",
+  "object",
+  "union",
+  "not",
+)
+
+// A schema node: a dictionary whose `kind` is registered. Shallow, as
+// its children were checked when they were built.
+#let _is-schema(node) = (
+  type(node) == dictionary and node.at("kind", default: none) in _schema-kinds
+)
+
+// The one gate for a node entering from user code: a lens-put value, a
+// lens-over result, a constructor's sub-schema. A malformed node fails
+// here, naming what took it, not later as an unknown kind mid-walk.
+#let _require-schema(node, who) = {
+  if not _is-schema(node) {
+    panic(
+      "gairm-import: "
+        + who
+        + " must be a schema; got: "
+        + repr(node)
+        + ". Build schemas with the constructors.",
+    )
+  }
+}
+
+/// An array whose every element matches `elem`. Panics if `elem` is not
+/// a schema.
 ///
 /// - elem (dictionary): The schema for each element.
 /// -> dictionary
-#let array-of(elem) = (kind: "array", elem: elem)
+#let array-of(elem) = {
+  _require-schema(elem, "array-of() elem")
+  (kind: "array", elem: elem)
+}
 
 // Bad-shape members fail at construction, not as a phantom validation
 // error — same contract as object() below.
 #let _require-members(fn-name, members) = {
   let ok = (
-    type(members) == array
-      and members.len() > 0
-      and members.all(m => type(m) == dictionary and "kind" in m)
+    type(members) == array and members.len() > 0 and members.all(_is-schema)
   )
   if not ok {
     panic(
       "gairm-import: "
         + fn-name
-        + " members must be a non-empty array of schema dicts (each with a `kind` field); got: "
+        + " members must be a non-empty array of schema dicts (each built with the constructors); got: "
         + repr(members)
         + ".",
     )
@@ -67,9 +110,9 @@
 /// - member (dictionary): The schema for a non-null value.
 /// -> dictionary
 #let nullable(member) = {
-  if not (type(member) == dictionary and "kind" in member) {
+  if not _is-schema(member) {
     panic(
-      "gairm-import: nullable member must be a schema dict (with a `kind` field); got: "
+      "gairm-import: nullable member must be a schema dict (built with the constructors); got: "
         + repr(member)
         + ".",
     )
@@ -85,9 +128,9 @@
 /// - member (dictionary): The schema the value must fail.
 /// -> dictionary
 #let not-of(member) = {
-  if not (type(member) == dictionary and "kind" in member) {
+  if not _is-schema(member) {
     panic(
-      "gairm-import: not-of member must be a schema dict (with a `kind` field); got: "
+      "gairm-import: not-of member must be a schema dict (built with the constructors); got: "
         + repr(member)
         + ".",
     )
@@ -104,9 +147,10 @@
 // phantom validation error. `dependent-required` follows the same
 // rule: a malformed map always panics, and trigger / dependent keys
 // outside `shape` panic only when strict.
-/// A dictionary with the fields in `shape`. Panics if `additional` is
-/// the wrong shape, or, when `additional` is `none` or `false`, if
-/// `required-keys` or `dependent-required` names a field not in `shape`.
+/// A dictionary with the fields in `shape`. Panics if a field is not a
+/// schema, if `additional` is the wrong shape, or, when `additional` is
+/// `none` or `false`, if `required-keys` or `dependent-required` names a
+/// field not in `shape`.
 ///
 /// - shape (dictionary): Field name to schema.
 /// - required-keys (array): Fields that must be present.
@@ -126,16 +170,17 @@
   // translator agree on what they accept.
   let normalized = if additional == false { none } else { additional }
   let additional-ok = (
-    normalized == none
-      or normalized == true
-      or (type(normalized) == dictionary and "kind" in normalized)
+    normalized == none or normalized == true or _is-schema(normalized)
   )
   if not additional-ok {
     panic(
-      "gairm-import: object() additional must be none, false, true, or a schema dict (with a `kind` field); got: "
+      "gairm-import: object() additional must be none, false, true, or a schema dict (built with the constructors); got: "
         + repr(additional)
         + ".",
     )
+  }
+  for (key, sub) in shape {
+    _require-schema(sub, "object() field " + repr(key))
   }
   // With `additional`, undeclared required keys are covered by the
   // additional schema, so the subset check only applies when strict.
@@ -197,6 +242,34 @@
   }
   if normalized != none { result.insert("additional", normalized) }
   result
+}
+
+// The fields object() takes as arguments; any other field on a node
+// (a hand-added annotation) rides along unchanged.
+#let _object-args = (
+  "kind",
+  "shape",
+  "required-keys",
+  "dependent-required",
+  "additional",
+)
+
+// `node` with `changes` applied, rebuilt through object() so every
+// edit keeps the constructor's invariants. A change to `additional:
+// none` or `dependent-required: (:)` drops that field, as object()
+// does.
+#let _object-with(node, ..changes) = {
+  let s = (:..node, ..changes.named())
+  let out = object(
+    s.shape,
+    required-keys: s.at("required-keys", default: ()),
+    dependent-required: s.at("dependent-required", default: (:)),
+    additional: s.at("additional", default: none),
+  )
+  for (k, v) in s {
+    if k not in _object-args { out.insert(k, v) }
+  }
+  out
 }
 
 // An object that declares no fields and lets anything through is a
