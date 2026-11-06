@@ -7,7 +7,7 @@
 // engine, the translator's reader, its allow-list and its enum/const
 // fold all read these rows, so a new keyword is one row.
 
-#import "../core/error.typ": _error
+#import "../core/error.typ": _error, _problem, _fail
 
 // Which raw values a keyword takes, as checks run in order; the first
 // that fails names what the value must be. A count may be a float with
@@ -188,8 +188,6 @@
   ),
 )
 
-#let _constraints = _constraint-rows.map(row => (row.field, row)).to-dict()
-
 // Lower / upper pairs that must leave a satisfying value; `strict`
 // pairs (an exclusive bound on either side) may not even meet.
 #let _bound-pairs = (
@@ -225,10 +223,9 @@
 /// the row's JSON keyword for the translator, its field for a
 /// constructor. Only `family`'s rows are read, in row order; each value
 /// is stored as the row reads it, and `false` (uniqueItems' default) is
-/// left off. Returns `(node, bad, clash)`: `bad` is the first value a
-/// row does not accept, as `(row, value, must)`, or none; `clash` is
-/// the bound pair the node leaves unsatisfiable, or none. Callers word
-/// the diagnostics themselves.
+/// left off. Returns `(node, problem)`: the problem (error.typ) is the
+/// first value a row does not accept, its `arg` the `key`, or bounds no
+/// value satisfies, each named by its `key` with its value; or none.
 #let _read-constraints(node, family, given, key) = {
   let result = node
   for row in _constraint-rows {
@@ -236,24 +233,24 @@
     let v = given.at(key(row))
     let must = _value-problem(row, v)
     if must != none {
-      return (node: result, bad: (row: row, value: v, must: must), clash: none)
+      return (node: result, problem: _problem(key(row), must, repr(v)))
     }
     if v != false {
       result.insert(row.field, row.at("read", default: x => x)(v))
     }
   }
-  (node: result, bad: none, clash: _bounds-conflict(result))
-}
-
-/// The diagnostic for a `clash` on `node`, each bound named by
-/// `label(field)` with its value.
-#let _clash-message(clash, node, label) = {
+  let clash = _bounds-conflict(result)
+  if clash == none { return (node: result, problem: none) }
   let (lower, upper) = (clash.lower, clash.upper).map(field => (
-    label(field) + " (" + repr(node.at(field)) + ")"
+    key(_constraint-rows.find(row => row.field == field))
+      + " ("
+      + repr(result.at(field))
+      + ")"
   ))
-  if clash.strict {
+  let message = if clash.strict {
     lower + " and " + upper + " leave no satisfying value."
   } else { lower + " > " + upper + " is unsatisfiable." }
+  (node: result, problem: (message: message))
 }
 
 /// `node` with a constructor's constraint arguments of `family` set.
@@ -264,21 +261,7 @@
 #let _constrain(who, node, family, args) = {
   let given = args.pairs().filter(((_, v)) => v != none).to-dict()
   let read = _read-constraints(node, family, given, row => row.field)
-  let prefix = "gairm-import: " + who + " "
-  if read.bad != none {
-    panic(
-      prefix
-        + read.bad.row.field
-        + " must be "
-        + read.bad.must
-        + ", got: "
-        + repr(read.bad.value)
-        + ".",
-    )
-  }
-  if read.clash != none {
-    panic(prefix + _clash-message(read.clash, read.node, field => field))
-  }
+  if read.problem != none { _fail(who, read.problem) }
   read.node
 }
 

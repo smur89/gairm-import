@@ -1,4 +1,4 @@
-// expect: schema-from-json-schema — "dependencies" for "a" must be an array of field names, got: "b".
+// expect: schema-from-json-schema — "dependencies" for "a" must be an array of key names, got: "b".
 #import "../../lib.typ": schema-from-json-schema
 #schema-from-json-schema((
   type: "object",

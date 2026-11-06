@@ -94,36 +94,77 @@
     + ". Run validate(data) first."
 )
 
-/// Panics unless `value` is an array whose every item passes `item-ok`,
-/// naming the argument as `who` and the array as `what`. Every list
-/// argument goes through here, and none accepts a lone item: a string
-/// is iterable in spirit only, so taking one would read `"ab"` as a key
-/// here and as the letters elsewhere. A string gets the one-item
-/// spelling as a hint instead.
-#let _require-array(value, who, what, one, item-ok: _ => true) = {
-  if type(value) == array and value.all(item-ok) { return }
-  panic(
-    "gairm-import: "
-      + who
+// A check on an argument returns a problem, or none, rather than
+// panicking, so each caller words it in its own terms: a constructor
+// names its parameter (`string() format must be …`), the translator the
+// JSON keyword it read (`"format" must be …`). A problem says what the
+// argument `arg` `must` be and what it `got` (rendered), with the key
+// whose entry failed (`entry`) and a Typst-side `hint` only constructors
+// print; or it is a whole `message`, when it isn't a "must be".
+#let _problem(arg, must, got, entry: none, hint: none) = (
+  arg: arg,
+  must: must,
+  got: got,
+  entry: entry,
+  hint: hint,
+)
+
+/// `p` worded with `name` standing for its argument.
+#let _worded(p, name) = {
+  if "message" in p { return p.message }
+  (
+    name
+      + if p.entry != none { " for " + repr(p.entry) }
       + " must be "
-      + what
-      + "; got: "
-      + repr(value)
+      + p.must
+      + ", got: "
+      + p.got
       + "."
-      + if type(value) == str {
-        " Write (" + repr(value) + ",) for one " + one + "."
-      },
   )
 }
 
-/// `_require-array` for a list of object keys.
-#let _require-key-names(value, who) = _require-array(
+/// Panics with `p` as constructor `who` words it.
+#let _fail(who, p) = panic(
+  "gairm-import: "
+    + who
+    + " "
+    + _worded(p, p.at("arg", default: none))
+    + p.at("hint", default: none),
+)
+
+/// A problem unless `value` is an array whose every item passes
+/// `item-ok`; `what` is what it must be. No list argument accepts a lone
+/// item: a string is iterable in spirit only, so taking one would read
+/// `"ab"` as a key here and as the letters elsewhere. A string gets the
+/// one-item spelling as a hint instead.
+#let _array-problem(value, arg, what, one, item-ok: _ => true, entry: none) = {
+  if type(value) == array and value.all(item-ok) { return none }
+  _problem(
+    arg,
+    what,
+    repr(value),
+    entry: entry,
+    hint: if type(value) == str {
+      " Write (" + repr(value) + ",) for one " + one + "."
+    },
+  )
+}
+
+/// `_array-problem` for a list of object keys.
+#let _key-names-problem(value, arg, entry: none) = _array-problem(
   value,
-  who,
+  arg,
   "an array of key names",
   "key",
   item-ok: k => type(k) == str,
+  entry: entry,
 )
+
+/// Panics, as `who` words it, unless argument `arg` is a list of keys.
+#let _require-key-names(value, who, arg) = {
+  let p = _key-names-problem(value, arg)
+  if p != none { _fail(who, p) }
+}
 
 #let _format-report(errors) = {
   let n = errors.len()

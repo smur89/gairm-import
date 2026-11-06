@@ -211,7 +211,7 @@
 /// - keys (array): The fields to require.
 /// -> dictionary
 #let set-required(schema, at, keys) = {
-  _require-key-names(keys, "set-required keys")
+  _require-key-names(keys, "set-required", "keys")
   lens-over(
     schema,
     _edit-path(schema, at, "set-required"),
@@ -244,7 +244,7 @@
 /// - keys (array): The fields to stop requiring.
 /// -> dictionary
 #let unset-required(schema, at, keys) = {
-  _require-key-names(keys, "unset-required keys")
+  _require-key-names(keys, "unset-required", "keys")
   lens-over(
     schema,
     _edit-path(schema, at, "unset-required"),

@@ -41,16 +41,6 @@
 // bare `~` or any `~<other>` is malformed and rejected — silently
 // passing it through would mask round-trip bugs in callers.
 #let _invalid-escape-re = regex("~($|[^01])")
-#let _unescape-token(s) = {
-  if s.match(_invalid-escape-re) != none {
-    panic(
-      "gairm-import: pointer-to-path got an invalid escape sequence in token: "
-        + repr(s)
-        + ". RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
-    )
-  }
-  s.replace("~1", "/").replace("~0", "~")
-}
 
 // RFC 6901 array-index ABNF: `0` | `[1-9][0-9]*` — leading zeros
 // (other than "0" itself) aren't valid array indices, so e.g. "01"
@@ -59,6 +49,17 @@
 #let _try-int(token) = if token.match(_int-token-re) != none {
   int(token)
 } else { token }
+
+// The path a pointer starting with "/" names, as `(path, bad)`: `bad`
+// is the first token with an escape RFC 6901 does not define (and
+// `path` none), or none. Each caller words a bad escape its own way.
+#let _read-pointer(pointer) = {
+  let tokens = pointer.slice(1).split("/")
+  let bad = tokens.find(t => t.match(_invalid-escape-re) != none)
+  if bad != none { return (path: none, bad: bad) }
+  let path = tokens.map(t => _try-int(t.replace("~1", "/").replace("~0", "~")))
+  (path: path, bad: none)
+}
 
 // Convert a path tuple to an RFC 6901 JSON Pointer string. Empty
 // path → empty string (whole-document reference per spec).
@@ -116,5 +117,13 @@
         + ".",
     )
   }
-  pointer.slice(1).split("/").map(_unescape-token).map(_try-int)
+  let read = _read-pointer(pointer)
+  if read.bad != none {
+    panic(
+      "gairm-import: pointer-to-path got an invalid escape sequence in token: "
+        + repr(read.bad)
+        + ". RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
+    )
+  }
+  read.path
 }

@@ -4,7 +4,9 @@
 // combinators in structure.typ, and registry.typ holds a descriptor
 // for every kind.
 
-#import "../core/error.typ": _error, _type-miss, _type-name-of, _require-array
+#import "../core/error.typ": (
+  _error, _type-miss, _type-name-of, _array-problem, _fail,
+)
 #import "constraint.typ": _constraint-errors, _constrain
 
 /// A string, passed through as it is. The same as `string()`, which
@@ -127,7 +129,8 @@
 /// - values (array): The allowed values.
 /// -> dictionary
 #let enum-of(values) = {
-  _require-array(values, "enum-of() values", "an array", "value")
+  let p = _array-problem(values, "values", "an array", "value")
+  if p != none { _fail("enum-of()", p) }
   (kind: "enum", values: values)
 }
 /// Exactly one value. Same as `enum-of` with a single value.
