@@ -424,7 +424,10 @@ Fields the canonical schema annotates with `format: "uri"`, `format: "email"`,
 or `format: "date"` are gated by a regex during `validate` / `parse`. The
 patterns are deliberately permissive — they reject obvious malformations
 without claiming full RFC compliance — and each emits a path-qualified
-message with a canonical example:
+message with a canonical example. A `uri` is any scheme, then `:` and no
+whitespace (`https://…`, `mailto:…`, `urn:…`); an `email`'s domain may be a
+single label (`name@host`) or an address literal (`name@[127.0.0.1]`), and
+its local part may be quoted (`"joe bloggs"@example.com`):
 
 ```text
 basics.email:           expected an email (e.g. "name@example.com").
@@ -442,12 +445,14 @@ permissive philosophy:
 | `hostname` | `hostname-string` | dot-separated labels of letters, digits, inner hyphens   |
 | `ipv4`     | `ipv4-string`     | dotted quad, octets 0-255, no leading zeros              |
 | `ipv6`     | `ipv6-string`     | hex groups with `::` compression; no embedded-IPv4 tail  |
-| `time`     | `time-string`     | `HH:MM:SS`, optional fraction, optional `Z` / `±HH:MM`   |
+| `time`     | `time-string`     | `HH:MM:SS`, optional fraction, optional `Z` / `±HH:MM`; leap second, `z` |
 
 `format: "date-time"` maps to the separate `datetime-string` kind:
 `date-string` accepts `YYYY` / `YYYY-MM` / `YYYY-MM-DD`, while
 `datetime-string` requires the full `YYYY-MM-DDTHH:MM:SS` shape (optional
-fractional part and `Z` / `±HH:MM` offset). The canonical document carries
+fractional part and `Z` / `±HH:MM` offset). As in RFC 3339, both date-time
+and `time` take `T` / `Z` in either case and a leap second (`23:59:60Z`;
+second 60 at minute 59, or at any minute under an offset with minutes). The canonical document carries
 no `date-time` annotations, so that kind only fires via
 `schema-from-json-schema` or a lens override.
 
