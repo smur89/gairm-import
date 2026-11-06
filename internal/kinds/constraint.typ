@@ -1,7 +1,8 @@
 // The constraint keywords, one row each. A row ties a node field to
 // its JSON Schema keyword, the family of values it applies to, the
 // error code a miss reports, and which raw keyword values the
-// translator accepts. A bound (`op`) is checked against the family's
+// translator accepts (and, as `read`, how it stores one when that is
+// not the value itself). A bound (`op`) is checked against the family's
 // measure; the two keywords that are not bounds carry a `test`. The
 // engine, the translator's reader, its allow-list and its enum/const
 // fold all read these rows, so a new keyword is one row.
@@ -9,9 +10,15 @@
 #import "../core/error.typ": _error
 
 // Which raw values a keyword takes, as checks run in order; the first
-// that fails names what the value must be.
+// that fails names what the value must be. A count may be a float with
+// no fractional part (`2.0`), as draft 7's `integer` allows; its row's
+// `read` stores it as an int.
+#let _whole(v) = (
+  type(v) == int
+    or (type(v) == float and not v.is-infinite() and calc.fract(v) == 0)
+)
 #let _count = (
-  (ok: v => type(v) == int and v >= 0, must: "a non-negative integer"),
+  (ok: v => _whole(v) and v >= 0, must: "a non-negative integer"),
 )
 #let _number = ((ok: v => type(v) in (int, float), must: "a number"),)
 #let _positive = _number + ((ok: v => v > 0, must: "> 0"),)
@@ -36,7 +43,9 @@
 )
 
 // Integers stay exact; floats compare the ratio with a tolerance, since
-// calc.rem(0.3, 0.1) is not 0.
+// calc.rem(0.3, 0.1) is not 0. A ratio too large for a float (1e308 /
+// 0.123...) is infinite, and no finite multiple: report it rather than
+// compare the NaN its rounding leaves.
 #let _multiple-test(mult, value) = {
   // A schema bug, not a data error: the translator rejects it, but a
   // hand-built node can carry it.
@@ -49,7 +58,7 @@
     calc.rem(value, mult) != 0
   } else {
     let q = value / mult
-    calc.abs(q - calc.round(q)) >= 1e-9
+    q.is-infinite() or q.is-nan() or calc.abs(q - calc.round(q)) >= 1e-9
   }
   if off {
     (
@@ -99,6 +108,7 @@
     family: "string",
     code: "length",
     accepts: _count,
+    read: int,
     op: "≥",
   ),
   (
@@ -107,6 +117,7 @@
     family: "string",
     code: "length",
     accepts: _count,
+    read: int,
     op: "≤",
   ),
   (
@@ -155,6 +166,7 @@
     family: "array",
     code: "items",
     accepts: _count,
+    read: int,
     op: "≥",
   ),
   (
@@ -163,6 +175,7 @@
     family: "array",
     code: "items",
     accepts: _count,
+    read: int,
     op: "≤",
   ),
   (

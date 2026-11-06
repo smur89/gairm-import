@@ -36,6 +36,31 @@
 #let _label = "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 #let _octet = "(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
 
+// A time of day, `HH:MM:SS` with an optional fraction and offset, as in
+// RFC 3339: `Z` may be lowercase, and second 60 (a leap second) is let
+// through where one can fall — at minute 59, or at any minute under an
+// offset with minutes (UTC 23:59:60 at +01:30 is 01:29:60). Which hour
+// is not checked.
+#let _clock = {
+  let hour = "([01][0-9]|2[0-3])"
+  let fraction = "(\.[0-9]+)?"
+  let offset-hour = "[+-]([01][0-9]|2[0-3]):"
+  let offset = "([Zz]|" + offset-hour + "[0-5][0-9])"
+  (
+    "(?:"
+      + hour
+      + ":([0-5][0-9]:[0-5][0-9]|59:60)"
+      + fraction
+      + offset
+      + "?|"
+      + hour
+      + ":[0-5][0-9]:60"
+      + fraction
+      + offset-hour
+      + "(0[1-9]|[1-5][0-9]))"
+  )
+}
+
 // Tightened over the upstream JSON Resume regexes, which accept
 // impossible months / days because they use [0-1][0-9] / [0-3][0-9].
 // Deliberately permissive (no full RFC compliance). The hint omits the
@@ -56,7 +81,7 @@
     json-schema: "date-time",
     datetime: true,
     pattern: regex(
-      "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])?$",
+      "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])[Tt]" + _clock + "$",
     ),
     expected: "an ISO-8601 datetime (e.g. \"2024-01-15T10:00:00Z\")",
   ),
@@ -64,14 +89,21 @@
     kind: "uri-string",
     json-schema: "uri",
     datetime: none,
-    pattern: regex("^[A-Za-z][A-Za-z0-9+.\-]*://\S+$"),
+    // Any scheme, then no whitespace; a `//` authority must not be
+    // empty, so `https://` alone still fails.
+    pattern: regex("^[A-Za-z][A-Za-z0-9+.\-]*:(//\S+|/?[^/\s]\S*)$"),
     expected: "a URI (e.g. \"https://example.com\")",
   ),
   (
     kind: "email-string",
     json-schema: "email",
     datetime: none,
-    pattern: regex("^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$"),
+    // An unquoted local part without whitespace, or a quoted one; a domain of one or
+    // more labels, or an address literal in brackets (`[127.0.0.1]`,
+    // `[IPv6:::1]`).
+    pattern: regex(
+      "^([^@\s\"]+|\"([^\"\\\\]|\\\\.)+\")@([^@\s.\[\]]+(\.[^@\s.\[\]]+)*|\[[^\[\]\s]+\])$",
+    ),
     expected: "an email (e.g. \"name@example.com\")",
   ),
   (
@@ -108,9 +140,7 @@
     kind: "time-string",
     json-schema: "time",
     datetime: none,
-    pattern: regex(
-      "^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])?$",
-    ),
+    pattern: regex("^" + _clock + "$"),
     expected: "an ISO-8601 time (e.g. \"10:00:00Z\")",
   ),
 )
@@ -129,11 +159,13 @@
 /// it is checked and returned as the ISO string.
 #let date-string = (kind: "date-string")
 /// A string in ISO 8601 date and time form, `YYYY-MM-DDTHH:MM:SS`, with
-/// an optional fraction and `Z` or `±HH:MM` offset. Data written in Typst
+/// an optional fraction and `Z` or `±HH:MM` offset; `T` and `Z` may be
+/// lowercase and a leap second (`:60`) is allowed. Data written in Typst
 /// may give a `datetime` with a date and a time; it is checked and
 /// returned as the ISO string.
 #let datetime-string = (kind: "datetime-string")
-/// A string that looks like a URI (a permissive check).
+/// A string that looks like a URI: a scheme, `:`, then no whitespace (a
+/// permissive check).
 #let uri-string = (kind: "uri-string")
 /// A string that looks like an email address (a permissive check).
 #let email-string = (kind: "email-string")
@@ -149,7 +181,8 @@
 /// (a permissive check; the embedded-IPv4 tail form is not accepted).
 #let ipv6-string = (kind: "ipv6-string")
 /// A string in `HH:MM:SS` time form, with an optional fraction and `Z`
-/// or `±HH:MM` offset.
+/// or `±HH:MM` offset; `Z` may be lowercase and a leap second (`:60`) is
+/// allowed.
 #let time-string = (kind: "time-string")
 
 // Typst-native input for the date kinds (#134): a datetime of the

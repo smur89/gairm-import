@@ -21,6 +21,37 @@
 // by "schema-from-json-schema —".
 #let _bail(msg) = panic("gairm-import: schema-from-json-schema — " + msg)
 
+// RFC 3986 percent-decoding of a `$ref` fragment, as UTF-8; none when
+// a `%` is not followed by two hex digits or the bytes are not UTF-8.
+#let _hex-digits = "0123456789abcdef"
+#let _utf8-length(lead) = if lead < 0x80 { 1 } else if (
+  lead >= 0xC2 and lead < 0xE0
+) { 2 } else if lead >= 0xE0 and lead < 0xF0 { 3 } else if (
+  lead >= 0xF0 and lead < 0xF5
+) { 4 }
+#let _percent-decode(s) = {
+  if "%" not in s { return s }
+  let parts = s.split("%")
+  let out = array(bytes(parts.first()))
+  for part in parts.slice(1) {
+    let digits = part
+      .codepoints()
+      .slice(0, calc.min(2, part.codepoints().len()))
+    let values = digits.map(d => _hex-digits.position(lower(d)))
+    if values.len() < 2 or none in values { return none }
+    out.push(values.at(0) * 16 + values.at(1))
+    out += array(bytes(part.slice(2)))
+  }
+  let i = 0
+  while i < out.len() {
+    let n = _utf8-length(out.at(i))
+    if n == none or i + n > out.len() { return none }
+    if out.slice(i + 1, i + n).any(b => b < 0x80 or b >= 0xC0) { return none }
+    i += n
+  }
+  str(bytes(out))
+}
+
 // `seen` is the chain of refs traversed so far; a repeat means a
 // cycle (e.g. `definitions.alias → alias`) — panic before Typst's
 // recursion limit fires deep in the stack.
@@ -44,9 +75,19 @@
   if ref == "#/" {
     _bail("$ref \"#/\" cannot reference the document root.")
   }
+  // The fragment is a URI's, so it is percent-decoded into the pointer
+  // (RFC 3986) before the pointer is read (RFC 6901): `%25` is `%`.
+  let pointer = _percent-decode(ref.slice(1))
+  if pointer == none {
+    _bail(
+      "$ref "
+        + repr(ref)
+        + " has a malformed percent escape; `%` must start a `%XX` hex escape of UTF-8 bytes (write `%25` for a literal `%`).",
+    )
+  }
   // Checked here so a bad escape reports under this module's prefix
   // rather than pointer-to-path's.
-  if ref.match(_invalid-escape-re) != none {
+  if pointer.match(_invalid-escape-re) != none {
     _bail(
       "$ref "
         + repr(ref)
@@ -55,7 +96,7 @@
   }
   // RFC 6901: `~1` / `~0` unescape, empty segments are the "" key, and
   // a numeric segment indexes an array (e.g. "#/allOf/0") or names a key.
-  pointer-to-path(ref.slice(1)).fold(root, (acc, seg) => {
+  pointer-to-path(pointer).fold(root, (acc, seg) => {
     let key = if type(acc) == dictionary { str(seg) } else { seg }
     let found = if type(acc) == dictionary { key in acc } else {
       type(acc) == array and type(seg) == int and seg < acc.len()
@@ -330,7 +371,9 @@
       _bail(repr(row.json) + " must be " + must + ", got: " + repr(v) + ".")
     }
     // `uniqueItems: false` is the default: leave it off the node.
-    if v != false { result.insert(row.field, v) }
+    if v != false {
+      result.insert(row.field, row.at("read", default: x => x)(v))
+    }
   }
   let clash = _bounds-conflict(result)
   if clash != none {

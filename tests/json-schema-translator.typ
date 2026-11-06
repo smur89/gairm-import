@@ -2,7 +2,7 @@
   schema-from-json-schema, str-type, number-type, integer-type, array-of,
   object, date-string, datetime-string, uri-string, email-string, uuid-string,
   hostname-string, ipv4-string, ipv6-string, time-string, pattern-string,
-  enum-of, const-of,
+  enum-of, const-of, bool-type,
 )
 
 #assert.eq(schema-from-json-schema((type: "string")), str-type)
@@ -140,6 +140,33 @@
 #assert.eq(escaped.shape.slash, str-type)
 #assert.eq(escaped.shape.tilde, number-type)
 #assert.eq(escaped.shape.indexed, integer-type)
+
+// The `$ref` is a URI fragment, so it is percent-decoded before it is
+// read as a pointer (RFC 3986, then RFC 6901); adapted from the JSON
+// Schema test suite's "refs with quote" and "$ref to key containing
+// percent" cases. An escape-free ref resolves as before.
+#let percent = schema-from-json-schema((
+  definitions: (
+    "a%b": (type: "string"),
+    "a\"b": (type: "number"),
+    "a~b c": (type: "boolean"),
+    plain: (type: "integer"),
+    "café": (type: "string"),
+  ),
+  type: "object",
+  properties: (
+    utf8: ("$ref": "#/definitions/caf%C3%a9"),
+    percent: ("$ref": "#/definitions/a%25b"),
+    quote: ("$ref": "#/definitions/a%22b"),
+    tilde-space: ("$ref": "#/definitions/a~0b%20c"),
+    plain: ("$ref": "#/definitions/plain"),
+  ),
+))
+#assert.eq(percent.shape.percent, str-type)
+#assert.eq(percent.shape.quote, number-type)
+#assert.eq(percent.shape.tilde-space, bool-type)
+#assert.eq(percent.shape.plain, integer-type)
+#assert.eq(percent.shape.utf8, str-type)
 
 // enum maps to enum-of regardless of accompanying `type`. The values
 // array is preserved verbatim; the type keyword (if present) is

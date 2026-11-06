@@ -3,8 +3,8 @@
 //
 //  - date-string     → iso8601 (YYYY / YYYY-MM / YYYY-MM-DD)
 //  - datetime-string → iso8601 datetime (date + T + HH:MM:SS, optional fractional + offset)
-//  - uri-string      → scheme://rest (permissive)
-//  - email-string    → local@domain.tld (permissive)
+//  - uri-string      → scheme:rest (permissive)
+//  - email-string    → local@domain (permissive)
 //  - uuid-string, hostname-string, ipv4-string, ipv6-string, time-string
 
 #import "../lib.typ": validate
@@ -133,9 +133,6 @@
   ),
 )  // hour > 23
 #assert(
-  datetime-fail("2024-01-15T10:00:00z", ("dt",)).contains("ISO-8601 datetime"),
-)  // lowercase z
-#assert(
   datetime-fail("2024-01-15T10:00:00UTC", ("dt",)).contains(
     "ISO-8601 datetime",
   ),
@@ -165,6 +162,32 @@
   datetime-fail("2024-01-15T10:00:60Z", ("dt",)).contains("ISO-8601 datetime"),
 )  // second = 60
 
+// RFC 3339 (and the JSON Schema test suite, which these are adapted
+// from) allows a leap second and a lowercase `t` / `z`. Second 60 is
+// let through only where a leap second can fall: minute 59, or any
+// minute under an offset with minutes (UTC 23:59:60 at +01:30 is
+// 01:29:60), so 10:00:60Z above still fails.
+#for v in (
+  "1998-12-31T23:59:60Z",
+  "1998-12-31T15:59:60.123-08:00",
+  "1998-12-31T23:59:60+00:00",
+  "1999-01-01T01:29:60+01:30",
+  "1963-06-19t08:30:06.283185z",
+  "2024-01-15T10:00:00z",
+) {
+  assert.eq(
+    _validate(datetime-string, v, _ctx(path: ("dt",))),
+    (),
+    message: "expected valid: " + repr(v),
+  )
+}
+#assert(
+  datetime-fail("1998-12-31T23:58:60Z", ("dt",)).contains("ISO-8601 datetime"),
+)  // leap second on a wrong minute
+#assert(
+  datetime-fail("1998-12-31T23:59:61Z", ("dt",)).contains("ISO-8601 datetime"),
+)  // past the leap second
+
 // Wrong type yields a type-error, not a format-error.
 #let dt-type-err = _validate(datetime-string, 2024, _ctx(path: ("dt",)))
 #assert.eq(dt-type-err.len(), 1)
@@ -173,10 +196,8 @@
 
 // ---- uri-string -----------------------------------------------------
 
-// uri-string is "scheme + `://` + rest" — the canonical `url` /
-// `image` / `canonical` fields in JSON Resume are all http(s)-shaped,
-// so opaque schemes like `mailto:` and `urn:` fall outside the gate
-// by design. Promote later if a caller needs them.
+// uri-string is "scheme + `:` + rest", with no whitespace — any
+// scheme, hierarchical (`https://…`) or opaque (`mailto:`, `urn:`).
 #assert.eq(_validate(uri-string, "https://example.com", _ctx(path: ("u",))), ())
 #assert.eq(
   _validate(uri-string, "http://example.com/path", _ctx(path: ("u",))),
@@ -191,6 +212,22 @@
 // schemes must validate.
 #assert.eq(_validate(uri-string, "HTTP://example.com", _ctx(path: ("u",))), ())
 #assert.eq(_validate(uri-string, "HTTPS://example.com", _ctx(path: ("u",))), ())
+
+// Opaque schemes, adapted from the JSON Schema test suite.
+#for v in (
+  "mailto:John.Doe@example.com",
+  "urn:oasis:names:specification:docbook:dtd:xml:4.1.2",
+  "tel:+1-816-555-1212",
+  "news:comp.infosystems.www.servers.unix",
+  "ldap://[2001:db8::7]/c=GB?objectClass?one",
+  "file:///etc/hosts",
+) {
+  assert.eq(
+    _validate(uri-string, v, _ctx(path: ("u",))),
+    (),
+    message: "expected valid: " + repr(v),
+  )
+}
 
 #let uri-fail(value, path) = {
   let errs = _validate(uri-string, value, _ctx(path: path))
@@ -211,6 +248,9 @@
 // Embedded whitespace — a space inside the rest is rejected so that a
 // fat-finger like `https://example.com /cv` doesn't quietly pass.
 #assert(uri-fail("https://example.com /cv", ("u",)).contains("URI"))
+#assert(uri-fail("mailto:a b@example.com", ("u",)).contains("URI"))
+#assert(uri-fail("bar,baz:foo", ("u",)).contains("URI"))  // bad scheme
+#assert(uri-fail("/abc", ("u",)).contains("URI"))  // relative, no scheme
 
 // ---- email-string ---------------------------------------------------
 
@@ -223,6 +263,23 @@
   _validate(email-string, "user+tag@example.com", _ctx(path: ("e",))),
   (),
 )
+
+// A single-label domain, a quoted local part and an IP-literal domain
+// are all valid (RFC 5321; adapted from the JSON Schema test suite).
+#for v in (
+  "test@io",
+  "name@host",
+  "\"joe bloggs\"@example.com",
+  "\"joe@bloggs\"@example.com",
+  "joe.bloggs@[127.0.0.1]",
+  "joe.bloggs@[IPv6:::1]",
+) {
+  assert.eq(
+    _validate(email-string, v, _ctx(path: ("e",))),
+    (),
+    message: "expected valid: " + repr(v),
+  )
+}
 
 #let email-fail(value, path) = {
   let errs = _validate(email-string, value, _ctx(path: path))
@@ -237,8 +294,9 @@
 
 #assert(email-fail("@example.com", ("e",)).contains("email"))
 #assert(email-fail("name", ("e",)).contains("email"))
-#assert(email-fail("name@host", ("e",)).contains("email"))  // no dot in domain
 #assert(email-fail("a b@host.com", ("e",)).contains("email"))  // whitespace in local
+#assert(email-fail("\"a b@host.com", ("e",)).contains("email"))  // unclosed quote
+#assert(email-fail("a@[1.2.3.4", ("e",)).contains("email"))  // unclosed literal
 #assert(email-fail("", ("e",)).contains("email"))
 
 // Empty labels in the domain — the previous pattern accepted these
@@ -368,6 +426,12 @@
   "00:00:00.5Z",
   "23:59:59.999+14:00",
   "10:00:00-05:30",
+  // Leap second and lowercase `z`, as for datetime-string above.
+  "23:59:60Z",
+  "23:59:60",
+  "15:59:60.5-08:00",
+  "01:29:60+01:30",
+  "10:00:00z",
 ) { fmt-ok(time-string, v) }
 #for v in (
   "",
@@ -376,7 +440,8 @@
   "24:00:00",
   "10:60:00",
   "10:00:60",
-  "10:00:00z",
+  "23:58:60Z",
+  "23:59:61Z",
   "10:00:00+0100",
   "10:00:00.Z",
   "2024-01-15T10:00:00Z",
