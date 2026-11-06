@@ -50,8 +50,3 @@
   if r.errors != () { panic(_format-report(r.errors)) }
   r.value
 }
-
-/// Every validation error for `data`, in walk order.
-#let _validate(schema, data, ctx) = _walk(schema, data, ctx).errors
-#let _coerce(schema, data, ctx) = _coerce-result(_walk(schema, data, ctx))
-#let _parse(schema, data, ctx) = _parse-result(_walk(schema, data, ctx))
