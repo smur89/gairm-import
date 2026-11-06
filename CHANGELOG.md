@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.11.0](https://github.com/smur89/gairm-import/compare/v0.10.1...v0.11.0) (2026-11-06)
+
+
+### Features
+
+* accept a datetime for date-string and datetime-string ([#144](https://github.com/smur89/gairm-import/issues/144)) ([b5670d1](https://github.com/smur89/gairm-import/commit/b5670d145ec2fec42dfa9e6cbf470e49ece5495c)), closes [#134](https://github.com/smur89/gairm-import/issues/134)
+* accept bytes in parse and schema-from-json-schema ([#143](https://github.com/smur89/gairm-import/issues/143)) ([23a0af7](https://github.com/smur89/gairm-import/commit/23a0af7d7b89a967c33ef949ea52a8ca633ce6f3)), closes [#133](https://github.com/smur89/gairm-import/issues/133)
+* accept union members as separate arguments ([12e8047](https://github.com/smur89/gairm-import/commit/12e804753f82749cbd7bacba8dac2b27828bdbab))
+* add a code, expected and got to every validation error ([#177](https://github.com/smur89/gairm-import/issues/177)) ([39365f2](https://github.com/smur89/gairm-import/commit/39365f28b2f87790edc9e51e5bd6373c577f17ab))
+* add required: to add-field ([12e8047](https://github.com/smur89/gairm-import/commit/12e804753f82749cbd7bacba8dac2b27828bdbab))
+* compose format and pattern on a string schema ([#151](https://github.com/smur89/gairm-import/issues/151)) ([976c24c](https://github.com/smur89/gairm-import/commit/976c24cc1ea33ac72cc870e8f800dc639f231d4b)), closes [#115](https://github.com/smur89/gairm-import/issues/115)
+* deprecate passing paths-of-kind a kind name string; pass the kind value (e.g. date-string) instead, as the string form goes in the next major ([39379bb](https://github.com/smur89/gairm-import/commit/39379bbf631413ae324e8ef46948203c0f1aae23))
+* deprecate str-type, number-type, integer-type, pattern-string, the format constants, lens, lens-then and kind-at in favour of the constructors and paths ([12e8047](https://github.com/smur89/gairm-import/commit/12e804753f82749cbd7bacba8dac2b27828bdbab))
+* fold constraint keywords into enum / const membership ([#152](https://github.com/smur89/gairm-import/issues/152)) ([a8534e3](https://github.com/smur89/gairm-import/commit/a8534e3d47054d3481b9fd699caa0da4ac4376d1)), closes [#111](https://github.com/smur89/gairm-import/issues/111)
+* let lenses and introspection reach into unions and not ([#181](https://github.com/smur89/gairm-import/issues/181)) ([45ae3f6](https://github.com/smur89/gairm-import/commit/45ae3f684bffc85c08bd3146ec7340a7df750a0c)), closes [#164](https://github.com/smur89/gairm-import/issues/164)
+* let parse take any root the schema accepts, and share one input rule ([12e8047](https://github.com/smur89/gairm-import/commit/12e804753f82749cbd7bacba8dac2b27828bdbab))
+* make a string's format a field instead of a kind ([#195](https://github.com/smur89/gairm-import/issues/195)) ([4fd09b9](https://github.com/smur89/gairm-import/commit/4fd09b95c3365261e85a313e1f054ad7bea51994))
+* name the string kind "string", keeping "str" as an alias ([12e8047](https://github.com/smur89/gairm-import/commit/12e804753f82749cbd7bacba8dac2b27828bdbab))
+* put the schema first and let a path stand in for a lens ([#188](https://github.com/smur89/gairm-import/issues/188)) ([0e012ca](https://github.com/smur89/gairm-import/commit/0e012ca3914c7b98150167d62f517462d8a452d5)), closes [#163](https://github.com/smur89/gairm-import/issues/163)
+* support dependentRequired and array-form dependencies ([e396993](https://github.com/smur89/gairm-import/commit/e396993601fda4187e7f179ac3ecc45140c357d0))
+* support uuid, hostname, ipv4, ipv6 and time string formats ([e396993](https://github.com/smur89/gairm-import/commit/e396993601fda4187e7f179ac3ecc45140c357d0))
+* take Typst values where an API took a name in a string ([39379bb](https://github.com/smur89/gairm-import/commit/39379bbf631413ae324e8ef46948203c0f1aae23))
+* translate JSON Schema nodes with no type ([#184](https://github.com/smur89/gairm-import/issues/184)) ([66516af](https://github.com/smur89/gairm-import/commit/66516afa5441aa8facae26dd4798593f1f5d7b6c))
+* translate type arrays with several non-null members to any-of ([#153](https://github.com/smur89/gairm-import/issues/153)) ([f2bec53](https://github.com/smur89/gairm-import/commit/f2bec53e6190ae3dfb249a243259ed87f662b779)), closes [#112](https://github.com/smur89/gairm-import/issues/112)
+
+
+### Bug Fixes
+
+* assert no iso8601 leaf is left unlisted in the strict schema ([#158](https://github.com/smur89/gairm-import/issues/158)) ([b1dd488](https://github.com/smur89/gairm-import/commit/b1dd4887bc87d0f4750de6b2e3e3b58906c277e9))
+* bail on malformed or null JSON Schema keyword values ([#190](https://github.com/smur89/gairm-import/issues/190)) ([91210e0](https://github.com/smur89/gairm-import/commit/91210e0b7e774a1a553bb0a7638f618edcbc4ede))
+* bail on non-annotation siblings of $ref ([#150](https://github.com/smur89/gairm-import/issues/150)) ([28eaf3e](https://github.com/smur89/gairm-import/commit/28eaf3e9f9c647095183968ce5e907cb1e195c5e)), closes [#118](https://github.com/smur89/gairm-import/issues/118)
+* four translator and format bugs found by the JSON Schema test suite ([#183](https://github.com/smur89/gairm-import/issues/183)) ([4b26154](https://github.com/smur89/gairm-import/commit/4b26154877c51e9fa648aaf0cddca84752180d98))
+* keep a JSON Pointer index too large for an int as a string ([c833a02](https://github.com/smur89/gairm-import/commit/c833a02b86ef5ec41c844c05ee68925484d93615))
+* keep object() invariants through lens edits and check incoming schemas ([#185](https://github.com/smur89/gairm-import/issues/185)) ([ca787d2](https://github.com/smur89/gairm-import/commit/ca787d2d9d5de1fe3c99e1c096b3b51b1c6b4fed))
+* make the translator bail instead of dropping or misreading keywords ([#159](https://github.com/smur89/gairm-import/issues/159)) ([caf81bd](https://github.com/smur89/gairm-import/commit/caf81bd7816516e8dc7d2a3b99cabd2f0442eca0))
+* make validate and coerce agree, and harden the union and number checks ([#160](https://github.com/smur89/gairm-import/issues/160)) ([2971147](https://github.com/smur89/gairm-import/commit/297114770a1b371cf0f08eae01e78ea198a2aee0))
+* name tuple-form items in its panic instead of blaming boolean schemas ([b0b26cb](https://github.com/smur89/gairm-import/commit/b0b26cbfa224ad2997255729a55220026a7825c6))
+* reject a string path in parse; it resolved from the package root, so pass path("…") instead ([eca2b9c](https://github.com/smur89/gairm-import/commit/eca2b9cfa6dbafb65c0a350f4c5d14bb864a631f))
+* report a null JSON Schema as a schema problem, not a document one ([b0b26cb](https://github.com/smur89/gairm-import/commit/b0b26cbfa224ad2997255729a55220026a7825c6))
+* report errors with panic, and test that each panic fires ([83ed33f](https://github.com/smur89/gairm-import/commit/83ed33f983b9f3d2fb011702c66576677e343569))
+* route lens object edits through object(), so they keep its invariants ([ca787d2](https://github.com/smur89/gairm-import/commit/ca787d2d9d5de1fe3c99e1c096b3b51b1c6b4fed)), closes [#165](https://github.com/smur89/gairm-import/issues/165)
+* stop calling the input root a dict in the null-input panic ([b0b26cb](https://github.com/smur89/gairm-import/commit/b0b26cbfa224ad2997255729a55220026a7825c6))
+
 ## [0.10.1](https://github.com/smur89/gairm-import/compare/v0.10.0...v0.10.1) (2026-11-02)
 
 

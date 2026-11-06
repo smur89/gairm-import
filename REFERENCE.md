@@ -19,7 +19,7 @@ The examples assume the whole package is imported:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.10.1": *
+#import "@preview/gairm-import:0.11.0": *
 ```
 <!-- x-release-please-end -->
 
