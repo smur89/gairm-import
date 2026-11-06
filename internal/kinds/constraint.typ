@@ -182,16 +182,26 @@
   ),
 )
 
-// Lower / upper pairs that must leave a satisfying value; `strict`
-// pairs (an exclusive bound on either side) may not even meet.
-#let _bound-pairs = (
-  (lower: "min-length", upper: "max-length", strict: false),
-  (lower: "minimum", upper: "maximum", strict: false),
-  (lower: "exclusive-minimum", upper: "maximum", strict: true),
-  (lower: "minimum", upper: "exclusive-maximum", strict: true),
-  (lower: "exclusive-minimum", upper: "exclusive-maximum", strict: true),
-  (lower: "min-items", upper: "max-items", strict: false),
-)
+// Every lower bound row against every upper one of its family, by upper
+// in row order: a pair must leave a satisfying value, and a `strict`
+// pair (an exclusive bound on either side) may not even meet.
+#let _bound-pairs = {
+  let pairs = ()
+  for upper in _constraint-rows.filter(row => (
+    row.at("op", default: none) in ("≤", "<")
+  )) {
+    for lower in _constraint-rows.filter(row => (
+      row.family == upper.family and row.at("op", default: none) in ("≥", ">")
+    )) {
+      pairs.push((
+        lower: lower.field,
+        upper: upper.field,
+        strict: lower.op == ">" or upper.op == "<",
+      ))
+    }
+  }
+  pairs
+}
 
 /// What a raw keyword value must be, if `value` is not one the row
 /// accepts; none if it is.
