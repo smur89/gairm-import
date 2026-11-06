@@ -12,7 +12,7 @@
 // Segments match by type as well as value, so `1.0` or `"0"` names no
 // union member.
 #let _child(s, seg) = {
-  let hit = _children(s).find(((k, _)) => type(k) == type(seg) and k == seg)
+  let hit = _children(s).find(((k, ..)) => type(k) == type(seg) and k == seg)
   if hit == none {
     _bail(none, (_descriptor(s).bad-segment)(s, seg))
   }
@@ -31,7 +31,7 @@
 // Every (path, node) pair, pre-order.
 #let _nodes(s, path: ()) = {
   let out = ((path, s),)
-  for (seg, sub) in _children(s) {
+  for (seg, sub, _) in _children(s) {
     out += _nodes(sub, path: path + (seg,))
   }
   out
@@ -40,7 +40,7 @@
 // `s` with `f` applied to each child. As in lens paths, an object
 // field literally named "additionalProperties" shadows the additional
 // schema, so in that collision both writes land on the field.
-#let _map-children(s, f) = _children(s).fold(s, (acc, (seg, sub)) => (
+#let _map-children(s, f) = _children(s).fold(s, (acc, (seg, sub, _)) => (
   (_descriptor(acc).with-child)(acc, seg, f(sub))
 ))
 

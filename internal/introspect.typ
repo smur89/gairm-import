@@ -20,9 +20,8 @@
 // are searched too.
 #let _leaf-kinds = _kinds.keys().filter(k => _kinds.at(k).searchable)
 
-#let _leaf(s) = _descriptor(s).leaf
+#let _leaf(s) = _descriptor(s).with-child == none
 #let _suffix(s) = (_descriptor(s).suffix)(s)
-#let _labels(s) = (_descriptor(s).labels)(s)
 
 #let _pad-right(s, width) = s + " " * (width - s.len())
 
@@ -103,9 +102,7 @@
   // Each child under its label: a field name (`*` when required), `*`
   // for an object's additional schema, `[i]` for a union member, `not`
   // for a `not` member. `additional: true` shows as `* any`.
-  let rows = _labels(schema)
-    .zip(_children(schema))
-    .map(((label, (_, sub))) => _row(label, sub))
+  let rows = _children(schema).map(((_, sub, label)) => _row(label, sub))
   if schema.at("additional", default: none) == true {
     rows.push((label: "*", text: "any"))
   }

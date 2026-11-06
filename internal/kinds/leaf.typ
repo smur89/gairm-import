@@ -144,9 +144,9 @@
 //
 // A leaf check is (schema, value, ctx) -> (errors, value, fatal). It
 // judges the JSON-level value and may normalise it (a datetime becomes
-// its ISO string), but never wraps it: the descriptor's `model` does
-// that. When the check passes, the engine adds the family's constraint
-// errors.
+// its ISO string), but never wraps it: the kind's `model` does that.
+// When the check passes, the walk adds the constraint errors of the
+// kind's `family` (none: no rows).
 //
 // `fatal` is none, or (path, expected, got) when the value leaves no
 // model at all; coerce panics with it ("coerce at <path>: expected
@@ -157,6 +157,17 @@
 // A check emits `type` exactly when the value's JSON type is wrong for
 // the kind: a union counts a member as claiming a value unless the
 // member reports `type` at the union's own path.
+
+/// The engine walk of a leaf kind, from its check, constraint family and
+/// model, so the engine runs every kind the same way.
+#let _leaf-walk(check, family, model) = (schema, value, ctx, recur) => {
+  let r = check(schema, value, ctx)
+  if r.fatal != none { return r }
+  let errors = if r.errors == () and family != none {
+    _constraint-errors(schema, family, r.value, ctx.path)
+  } else { r.errors }
+  (errors: errors, value: model(r.value), fatal: none)
+}
 
 #let _pass(value) = (errors: (), value: value, fatal: none)
 
