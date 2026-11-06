@@ -6,8 +6,8 @@
 // schemas. With none, the branches are T and E as they are, of any kind.
 
 #import "../kinds/structure.typ": if-of
-#import "keyword.typ": _role-of
-#import "all-of.typ": _all-of
+#import "keyword.typ": _role-of, _lone-hints
+#import "all-of.typ": _join, _restricts-extras
 
 // A branch read beside its siblings, as draft 7 reads it: a branch
 // with no `type` takes the siblings', since only a value of their type
@@ -20,7 +20,7 @@
 #let _beside(branch, siblings) = {
   if (
     type(branch) != dictionary
-      or branch.keys().any(k => _role-of(k) in ("applicator", "ref"))
+      or branch.keys().any(k => _role-of(k) in _lone-hints)
   ) { return branch }
   let b = branch
   if "type" not in b and "type" in siblings {
@@ -46,26 +46,34 @@
 // (`open-objects`, build.typ), so `{properties: {country: {const:
 // "US"}}}` holds for an address with more keys than `country`. An `if`
 // with neither branch checks nothing (draft 7), so the node translates
-// without it.
+// without it. The siblings translate once and join each branch.
 #let _conditional(js, ctx, recur, resolve) = {
   let siblings = js
-  for k in ("if", "then", "else") {
-    if k in siblings { let _ = siblings.remove(k) }
-  }
+    .pairs()
+    .filter(((k, _)) => k != "if" and _role-of(k) != "branch")
+    .to-dict()
   if "then" not in js and "else" not in js { return recur(siblings, ctx) }
   let cond = recur(js.at("if"), (..ctx, open-objects: true))
-  let alone = siblings.keys().all(k => _role-of(k) == "annotation")
-  let branch(k) = if alone {
-    if k in js { recur(js.at(k), ctx) }
-  } else if k not in js { recur(siblings, ctx) } else {
-    _all-of(
-      (siblings, _beside(js.at(k), siblings)),
-      ctx,
-      recur,
-      resolve,
-      who: "the siblings of \"if\" and its branches",
-      hint: "Non-object composition is out of scope: move the sibling keywords into \"then\" and \"else\".",
+  let branches = (then: "then", otherwise: "else")
+  if siblings.keys().all(k => _role-of(k) == "annotation") {
+    return if-of(
+      cond,
+      ..branches
+        .pairs()
+        .filter(((_, k)) => k in js)
+        .map(((arg, k)) => (arg, recur(js.at(k), ctx)))
+        .to-dict(),
     )
   }
-  if-of(cond, then: branch("then"), otherwise: branch("else"))
+  let base = recur(siblings, ctx)
+  let base-restricts = _restricts-extras(siblings, resolve)
+  let branch(k) = if k not in js { base } else {
+    let b = _beside(js.at(k), siblings)
+    _join(
+      (base, recur(b, ctx)),
+      (base-restricts, _restricts-extras(b, resolve)),
+      who: "the siblings of \"if\" and its branches",
+    )
+  }
+  if-of(cond, ..branches.pairs().map(((arg, k)) => (arg, branch(k))).to-dict())
 }

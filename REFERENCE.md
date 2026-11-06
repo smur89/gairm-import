@@ -424,7 +424,6 @@ Each of these panics with a message naming it:
 - `allOf` with non-object members or with closed members that declare
   different properties, and the same of `if` / `then` / `else` beside
   other keywords (move those keywords into `then` and `else`);
-- `then` or `else` without `if`;
 - a keyword beside `allOf`, `anyOf`, `oneOf`, `not` or `$ref` other than
   an annotation (move it into the members or the definition), `if`
   included;
@@ -453,8 +452,8 @@ Where a draft 7 validator and this package disagree on the same schema:
   keys through unless `additionalProperties` says otherwise; here they are
   rejected unless it is `true` or a schema. `type: "object"` with neither
   `properties` nor `additionalProperties` panics, and an `allOf` member
-  without `additionalProperties` counts as closed. Inside `if`, which only
-  tests the value, objects are read as draft 7 reads them.
+  without `additionalProperties` counts as closed (except inside `if`;
+  see the translation).
 - **Unknown keywords panic.** Draft 7 ignores a keyword it does not know;
   here it panics, so a typo cannot silently drop a constraint. So does a
   keyword that applies to none of a node's `type`s, and one whose value is
@@ -482,13 +481,10 @@ Where a draft 7 validator and this package disagree on the same schema:
   `$ref`'s siblings and applies a composition keyword's siblings as well;
   here a sibling that is not an annotation panics. `if` / `then` / `else`
   take plain siblings (below), but not a `$ref` or a composition keyword.
-- **`allOf` is merged at translate time**, so only object members are
-  supported, and members that are closed or typed must declare the same
-  properties.
-- **`if` / `then` / `else` beside other keywords are merged like
-  `allOf`**: the node and each branch must be object schemas, and a
-  property both declare must have the same schema in both, so a branch
-  cannot narrow a property the node already declares. Alone on a node, the
+- **`allOf`, and `if` / `then` / `else` beside other keywords, are merged
+  at translate time**, so only object members are supported, members that
+  are closed or typed must declare the same properties, and a branch
+  cannot narrow a property its node already declares. Alone on a node, the
   branches may be any schema.
 - **`then` and `else` without `if` panic**; draft 7 ignores them.
 - **`enum` and `const` are folded with their siblings** at translate time;

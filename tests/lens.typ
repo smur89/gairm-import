@@ -103,14 +103,18 @@
 )
 #assert.eq(paths-of-kind(plain, uri-string), ())
 
-// ---- union and `not` members (#164) ----------------------------------------
+// ---- union, `not` and conditional members (#164, #109) --------------------
 
 #let toy = object((
   when: any-of((datetime-string, date-string)),
   place: one-of((str-type, object((city: str-type)))),
   other: not-of(array-of(number-type)),
+  cond: if-of(str-type, then: object((b: str-type)), otherwise: number-type),
 ))
 #assert.eq(lens-get(toy, ("other", "not")), array-of(number-type))
+#assert.eq(lens-get(toy, ("cond", "if")), str-type)
+#assert.eq(lens-get(toy, ("cond", "then", "b")), str-type)
+#assert.eq(lens-get(toy, ("cond", "else")), number-type)
 
 // Only the addressed member changes; the rest of the node (exclusive,
 // the other members) and of the schema is kept.
@@ -135,6 +139,30 @@
     )),
   ),
   (("other", "not"), str-type, "other", not-of(str-type)),
+  (
+    ("cond", "if"),
+    content-type,
+    "cond",
+    if-of(content-type, then: object((b: str-type)), otherwise: number-type),
+  ),
+  (
+    ("cond", "then"),
+    number-type,
+    "cond",
+    if-of(str-type, then: number-type, otherwise: number-type),
+  ),
+  (
+    ("cond", "then", "b"),
+    content-type,
+    "cond",
+    if-of(str-type, then: object((b: content-type)), otherwise: number-type),
+  ),
+  (
+    ("cond", "else"),
+    str-type,
+    "cond",
+    if-of(str-type, then: object((b: str-type)), otherwise: str-type),
+  ),
 ) {
   let edited = lens-put(toy, at, value)
   assert.eq(edited.shape.at(field), node)
@@ -147,42 +175,10 @@
   not-of(array-of(str-type)),
 )
 
-// ---- a conditional's condition and branches (#109) -------------------------
-
-#let cond = object((
-  a: if-of(str-type, then: object((b: str-type)), otherwise: number-type),
-))
-#assert.eq(lens-get(cond, ("a", "if")), str-type)
-#assert.eq(lens-get(cond, ("a", "then", "b")), str-type)
-#assert.eq(lens-get(cond, ("a", "else")), number-type)
-#for (at, value, node) in (
-  (
-    ("a", "if"),
-    content-type,
-    if-of(content-type, then: object((b: str-type)), otherwise: number-type),
-  ),
-  (
-    ("a", "then"),
-    number-type,
-    if-of(str-type, then: number-type, otherwise: number-type),
-  ),
-  (
-    ("a", "then", "b"),
-    content-type,
-    if-of(str-type, then: object((b: content-type)), otherwise: number-type),
-  ),
-  (
-    ("a", "else"),
-    str-type,
-    if-of(str-type, then: object((b: str-type)), otherwise: str-type),
-  ),
-) {
-  assert.eq(lens-put(cond, at, value).shape.a, node, message: repr(at))
-}
 #assert.eq(
-  lens-over(cond, ("a", "then"), o => object((..o.shape, c: str-type)))
+  lens-over(toy, ("cond", "then"), o => object((..o.shape, c: str-type)))
     .shape
-    .a
+    .cond
     .then,
   object((b: str-type, c: str-type)),
 )

@@ -113,6 +113,25 @@
     one-of((str-type, bool-type)),
   ),
   (("not": (type: "string")), not-of(str-type)),
+  // if / then / else with no siblings: the branches as written, of any
+  // kind; `if` with neither branch is dropped (draft 7 checks nothing).
+  (
+    (
+      "if": (type: "string", minLength: 5),
+      then: (type: "string", pattern: "^x$"),
+      "else": (type: "number"),
+    ),
+    if-of(string(min-length: 5), then: string(..x-gate), otherwise: number()),
+  ),
+  (
+    ("if": (type: "string"), "else": (type: "number")),
+    if-of(
+      str-type,
+      otherwise: number-type,
+    ),
+  ),
+  (("if": (type: "string")), any-type),
+  ((type: "string", minLength: 2, "if": (minLength: 5)), string(min-length: 2)),
   (
     (anyOf: ((type: "string"), (oneOf: ((type: "number"), (type: "boolean"))))),
     any-of((str-type, one-of((number-type, bool-type)))),
@@ -414,15 +433,6 @@
 
 #let codes(errs) = errs.map(e => (e.path, e.code))
 
-// With no siblings, any kind: the constructor builds the same node.
-#assert.eq(
-  T((
-    "if": (type: "string", minLength: 5),
-    then: (type: "string", pattern: "^x$"),
-    "else": (type: "number"),
-  )),
-  if-of(string(min-length: 5), then: string(..x-gate), otherwise: number()),
-)
 // A lone if / then on strings. A missing `else` takes the value as it
 // is, and an untyped keyword passes other types, as in draft 7.
 #let long-x = T(("if": (minLength: 5), then: (pattern: "^x")))
@@ -434,17 +444,9 @@
 #assert.eq(codes(validate("abcde", schema: long-x)), (((), "pattern"),))
 // A missing `then`.
 #let not-string = T(("if": (type: "string"), "else": (type: "number")))
-#assert.eq(not-string, if-of(str-type, otherwise: number-type))
 #assert.eq(validate("a", schema: not-string), ())
 #assert.eq(validate(1, schema: not-string), ())
 #assert.eq(codes(validate(true, schema: not-string)), (((), "type"),))
-// `if` with neither branch checks nothing: the node is translated
-// without it.
-#assert.eq(T(("if": (type: "string"))), any-type)
-#assert.eq(
-  T((type: "string", minLength: 2, "if": (minLength: 5))),
-  string(min-length: 2),
-)
 
 // The classic example, from the JSON Schema guide: the postal code's
 // pattern depends on the country.

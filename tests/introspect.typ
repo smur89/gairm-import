@@ -447,15 +447,8 @@ phone → email",
   "any of:\n  [0]    string\n  [1][]  number",
 )
 #assert.eq(describe-schema(not-of(object((a: str-type)))), "not:\n  a  string")
-// A conditional labels its condition and the branches it has.
-#assert.eq(
-  describe-schema(if-of(
-    (..str-type, min-length: 5),
-    then: pattern-string("^x"),
-    otherwise: number-type,
-  )),
-  "if    string (min-length 5)\nthen  string + pattern\nelse  number",
-)
+// A conditional labels its condition and the branches it has (the
+// flat form is pinned in tests/package/reference-introspection.typ).
 #assert.eq(
   describe-schema(object((a: if-of(str-type, then: object((b: str-type)))))),
   "a:\n  if  string\n  then:\n    b  string",
