@@ -1,5 +1,6 @@
-// Mirrors README.md, "Quick start". The import, the parse call and
-// resume.json (this directory) match the README; the asserts are ours.
+// Mirrors README.md, "Quick start", and the types "The returned model"
+// lists. The import, the parse call and resume.json (this directory)
+// match the README; the asserts are ours.
 #import "@preview/gairm-import:0.0.0": parse
 
 #let resume = parse(path("resume.json"))
@@ -13,3 +14,15 @@
   resume.work.first().highlights,
   ("Led the event-sourcing platform migration.",),
 )
+
+// The returned model: every field the README lists is a plain str, or
+// an array of them.
+#for value in (
+  resume.basics.name,
+  resume.basics.summary,
+  resume.basics.email,
+  resume.work.first().position,
+  ..resume.work.first().highlights,
+) {
+  assert.eq(type(value), str)
+}

@@ -3,8 +3,7 @@
 
 #import "../lib.typ": (
   validate, coerce, schema-from-json-schema, object, map, str-type, number-type,
-  email-string, array-of, lens, lens-get, lens-put, paths-of-kind,
-  describe-schema,
+  email-string, array-of, lens-get, lens-put, paths-of-kind, describe-schema,
 )
 
 // --- map() convenience ----------------------------------------------
@@ -117,7 +116,7 @@
 #assert.eq(t-pure-map, map(str-type))
 
 // (f) no properties, no additionalProperties → still bails; see
-// tests/panics/json-schema-open-object.typ.
+// tests/panics/schema-from-json-schema-object-open.typ.
 
 // `additional` + required-key-not-in-shape is now allowed — the
 // extra key gets validated by `additional`, so the construction-time
@@ -197,10 +196,7 @@
   (("name",), ("tags", "additionalProperties")),
 )
 // Round-trip: the segment is a real lens path.
-#assert.eq(
-  lens-get(lens(("tags", "additionalProperties")), tags-schema),
-  str-type,
-)
+#assert.eq(lens-get(tags-schema, ("tags", "additionalProperties")), str-type)
 
 // Nested `additional` inside `additional` works too.
 #let nested-maps = map(map(number-type))
@@ -211,8 +207,8 @@
 
 // --- lens: `"additionalProperties"` writes back into `additional` --
 #let updated = lens-put(
-  lens(("tags", "additionalProperties")),
   tags-schema,
+  ("tags", "additionalProperties"),
   number-type,
 )
 #assert.eq(updated.shape.tags.additional, number-type)
@@ -231,7 +227,7 @@
 #assert(described-true.contains("any"))
 
 // lens-put rejects a replacement that is not a schema:
-// tests/panics/lens-put-additional-not-schema.typ.
+// tests/panics/lens-put-value-not-schema.typ.
 
 // --- describe-schema with nested map of map ------------------------
 //
@@ -253,13 +249,9 @@
   additional: email-string,
 )
 // Literal property wins: lens-get returns the shape entry, not `additional`.
-#assert.eq(lens-get(lens(("additionalProperties",)), meta-shaped), number-type)
+#assert.eq(lens-get(meta-shaped, ("additionalProperties",)), number-type)
 // And lens-put rewrites the shape entry, not `additional`.
-#let after-put = lens-put(
-  lens(("additionalProperties",)),
-  meta-shaped,
-  str-type,
-)
+#let after-put = lens-put(meta-shaped, ("additionalProperties",), str-type)
 #assert.eq(after-put.shape.additionalProperties, str-type)
 #assert.eq(after-put.additional, email-string)  // untouched, distinct from the replacement
 
@@ -270,6 +262,6 @@
 // _descend branches, so a property literally named "items" stays
 // addressable on objects.
 #let obj-with-items-key = object((items: str-type))
-#assert.eq(lens-get(lens(("items",)), obj-with-items-key), str-type)
+#assert.eq(lens-get(obj-with-items-key, ("items",)), str-type)
 #let arr = array-of(number-type)
-#assert.eq(lens-get(lens(("items",)), arr), number-type)
+#assert.eq(lens-get(arr, ("items",)), number-type)

@@ -11,11 +11,9 @@
 // (null-type, and so `nullable(X)`) or reject with `type`, and only a
 // missing key is missing.
 
-/// A fresh context at `path` (the data path, as str / int segments).
-#let _ctx(path: (), strict-null: false) = (
-  path: path,
-  strict-null: strict-null,
-)
+/// A fresh context at the root. Its `path` is the data path, as str /
+/// int segments, that `_at` extends.
+#let _ctx(strict-null: false) = (path: (), strict-null: strict-null)
 
 /// `ctx` one segment deeper.
 #let _at(ctx, seg) = (..ctx, path: ctx.path + (seg,))

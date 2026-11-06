@@ -1,13 +1,38 @@
-// string(), number(), integer() and array-of() with constraint
-// arguments (#162): the constants are their no-argument values, each
-// argument sets the field the translator sets for its JSON keyword,
-// and the result validates as that node does.
+// The constructors build plain schema nodes. string(), number(),
+// integer() and array-of() take constraint arguments (#162): the
+// constants are their no-argument values, each argument sets the field
+// the translator sets for its JSON keyword, and the result validates as
+// that node does.
 
 #import "../lib.typ": (
   string, number, integer, array-of, str-type, number-type, integer-type,
   email-string, date-string, datetime-string, uri-string, uuid-string,
   hostname-string, ipv4-string, ipv6-string, time-string, pattern-string,
   schema-from-json-schema, validate, coerce, object, paths-of-kind,
+  content-type,
+)
+
+// ---- the nodes ---------------------------------------------------------
+
+#assert.eq(str-type, (kind: "str"))
+#assert.eq(content-type, (kind: "content"))
+#assert.eq(number-type, (kind: "number"))
+#assert.eq(array-of(str-type), (kind: "array", elem: (kind: "str")))
+#assert.eq(
+  object((name: str-type, age: number-type)),
+  (
+    kind: "object",
+    shape: (name: (kind: "str"), age: (kind: "number")),
+    required-keys: (),
+  ),
+)
+#assert.eq(
+  object((a: str-type, b: str-type), required-keys: ("a", "b")),
+  (
+    kind: "object",
+    shape: (a: (kind: "str"), b: (kind: "str")),
+    required-keys: ("a", "b"),
+  ),
 )
 
 // ---- the constants are the no-argument values -------------------------
@@ -15,7 +40,6 @@
 #assert.eq(string(), str-type)
 #assert.eq(number(), number-type)
 #assert.eq(integer(), integer-type)
-#assert.eq(array-of(str-type), (kind: "array", elem: str-type))
 #assert.eq(array-of(str-type, unique-items: false), array-of(str-type))
 
 // ---- format: and pattern: ----------------------------------------------
@@ -119,18 +143,32 @@
 
 // ---- validation through a constructed schema ---------------------------
 
-#let codes(errs) = errs.map(e => e.code)
-
-#assert.eq(codes(validate("ab", schema: string(min-length: 3))), ("length",))
-#assert.eq(validate("abc", schema: string(min-length: 3)), ())
+// Each row: a value, a constructed schema, and the codes validate
+// reports.
+#for (value, schema, codes) in (
+  ("ab", string(min-length: 3), ("length",)),
+  ("abc", string(min-length: 3), ()),
+  ("x@y", string(format: "date"), ("format",)),
+  ("b", string(pattern: "^a"), ("pattern",)),
+  (0, number(minimum: 1), ("range",)),
+  (1, number(exclusive-minimum: 1), ("range",)),
+  (3, number(multiple-of: 2), ("multiple",)),
+  (1.5, number(minimum: 1), ()),
+  (1.5, integer(minimum: 1), ("integer",)),
+  (0.5, integer(minimum: 1), ("integer", "range")),
+  (("a",), array-of(str-type, min-items: 2), ("items",)),
+  (("a", "a"), array-of(str-type, unique-items: true), ("unique",)),
+) {
+  assert.eq(
+    validate(value, schema: schema).map(e => e.code),
+    codes,
+    message: repr(value),
+  )
+}
 #assert.eq(
   validate("abcd", schema: string(max-length: 3)).at(0).message,
   "expected string length ≤ 3, got 4.",
 )
-#assert.eq(codes(validate("x@y", schema: string(format: "date"))), (
-  "format",
-))
-#assert.eq(codes(validate("b", schema: string(pattern: "^a"))), ("pattern",))
 #assert.eq(
   validate("b", schema: string(pattern: "^a", expected: "an a-word")),
   (
@@ -142,24 +180,6 @@
       got: "b",
     ),
   ),
-)
-#assert.eq(codes(validate(0, schema: number(minimum: 1))), ("range",))
-#assert.eq(codes(validate(1, schema: number(exclusive-minimum: 1))), (
-  "range",
-))
-#assert.eq(codes(validate(3, schema: number(multiple-of: 2))), ("multiple",))
-#assert.eq(validate(1.5, schema: number(minimum: 1)), ())
-#assert.eq(codes(validate(1.5, schema: integer(minimum: 1))), ("integer",))
-#assert.eq(codes(validate(0.5, schema: integer(minimum: 1))), (
-  "integer",
-  "range",
-))
-#assert.eq(codes(validate(("a",), schema: array-of(str-type, min-items: 2))), (
-  "items",
-))
-#assert.eq(
-  codes(validate(("a", "a"), schema: array-of(str-type, unique-items: true))),
-  ("unique",),
 )
 #assert.eq(coerce(("a", "b"), schema: array-of(str-type, max-items: 2)), (
   "a",
