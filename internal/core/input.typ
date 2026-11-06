@@ -24,7 +24,12 @@
 #let _decode-input(fn-name, data, str-is-data: false) = {
   if type(data) == str and not str-is-data { _path-hint(fn-name, data) }
   let value = if type(data) in (path, bytes) { json(data) } else { data }
-  if value == none { _bail(none, "input must be a dict, got null.") }
+  if value == none {
+    _bail(
+      none,
+      "input must not be null: the document root has to be a value the schema accepts.",
+    )
+  }
   value
 }
 
