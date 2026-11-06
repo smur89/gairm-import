@@ -252,8 +252,8 @@
         + ".",
     )
   }
-  // object() reads the names as keys, so a non-string one would fail
-  // there with a raw Typst error, or pass and fail at validation.
+  // Checked here, though object() checks them too, so a bad name
+  // reports under this module's prefix and the JSON keyword's name.
   if required.any(k => type(k) != str) {
     _bail(
       "\"required\" must be an array of field names, got: "

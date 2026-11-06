@@ -4,7 +4,9 @@
 // every kind.
 
 #import "../core/ctx.typ": _at, _absent, _has
-#import "../core/error.typ": _error, _type-miss, _type-name-of, _closest-match
+#import "../core/error.typ": (
+  _error, _type-miss, _type-name-of, _closest-match, _require-key-names,
+)
 #import "constraint.typ": _constraint-errors, _constrain
 #import "leaf.typ": null-type
 #import "format.typ": _formats
@@ -173,9 +175,10 @@
 // rule: a malformed map always panics, and trigger / dependent keys
 // outside `shape` panic only when strict.
 /// A dictionary with the fields in `shape`. Panics if a field is not a
-/// schema, if `additional` is the wrong shape, or, when `additional` is
-/// `none` or `false`, if `required-keys` or `dependent-required` names a
-/// field not in `shape`.
+/// schema, if `additional` is the wrong shape, if `required-keys` or a
+/// `dependent-required` entry is not an array of key names, or, when
+/// `additional` is `none` or `false`, if `required-keys` or
+/// `dependent-required` names a field not in `shape`.
 ///
 /// - shape (dictionary): Field name to schema.
 /// - required-keys (array): Fields that must be present.
@@ -207,6 +210,9 @@
   for (key, sub) in shape {
     _require-schema(sub, "object() field " + repr(key))
   }
+  // Checked whatever `additional` is: an open object reads the names as
+  // keys too, so a non-string one would pass here and fail at validation.
+  _require-key-names(required-keys, "object() required-keys")
   // With `additional`, undeclared required keys are covered by the
   // additional schema, so the subset check only applies when strict.
   let unknown = if normalized == none {
@@ -229,15 +235,10 @@
     )
   }
   for (trigger, dependents) in dependent-required {
-    if type(dependents) != array or dependents.any(d => type(d) != str) {
-      panic(
-        "gairm-import: object() dependent-required for "
-          + repr(trigger)
-          + " must be an array of key names; got: "
-          + repr(dependents)
-          + ".",
-      )
-    }
+    _require-key-names(
+      dependents,
+      "object() dependent-required for " + repr(trigger),
+    )
   }
   let unknown-dependent = if normalized == none {
     dependent-required
