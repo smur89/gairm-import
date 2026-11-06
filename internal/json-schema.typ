@@ -6,8 +6,8 @@
 #import "engine.typ": _validate
 #import "core/ctx.typ": _ctx
 #import "kinds/leaf.typ": (
-  str-type, number-type, integer-type, bool-type, null-type, pattern-string,
-  enum-of,
+  str-type, number-type, integer-type, bool-type, null-type, any-type,
+  pattern-string, enum-of,
 )
 #import "kinds/structure.typ": (
   array-of, object, any-of, one-of, not-of, nullable,
@@ -436,10 +436,6 @@
   "dependencies",
 )
 
-// Accepts any value; constraints that never look at array items need an
-// element schema all the same.
-#let _any-elem = not-of(enum-of(()))
-
 // Folds the constraint keywords beside `enum` / `const` into the value
 // set: each value is checked against the schema the translator would
 // have emitted for its JSON type without the membership keyword, and
@@ -450,7 +446,7 @@
   let by-type = (
     string: _with-constraints(_string-base(js), js, "string"),
     number: _with-constraints(number-type, js, "number"),
-    array: _with-constraints(array-of(_any-elem), js, "array"),
+    array: _with-constraints(array-of(any-type), js, "array"),
   )
   let types = js.at("type", default: none)
   if types != none and type(types) != array { types = (types,) }
@@ -486,6 +482,31 @@
   }
   survivors
 }
+
+// The node with `type` narrowed to the one JSON type `m`, for a member
+// of a `type` array or of an untyped node. Dependency keywords belong to
+// the object member only; the others would reject them.
+#let _narrow(js, m) = {
+  let member = (..js, type: m)
+  if m != "object" {
+    let _ = member.remove("dependentRequired", default: none)
+    let _ = member.remove("dependencies", default: none)
+  }
+  member
+}
+
+// An untyped node's members, one per JSON type (`integer` is covered by
+// number), each with the schema it gets when no keyword of its type is
+// present. The names double as `_type-keywords` families.
+#let _untyped-members = (
+  ("boolean", bool-type),
+  ("object", object((:), additional: true)),
+  ("array", array-of(any-type)),
+  ("number", number-type),
+  ("string", str-type),
+  // Last, as a `type` array's null member is.
+  ("null", null-type),
+)
 
 #let _type-names = (
   "string",
@@ -569,10 +590,11 @@
     }
   }
   let dependent = _dependent-required(js)
-  // Only an object (possibly nullable) can carry it; elsewhere it
-  // would be silently dropped.
+  // Only an object (possibly nullable, or untyped) can carry it;
+  // elsewhere it would be silently dropped.
   let is-object = (
-    js-type == "object"
+    js-type == none
+      or js-type == "object"
       or (
         type(js-type) == array and "object" in js-type
       )
@@ -639,6 +661,30 @@
     return enum-of(_fold-constraints(js, (js.at("const"),)))
   }
   let t = js.at("type", default: none)
+  // No `type`: a node with no type-specific keyword takes any value;
+  // otherwise one member per JSON type (`integer` is a number), each
+  // narrowed as a `type` array's members are, so a keyword reaches only
+  // its own type. A type no keyword applies to takes any value of that
+  // type, and an object member with no properties is open.
+  if t == none {
+    let present = _type-keywords
+      .pairs()
+      .filter(((_, keywords)) => keywords.any(k => k in js))
+      .map(((family, _)) => family)
+    if present == () { return any-type }
+    return any-of(_untyped-members.map(((m, plain)) => {
+      if m not in present { return plain }
+      let member = _narrow(js, m)
+      if (
+        m == "object"
+          and "properties" not in js
+          and "additionalProperties" not in js
+      ) {
+        member.insert("additionalProperties", true)
+      }
+      _from-json-schema(member, root, seen)
+    }))
+  }
   if t == "string" {
     return _with-constraints(_string-base(js), js, "string")
   }
@@ -653,10 +699,8 @@
     )
   }
   if t == "array" {
-    let items = js.at("items", default: none)
-    if items == none {
-      _bail("array schema missing \"items\".")
-    }
+    // No `items`: items of any value, as in draft 7.
+    let items = js.at("items", default: (:))
     if type(items) != dictionary {
       _bail(
         "\"items\" must be a schema object, got: " + repr(type(items)) + ".",
@@ -730,26 +774,16 @@
     // items, ...) reach only the member they belong to — JSON Schema
     // ignores them for other types. any-of, not one-of: `["number",
     // "integer"]` overlaps and must still accept 1.
-    // Dependency keywords belong to the object member only; the others
-    // would reject them.
-    let members = non-null.map(m => {
-      let member = (..js, type: m)
-      if m != "object" {
-        let _ = member.remove("dependentRequired", default: none)
-        let _ = member.remove("dependencies", default: none)
-      }
-      _from-json-schema(member, root, seen)
-    })
+    let members = non-null.map(m => _from-json-schema(
+      _narrow(js, m),
+      root,
+      seen,
+    ))
     if members.len() == 1 {
       return if nullable-type { nullable(members.at(0)) } else { members.at(0) }
     }
     return any-of(if nullable-type { members + (null-type,) } else { members })
   }
-  _bail(
-    "unrecognised JSON Schema fragment (no recognised \"type\" or \"$ref\"); keys: "
-      + repr(js.keys())
-      + ".",
-  )
 }
 
 // Non-dictionaries are rejected at the boundary so the diagnostic

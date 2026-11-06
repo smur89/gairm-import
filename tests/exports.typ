@@ -9,6 +9,7 @@
 #assert.eq(public, (
   "add-field",
   "any-of",
+  "any-type",
   "array-of",
   "bool-type",
   "coerce",

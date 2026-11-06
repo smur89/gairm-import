@@ -37,7 +37,7 @@
 #import "leaf.typ" as _leaf-mod
 #import "leaf.typ": (
   pattern-string, enum-of, const-of, _string-check, _number-check, _bool-check,
-  _null-check, _pattern-check, _enum-check,
+  _null-check, _any-check, _pattern-check, _enum-check,
 )
 #import "format.typ" as _format-mod
 #import "format.typ": _formats, _format-check
@@ -98,6 +98,7 @@
   number: _kind(check: _number-check, family: "number"),
   bool: _kind(check: _bool-check),
   null: _kind(check: _null-check),
+  any: _kind(check: _any-check),
   .._formats.values().map(row => (row.kind, _format-kind(row))).to-dict(),
   pattern-string: _kind(
     check: _pattern-check,

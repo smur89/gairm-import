@@ -812,7 +812,18 @@ in sync:
   schema is unsatisfiable and panics. `properties` / `required` /
   `additionalProperties` / `items` / `dependentRequired` / `dependencies`
   beside them panic
-- `properties`, `required`, `items`
+- `properties`, `required`, `items` — `type: "array"` without `items` takes
+  items of any value (`array-of(any-type)`)
+- Nodes with no `type` (draft 7): `{}`, or a node of annotations only,
+  → `any-type`, which accepts every value (and `null` under
+  `strict-null`) and passes it to the model unchanged (`describe-schema`
+  shows `any`). With type-specific
+  keywords (`{minLength: 2}`, `{format: "date"}`, `{properties: …}`) it is
+  an `any-of` over one member per JSON type — boolean, object, array,
+  number, string, then null, as for a `type` array — each keyword narrowing only its own type's member, as
+  for a `type` array; the other members take any value of their type (an
+  object member with no `properties` is open). A string failing
+  `minLength` there still reports `expected string length ≥ 2, got 1.`
 - `dependentRequired`, and draft 7's array-form `dependencies`
   (`dependencies: (a: ("b", "c"))`) → `dependent-required`; only on
   `type: "object"` schemas, and `allOf` unions the lists per trigger
