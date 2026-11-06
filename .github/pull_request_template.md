@@ -8,9 +8,9 @@
 
 <!-- Tick whichever apply, and add any new ones. -->
 
-- [ ] `make test` passes locally
-- [ ] Added or updated a fixture under `tests/` if this PR touches loader, validator, or coercion behaviour
-- [ ] Updated the README if this PR changes a public API or supported schema field
+- [ ] `make check` passes locally
+- [ ] Added or updated a test under `tests/` if this PR changes validation, coercion, translation, lenses or introspection
+- [ ] Updated README.md or REFERENCE.md, and their `tests/package/` mirrors, if this PR changes the public API
 
 ## Notes for the reviewer
 

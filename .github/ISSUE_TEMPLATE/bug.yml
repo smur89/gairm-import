@@ -1,5 +1,5 @@
 name: Bug report
-description: Something the loader panics on, validates wrongly, or coerces unexpectedly
+description: Something gairm-import panics on, validates wrongly, or coerces unexpectedly
 title: "fix: "
 labels: ["bug"]
 body:
@@ -7,8 +7,8 @@ body:
     id: package-version
     attributes:
       label: gairm-import version
-      description: From `typst.toml` or your `#import` line.
-      placeholder: "0.1.0"
+      description: The version in your `#import "@preview/gairm-import:…"` line.
+      placeholder: "x.y.z"
     validations:
       required: true
 
@@ -17,7 +17,7 @@ body:
     attributes:
       label: Typst version
       description: Output of `typst --version`.
-      placeholder: "typst 0.14.2"
+      placeholder: "typst x.y.z"
     validations:
       required: true
 
@@ -25,7 +25,7 @@ body:
     id: reproduction
     attributes:
       label: Minimal reproduction
-      description: The smallest input + `read-resume` / `parse-resume` call that reproduces the issue. Inline it here; do not link an external gist.
+      description: The smallest `parse`, `validate`, `coerce` or `schema-from-json-schema` call, with its schema, that reproduces the issue. Inline it here; do not link an external gist.
       render: typst
     validations:
       required: true
@@ -34,14 +34,14 @@ body:
     id: input-json
     attributes:
       label: Input JSON
-      description: The `resume.json` (or fragment) that triggers the bug. Trim secrets, keep enough to reproduce.
+      description: The document (or fragment) that triggers the bug, and the JSON Schema if you translate one. Trim secrets, keep enough to reproduce.
       render: json
 
   - type: textarea
     id: expected-vs-actual
     attributes:
       label: Expected vs. actual
-      description: What did you expect the loader to return / accept / reject, and what did it do instead?
+      description: What did you expect gairm-import to return / accept / reject, and what did it do instead?
     validations:
       required: true
 

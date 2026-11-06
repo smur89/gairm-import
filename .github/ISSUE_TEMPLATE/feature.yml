@@ -1,5 +1,5 @@
 name: Feature request
-description: A schema field to support, a validation rule to relax, or a new helper
+description: A JSON Schema keyword or format to support, a validation rule to change, or a new helper
 title: "feat: "
 labels: ["enhancement"]
 body:
@@ -7,7 +7,7 @@ body:
     id: problem
     attributes:
       label: Problem
-      description: What does the canonical JSON Resume schema say (or not say) that the loader doesn't handle today?
+      description: What can't you express or check today? Quote the JSON Schema keyword, JSON Resume field or call involved.
     validations:
       required: true
 
@@ -15,7 +15,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: Sketch the API or behaviour you have in mind. For schema coverage, link the relevant section of https://jsonresume.org/schema and give a small example dict.
+      description: Sketch the API or behaviour you have in mind, with a small example schema and document.
     validations:
       required: true
 
@@ -28,8 +28,8 @@ body:
   - type: checkboxes
     id: scope
     attributes:
-      label: Schema alignment
-      description: This package stays strictly aligned to the canonical JSON Resume schema. Renderer-specific extensions (theme, labels, decorations) belong in the consuming template, not here.
+      label: Scope
+      description: gairm-import is a schema engine. Renderer-specific behaviour (theme, labels, decorations) belongs in the consuming template, and fields outside a schema in an extension schema the caller builds.
       options:
-        - label: This request is covered by the canonical JSON Resume schema, or proposes a generic improvement to validation / coercion.
+        - label: This request is about validation, coercion, translation, lenses or introspection, not rendering.
           required: true

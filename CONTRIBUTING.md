@@ -1,177 +1,111 @@
 # Contributing
 
-Thanks for taking the time to look. This is a small library package; almost
-any thoughtful contribution will be welcome — but a couple of conventions
-keep the release pipeline (release-please + Typst Universe) running smoothly.
+Thanks for taking the time to look. Almost any thoughtful contribution is
+welcome; a few conventions keep the release pipeline (release-please and
+Typst Universe) running smoothly.
 
 ## Submitting a PR
 
-1. Fork the repository on GitHub.
-2. Clone your fork locally and create a branch for your change.
-3. Make the changes, commit, and push to your fork.
-4. Open a Pull Request against `main` on this repository.
-
-Security issues should be reported privately per [`SECURITY.md`](SECURITY.md)
-instead of as a PR or issue.
+Fork the repository, make your change on a branch, and open a pull request
+against `main`. Report security issues privately, as
+[`SECURITY.md`](SECURITY.md) describes, not as a PR or issue.
 
 ## Scope
 
-`gairm-import` is a JSON Schema (draft 7 subset) → Typst dict engine; the
-canonical [JSON Resume schema](https://jsonresume.org/schema) ships as the
-bundled default. Engine work — validation, coercion, translator keywords,
-lenses, introspection — is in scope. Anything renderer-specific (theme
-colours, label overrides, header decorations, …) belongs in the consuming
-Typst CV template, not here. Likewise, fields outside the canonical JSON
-Resume shape should be added by downstream callers via an extension schema
-(see the README's "Building an extension schema") rather than hardcoded here.
+`gairm-import` is a JSON Schema (draft 7 subset) → Typst engine, with the
+[JSON Resume schema](https://jsonresume.org/schema) bundled. Engine work
+(validation, coercion, translator keywords, lenses, introspection) is in
+scope. Anything renderer-specific (colours, labels, decorations) belongs in
+the consuming template, and fields outside a schema belong in an extension
+schema built by the caller (see
+[Lenses and edits](REFERENCE.md#lenses-and-edits)).
 
 ## Project layout
 
 ```text
-lib.typ                              # public entry — `parse`, `validate`, `coerce`, combinators, lenses
-internal/kinds/leaf.typ              # leaf kinds (str-type, content-type, enum-of, …)
-internal/kinds/format.typ            # string(), and the string formats, one table row each (date, uri, …)
-internal/kinds/structure.typ         # containers and combinators (object, map, array-of, any-of, not-of, …)
-internal/kinds/constraint.typ        # constraint rows (min-length, maximum, …)
-internal/kinds/registry.typ          # one descriptor per kind, checked for coverage at load
-internal/kinds/traverse.typ          # the one schema traversal (children, get/set at a path, every node)
-internal/json-resume/schema.typ      # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
-internal/json-resume/schema.json     # vendored upstream schema, pinned to v1.7.0
-internal/engine.typ                  # the one walk over schema and value; validate, coerce and parse
-internal/json-schema/translate.typ   # JSON Schema → Typst-schema translator: entry, $ref, dispatcher
-internal/json-schema/build.typ       # one builder per JSON type, constraint keywords, the enum/const fold
-internal/json-schema/keyword.typ     # the keywords it knows, their roles and JSON types
-internal/json-schema/all-of.typ      # the allOf object merge
-internal/lens.typ                    # path-based functional editing of schemas
-internal/introspect.typ              # read-only schema inspection (describe-schema, paths-of-kind, kind-at)
-internal/core/pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop, $ref fragment reading
-internal/core/error.typ              # error formatting (paths, type names, did-you-mean)
-internal/core/input.typ              # the input forms every entry point shares
-internal/core/ctx.typ                # the walk context, and the one definition of absence
-tests/                               # fixtures — CI compiles each as a regression guard
-tests/panics/                        # one case per panic site; each must fail with its expected message
+lib.typ                     # the only public surface
+internal/core/              # L0: input forms, errors, the walk context, JSON Pointer
+internal/kinds/             # L1: constructors, formats, constraint rows, the kind registry, traversal
+internal/engine.typ         # L2: the one walk over schema and value: validate, coerce, parse
+internal/json-schema/       # L3: the JSON Schema translator: keyword table, builders, allOf, $ref
+internal/lens.typ           # L3: lens-get / lens-put / lens-over and the field edits
+internal/introspect.typ     # L3: describe-schema, paths-of-kind
+internal/json-resume/       # L4: the vendored upstream schema.json, resume-schema and resume-schema-strict
+tests/*.typ                 # assertions, one file per public concept
+tests/panics/               # one case per place the package panics
+tests/package/              # compiled against the staged package; readme-* and reference-* mirror the docs
 ```
 
-`internal/core/` is the bottom layer and imports nothing else internal;
-`internal/kinds/` imports only `internal/core/` and its own siblings;
-`internal/engine.typ` imports only `internal/core/` and `internal/kinds/`;
-`internal/json-schema/` imports only those, the engine and its own siblings;
-`internal/lens.typ` and `internal/introspect.typ` import only `internal/core/`,
-`internal/kinds/` and the engine; `internal/json-resume/` imports anything
-below it (`make check-layers` enforces all six). `lib.typ` is the only public surface;
-it reaches internals through underscore module aliases, so a name that
-starts with an underscore is internal and never part of the API.
-
-## Bumping the vendored JSON Resume schema
-
-`internal/json-resume/schema.typ` derives `resume-schema` from
-`internal/json-resume/schema.json` at module-load time, so the
-upstream document is the source of truth. To pull a newer upstream version:
-
-1. Replace `internal/json-resume/schema.json` with `schema.json` from
-   the chosen version of the
-   [`@jsonresume/schema`](https://www.npmjs.com/package/@jsonresume/schema)
-   npm package (source: `packages/schema` in
-   [jsonresume/jsonresume.org](https://github.com/jsonresume/jsonresume.org);
-   the old `jsonresume/resume-schema` repo is archived at v1.2.1). The
-   [changelog](https://github.com/jsonresume/jsonresume.org/blob/master/packages/schema/CHANGELOG.md)
-   lists what each version adds. Refresh
-   `tests/fixtures/jsonresume-sample.json` from the same package's
-   `sample.resume.json`.
-2. Run `make test`. The translator handles the draft-04/-07 subset that the
-   canonical document uses; unsupported constructs (`if`/`then`/`else`,
-   the schema form of `dependencies`, string formats beyond the README's
-   list, fully open objects, external `$ref`, `allOf` with non-object
-   members, and any keyword outside the README's supported list, such as
-   `minProperties` or `patternProperties`) panic with a message naming
-   them. If a panic surfaces, extend `internal/json-schema/` rather
-   than silently dropping the constraint.
-3. Audit `_content-paths`, `_iso8601-date-paths`, and `_last-modified-paths` in
-   `internal/json-resume/schema.typ` against the bumped document. These lists are the
-   opt-in `resume-schema-strict` variant's opinions — `_content-paths` lifts
-   free-text `string` fields to Typst `content` for inline rendering;
-   `_iso8601-date-paths` lifts iso8601 `$ref` fields (which the translator
-   surfaces as patterned strings) to `date-string`, and `_last-modified-paths`
-   lifts the plain-string `meta.lastModified` to a datetime-or-date union.
-   If a new free-text or iso8601-referenced field lands in the upstream
-   document, add its path here. The drift guard in `_apply-overrides` will
-   panic at module-load if an existing path's source kind changes, so you'll
-   see the audit prompt automatically.
-
-`feat:` commit if the bump introduces new fields or behaviour;
-`chore(deps):` if it's a no-op refresh.
+A module imports only from layers below it and its own siblings, and the
+two L3 modules outside `json-schema/` import only from core, kinds and the
+engine, never each other. `make check-layers` enforces this. `lib.typ`
+reaches internals through underscore aliases, so a name that starts with
+an underscore is never part of the API.
 
 ## Development loop
 
-Install Typst and typstyle at the versions CI uses — see `TYPST_VERSION` and
+Install Typst and typstyle at the versions CI uses: `TYPST_VERSION` and
 `TYPSTYLE_VERSION` in `.github/workflows/build.yml`.
 
 ```sh
-make test         # every fixture, panic case and package test (the default target)
-make -k -j8 test  # the same in parallel, reporting every failure
-make check        # test + fmt-check: what CI runs
-make help         # every target, and the variables you can override
+make -k -j8 check  # everything CI's test job runs, in parallel, reporting every failure
+make test          # fixtures, panic cases and package tests only (the default target)
+make fmt           # format with typstyle
+make help          # every target, and the variables you can override
 ```
 
-Each test file is its own Make target (`check/fixture/…`, `check/panic/…`,
-`check/package/…`), so `make -j` runs them in parallel and `-k` keeps going
-past a failure. A green `make check` locally means CI's test and typstyle
-jobs will pass too.
+`make check` is `test`, `fmt-check` and `check-layers`: exactly what CI's
+`test` job runs, so a green `make check` means a green `test` check. Each
+test file is its own Make target (`check/fixture/…`, `check/panic/…`,
+`check/package/…`), so `-j` runs them in parallel and `-k` keeps going
+past a failure.
 
-Panic cases live in `tests/panics/`, one per place the package panics,
+**Panic cases** live in `tests/panics/`, one per place the package panics,
 named `<public-function>-<problem>.typ` (`string-min-length-negative.typ`).
 A second case for the same place earns its file only by pinning other
 wording, or another check that reaches the same message. Line 1 is
 `// expect: <substring of the error>`, then the imports and the call that
-panics. `make test-panics` checks that each file fails to compile and that
-its error contains that substring, so a panic that stops firing, or fires
-with a different message, fails the build.
+panics. `make test-panics` checks that each file fails to compile with
+that text, so a panic that stops firing, or changes its message, fails.
 
-If you'd rather drive Typst directly:
+**Doc mirrors** live in `tests/package/`. Every README or REFERENCE.md
+example that states its output has a `readme-*` or `reference-*` test that
+runs it and asserts that output; change the two together.
 
-```sh
-for f in tests/*.typ; do typst compile --root . --format pdf "$f" /dev/null; done
-```
+## Bumping the vendored JSON Resume schema
 
-`--format pdf` is required when the output path is `/dev/null` — Typst cannot
-infer the format from a path with no extension.
+`resume-schema` is translated from `internal/json-resume/schema.json` at
+load time, so the upstream document is the source of truth.
+
+1. Replace `schema.json` with the one from the chosen version of the
+   [`@jsonresume/schema`](https://www.npmjs.com/package/@jsonresume/schema)
+   npm package (source: `packages/schema` in
+   [jsonresume/jsonresume.org](https://github.com/jsonresume/jsonresume.org)),
+   and `tests/fixtures/jsonresume-sample.json` from its
+   `sample.resume.json`.
+2. Run `make check`. Anything the translator does not support panics,
+   naming the keyword; [the translator's reference](REFERENCE.md#json-schema-translation)
+   lists what is supported. Extend `internal/json-schema/` rather than
+   dropping the constraint.
+3. Audit `_content-paths`, `_iso8601-date-paths` and `_last-modified-paths`
+   in `internal/json-resume/schema.typ`, the strict variant's opinions,
+   for new free-text or iso8601 fields. A listed path whose kind changes
+   panics at load, so drift there surfaces on its own.
+
+Use `feat:` if the bump adds fields or behaviour, `chore(deps):` if not.
 
 ## Conventional commits
 
-The repo uses [release-please](https://github.com/googleapis/release-please)
-to cut releases. Versioning is derived from commit messages on `main`, so
-each merged PR needs a clean conventional-commit message.
+release-please derives each release from the commit messages on `main`.
+PRs squash-merge with the PR title as the subject, so make the **PR title**
+a conventional commit:
 
 | Prefix | Bump | Use for |
 |---|---|---|
-| `fix:` | patch | Bug fix, doc correction, broken link, validation gap |
-| `feat:` | minor | New schema field supported, new coercion, new public helper |
-| `feat!:` or `BREAKING CHANGE:` footer | major | API change that existing users would need to migrate |
-| `chore:`, `docs:`, `ci:`, `refactor:`, `test:` | none | Internal changes that shouldn't trigger a release |
-
-PRs squash-merge with the PR title as the commit subject, so just make the
-**PR title** a conventional commit. The body of the squash commit comes from
-the PR description.
-
-## Adding schema coverage
-
-For a **new schema field**:
-
-1. Add (or extend) a fixture under `tests/` exercising the field — a valid
-   case and at least one rejection case for the validator.
-2. Implement the validation / coercion in the engine modules under
-   `internal/` (`lib.typ` is a thin façade and rarely needs to change).
-3. Update the README's "Usage" example if the field is end-user-visible.
-
-`feat:` commit.
-
-## First publication to Typst Universe
-
-The automated `submit-to-typst-universe` workflow only handles **updates** to
-an already-published package (the auto-generated PR body is the slim
-"update" variant). The very first submission to
-[typst/packages](https://github.com/typst/packages) must be opened manually
-so the maintainers can do a full new-package review.
+| `fix:` | patch | Bug fix, doc correction, validation gap |
+| `feat:` | minor | New keyword, kind, helper or schema field |
+| `feat!:` or a `BREAKING CHANGE:` footer | major | A change existing users must migrate for |
+| `chore:`, `docs:`, `ci:`, `build:`, `refactor:`, `test:` | none | Changes that shouldn't cut a release |
 
 ## Security
 
