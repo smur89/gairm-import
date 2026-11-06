@@ -19,8 +19,9 @@
   // illustrative), so the typst manager would find nothing; if a .typ file
   // ever imports one, add 'typst' here plus a rule disabling the
   // `gairm-import` self-import. The toolchain versions (TYPST_VERSION,
-  // TYPSTYLE_VERSION, PCHECK_IMAGE in build.yml, with their pinned hashes, `compiler` in typst.toml,
-  // the minimum in README.md) are bumped deliberately by hand, in lockstep.
+  // TYPSTYLE_VERSION and PCHECK_IMAGE in build.yml, each with its pinned
+  // hash; `compiler` in typst.toml; the minimum in README.md) are bumped
+  // deliberately by hand, in lockstep.
   enabledManagers: ['github-actions'],
 
   // Dependabot ran Sunday 22:00. Renovate schedules are windows (hour
