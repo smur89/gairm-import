@@ -132,14 +132,25 @@
   if type(map) != dictionary {
     _bail("\"" + keyword + "\" must be an object, got: " + repr(map) + ".")
   }
-  // Value shapes are checked by `object()`; only the schema form is
-  // invisible to it.
+  // Checked here, though object() checks them too, so a bad value
+  // reports under this module's prefix and the JSON keyword's name.
   for (trigger, dependents) in map {
     if type(dependents) == dictionary {
       _bail(
         "unsupported JSON Schema keyword: the schema form of \"dependencies\" (for "
           + repr(trigger)
           + "). Conditional schemas are out of scope.",
+      )
+    }
+    if type(dependents) != array or dependents.any(d => type(d) != str) {
+      _bail(
+        "\""
+          + keyword
+          + "\" for "
+          + repr(trigger)
+          + " must be an array of field names, got: "
+          + repr(dependents)
+          + ".",
       )
     }
   }
