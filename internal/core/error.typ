@@ -37,6 +37,21 @@
   "expected " + expected + ", got " + got + "."
 )
 
+/// `"<what> not in <where>[: <names, …>]. <label>: <valid, …>."`, for
+/// names an edit or a lens path may not use: `what` names one, or
+/// introduces the list `names`.
+#let _not-in(what, where, label, valid, names: none) = (
+  what
+    + " not in "
+    + where
+    + if names != none { ": " + names.join(", ") }
+    + ". "
+    + label
+    + ": "
+    + valid.join(", ")
+    + "."
+)
+
 /// One validation error, as a one-element array so results concatenate.
 #let _error(path, code, message, expected: none, got: none) = {
   _internal(code in _codes, "unknown error code " + repr(code))

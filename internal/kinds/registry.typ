@@ -27,7 +27,7 @@
   _number-check, _integer-check, _bool-check, _null-check, _any-check,
   _pattern-check, _enum-check,
 )
-#import "../core/error.typ": _internal
+#import "../core/error.typ": _internal, _not-in
 #import "format.typ" as _format-mod
 #import "format.typ": string, _formats, _format-check
 #import "structure.typ" as _structure-mod
@@ -158,13 +158,11 @@
           + "."
       )
     } else {
-      (
-        "lens path segment "
-          + repr(seg)
-          + " not in object shape. "
-          + "Valid keys: "
-          + s.shape.keys().join(", ")
-          + "."
+      _not-in(
+        "lens path segment " + repr(seg),
+        "object shape",
+        "Valid keys",
+        s.shape.keys(),
       )
     },
     constructors: (object, map),
