@@ -47,9 +47,17 @@
 
 // RFC 6901 array-index ABNF: `0` | `[1-9][0-9]*` — leading zeros
 // (other than "0" itself) aren't valid array indices, so e.g. "01"
-// round-trips as the string "01" rather than becoming int 1.
+// round-trips as the string "01" rather than becoming int 1. An index
+// past Typst's 64-bit int stays a string too, rather than overflowing.
 #let _int-token-re = regex("^(0|[1-9][0-9]*)$")
-#let _try-int(token) = if token.match(_int-token-re) != none {
+#let _int-max = str(9223372036854775807)
+#let _try-int(token) = if (
+  token.match(_int-token-re) != none
+    and (
+      token.len() < _int-max.len()
+        or (token.len() == _int-max.len() and token <= _int-max)
+    )
+) {
   int(token)
 } else { token }
 

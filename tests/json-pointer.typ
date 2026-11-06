@@ -26,5 +26,15 @@
 }
 
 // Only `0` or `[1-9][0-9]*` decodes to an array index, so a leading
-// zero stays a key.
-#assert.eq(pointer-to-path("/work/01"), ("work", "01"))
+// zero stays a key, and so do "-0" and an index too large for an int.
+#for (pointer, path) in (
+  ("/work/01", ("work", "01")),
+  ("/00", ("00",)),
+  ("/-0", ("-0",)),
+  ("/9223372036854775807", (9223372036854775807,)),
+  ("/9223372036854775808", ("9223372036854775808",)),
+  ("/99999999999999999999", ("99999999999999999999",)),
+) {
+  assert.eq(pointer-to-path(pointer), path, message: pointer)
+  assert.eq(path-to-pointer(path), pointer, message: pointer)
+}
