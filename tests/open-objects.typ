@@ -116,7 +116,7 @@
 #assert.eq(t-pure-map, map(str-type))
 
 // (f) no properties, no additionalProperties → still bails; see
-// tests/panics/json-schema-open-object.typ.
+// tests/panics/schema-from-json-schema-object-open.typ.
 
 // `additional` + required-key-not-in-shape is now allowed — the
 // extra key gets validated by `additional`, so the construction-time
@@ -227,7 +227,7 @@
 #assert(described-true.contains("any"))
 
 // lens-put rejects a replacement that is not a schema:
-// tests/panics/lens-put-additional-not-schema.typ.
+// tests/panics/lens-put-value-not-schema.typ.
 
 // --- describe-schema with nested map of map ------------------------
 //

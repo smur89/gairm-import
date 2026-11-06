@@ -49,7 +49,7 @@ internal/core/error.typ              # error formatting (paths, type names, did-
 internal/core/input.typ              # the input forms every entry point shares
 internal/core/ctx.typ                # the walk context, and the one definition of absence
 tests/                               # fixtures — CI compiles each as a regression guard
-tests/panics/                        # one file per panic; each must fail with its expected message
+tests/panics/                        # one case per panic site; each must fail with its expected message
 ```
 
 `internal/core/` is the bottom layer and imports nothing else internal;
@@ -118,7 +118,10 @@ Each test file is its own Make target (`check/fixture/…`, `check/panic/…`,
 past a failure. A green `make check` locally means CI's test and typstyle
 jobs will pass too.
 
-Panic cases live in `tests/panics/`, one file per panic. Line 1 is
+Panic cases live in `tests/panics/`, one per place the package panics,
+named `<public-function>-<problem>.typ` (`string-min-length-negative.typ`).
+A second case for the same place earns its file only by pinning other
+wording, or another check that reaches the same message. Line 1 is
 `// expect: <substring of the error>`, then the imports and the call that
 panics. `make test-panics` checks that each file fails to compile and that
 its error contains that substring, so a panic that stops firing, or fires
