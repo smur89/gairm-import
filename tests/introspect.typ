@@ -9,7 +9,7 @@
   resume-schema-strict, object, array-of, map, str-type, content-type,
   number-type, integer-type, bool-type, null-type, date-string, datetime-string,
   uri-string, email-string, enum-of, pattern-string, any-of, const-of, one-of,
-  not-of, nullable, string,
+  not-of, nullable, string, number,
 )
 
 // --- describe-schema -------------------------------------------------
@@ -31,14 +31,14 @@
 ))
 
 #let expected = "basics:
-  email    email-string
+  email    string (email)
   name     string
   summary  content
-  url      uri-string
+  url      string (uri)
 work[]:
   highlights[]  string
   name          string
-  startDate     date-string"
+  startDate     string (date)"
 
 #assert.eq(describe-schema(toy), expected)
 
@@ -97,7 +97,7 @@ work[]:
 // `items` segments are lens-compatible — feed one back in.
 #assert.eq(lens-get(resume-schema-strict, content-paths.at(0)), content-type)
 
-// Format kinds carry through to the strict schema from the faithful
+// Formats carry through to the strict schema from the faithful
 // base (translator-emitted `format: "uri"` / `format: "email"`).
 // Full URI path list pinned so a translator regression surfaces here.
 #assert.eq(paths-of-kind(resume-schema-strict, "uri-string"), (
@@ -118,7 +118,7 @@ work[]:
   (("basics", "email"),),
 )
 
-// Date kind: only the strict overlay lifts the iso8601 $ref fields.
+// Date format: only the strict overlay lifts the iso8601 $ref fields.
 // Every upstream date is an iso8601 $ref now, so the faithful base
 // has none.
 #let date-paths-strict = paths-of-kind(resume-schema-strict, "date-string")
@@ -129,9 +129,9 @@ work[]:
 #assert(("certificates", "items", "date") in date-paths-strict)
 #assert.eq(paths-of-kind(resume-schema, "date-string"), ())
 
-// iso8601 $ref fields land as pattern-string in the faithful base
+// iso8601 $ref fields land as patterned strings in the faithful base
 // (translator picks up upstream's `definitions/iso8601` pattern). The
-// strict overlay rewrites them to date-string, so they vanish here.
+// strict overlay rewrites them to date strings, so they vanish here.
 #let iso-paths-faithful = paths-of-kind(resume-schema, "pattern-string")
 #assert.eq(iso-paths-faithful.len(), 13)
 #assert(("work", "items", "startDate") in iso-paths-faithful)
@@ -149,9 +149,12 @@ work[]:
 #assert.eq(
   paths-of-kind(toy, "str"),
   (
+    ("basics", "email"),
     ("basics", "name"),
+    ("basics", "url"),
     ("work", "items", "highlights", "items"),
     ("work", "items", "name"),
+    ("work", "items", "startDate"),
   ),
 )
 #assert.eq(
@@ -184,20 +187,23 @@ work[]:
 // --- kind-at ---------------------------------------------------------
 
 #assert.eq(kind-at(resume-schema, ("basics", "name")), "string")
-#assert.eq(kind-at(resume-schema, ("basics", "email")), "email-string")
+// A formatted string is a string; its format is a field.
+#assert.eq(kind-at(resume-schema, ("basics", "email")), "string")
+#assert.eq(lens-get(resume-schema, ("basics", "email")).format, "email")
 #assert.eq(kind-at(resume-schema-strict, ("basics", "summary")), "content")
 #assert.eq(kind-at(resume-schema, ("work", "items")), "object")
 #assert.eq(kind-at(resume-schema, ("work",)), "array")
 // Empty path is the identity — root kind.
 #assert.eq(kind-at(resume-schema, ()), "object")
 
-// Kind values (#135): a schema node matches by its kind; a constructor
-// stands for the kind it builds; the name string still works
-// (deprecated). Each kind is present, so no equality is vacuous.
+// Kind values (#135): a schema node matches by its kind and the fields
+// it sets; a constructor stands for the kind it builds; the name
+// string still works (deprecated). Each kind is present, so no
+// equality is vacuous.
 #for (schema, kind, name) in (
   (resume-schema-strict, date-string, "date-string"),
   (resume-schema, pattern-string, "pattern-string"),
-  (resume-schema, pattern-string("x"), "pattern-string"),
+  (resume-schema, string(format: "uri"), "uri-string"),
   (resume-schema, str-type, "str"),
   (resume-schema, any-of, "union"),
   (resume-schema, bool-type, "bool"),
@@ -229,26 +235,48 @@ work[]:
 #assert.eq(paths-of-kind(flags, "bool"), (("flag",),))
 #assert.eq(paths-of-kind(flags, "null"), (("marker",),))
 
-// string() finds every plain or patterned string; a node with a
-// pattern, or pattern-string, only the patterned ones. A hand-built
-// node of an old kind name ("str", "pattern-string") is found and drawn
-// as the string kind it now is (deprecated, until 1.0).
+// A node finds the strings that have every field it sets: string()
+// every string, formatted or patterned or not; string(format: "date")
+// the date strings, with a pattern or without; a node with a pattern
+// the strings with that pattern. A hand-built node of an old kind name
+// ("str", "pattern-string", "date-string", …) is found and drawn as
+// the string it now is, and its name finds what that string finds
+// (deprecated, until 1.0). pattern-string, which stands for no one
+// pattern, still finds every patterned string (deprecated, until 1.0).
 #let strings = object((
   plain: string(),
   coded: string(pattern: "^[A-Z]{3}$"),
   old: (kind: "str"),
   old-coded: (kind: "pattern-string", pattern: regex("^x")),
   email: email-string,
+  dated: string(format: "date", pattern: "^2"),
+  old-dated: (kind: "date-string"),
 ))
-#let every-string = (("coded",), ("old",), ("old-coded",), ("plain",))
-#let patterned = (("coded",), ("old-coded",))
+#let every-string = (
+  ("coded",),
+  ("dated",),
+  ("email",),
+  ("old",),
+  ("old-coded",),
+  ("old-dated",),
+  ("plain",),
+)
+#let dates = (("dated",), ("old-dated",))
+#let patterned = (("coded",), ("dated",), ("old-coded",))
 #for (kind, found) in (
   (string(), every-string),
   (string, every-string),
   (str-type, every-string),
   ("str", every-string),
   ((kind: "str"), every-string),
-  (string(pattern: "y"), patterned),
+  (string(format: "date"), dates),
+  (date-string, dates),
+  ("date-string", dates),
+  ((kind: "date-string"), dates),
+  (string(format: "email"), (("email",),)),
+  (string(format: "date", pattern: "^2"), (("dated",),)),
+  (string(pattern: "^[A-Z]{3}$"), (("coded",),)),
+  (string(pattern: "y"), ()),
   (pattern-string, patterned),
   ("pattern-string", patterned),
   ((kind: "pattern-string"), patterned),
@@ -258,15 +286,32 @@ work[]:
 #assert.eq(
   describe-schema(strings),
   "coded      string + pattern
-email      email-string
+dated      string (date) + pattern
+email      string (email)
 old        string
 old-coded  string + pattern
+old-dated  string (date)
 plain      string",
+)
+
+// The rule is the same for every kind: number(minimum: 0) finds the
+// numbers whose minimum is 0, number() every number.
+#let numbers = object((
+  any: number(),
+  low: number(minimum: 0),
+  high: number(minimum: 0, maximum: 9),
+  other: number(minimum: 1),
+))
+#assert.eq(paths-of-kind(numbers, number(minimum: 0)), (("high",), ("low",)))
+#assert.eq(paths-of-kind(numbers, number()).len(), 4)
+#assert.eq(
+  paths-of-kind(numbers, number(minimum: 0, maximum: 9)),
+  (("high",),),
 )
 
 // --- unions and `not` --------------------------------------------------
 
-// meta.lastModified is any-of((datetime-string, date-string)) in the
+// meta.lastModified is a date-time or date string in the
 // strict schema: its date member is found alongside the 13 iso8601
 // fields, and the union node itself is still found.
 #assert.eq(
@@ -276,11 +321,15 @@ plain      string",
 #assert(("meta", "lastModified") in paths-of-kind(resume-schema-strict, any-of))
 #assert.eq(
   kind-at(resume-schema-strict, ("meta", "lastModified", 0)),
-  "datetime-string",
+  "string",
 )
 #assert.eq(
-  kind-at(resume-schema-strict, ("meta", "lastModified", 1)),
-  "date-string",
+  lens-get(resume-schema-strict, ("meta", "lastModified", 0)).format,
+  "date-time",
+)
+#assert.eq(
+  lens-get(resume-schema-strict, ("meta", "lastModified", 1)).format,
+  "date",
 )
 
 // `location` is one-of((str, object)): its free-text member and the
@@ -300,11 +349,16 @@ plain      string",
 #assert.eq(paths-of-kind(union-toy, str-type), (
   ("place", 0),
   ("place", 1, "city"),
+  ("when", 0),
+  ("when", 1),
 ))
 #assert.eq(paths-of-kind(union-toy, number-type), (("other", "not", "items"),))
 // Every path paths-of-kind returns round-trips through a lens.
 #for p in paths-of-kind(union-toy, str-type) {
-  assert.eq(lens-get(union-toy, p), str-type)
+  assert.eq(lens-get(union-toy, p).kind, "string")
+}
+#for p in paths-of-kind(union-toy, date-string) {
+  assert.eq(lens-get(union-toy, p), date-string)
 }
 
 // --- describe-schema: every feature it draws ----------------------------
@@ -338,11 +392,11 @@ plain      string",
   describe-schema(schema),
   "age     integer (minimum 0)
 code    string + pattern
-email*  email-string
+email*  string (email)
 extra:
   *  string
 jobs[]:
-  start   date-string
+  start   string (date)
   title*  string
 name*   string (min-length 1, max-length 80)
 other:
@@ -355,8 +409,8 @@ place   one of:
 role    enum (\"ic\", \"manager\")
 tags[]  string (min-items 1, unique-items)
 when    any of:
-  [0]  datetime-string
-  [1]  date-string
+  [0]  string (date-time)
+  [1]  string (date)
 phone → email",
 )
 

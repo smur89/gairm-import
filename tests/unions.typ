@@ -276,13 +276,14 @@
 ))
 #assert.eq(paths-of-kind(doc, date-string), (("when", 0),))
 #assert.eq(kind-at(doc, ("when",)), "union")
-#assert.eq(kind-at(doc, ("when", 0)), "date-string")
+#assert.eq(kind-at(doc, ("when", 0)), "string")
+#assert.eq(lens-get(doc, ("when", 0)).format, "date")
 #assert.eq(lens-get(doc, ("name", 0)), str-type)
 #assert.eq(
   lens-put(doc, ("name", 0), (..str-type, min-length: 1)).shape.name,
   nullable((..str-type, min-length: 1)),
 )
-#assert.eq(describe-schema(doc), "name  string?\nwhen  date-string?")
+#assert.eq(describe-schema(doc), "name  string?\nwhen  string (date)?")
 
 // allOf over nullable objects merges the objects; the merge is nullable
 // only when every member is.

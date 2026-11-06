@@ -46,6 +46,19 @@
   (kind: "string", pattern: regex("^a"), expected: "matching pattern"),
 )
 
+// A formatted string is the string kind with a `format`, the JSON
+// Schema format name; a pattern composes with it.
+#assert.eq(string(format: "date"), (kind: "string", format: "date"))
+#assert.eq(
+  string(format: "date", pattern: "^2", expected: "this century"),
+  (
+    kind: "string",
+    format: "date",
+    pattern: regex("^2"),
+    expected: "this century",
+  ),
+)
+
 // A hand-built node of an old kind name, "str" or "pattern-string", is
 // still a schema and checks as the string kind (deprecated, until 1.0);
 // errors name it "string".
@@ -66,6 +79,40 @@
   validate(true, schema: any-of((old-pattern, number-type))).at(0).expected,
   "string | number",
 )
+
+// So is one of an old format kind name, as the string with that format,
+// any other field kept: it validates, coerces and is reported as that
+// string does.
+#for (name, format, good, bad) in (
+  ("date-string", "date", "2024-01-15", "2024/01/15"),
+  ("datetime-string", "date-time", "2024-01-15T10:00:00Z", "2024-01-15"),
+  ("uri-string", "uri", "https://example.com", "not-a-uri"),
+  ("email-string", "email", "a@b.c", "name@"),
+  ("uuid-string", "uuid", "123e4567-e89b-12d3-a456-426614174000", "123"),
+  ("hostname-string", "hostname", "example.com", "-bad-"),
+  ("ipv4-string", "ipv4", "192.0.2.1", "256.0.0.1"),
+  ("ipv6-string", "ipv6", "2001:db8::1", "2001:::1"),
+  ("time-string", "time", "10:00:00Z", "25:00:00"),
+) {
+  let old = (kind: name, max-length: 40)
+  let new = string(format: format, max-length: 40)
+  for value in (good, bad, 1, "x" * 41) {
+    assert.eq(
+      validate(value, schema: old),
+      validate(value, schema: new),
+      message: name,
+    )
+  }
+  assert.eq(coerce(good, schema: old), good)
+  assert.eq(
+    validate(1, schema: any-of((old, number-type))),
+    validate(1, schema: any-of((new, number-type))),
+  )
+  assert.eq(
+    validate(true, schema: any-of((old, number-type))).at(0).expected,
+    "string (" + format + ") | number",
+  )
+}
 
 // ---- the constants are the no-argument values -------------------------
 
@@ -102,8 +149,8 @@
 #assert.eq(string(pattern: regex("^a")), pattern-string(regex("^a")))
 #assert.eq(string(pattern: "^a"), pattern-string("^a"))
 
-// Both compose as the translator composes them: the format kind with
-// an extra pattern gate.
+// Both compose as the translator composes them: the format with an
+// extra pattern gate.
 #assert.eq(
   string(format: "email", pattern: "@example\\.com$", expected: "x"),
   (..email-string, pattern: regex("@example\\.com$"), expected: "x"),
@@ -218,12 +265,13 @@
   "b",
 ))
 
-// A constrained node is still found by its kind.
+// A constrained node is still found by its kind, and a formatted
+// string is a string.
 #let s = object((
   name: string(min-length: 1),
   age: integer(minimum: 0),
   mail: string(format: "email", max-length: 254),
 ))
-#assert.eq(paths-of-kind(s, str-type), (("name",),))
+#assert.eq(paths-of-kind(s, str-type), (("mail",), ("name",)))
 #assert.eq(paths-of-kind(s, integer-type), (("age",),))
 #assert.eq(paths-of-kind(s, email-string), (("mail",),))

@@ -485,7 +485,8 @@ keep working (in `paths-of-kind`, too). `content-type`, `bool-type`,
 constants `date-string` … `time-string` (use `string(format: "date")`
 and so on), and `pattern-string(re, expected: …)` (use
 `string(pattern: re, expected: …)`). A hand-built node of the old kind
-names `"str"` and `"pattern-string"` is read as `"string"`.
+names `"str"` and `"pattern-string"` is read as `"string"`, and one of
+`"date-string"` … `"time-string"` as `"string"` with that `format`.
 
 ### Format validation
 
@@ -511,7 +512,7 @@ Five more formats are available through `string(format: …)`,
 use them), each with the same
 permissive philosophy:
 
-| `format`   | kind              | accepts                                                  |
+| `format`   | constant          | accepts                                                  |
 | ---------- | ----------------- | -------------------------------------------------------- |
 | `uuid`     | `uuid-string`     | 8-4-4-4-12 hex digits, any case                          |
 | `hostname` | `hostname-string` | dot-separated labels of letters, digits, inner hyphens   |
@@ -519,13 +520,13 @@ permissive philosophy:
 | `ipv6`     | `ipv6-string`     | hex groups with `::` compression; no embedded-IPv4 tail  |
 | `time`     | `time-string`     | `HH:MM:SS`, optional fraction, optional `Z` / `±HH:MM`; leap second, `z` |
 
-`format: "date-time"` maps to the separate `datetime-string` kind:
+`format: "date-time"` is a format of its own (`datetime-string`):
 `date-string` accepts `YYYY` / `YYYY-MM` / `YYYY-MM-DD`, while
 `datetime-string` requires the full `YYYY-MM-DDTHH:MM:SS` shape (optional
 fractional part and `Z` / `±HH:MM` offset). As in RFC 3339, both date-time
 and `time` take `T` / `Z` in either case and a leap second (`23:59:60Z`;
 second 60 at minute 59, or at any minute under an offset with minutes). The canonical document carries
-no `date-time` annotations, so that kind only fires via
+no `date-time` annotations, so that format only fires via
 `schema-from-json-schema` or a lens override.
 
 Data written in Typst can give `date-string` a `datetime` with a date and no
@@ -548,7 +549,7 @@ with `lens-put(schema, path, date-string)`.
 
 Coercion is pass-through: format-checked values flow through to the model as
 plain strings, so renderers receive `model.basics.email == "name@example.com"`
-unchanged (a `datetime` given to a date kind becomes its ISO string).
+unchanged (a `datetime` given to a date format becomes its ISO string).
 
 For ad-hoc constraints outside the built-in formats, build a
 `string(pattern: re, expected: …)` (`re` is a `regex` or a pattern string;
@@ -733,15 +734,15 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 // members listed under their field by index.
 #describe-schema(resume-schema-strict)
 // basics:
-//   email    email-string
+//   email    string (email)
 //   name     string
 //   summary  content
 //   …
 // meta:
-//   canonical     uri-string
+//   canonical     string (uri)
 //   lastModified  any of:
-//     [0]  datetime-string
-//     [1]  date-string
+//     [0]  string (date-time)
+//     [1]  string (date)
 //   version       string
 // …
 // work[]:
@@ -751,7 +752,7 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 //     [1]:
 //       address      string
 //       …
-//   startDate     date-string
+//   startDate     string (date)
 //   …
 
 // Every lens-compatible path whose terminal kind matches, inside union
@@ -761,7 +762,7 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 
 // Kind at a single path — thin wrapper over lens-get.
 #kind-at(resume-schema-strict, ("basics", "summary"))  // "content"
-#kind-at(resume-schema-strict, ("meta", "lastModified", 0))  // "datetime-string"
+#kind-at(resume-schema-strict, ("meta", "lastModified", 0))  // "string"
 ```
 <!-- x-release-please-end -->
 
@@ -777,7 +778,8 @@ its block as `phone → email`. Neither JSON Resume schema has required
 fields or constraints, so they show none of these.
 
 `paths-of-kind` takes the kind as a value: a schema node such as
-`date-string` (matched by kind, so `number-type` finds numbers and
+`date-string` (matched by its kind and every field it sets, so `string()`
+finds every string, `date-string` the date strings, `number-type` numbers and
 `integer-type` integers), or a constructor such as `pattern-string`. The kind
 name as a string (`"date-string"`) still works but is deprecated, and will be
 removed in the next major version.
@@ -897,9 +899,9 @@ in sync:
   `uuid` → `uuid-string`, `hostname` → `hostname-string`,
   `ipv4` → `ipv4-string`, `ipv6` → `ipv6-string`, `time` → `time-string`
 - `pattern` → `pattern-string` on a plain string schema; alongside
-  `format`, both apply (the format kind gains the pattern as an extra gate,
+  `format`, both apply (the formatted string gains the pattern as an extra gate,
   checked after the format's own check, also for a `datetime` given to a
-  date kind)
+  date format)
 - `enum` → `enum-of`, `const` → `const-of` — `type` and constraint keywords
   beside them (`minLength`, `minimum`, `minItems`, `pattern`, `format`, …) are
   folded in at translate time: only values satisfying them are kept, and

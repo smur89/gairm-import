@@ -10,7 +10,7 @@
 )
 #import "constraint.typ": _constraint-errors, _constrain
 #import "leaf.typ": null-type
-#import "format.typ": _formats
+#import "format.typ": _string-problem
 
 // Every kind registry.typ holds a descriptor for. The constructors sit
 // below the registry, so they check sub-schemas against this list, and
@@ -23,7 +23,6 @@
   "bool",
   "null",
   "any",
-  .._formats.keys(),
   "enum",
   "array",
   "object",
@@ -31,22 +30,58 @@
   "not",
 )
 
-// Kind names a hand-built node may still carry, deprecated, until 1.0:
-// the plain string was "str", and a patterned one "pattern-string"
-// before it was a string with a `pattern`. Every lookup by kind name
-// goes through _kind-name, so the old names reach the same descriptor
-// and are reported by the new one.
-#let _kind-aliases = (str: "string", pattern-string: "string")
-#let _kind-name(name) = if type(name) == str {
-  _kind-aliases.at(name, default: name)
-} else { name }
+// Kind names a hand-built node may still carry, deprecated, until 1.0,
+// each with the node it stands for: the plain string was "str", a
+// patterned one "pattern-string" before it was a string with a
+// `pattern`, and each format a kind of its own before it was a
+// string's `format`. Every lookup by kind reads the node through
+// _node, so an old node reaches the string descriptor and is reported
+// as the string it is.
+#let _kind-aliases = (
+  str: (kind: "string"),
+  pattern-string: (kind: "string"),
+  date-string: (kind: "string", format: "date"),
+  datetime-string: (kind: "string", format: "date-time"),
+  uri-string: (kind: "string", format: "uri"),
+  email-string: (kind: "string", format: "email"),
+  uuid-string: (kind: "string", format: "uuid"),
+  hostname-string: (kind: "string", format: "hostname"),
+  ipv4-string: (kind: "string", format: "ipv4"),
+  ipv6-string: (kind: "string", format: "ipv6"),
+  time-string: (kind: "string", format: "time"),
+)
+
+// `node` with an old kind name (_kind-aliases) read as the node it
+// stands for, its other fields kept. Panics on a string node whose
+// `format` the format table doesn't know, which only a hand-built node
+// can carry.
+#let _node(node) = {
+  let kind = node.at("kind", default: none)
+  let node = if type(kind) == str and kind in _kind-aliases {
+    (:..node, .._kind-aliases.at(kind))
+  } else { node }
+  if node.at("kind", default: none) == "string" {
+    let p = _string-problem(format: node.at("format", default: none))
+    if p != none { _fail("string schema", p) }
+  }
+  node
+}
 
 // A schema node: a dictionary whose `kind` is registered. Shallow, as
 // its children were checked when they were built.
 #let _is-schema(node) = (
   type(node) == dictionary
-    and _kind-name(node.at("kind", default: none)) in _schema-kinds
+    and _node(node).at("kind", default: none) in _schema-kinds
 )
+
+// A node's kind as messages and describe-schema name it: the kind, then
+// a string's format, if it has one, in parentheses (`string (date)`).
+#let _kind-label(node) = {
+  let node = _node(node)
+  if node.kind == "string" and "format" in node {
+    "string (" + node.format + ")"
+  } else { node.kind }
+}
 
 // The one gate for a node entering from user code: a lens-put value, a
 // lens-over result, a constructor's sub-schema. A malformed node fails
@@ -93,7 +128,7 @@
 // reads `number`, as it did before integer was a kind of its own, so
 // the messages and `expected` values validate returns stay as they were.
 #let _reported-kind(member) = if member.kind == "integer" { "number" } else {
-  _kind-name(member.kind)
+  _kind-label(member)
 }
 
 // Bad-shape members fail at construction, not as a phantom validation

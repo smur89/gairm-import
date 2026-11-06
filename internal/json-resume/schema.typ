@@ -8,7 +8,7 @@
 // Only the kinds this module itself uses — the full combinator surface
 // is re-exported to callers by lib.typ directly from kinds/.
 #import "../kinds/leaf.typ": str-type, content-type
-#import "../kinds/format.typ": date-string, datetime-string
+#import "../kinds/format.typ": string
 #import "../kinds/structure.typ": any-of, _is-free-form, _object-with
 #import "../json-schema/translate.typ": schema-from-json-schema
 #import "../core/error.typ": _internal
@@ -39,8 +39,9 @@
 
 // iso8601 `$ref` fields. The upstream definition is a string with a
 // `pattern`, so the translator emits the iso8601 patterned string for
-// these — the strict variant retypes them as date-string, so callers
-// and `paths-of-kind` see them as dates.
+// these — the strict variant retypes them as date strings
+// (`string(format: "date")`), so callers and `paths-of-kind` see them
+// as dates.
 #let _iso8601-date-paths = (
   ("work", "items", "startDate"),
   ("work", "items", "endDate"),
@@ -65,7 +66,10 @@
 #let _last-modified-paths = (
   ("meta", "lastModified"),
 )
-#let _last-modified-kind = any-of((datetime-string, date-string))
+#let _last-modified-kind = any-of(
+  string(format: "date-time"),
+  string(format: "date"),
+)
 
 // Source shape the translator emits for iso8601 $ref fields, built
 // through the translator from upstream's `definitions/iso8601`. The
@@ -90,7 +94,7 @@
     name: "_iso8601-date-paths",
     paths: _iso8601-date-paths,
     from: _iso8601-source,
-    to: date-string,
+    to: string(format: "date"),
   ),
   (
     name: "_last-modified-paths",

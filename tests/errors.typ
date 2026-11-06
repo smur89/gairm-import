@@ -150,7 +150,7 @@
     (),
     (
       "enum",
-      "email-string",
+      "string (email)",
     ),
     none,
   ),

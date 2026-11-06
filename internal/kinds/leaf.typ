@@ -220,7 +220,7 @@
 }
 
 // The node's own `pattern` gate, if it carries one (a patterned
-// string, or a format kind with an extra pattern).
+// string, or a formatted one with an extra pattern).
 #let _pattern-errors(schema, value, path) = {
   if "pattern" in schema and value.match(schema.pattern) == none {
     // Hand-built nodes may omit `expected`; default as string() does.
@@ -235,8 +235,8 @@
   } else { () }
 }
 
-// The string kind's check: the type gate, then the node's own pattern,
-// if it carries one. Pattern and hint travel on the schema node rather
+// The check of a string with no format: the type gate, then the
+// node's own pattern, if it carries one. Pattern and hint travel on the schema node rather
 // than via the format table, since each instance is unique.
 #let _pattern-check(schema, value, ctx) = {
   if type(value) != str {
