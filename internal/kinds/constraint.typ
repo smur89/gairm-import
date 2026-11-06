@@ -36,7 +36,9 @@
 )
 
 // Integers stay exact; floats compare the ratio with a tolerance, since
-// calc.rem(0.3, 0.1) is not 0.
+// calc.rem(0.3, 0.1) is not 0. A ratio too large for a float (1e308 /
+// 0.123...) is infinite, and no finite multiple: report it rather than
+// compare the NaN its rounding leaves.
 #let _multiple-test(mult, value) = {
   // A schema bug, not a data error: the translator rejects it, but a
   // hand-built node can carry it.
@@ -49,7 +51,7 @@
     calc.rem(value, mult) != 0
   } else {
     let q = value / mult
-    calc.abs(q - calc.round(q)) >= 1e-9
+    q.is-infinite() or q.is-nan() or calc.abs(q - calc.round(q)) >= 1e-9
   }
   if off {
     (

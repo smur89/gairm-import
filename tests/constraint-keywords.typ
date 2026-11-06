@@ -71,6 +71,18 @@
 #assert.eq(validate(0.35, schema: mult-tenth).len(), 1)
 #assert.eq(validate(1.5, schema: mult-3).len(), 1)
 
+// A quotient too large for a float (adapted from the JSON Schema test
+// suite's "float division = inf") is not a multiple, rather than a
+// crash comparing NaN.
+#let mult-tiny = schema-from-json-schema((
+  type: "number",
+  multipleOf: 0.123456789,
+))
+#let huge = validate(1e308, schema: mult-tiny)
+#assert.eq(huge.len(), 1)
+#assert.eq(huge.at(0).code, "multiple")
+#assert.eq(validate(0.246913578, schema: mult-tiny), ())
+
 // --- array constraints -----------------------------------------------
 
 #let arr-2-3 = (kind: "array", elem: str-type, min-items: 2, max-items: 3)
