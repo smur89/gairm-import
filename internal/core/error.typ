@@ -53,9 +53,8 @@
   dictionary: "object",
 )
 
-// The `none` branch is defensive: the validator's null-as-absent rule
-// means _type-error never sees a null value today, but _type-name-of is
-// a general helper that may be reused by future code paths.
+// A null reaches _type-error only in strict-null mode, where every kind
+// but null-type rejects it ("got null").
 #let _type-name-of(value) = {
   if value == none { return "null" }
   let raw = repr(type(value))

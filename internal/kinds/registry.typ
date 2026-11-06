@@ -14,6 +14,8 @@
 //                 header
 //   labels        schema => describe-schema's label for each child, in
 //                 children order
+//   shorthand     schema => none, or (of, mark): describe-schema draws
+//                 the node as `of` with `mark` (a nullable as `X?`)
 //   bad-segment   (schema, segment) => what a lens says when the segment
 //                 names no child
 //   constructors  the public functions that build this kind
@@ -41,8 +43,8 @@
 #import "format.typ": _formats, _format-check
 #import "structure.typ" as _structure-mod
 #import "structure.typ": (
-  array-of, object, map, any-of, one-of, not-of, _array-walk, _object-walk,
-  _union-walk, _not-walk,
+  array-of, object, map, any-of, one-of, not-of, nullable, _array-walk,
+  _object-walk, _union-walk, _not-walk,
 )
 
 #let _kind(
@@ -52,6 +54,7 @@
   with-child: none,
   suffix: s => s.kind,
   labels: s => (),
+  shorthand: s => none,
   bad-segment: (s, seg) => (
     "lens cannot descend into a leaf schema (kind="
       + repr(s.kind)
@@ -71,6 +74,7 @@
   with-child: with-child,
   suffix: suffix,
   labels: labels,
+  shorthand: shorthand,
   bad-segment: bad-segment,
   constructors: constructors,
   family: family,
@@ -201,7 +205,11 @@
     // The header says which union; the members are listed below it.
     suffix: s => if s.exclusive { "one of" } else { "any of" },
     labels: s => range(s.members.len()).map(i => "[" + str(i) + "]"),
-    constructors: (any-of, one-of),
+    // `nullable(X)`, an any-of of exactly X then null, draws as `X?`.
+    shorthand: s => if s == nullable(s.members.first()) {
+      (of: s.members.first(), mark: "?")
+    },
+    constructors: (any-of, one-of, nullable),
   ),
   "not": _kind(
     walk: _not-walk,

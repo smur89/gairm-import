@@ -6,6 +6,7 @@
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": _error, _type-miss, _type-name-of, _closest-match
 #import "constraint.typ": _constraint-errors
+#import "leaf.typ": null-type
 
 /// An array whose every element matches `elem`.
 ///
@@ -53,6 +54,27 @@
 #let one-of(members) = {
   _require-members("one-of()", members)
   (kind: "union", members: members, exclusive: true)
+}
+
+// JSON Schema `[X, "null"]`. An any-of, not a kind of its own: in
+// strict-null mode the union walk hands a null to null-type, and in
+// default mode a null is absent before any kind sees it, so this is X.
+/// A value that matches `member` or is `null`. Without `strict-null`
+/// every field already treats `null` as absent, so this is `member`;
+/// with it, this is how a field accepts `null`. Panics if `member` is
+/// not a schema.
+///
+/// - member (dictionary): The schema for a non-null value.
+/// -> dictionary
+#let nullable(member) = {
+  if not (type(member) == dictionary and "kind" in member) {
+    panic(
+      "gairm-import: nullable member must be a schema dict (with a `kind` field); got: "
+        + repr(member)
+        + ".",
+    )
+  }
+  any-of((member, null-type))
 }
 
 // JSON Schema `not` — the value must NOT match the negated schema.
@@ -219,23 +241,23 @@
   }
   let errors = ()
   let fatal = none
-  // Walked items, `none` where an item was absent, so constraints judge
-  // what the model holds while uniqueness still cites source indices.
-  let items = ()
+  // The walked items the model keeps, as (source index, item), so
+  // constraints judge what the model holds while uniqueness still cites
+  // source indices. Absent items are dropped: a null in an array of
+  // strings would otherwise reach renderers as a stray `none`.
+  let kept = ()
+  let model = ()
   for (i, elem) in value.enumerate() {
     let r = recur(schema.elem, elem, _at(ctx, i))
     errors += r.errors
     if fatal == none { fatal = r.fatal }
-    items.push(r.value)
+    if not _absent(r.value, ctx) {
+      kept.push((i, r.value))
+      model.push(r.value)
+    }
   }
-  errors += _constraint-errors(schema, "array", items, ctx.path)
-  (
-    errors: errors,
-    // Absent items are dropped: a null in an array of strings would
-    // otherwise reach renderers as a stray `none`.
-    value: items.filter(v => not _absent(v, ctx)),
-    fatal: fatal,
-  )
+  errors += _constraint-errors(schema, "array", kept, ctx.path)
+  (errors: errors, value: model, fatal: fatal)
 }
 
 // An object that declares no fields and lets anything through is a
@@ -327,7 +349,17 @@
 // branches the value never claimed to match, so replaying them all is
 // noise. Coerce has no member to build the model from, so it is fatal
 // whatever the errors' codes.
+//
+// A null-type member never competes for a non-null value: the union
+// walks only its other members then, so `nullable(X)` judges a
+// non-null value exactly as X does, and several types plus null report
+// what the union of the types alone would.
 #let _union-walk(schema, value, ctx, recur) = {
+  let others = schema.members.filter(m => m != null-type)
+  if value != none and others != () and others != schema.members {
+    if others.len() == 1 { return recur(others.first(), value, ctx) }
+    return _union-walk((..schema, members: others), value, ctx, recur)
+  }
   let results = ()
   for member in schema.members {
     let r = recur(member, value, ctx)

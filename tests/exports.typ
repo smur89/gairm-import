@@ -33,6 +33,7 @@
   "map",
   "not-of",
   "null-type",
+  "nullable",
   "number-type",
   "object",
   "one-of",
