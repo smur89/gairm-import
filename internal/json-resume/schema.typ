@@ -167,7 +167,9 @@
 // strict variant instead of tightening it. So is a conditional's
 // condition, which only picks the branch; its branches are stripped.
 #let _strip-permissive-additional(schema) = {
+  // kind-check: deprecated with this module, #200
   if _is-free-form(schema) or schema.kind == "not" { return schema }
+  // kind-check: deprecated with this module, #200
   let s = if schema.kind == "if" {
     let branches = ("then", "otherwise").filter(k => k in schema)
     (:

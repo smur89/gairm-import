@@ -23,9 +23,6 @@
 //   bad-segment   (schema, segment) => what a lens says when the segment
 //                 names no child
 //   constructors  the public functions that build this kind
-//   rebuild       schema => the node rebuilt through its constructor, so
-//                 a node from user code can't break the constructor's
-//                 invariants (identity by default)
 
 #import "leaf.typ" as _leaf-mod
 #import "leaf.typ": (
@@ -66,7 +63,6 @@
       + "."
   ),
   constructors: (),
-  rebuild: s => s,
   walk: none,
   check: none,
   family: none,
@@ -83,7 +79,6 @@
   shorthand: shorthand,
   bad-segment: bad-segment,
   constructors: constructors,
-  rebuild: rebuild,
 )
 
 #let _kinds = (
@@ -143,7 +138,6 @@
   // the display-only key for "any other key".
   object: _kind(
     walk: _object-walk,
-    rebuild: _object-with,
     searchable: false,
     children: s => {
       let required = s.at("required-keys", default: ())

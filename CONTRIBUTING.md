@@ -38,9 +38,9 @@ make help          # every target, and the variables you can override
 ```
 
 `make check` is `test`, `fmt-check`, `check-layers` and
-`check-conventions` (no `.kind` test outside the registry unless marked
-`// kind-check: <why>`, no `panic(` outside `core/error.typ`, panic cases
-named after an export): exactly what CI's
+`check-conventions` (no test for a named kind outside `internal/kinds/`
+unless marked `// kind-check: <why>`, no `panic(` outside
+`core/error.typ`, panic cases named after an export): exactly what CI's
 `test` job runs, so a green `make check` means a green `test` check. Each
 test file is its own Make target (`check/fixture/…`, `check/panic/…`,
 `check/package/…`), so `-j` runs them in parallel and `-k` keeps going

@@ -1,7 +1,7 @@
 // allOf: the object-merge subset. Each member translates on its own and
 // the objects merge into one; what the merge can't express bails here.
 
-#import "../kinds/structure.typ": object, nullable
+#import "../kinds/structure.typ": object, nullable, _is-object
 #import "keyword.typ": _bail
 
 // Whether a raw allOf member declares `additionalProperties` false or a
@@ -33,7 +33,7 @@
 // their own words.
 #let _merge-all-of(members, restricts, who) = {
   for m in members {
-    if m.kind != "object" {
+    if not _is-object(m) {
       _bail(
         who
           + " must all be object schemas; got kind "

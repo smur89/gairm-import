@@ -139,15 +139,23 @@ json-resume.files := internal/json-resume/*.typ
 json-resume.allow := $(SIBLING_IMPORT)|\#import +"\.\./((core|kinds|json-schema)/[a-z][a-z0-9-]*|engine|lens|introspect)\.typ"
 json-resume.says  := internal/json-resume/ may import only the layers below it and its own siblings
 
-# One layer's check, as shell that sets `status=1` on a violation.
-#   $(call check-layer,<row>)
-define check-layer
-bad=$$(grep -HnE '#import +"' $($(1).files) \
-  | grep -vE '$($(1).allow)' || true); \
+# Shell that sets `status=1` and prints `<check>: <message>:` and the
+# hits when the command lists any. The message and the command are
+# passed by variable name, so they may contain commas and parentheses.
+#   $(call report,<check>,<message variable>,<command variable>)
+define report
+bad=$$($($(3)) || true); \
 if [ -n "$$bad" ]; then \
-  printf 'check-layers: %s:\n%s\n' '$($(1).says)' "$$bad" >&2; \
+  printf '$(1): %s:\n%s\n' '$($(2))' "$$bad" >&2; \
   status=1; \
 fi;
+endef
+
+# One layer's check: its imports that its `allow` doesn't match.
+#   $(call check-layer,<row>)
+$(foreach l,$(LAYERS),$(eval $(l).find = grep -HnE '\#import +"' $$($(l).files) | grep -vE '$$($(l).allow)'))
+define check-layer
+$(call report,check-layers,$(1).says,$(1).find)
 endef
 
 check-layers: ## fail if an internal/ module imports above its layer
@@ -155,37 +163,26 @@ check-layers: ## fail if an internal/ module imports above its layer
 	$(foreach layer,$(LAYERS),$(call check-layer,$(layer))) \
 	exit $$status
 
-# Conventions the layering rule doesn't cover. A kind's behaviour lives
-# in its registry descriptor, so the engine, lenses and introspection
-# test `.kind` only where that line, or the one above, carries
-# `// kind-check: <why>`. Panics go
-# through core/error.typ's helpers. Each panic case is named after the
-# public function that panics (tests/exports.typ lists them), or
-# `import-` for the checks that run when the package loads.
-CONVENTION_KIND_FILES := internal/engine.typ internal/lens.typ internal/introspect.typ
-PANIC_PREFIXES = import $(shell sed -nE 's/^  "([a-z0-9-]+)",$$/\1/p' tests/exports.typ)
+# The conventions CONTRIBUTING.md states that the layering doesn't
+# cover: kind tests, panics and panic-case names.
+INTERNAL_TYP   := lib.typ $(wildcard internal/*.typ internal/*/*.typ)
+KIND_TEST_FILES := $(filter-out internal/kinds/%,$(INTERNAL_TYP))
+PANIC_FILES    := $(filter-out internal/core/error.typ,$(INTERNAL_TYP))
+# Every export (tests/exports.typ pins them), as a regex alternation,
+# plus `import` for the checks that run when the package loads.
+PANIC_PREFIXES  = import|$(shell sed -nE 's/^  "([a-z0-9-]+)",$$/\1/p' tests/exports.typ | paste -sd'|' -)
 
-check-conventions: ## fail on a kind test outside the registry, a bare panic, or a misnamed panic case
+kind-tests.says  := a test for a named kind outside internal/kinds/ (use a kinds/ helper or descriptor, or mark it // kind-check: <why> on that line or the one above)
+panics.says      := panic outside internal/core/error.typ (use its helpers)
+panic-names.says := panic cases must be named <public-function>-<problem>.typ or import-<problem>.typ
+
+kind-tests.find  = awk '/\.kind *[!=]= *"/ && !/kind-check:/ && prev !~ /kind-check:/ { print FILENAME ":" FNR ": " $$0 } { prev = $$0 }' $(KIND_TEST_FILES)
+panics.find      = grep -HnE '(^|[^a-z_-])panic\(' $(PANIC_FILES) | grep -vE '^[^:]+:[0-9]+: *//'
+panic-names.find = printf '%s\n' $(PANIC_TESTS) | grep -vE '/($(PANIC_PREFIXES))-[^/]*$$'
+
+check-conventions: ## fail on a kind test outside kinds/, a bare panic, or a misnamed panic case
 	@status=0; \
-	bad=$$(awk '/\.kind *[!=]=/ && !/kind-check:/ && prev !~ /kind-check:/ { print FILENAME ":" FNR ": " $$0 } { prev = $$0 }' $(CONVENTION_KIND_FILES)); \
-	if [ -n "$$bad" ]; then \
-	  printf 'check-conventions: a kind test outside the registry (give the descriptor a field, or mark it // kind-check: <why>):\n%s\n' "$$bad" >&2; \
-	  status=1; \
-	fi; \
-	bad=$$(grep -HnE '(^|[^a-z_-])panic\(' lib.typ $$(find internal -name '*.typ' ! -path internal/core/error.typ) \
-	  | grep -vE '^[^:]+:[0-9]+: *//' || true); \
-	if [ -n "$$bad" ]; then \
-	  printf 'check-conventions: panic outside internal/core/error.typ (use its helpers):\n%s\n' "$$bad" >&2; \
-	  status=1; \
-	fi; \
-	for f in tests/panics/*.typ; do \
-	  b=$${f##*/}; ok=; \
-	  for p in $(PANIC_PREFIXES); do case $$b in $$p-*) ok=1;; esac; done; \
-	  if [ -z "$$ok" ]; then \
-	    echo "check-conventions: $$f is not named <public-function>-<problem>.typ" >&2; \
-	    status=1; \
-	  fi; \
-	done; \
+	$(foreach c,kind-tests panics panic-names,$(call report,check-conventions,$(c).says,$(c).find)) \
 	exit $$status
 
 fmt: ## typstyle-format lib.typ, internal/ and tests/ in place

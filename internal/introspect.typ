@@ -167,7 +167,7 @@
 #let _matches(query, node) = {
   let node = _node(node)
   (
-    node.kind == query.kind // kind-check: a query matches nodes of its kind
+    node.kind == query.kind
       and query
         .pairs()
         .all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
