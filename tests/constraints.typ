@@ -112,11 +112,12 @@
     (type: "array", items: (type: "string"), minItems: 1.0, maxItems: 3.0),
     (kind: "array", elem: str-type, min-items: 1, max-items: 3),
   ),
-  // Constraints carry through a format kind.
+  // Constraints carry through a format.
   (
     (type: "string", format: "email", maxLength: 254),
     (
-      kind: "email-string",
+      kind: "string",
+      format: "email",
       max-length: 254,
     ),
   ),

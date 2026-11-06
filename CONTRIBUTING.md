@@ -30,7 +30,7 @@ Resume shape should be added by downstream callers via an extension schema
 ```text
 lib.typ                              # public entry — `parse`, `validate`, `coerce`, combinators, lenses
 internal/kinds/leaf.typ              # leaf kinds (str-type, content-type, enum-of, …)
-internal/kinds/format.typ            # string(), and the string formats, one table row each (date-string, uri-string, …)
+internal/kinds/format.typ            # string(), and the string formats, one table row each (date, uri, …)
 internal/kinds/structure.typ         # containers and combinators (object, map, array-of, any-of, not-of, …)
 internal/kinds/constraint.typ        # constraint rows (min-length, maximum, …)
 internal/kinds/registry.typ          # one descriptor per kind, checked for coverage at load

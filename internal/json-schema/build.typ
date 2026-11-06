@@ -41,8 +41,8 @@
 }
 
 // Both keywords apply when both are present (JSON Schema's "all
-// keywords apply"): string() gives the format kind the pattern as an
-// extra gate, checked after the format regex. string()'s own check runs
+// keywords apply"): string() gives the formatted string the pattern as
+// an extra gate, checked after the format regex. string()'s own check runs
 // first, so a bad keyword bails in the translator's words.
 #let _string-base(js) = {
   let pattern = js.at("pattern", default: none)

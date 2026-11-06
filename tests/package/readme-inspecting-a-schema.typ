@@ -9,10 +9,10 @@
 #for row in (
   "\nbasics:\n",
   "\nmeta:
-  canonical     uri-string
+  canonical     string (uri)
   lastModified  any of:
-    [0]  datetime-string
-    [1]  date-string
+    [0]  string (date-time)
+    [1]  string (date)
   version       string\n",
   "\nwork[]:\n",
   "\n  highlights[]  content
@@ -21,14 +21,14 @@
     [0]  string
     [1]:
       address      string\n",
-  "\n  startDate     date-string\n",
+  "\n  startDate     string (date)\n",
 ) {
   assert(described.contains(row), message: row)
 }
 // The basics rows, whose column is wider in the full output than the
 // README's elided excerpt shows.
 #for (label, kind) in (
-  ("email", "email-string"),
+  ("email", "string \\(email\\)"),
   ("name", "string"),
   ("summary", "content"),
 ) {
@@ -45,5 +45,5 @@
 #assert.eq(kind-at(resume-schema-strict, ("basics", "summary")), "content")
 #assert.eq(
   kind-at(resume-schema-strict, ("meta", "lastModified", 0)),
-  "datetime-string",
+  "string",
 )

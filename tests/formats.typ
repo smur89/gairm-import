@@ -1,7 +1,7 @@
-// The string formats and patterns: each kind takes the values of its
-// format and rejects the rest with a path-qualified message naming it,
-// the wrong type is a type error, and a format kind may carry an extra
-// pattern. A date kind also takes a Typst datetime, checked and
+// The string formats and patterns: each format takes its values and
+// rejects the rest with a path-qualified message naming it, the wrong
+// type is a type error, and a formatted string may carry an extra
+// pattern. A date format also takes a Typst datetime, checked and
 // coerced as the ISO string it converts to.
 
 #import "../lib.typ": (
@@ -338,7 +338,7 @@
 #assert.eq(at(by-regex, "ABC"), ())
 #assert.eq(at(by-regex, "abc").len(), 1)
 
-// Format kinds coerce as the string they are.
+// Formatted strings coerce as the string they are.
 #for (kind, value) in (
   (date-string, "2024-01-15"),
   (datetime-string, "2024-01-15T10:00:00Z"),
@@ -380,13 +380,13 @@
 // describe-schema flags the extra gate.
 #assert(
   describe-schema(object((e: example-email))).contains(
-    "email-string + pattern",
+    "string (email) + pattern",
   ),
 )
 
-// ---- a datetime for a date kind ----------------------------------------
+// ---- a datetime for a date format --------------------------------------
 //
-// Data written in Typst may give a date kind a datetime (#134).
+// Data written in Typst may give a date format a datetime (#134).
 
 #let schema = object((d: date-string, dt: datetime-string))
 #let day = datetime(year: 2024, month: 1, day: 5)
@@ -422,7 +422,7 @@
   1,
 )
 
-// Strict meta.lastModified is any-of((datetime-string, date-string)):
+// Strict meta.lastModified is a date-time or date string:
 // both datetime shapes land.
 #assert.eq(
   parse((meta: (lastModified: moment)), schema: resume-schema-strict),
