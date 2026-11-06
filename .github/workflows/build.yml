@@ -15,10 +15,16 @@ env:
   # Must match typst.toml's `package.name`; tarball, branch and PR
   # names all derive from it.
   PACKAGE_NAME: gairm-import
+  # The minimum in typst.toml's `compiler` (and the README), so CI tests
+  # the oldest Typst the package claims to support. Raise all three
+  # together; a newer local Typst is fine.
   TYPST_VERSION: v0.15.0
-  # Formatter output can shift between versions: bump deliberately and
-  # reformat in the same commit.
-  TYPSTYLE_VERSION: v0.15.0
+  TYPST_SHA256: 59b207df01be2dab9f13e80f73d04d7ff8273ffd46b3dd1b9eef5c60f3eeabea
+  # Formatter output can shift between versions, so this must match the
+  # typstyle you run locally or `make check` and CI disagree. Bump
+  # deliberately and reformat in the same commit.
+  TYPSTYLE_VERSION: v0.15.2
+  TYPSTYLE_SHA256: 4a00dc3270bbc545fb05d8d1c272f352ce68bf9e06d1cceba0126b4bcc1140ff
 
 # An explicit `bash` adds `-o pipefail`, so a failure on the left of a
 # pipe (`curl | tar`, `gh pr create | tail`) fails the step.
@@ -42,6 +48,9 @@ jobs:
           persist-credentials: false
 
       # Each tool is cached per version: saves a download, and a 504 on it.
+      # A download is checked against its pinned SHA-256 before use (the
+      # hash GitHub lists for the release asset); bump a hash with its
+      # version.
       - name: Restore Typst
         id: typst-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -53,8 +62,11 @@ jobs:
         if: steps.typst-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/.local/bin
-          curl -sSfL "https://github.com/typst/typst/releases/download/${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
-            | tar -xJ --strip-components=1 -C ~/.local/bin typst-x86_64-unknown-linux-musl/typst
+          curl -sSfL -o typst.tar.xz \
+            "https://github.com/typst/typst/releases/download/${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz"
+          echo "${TYPST_SHA256}  typst.tar.xz" | sha256sum -c -
+          tar -xJf typst.tar.xz --strip-components=1 -C ~/.local/bin typst-x86_64-unknown-linux-musl/typst
+          rm typst.tar.xz
 
       - name: Restore typstyle
         id: typstyle-cache
@@ -67,9 +79,11 @@ jobs:
         if: steps.typstyle-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/.local/bin
-          curl -sSfL -o ~/.local/bin/typstyle \
+          curl -sSfL -o typstyle \
             "https://github.com/typstyle-rs/typstyle/releases/download/${TYPSTYLE_VERSION}/typstyle-x86_64-unknown-linux-musl"
-          chmod +x ~/.local/bin/typstyle
+          echo "${TYPSTYLE_SHA256}  typstyle" | sha256sum -c -
+          install -m 755 typstyle ~/.local/bin/typstyle
+          rm typstyle
 
       - name: Put the cached tools on PATH
         run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -89,8 +103,9 @@ jobs:
     permissions:
       contents: read
     env:
-      # Pinned so a checker update can't flip the verdict on the same source.
-      PCHECK_IMAGE: ghcr.io/typst/package-check:0.6.0
+      # Pinned by digest so a checker update (or a re-pushed tag) can't flip
+      # the verdict on the same source; the tag is kept for readability.
+      PCHECK_IMAGE: ghcr.io/typst/package-check:0.6.0@sha256:97993f6cafed2d74442299b3f76f756fdaaadea284b178df47481d62adb8d8ef
       # Stamped into the staged manifest so the directory matches what
       # @preview/<name>:<version> resolves to.
       PKG_VERSION: 0.0.0
