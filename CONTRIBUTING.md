@@ -110,6 +110,11 @@ a conventional commit:
 | `feat!:` or a `BREAKING CHANGE:` footer | major | A change existing users must migrate for |
 | `chore:`, `docs:`, `ci:`, `build:`, `refactor:`, `test:` | none | Changes that shouldn't cut a release |
 
+release-please keeps a release PR open with the next version and
+changelog. It runs CI like any other PR, and `test` and
+`typst-package-check` must pass before it merges; merging it tags the
+release and submits it to Typst Universe.
+
 ## Security
 
 See [`SECURITY.md`](SECURITY.md) for how to report a vulnerability.
