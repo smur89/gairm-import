@@ -144,8 +144,9 @@
 // that. When the check passes, the engine adds the family's constraint
 // errors.
 //
-// `fatal` is none, or (expected, got) when the value leaves no model at
-// all; coerce panics with it ("coerce expected <expected>, got …").
+// `fatal` is none, or (path, expected, got) when the value leaves no
+// model at all; coerce panics with it ("coerce at <path>: expected
+// <expected>, got …").
 // Each check says so itself: a miss that still leaves a usable value (a
 // pattern, a format regex, `integer`) has no fatal.
 //
@@ -270,6 +271,6 @@
   (
     errors: errors,
     value: value,
-    fatal: (expected: "one of " + listed, got: value),
+    fatal: (path: ctx.path, expected: "one of " + listed, got: value),
   )
 }

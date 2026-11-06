@@ -306,7 +306,7 @@
           got: value,
         ),
         value: value,
-        fatal: (expected: expected, got: value),
+        fatal: (path: ctx.path, expected: expected, got: value),
       )
     }
     converted

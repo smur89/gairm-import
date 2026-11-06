@@ -328,7 +328,7 @@
 // fatal). `recur` is the engine's walk, passed in so kinds/ never
 // imports the engine. `value` is the model; `fatal` is none, or the
 // first place in walk order where the value leaves no sound model, as
-// (expected, got) for coerce's panic text. Every fatal walk also has
+// (path, expected, got) for coerce's panic text. Every fatal walk also has
 // errors, so a walk with no errors has no fatal.
 //
 // Hot recursive paths use `for` loops, not `.map(x => …)`: each closure
@@ -481,6 +481,7 @@
     return (errors: errors, value: clean.first().value, fatal: none)
   }
   let fatal = (
+    path: ctx.path,
     expected: "a value matching one of the union alternatives",
     got: value,
   )

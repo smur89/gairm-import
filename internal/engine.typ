@@ -8,7 +8,8 @@
 //   value   the model: absent keys and items dropped, unknown keys
 //           dropped, leaves through their kind's model
 //   fatal   none, or the first place in walk order where the value
-//           leaves no sound model, as (expected, got) for coerce's panic
+//           leaves no sound model, as (path, expected, got) for
+//           coerce's panic
 //
 // Only the public entry points panic on a result; the walk itself
 // panics only on a schema it cannot read (an unknown kind, which only
@@ -45,7 +46,7 @@
 /// sound model; every other error is the caller's to have checked.
 #let _coerce-result(r) = {
   if r.fatal != none {
-    panic(_coerce-message(r.fatal.expected, r.fatal.got))
+    panic(_coerce-message(r.fatal.path, r.fatal.expected, r.fatal.got))
   }
   r.value
 }

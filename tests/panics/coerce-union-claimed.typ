@@ -1,4 +1,4 @@
-// expect: coerce expected a value matching one of the union alternatives, got string.
+// expect: coerce at a: expected a value matching one of the union alternatives, got string.
 // The string member claims "ab" and reports only a length miss, which
 // coerce would ignore elsewhere; but no member matched, so there is no
 // member to build the model from.

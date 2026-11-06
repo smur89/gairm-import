@@ -78,13 +78,16 @@
 #let _type-miss(path, expected, noun, value) = (
   errors: _type-error(path, expected, value),
   value: value,
-  fatal: (expected: noun, got: value),
+  fatal: (path: path, expected: noun, got: value),
 )
 
-/// What `coerce` panics with where a value leaves no sound model.
-/// `expected` is the noun phrase ("a string", "an array", …).
-#let _coerce-message(expected, value) = (
-  "gairm-import: coerce expected "
+/// What `coerce` panics with where a value leaves no sound model, at
+/// data path `path`. `expected` is the noun phrase ("a string", "an
+/// array", …).
+#let _coerce-message(path, expected, value) = (
+  "gairm-import: coerce at "
+    + _format-path(path)
+    + ": expected "
     + expected
     + ", got "
     + _type-name-of(value)
