@@ -12,78 +12,127 @@
 
 #import "kinds/registry.typ": _kinds, _descriptor
 #import "kinds/traverse.typ": _children, _get-at, _nodes
+#import "kinds/constraint.typ": _constraint-rows
 
 // The kinds paths-of-kind can look for: every kind but the plain
 // containers. A union or `not` is found as a node, and its members
 // are searched too.
 #let _leaf-kinds = _kinds.keys().filter(k => _kinds.at(k).searchable)
 
-// describe-schema still draws a union or `not` on one row, by its
-// suffix: every kind paths-of-kind finds.
-#let _leaf(s) = _descriptor(s).searchable
+#let _leaf(s) = _descriptor(s).leaf
 #let _suffix(s) = (_descriptor(s).suffix)(s)
+#let _labels(s) = (_descriptor(s).labels)(s)
 
 #let _pad-right(s, width) = s + " " * (width - s.len())
 
-// The tree layout is where arrays and objects differ: an array's
-// element extends its parent's row with `[]`, while each object field
-// gets a row of its own.
+// What a node sets beyond its kind, in one shared list: the `integer`
+// flag, then every constraint row it sets, in row order, by the row's
+// field name (as the node and the error's `expected` spell it). A
+// flag row shows by name alone.
+#let _extras(s) = {
+  let out = if s.at("integer", default: false) == true { ("integer",) } else {
+    ()
+  }
+  for row in _constraint-rows {
+    let v = s.at(row.field, default: none)
+    if v == none or v == false { continue }
+    out.push(if v == true { row.field } else { row.field + " " + str(v) })
+  }
+  out
+}
+#let _paren(s) = {
+  let extras = _extras(s)
+  if extras == () { "" } else { " (" + extras.join(", ") + ")" }
+}
+
+// A leaf's text: its kind, then what it sets beyond it.
+#let _text(s) = _suffix(s) + _paren(s)
+
+// The tree layout is where arrays differ from the rest: an array's
+// element extends its parent's row with `[]` (and the array's own
+// constraints), while every other child gets a row of its own.
 #let _is-array(s) = s.kind == "array"
 #let _elem(s) = _children(s).first().at(1)
 
-// One object row. A leaf, or an array of leaves, is inline after its
-// label, padded to the kind column; a container gets a header line and
-// its own block below it.
+// One child row. A leaf, or an array of leaves, is inline after its
+// label, padded to the kind column; anything else gets a header line,
+// with its own header text (`any of`) when it has one, and its own
+// block below it. An array's constraints follow its element's text
+// inline, and its label otherwise, so they don't widen the column.
 #let _row(label, sub) = {
-  let (label, sub) = if _is-array(sub) { (label + "[]", _elem(sub)) } else {
-    (label, sub)
-  }
-  if _leaf(sub) { (label: label, text: _suffix(sub)) } else {
-    (label: label, block: sub)
+  let (label, sub, after) = if _is-array(sub) {
+    (label + "[]", _elem(sub), _paren(sub))
+  } else { (label, sub, "") }
+  if _leaf(sub) { (label: label, text: _text(sub) + after) } else {
+    (label: label + after, head: _suffix(sub), block: sub)
   }
 }
 
 // Recursive pretty-printer. `indent` prefixes every line at this
-// depth; nested blocks add two more spaces.
+// depth; nested blocks add two more spaces. A node's header text is
+// drawn by its parent's row, or by describe-schema at the root.
 #let _describe(schema, indent) = {
-  if _leaf(schema) { return indent + _suffix(schema) }
+  if _leaf(schema) { return indent + _text(schema) }
   if _is-array(schema) {
-    let elem = _elem(schema)
-    return if _leaf(elem) { indent + "[] " + _suffix(elem) } else {
-      indent + "[]:\n" + _describe(elem, indent + "  ")
+    let r = _row("", schema)
+    return if "text" in r { indent + r.label + " " + r.text } else {
+      (
+        indent
+          + r.label
+          + (if r.head != none { " " + r.head })
+          + ":\n"
+          + _describe(r.block, indent + "  ")
+      )
     }
   }
-  // An object: its fields, then its additional schema under `*`, the
-  // display-only key for "any other key" (lens paths say
-  // "additionalProperties"); `additional: true` shows as `any`.
-  let rows = _children(schema)
-    .enumerate()
-    .map(((i, (seg, sub))) => _row(
-      if i < schema.shape.len() { seg } else { "*" },
-      sub,
-    ))
+  // Each child under its label: a field name (`*` when required), `*`
+  // for an object's additional schema, `[i]` for a union member, `not`
+  // for a `not` member. `additional: true` shows as `* any`.
+  let rows = _labels(schema)
+    .zip(_children(schema))
+    .map(((label, (_, sub))) => _row(label, sub))
   if schema.at("additional", default: none) == true {
     rows.push((label: "*", text: "any"))
   }
-  let inline = rows.filter(r => "text" in r)
-  let col = if inline == () { 0 } else {
-    calc.max(..inline.map(r => r.label.len())) + 2
+  let aligned = rows.filter(r => "text" in r or r.head != none)
+  let col = if aligned == () { 0 } else {
+    calc.max(..aligned.map(r => r.label.len())) + 2
   }
   let lines = rows.map(r => if "text" in r {
     indent + _pad-right(r.label, col) + r.text
   } else {
-    indent + r.label + ":\n" + _describe(r.block, indent + "  ")
+    let head = if r.head == none { r.label } else {
+      _pad-right(r.label, col) + r.head
+    }
+    indent + head + ":\n" + _describe(r.block, indent + "  ")
   })
-  if lines == () { "" } else { lines.join("\n") }
+  // An object's dependent-required, one trigger a line, after its
+  // fields.
+  for (trigger, deps) in schema
+    .at("dependent-required", default: (:))
+    .pairs()
+    .sorted(key: p => p.at(0)) {
+    lines.push(indent + trigger + " → " + deps.join(", "))
+  }
+  lines.join("\n", default: "")
 }
 
-/// Draws a schema as an indented tree, one line per field with its kind.
-/// Keys are sorted, arrays are suffixed `[]`, and `*` stands for any
-/// other key.
+/// Draws a schema as an indented tree, one line per field with its kind
+/// and constraints. Keys are sorted, required fields are marked `*`,
+/// arrays are suffixed `[]`, `*` stands for any other key, union
+/// members are listed as `[0]`, `[1]`, … and a `not` member as `not`,
+/// and a dependent-required entry shows as `trigger → dependents`.
 ///
 /// - schema (dictionary): The schema to draw.
 /// -> str
-#let describe-schema(schema) = _describe(schema, "")
+#let describe-schema(schema) = {
+  let head = if _leaf(schema) or _is-array(schema) { none } else {
+    _suffix(schema)
+  }
+  if head == none { _describe(schema, "") } else {
+    head + ":\n" + _describe(schema, "  ")
+  }
+}
 
 // A schema node matches by its kind (so integer-type finds every
 // number). A kind name string is deprecated, for removal in the next

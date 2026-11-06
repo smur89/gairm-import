@@ -9,7 +9,11 @@
 //                 paths spell them
 //   with-child    (schema, segment, sub) => the node with that child
 //                 replaced
-//   suffix        schema => what describe-schema prints for it as a leaf
+//   suffix        schema => what describe-schema prints on the node's own
+//                 row: a leaf's kind, a union's header, none for no
+//                 header
+//   labels        schema => describe-schema's label for each child, in
+//                 children order
 //   bad-segment   (schema, segment) => what a lens says when the segment
 //                 names no child
 //   constructors  the public functions that build this kind
@@ -47,6 +51,7 @@
   children: s => (),
   with-child: none,
   suffix: s => s.kind,
+  labels: s => (),
   bad-segment: (s, seg) => (
     "lens cannot descend into a leaf schema (kind="
       + repr(s.kind)
@@ -65,6 +70,7 @@
   children: children,
   with-child: with-child,
   suffix: suffix,
+  labels: labels,
   bad-segment: bad-segment,
   constructors: constructors,
   family: family,
@@ -109,6 +115,8 @@
     searchable: false,
     children: s => (("items", s.elem),),
     with-child: (s, _, sub) => (..s, elem: sub),
+    suffix: s => none,
+    labels: s => ("[]",),
     bad-segment: (s, seg) => (
       "lens segment for an array schema must be \"items\", got "
         + repr(seg)
@@ -137,6 +145,21 @@
       shape.insert(seg, sub)
       (..s, shape: shape)
     } else { (..s, additional: sub) },
+    suffix: s => none,
+    // A required field is marked `name*`; the additional schema shows
+    // as `*`, the display-only key for "any other key".
+    labels: s => {
+      let fields = s
+        .shape
+        .keys()
+        .sorted()
+        .map(k => if k in s.at("required-keys", default: ()) { k + "*" } else {
+          k
+        })
+      if type(s.at("additional", default: none)) == dictionary {
+        fields + ("*",)
+      } else { fields }
+    },
     bad-segment: (s, seg) => if seg == "additionalProperties" {
       (
         "lens segment \"additionalProperties\" requires the object's "
@@ -175,13 +198,9 @@
         + repr(seg)
         + "."
     ),
-    // Members name their kind only, one level deep.
-    suffix: s => (
-      (if s.exclusive { "one of" } else { "any of" })
-        + " ("
-        + s.members.map(m => m.kind).join(" | ")
-        + ")"
-    ),
+    // The header says which union; the members are listed below it.
+    suffix: s => if s.exclusive { "one of" } else { "any of" },
+    labels: s => range(s.members.len()).map(i => "[" + str(i) + "]"),
     constructors: (any-of, one-of),
   ),
   "not": _kind(
@@ -192,7 +211,9 @@
     bad-segment: (s, seg) => (
       "lens segment for a not schema must be \"not\", got " + repr(seg) + "."
     ),
-    suffix: s => "not " + s.member.kind,
+    // No header: the member's label, its lens segment, says it.
+    suffix: s => none,
+    labels: s => ("not",),
     constructors: (not-of,),
   ),
 )
