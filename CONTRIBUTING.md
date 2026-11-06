@@ -38,7 +38,9 @@ internal/kinds/traverse.typ          # the one schema traversal (children, get/s
 internal/schema.typ                  # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
 internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.7.0
 internal/engine.typ                  # the one walk over schema and value; validate, coerce and parse
-internal/json-schema.typ             # JSON Schema → Typst-schema translator
+internal/json-schema/translate.typ   # JSON Schema → Typst-schema translator: entry, $ref, one builder per type
+internal/json-schema/keyword.typ     # the keywords it knows, their roles and JSON types
+internal/json-schema/all-of.typ      # the allOf object merge
 internal/lens.typ                    # path-based functional editing of schemas
 internal/introspect.typ              # read-only schema inspection (describe-schema, paths-of-kind, kind-at)
 internal/core/pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop
@@ -51,8 +53,9 @@ tests/panics/                        # one file per panic; each must fail with i
 
 `internal/core/` is the bottom layer and imports nothing else internal;
 `internal/kinds/` imports only `internal/core/` and its own siblings;
-`internal/engine.typ` imports only `internal/core/` and `internal/kinds/`
-(`make check-layers` enforces all three). `lib.typ` is the only public surface;
+`internal/engine.typ` imports only `internal/core/` and `internal/kinds/`;
+`internal/json-schema/` imports only those, the engine and its own siblings
+(`make check-layers` enforces all four). `lib.typ` is the only public surface;
 it reaches internals through underscore module aliases, so a name that
 starts with an underscore is internal and never part of the API.
 
@@ -78,7 +81,7 @@ upstream document is the source of truth. To pull a newer upstream version:
    list, fully open objects, external `$ref`, `allOf` with non-object
    members, and any keyword outside the README's supported list, such as
    `minProperties` or `patternProperties`) panic with a message naming
-   them. If a panic surfaces, extend `internal/json-schema.typ` rather
+   them. If a panic surfaces, extend `internal/json-schema/` rather
    than silently dropping the constraint.
 3. Audit `_content-paths`, `_iso8601-date-paths`, and `_last-modified-paths` in
    `internal/schema.typ` against the bumped document. These lists are the

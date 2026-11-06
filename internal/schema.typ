@@ -10,7 +10,7 @@
 #import "kinds/leaf.typ": str-type, content-type, pattern-string
 #import "kinds/format.typ": date-string, datetime-string
 #import "kinds/structure.typ": any-of, _is-free-form, _object-with
-#import "json-schema.typ": schema-from-json-schema
+#import "json-schema/translate.typ": schema-from-json-schema
 #import "lens.typ": lens-get, lens-put
 #import "kinds/traverse.typ": _map-children, _nodes
 

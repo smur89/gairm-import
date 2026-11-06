@@ -17,7 +17,7 @@
 #import "internal/engine.typ" as _engine-mod
 #import "internal/core/ctx.typ" as _ctx-mod
 #import "internal/core/error.typ" as _error-mod
-#import "internal/json-schema.typ": schema-from-json-schema
+#import "internal/json-schema/translate.typ": schema-from-json-schema
 #import "internal/core/input.typ" as _input-mod
 #import "internal/lens.typ": (
   lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,

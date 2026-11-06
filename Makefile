@@ -105,11 +105,14 @@ check: test fmt-check check-layers ## test + fmt-check + check-layers: the local
 # leaving core/, or a package) is a violation. internal/kinds/ (L1)
 # may also import from core/ (`../core/<name>.typ`), and nothing else.
 # internal/engine.typ (L2) imports only from core/ and kinds/.
-SIBLING_IMPORT := \#import +"[a-z][a-z0-9-]*\.typ"
-CORE_IMPORT    := \#import +"\.\./core/[a-z][a-z0-9-]*\.typ"
-ENGINE_IMPORT  := \#import +"(core|kinds)/[a-z][a-z0-9-]*\.typ"
+# internal/json-schema/ (L3) imports from core/, kinds/, the engine and
+# its own siblings: never lens, introspect or schema.
+SIBLING_IMPORT     := \#import +"[a-z][a-z0-9-]*\.typ"
+CORE_IMPORT        := \#import +"\.\./core/[a-z][a-z0-9-]*\.typ"
+ENGINE_IMPORT      := \#import +"(core|kinds)/[a-z][a-z0-9-]*\.typ"
+JSON_SCHEMA_IMPORT := \#import +"\.\./((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
 
-check-layers: ## fail if internal/core/, internal/kinds/ or the engine import above their layer
+check-layers: ## fail if internal/core/, internal/kinds/, the engine or internal/json-schema/ import above their layer
 	@status=0; \
 	bad=$$(grep -HnE '#import +"' internal/core/*.typ \
 	  | grep -vE '$(SIBLING_IMPORT)' || true); \
@@ -127,6 +130,12 @@ check-layers: ## fail if internal/core/, internal/kinds/ or the engine import ab
 	  | grep -vE '$(ENGINE_IMPORT)' || true); \
 	if [ -n "$$bad" ]; then \
 	  printf 'check-layers: internal/engine.typ may import only internal/core/ and internal/kinds/:\n%s\n' "$$bad" >&2; \
+	  status=1; \
+	fi; \
+	bad=$$(grep -HnE '#import +"' internal/json-schema/*.typ \
+	  | grep -vE '$(SIBLING_IMPORT)|$(JSON_SCHEMA_IMPORT)' || true); \
+	if [ -n "$$bad" ]; then \
+	  printf 'check-layers: internal/json-schema/ may import only internal/core/, internal/kinds/, internal/engine.typ and its own siblings:\n%s\n' "$$bad" >&2; \
 	  status=1; \
 	fi; \
 	exit $$status
