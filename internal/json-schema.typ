@@ -12,13 +12,10 @@
   array-of, object, any-of, one-of, not-of, nullable,
 )
 #import "kinds/format.typ": string, _format-for-json-schema
-#import "kinds/constraint.typ": (
-  _constraint-rows, _constraints, _read-constraints, _clash-message,
+#import "kinds/constraint.typ": _constraints, _read-constraints, _clash-message
+#import "json-schema/keyword.typ": (
+  _bail, _check-keywords, _has-keyword-for, _membership-structural,
 )
-
-// One panic prefix so every diagnostic from this module is grep-able
-// by "schema-from-json-schema —".
-#let _bail(msg) = panic("gairm-import: schema-from-json-schema — " + msg)
 
 // RFC 3986 percent-decoding of a `$ref` fragment, as UTF-8; none when
 // a `%` is not followed by two hex digits or the bytes are not UTF-8.
@@ -113,13 +110,6 @@
   })
 }
 
-#let _unsupported-keywords = (
-  "if",
-  "then",
-  "else",
-  "dependentSchemas",
-)
-
 // `dependentRequired` (2019-09) and draft 7's array-form `dependencies`
 // are the same constraint. The schema form of `dependencies` needs
 // conditional schemas, like `dependentSchemas`.
@@ -149,76 +139,6 @@
     }
   }
   map
-}
-
-// Composition keywords (#108). Each must stand alone on its node
-// (annotation-only siblings excepted; `$ref` is held to the same rule)
-// — a sibling `type` / `properties` / constraint would be silently
-// ignored otherwise, and this module's contract is to bail rather than
-// drop.
-#let _composition-keywords = ("allOf", "anyOf", "oneOf", "not")
-
-// Annotation-only keywords tolerated beside a composition keyword or
-// `$ref` — they carry no validation semantics the engine could drop.
-#let _annotation-keywords = (
-  "$schema",
-  "$id",
-  "$comment",
-  "title",
-  "description",
-  "default",
-  "examples",
-  "readOnly",
-  "writeOnly",
-  "deprecated",
-  "definitions",
-  "$defs",
-)
-
-// Keywords each JSON type supports. A node may carry another type's
-// keywords — draft 7 ignores them, and each `type`-array member is
-// translated from the whole node — so the allow-list is their union.
-#let _family-keywords(family) = (
-  _constraint-rows.filter(row => row.family == family).map(row => row.json)
-)
-#let _type-keywords = (
-  string: ("format", "pattern") + _family-keywords("string"),
-  number: _family-keywords("number"),
-  array: ("items",) + _family-keywords("array"),
-  object: (
-    "properties",
-    "required",
-    "additionalProperties",
-    "dependentRequired",
-    "dependencies",
-  ),
-)
-
-// Anything else (`minProperties`, `patternProperties`, `contains`, a
-// typo like `minLenght`, ...) bails: draft 7 would ignore an unknown
-// key, and an unsupported one would lose its constraint.
-#let _known-keywords = (
-  ("type", "enum", "const", "$ref")
-    + _composition-keywords
-    + _annotation-keywords
-    + _type-keywords.values().join()
-)
-
-#let _require-lone-composition(js, keyword) = {
-  let extras = js
-    .keys()
-    .filter(k => k != keyword and k not in _annotation-keywords)
-  if extras.len() > 0 {
-    _bail(
-      "sibling keywords beside "
-        + repr(keyword)
-        + " are not supported: "
-        + extras.map(repr).join(", ")
-        + if keyword == "$ref" {
-          ". Draft 7 ignores them; move them into the referenced definition."
-        } else { ". Move them into the composition members." },
-    )
-  }
 }
 
 #let _require-member-array(js, keyword) = {
@@ -408,18 +328,6 @@
   dictionary: "object",
 )
 
-// Object / array keywords describe structure that an enum / const
-// value list cannot be filtered by here; they bail rather than being
-// silently dropped.
-#let _membership-structural-keywords = (
-  "properties",
-  "required",
-  "additionalProperties",
-  "items",
-  "dependentRequired",
-  "dependencies",
-)
-
 // Folds the constraint keywords beside `enum` / `const` into the value
 // set: each value is checked against the schema the translator would
 // have emitted for its JSON type without the membership keyword, and
@@ -481,7 +389,7 @@
 
 // An untyped node's members, one per JSON type (`integer` is covered by
 // number), each with the schema it gets when no keyword of its type is
-// present. The names double as `_type-keywords` families.
+// present.
 #let _untyped-members = (
   ("boolean", bool-type),
   ("object", object((:), additional: true)),
@@ -512,12 +420,7 @@
         + ". Boolean schemas (true / false) are out of scope.",
     )
   }
-  // Before the $ref early return: resolving the ref first would
-  // silently drop any non-annotation sibling of `$ref` (a composition
-  // keyword, `minLength`, ...), so bail on those instead.
-  for keyword in _composition-keywords + ("$ref",) {
-    if keyword in js { _require-lone-composition(js, keyword) }
-  }
+  _check-keywords(js)
   if "$ref" in js {
     let ref = js.at("$ref")
     if type(ref) != str {
@@ -527,23 +430,6 @@
       _resolve-ref(ref, root, seen),
       root,
       seen + (ref,),
-    )
-  }
-  for keyword in _unsupported-keywords {
-    if keyword in js {
-      _bail(
-        "unsupported JSON Schema keyword: "
-          + repr(keyword)
-          + ". Conditional schemas (if/then/else, dependentSchemas, schema-form dependencies) are out of scope.",
-      )
-    }
-  }
-  let unknown = js.keys().filter(k => k not in _known-keywords)
-  if unknown.len() > 0 {
-    _bail(
-      "unsupported JSON Schema keyword(s): "
-        + unknown.map(repr).join(", ")
-        + ". They are outside the supported subset (see the README); translating would silently drop their constraints.",
     )
   }
   // Before the enum / const fold, which would otherwise report a typo
@@ -623,7 +509,7 @@
   // enum / const fold the accompanying `type` and constraint keywords
   // into the value list (see _fold-constraints).
   if "enum" in js or "const" in js {
-    for keyword in _membership-structural-keywords {
+    for keyword in _membership-structural {
       if keyword in js {
         _bail(
           repr(keyword)
@@ -651,13 +537,11 @@
   // its own type. A type no keyword applies to takes any value of that
   // type, and an object member with no properties is open.
   if t == none {
-    let present = _type-keywords
-      .pairs()
-      .filter(((_, keywords)) => keywords.any(k => k in js))
-      .map(((family, _)) => family)
-    if present == () { return any-type }
+    if not _untyped-members.any(((m, _)) => _has-keyword-for(js, m)) {
+      return any-type
+    }
     return any-of(_untyped-members.map(((m, plain)) => {
-      if m not in present { return plain }
+      if not _has-keyword-for(js, m) { return plain }
       let member = _narrow(js, m)
       if (
         m == "object"
