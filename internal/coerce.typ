@@ -20,6 +20,11 @@
 // probe with — so coerce leans on the validator's verdict. Acyclic:
 // validate.typ does not import coerce.
 #import "validate.typ": _validate
+#import "core/ctx.typ": _ctx, _absent
+
+// Until the walk threads a ctx, every absence decision reads the
+// default one.
+#let _default-ctx = _ctx()
 
 #let _expect(expected, value) = (
   "gairm-import: coerce expected "
@@ -32,7 +37,7 @@
 #let _coerce(schema, value) = {
   // Null at any value position is "key absent". The parent (object
   // or array branch below) is responsible for filtering this out.
-  if value == none { return none }
+  if _absent(value, _default-ctx) { return none }
   let kind = schema.kind
   if kind == "content" {
     if type(value) != str { panic(_expect("a string", value)) }
@@ -75,7 +80,9 @@
     if type(value) != array { panic(_expect("an array", value)) }
     // Drop null elements: a null in an array of strings would
     // otherwise surface as a stray `none` to downstream renderers.
-    return value.map(elem => _coerce(schema.elem, elem)).filter(e => e != none)
+    return value
+      .map(elem => _coerce(schema.elem, elem))
+      .filter(e => not _absent(e, _default-ctx))
   }
   if kind == "object" {
     if type(value) != dictionary { panic(_expect("an object", value)) }
@@ -98,7 +105,7 @@
         }
         (key, sub)
       })
-      .filter(((_, coerced)) => coerced != none)
+      .filter(((_, coerced)) => not _absent(coerced, _default-ctx))
       .to-dict()
   }
   // Union: delegate to the first member the value validates against.

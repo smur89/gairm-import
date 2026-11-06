@@ -13,6 +13,11 @@
 #import "core/error.typ": _error, _type-name-of, _closest-match
 #import "kinds/format.typ": _formats, _datetime-expected, _from-datetime
 #import "kinds/constraint.typ": _constraint-rows, _constraint-miss
+#import "core/ctx.typ": _ctx, _absent, _has
+
+// Until the walk threads a ctx, every absence decision reads the
+// default one.
+#let _default-ctx = _ctx()
 
 #let _type-error(path, expected, value) = {
   let got = _type-name-of(value)
@@ -72,7 +77,7 @@
   // recursion. Single early return handles every shape uniformly:
   // standalone scalars, array elements (via the per-element call),
   // and per-key sub-values inside objects (via the per-key call).
-  if value == none { return () }
+  if _absent(value, _default-ctx) { return () }
   let kind = schema.kind
   if kind in ("str", "content") {
     if type(value) != str { return _type-error(path, "string", value) }
@@ -212,7 +217,7 @@
     // null-as-absent applies uniformly.
     let required = schema.at("required-keys", default: ())
     let missing-errs = required
-      .filter(k => k not in value or value.at(k) == none)
+      .filter(k => not _has(value, k, _default-ctx))
       .map(k => _error(
         path + (k,),
         "required",
@@ -224,9 +229,9 @@
     let dependent-errs = schema
       .at("dependent-required", default: (:))
       .pairs()
-      .filter(((trigger, _)) => value.at(trigger, default: none) != none)
+      .filter(((trigger, _)) => _has(value, trigger, _default-ctx))
       .map(((trigger, dependents)) => dependents
-        .filter(d => value.at(d, default: none) == none)
+        .filter(d => not _has(value, d, _default-ctx))
         .map(d => _error(
           path,
           "dependent",
