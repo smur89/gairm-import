@@ -18,10 +18,34 @@
   // scan, and they are either the self-import owned by release-please or
   // illustrative), so the typst manager would find nothing; if a .typ file
   // ever imports one, add 'typst' here plus a rule disabling the
-  // `gairm-import` self-import. The toolchain versions (TYPST_VERSION,
-  // TYPSTYLE_VERSION, PCHECK_IMAGE in build.yml, `compiler` in typst.toml,
-  // the minimum in README.md) are bumped deliberately by hand, in lockstep.
-  enabledManagers: ['github-actions'],
+  // `gairm-import` self-import.
+  //
+  // The regex manager below tracks build.yml's toolchain pins: typstyle
+  // (which must match the typstyle used locally) and the package-check
+  // image. TYPST_VERSION is deliberately not tracked: it is the minimum
+  // Typst the package supports (`compiler` in typst.toml, the README), so
+  // it is raised by hand, never on every Typst release.
+  enabledManagers: ['github-actions', 'custom.regex'],
+
+  customManagers: [
+    {
+      description: 'build.yml pins marked with a `# renovate:` comment.',
+      customType: 'regex',
+      managerFilePatterns: ['/^\\.github/workflows/build\\.yml$/'],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\w+: (?<currentValue>\\S+)',
+      ],
+    },
+    {
+      description: 'The package-check image, by tag and digest.',
+      customType: 'regex',
+      managerFilePatterns: ['/^\\.github/workflows/build\\.yml$/'],
+      matchStrings: [
+        'PCHECK_IMAGE: (?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)',
+      ],
+      datasourceTemplate: 'docker',
+    },
+  ],
 
   // Dependabot ran Sunday 22:00. Renovate schedules are windows (hour
   // granularity, and the hosted app runs roughly hourly), so open Sunday
@@ -39,6 +63,21 @@
   semanticCommitScope: 'deps',
 
   packageRules: [
+    {
+      description: 'typstyle: Renovate cannot compute the release asset hash, so the PR fails its checksum until TYPSTYLE_SHA256 is updated.',
+      matchManagers: ['custom.regex'],
+      matchPackageNames: ['typstyle-rs/typstyle'],
+      minimumReleaseAge: '14 days',
+      prBodyNotes: [
+        'Before merging: set `TYPSTYLE_SHA256` in build.yml to the new asset\'s hash (`gh api repos/typstyle-rs/typstyle/releases/tags/{{{newValue}}} --jq \'.assets[] | select(.name=="typstyle-x86_64-unknown-linux-musl") | .digest\'`, without its `sha256:` prefix), update your local typstyle, and run `make fmt` if fmt-check fails.',
+      ],
+    },
+    {
+      description: 'The package-check image: give a new checker release time to settle.',
+      matchManagers: ['custom.regex'],
+      matchPackageNames: ['ghcr.io/typst/package-check'],
+      minimumReleaseAge: '14 days',
+    },
     {
       description: 'All GitHub Actions updates in one PR, as the Dependabot `actions` group did.',
       matchManagers: ['github-actions'],
