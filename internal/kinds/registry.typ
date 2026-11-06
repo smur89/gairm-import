@@ -2,7 +2,9 @@
 // and the strict-schema walkers ask the registry instead of keeping
 // their own `kind ==` ladders. A descriptor holds:
 //
-//   leaf          traversal stops here (unions and `not` do too, for now)
+//   leaf          no children: traversal stops here
+//   searchable    paths-of-kind finds it, rather than only walking
+//                 through it
 //   children      schema => ((segment, sub-schema), ..), segments as lens
 //                 paths spell them
 //   with-child    (schema, segment, sub) => the node with that child
@@ -41,6 +43,7 @@
 
 #let _kind(
   leaf: true,
+  searchable: true,
   children: s => (),
   with-child: none,
   suffix: s => s.kind,
@@ -58,6 +61,7 @@
   walk: none,
 ) = (
   leaf: leaf,
+  searchable: searchable,
   children: children,
   with-child: with-child,
   suffix: suffix,
@@ -96,9 +100,13 @@
     suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
     constructors: (enum-of, const-of),
   ),
+  // paths-of-kind only walks through the two plain containers: every
+  // schema is full of them, so asking for one is more likely a slip
+  // than a question.
   array: _kind(
     walk: _array-walk,
     leaf: false,
+    searchable: false,
     children: s => (("items", s.elem),),
     with-child: (s, _, sub) => (..s, elem: sub),
     bad-segment: (s, seg) => (
@@ -115,6 +123,7 @@
   object: _kind(
     walk: _object-walk,
     leaf: false,
+    searchable: false,
     children: s => {
       let pairs = s.shape.pairs().sorted(key: p => p.at(0))
       let additional = s.at("additional", default: none)
@@ -147,9 +156,26 @@
     },
     constructors: (object, map),
   ),
-  // Members name their kind only, one level deep.
+  // A member's segment is its index, so a path doesn't say whether it
+  // went through any-of or one-of.
   union: _kind(
     walk: _union-walk,
+    leaf: false,
+    children: s => s.members.enumerate(),
+    with-child: (s, i, sub) => {
+      // Typst arrays are values: this copy leaves `s` untouched.
+      let members = s.members
+      members.at(i) = sub
+      (..s, members: members)
+    },
+    bad-segment: (s, seg) => (
+      "lens segment for a union schema must be a member index, 0 to "
+        + str(s.members.len() - 1)
+        + ", got "
+        + repr(seg)
+        + "."
+    ),
+    // Members name their kind only, one level deep.
     suffix: s => (
       (if s.exclusive { "one of" } else { "any of" })
         + " ("
@@ -160,6 +186,12 @@
   ),
   "not": _kind(
     walk: _not-walk,
+    leaf: false,
+    children: s => (("not", s.member),),
+    with-child: (s, _, sub) => (..s, member: sub),
+    bad-segment: (s, seg) => (
+      "lens segment for a not schema must be \"not\", got " + repr(seg) + "."
+    ),
     suffix: s => "not " + s.member.kind,
     constructors: (not-of,),
   ),

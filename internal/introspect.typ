@@ -4,7 +4,8 @@
 // in lens.typ.
 //
 // Path tuples use lens-compatible segments — `"items"` for array
-// descent, `"additionalProperties"` for the additional schema — so
+// descent, `"additionalProperties"` for the additional schema, an
+// index for a union member, `"not"` for a `not` member — so
 // `paths-of-kind` output round-trips through `lens` and `lens-get`.
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
@@ -12,14 +13,14 @@
 #import "kinds/registry.typ": _kinds, _descriptor
 #import "kinds/traverse.typ": _children, _get-at, _nodes
 
-// The kinds paths-of-kind can look for. Unions and `not` are composite,
-// but lens paths cannot descend into them (no segment addresses a
-// member), so walks terminate there — they are findable via
-// paths-of-kind("union") / ("not"), while their members are not walked
-// individually.
-#let _leaf-kinds = _kinds.keys().filter(k => _kinds.at(k).leaf)
+// The kinds paths-of-kind can look for: every kind but the plain
+// containers. A union or `not` is found as a node, and its members
+// are searched too.
+#let _leaf-kinds = _kinds.keys().filter(k => _kinds.at(k).searchable)
 
-#let _leaf(s) = _descriptor(s).leaf
+// describe-schema still draws a union or `not` on one row, by its
+// suffix: every kind paths-of-kind finds.
+#let _leaf(s) = _descriptor(s).searchable
 #let _suffix(s) = (_descriptor(s).suffix)(s)
 
 #let _pad-right(s, width) = s + " " * (width - s.len())
@@ -97,11 +98,12 @@
 }
 
 // Container kinds (`object`, `array`) are deliberately rejected — the
-// walker descends through them, so accepting them would silently
-// return () for every call and mask the typo.
+// walker descends through them, and a search for one is more likely a
+// typo for a leaf than a question.
 /// Lists the lens path of every node in `schema` that has the given
-/// kind. The paths work with `lens`. Panics for `object` and `array`,
-/// which the search walks through, and for kinds it does not know.
+/// kind, including inside union and `not` members. The paths work with
+/// `lens`. Panics for `object` and `array`, which the search walks
+/// through, and for kinds it does not know.
 ///
 /// - schema (dictionary): The schema to search.
 /// - kind (dictionary, function, str): The kind to find: a schema node

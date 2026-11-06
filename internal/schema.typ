@@ -102,21 +102,10 @@
   })
 }
 
-// Union members and a `not` member: the traversal stops at both for
-// now, but the completeness guard below looks inside them. They have
-// no lens path, so their segments are markers (`"<any-of>"`,
-// `"<one-of>"`, `"<not>"`), enough to locate the field in a message.
-#let _members(s) = if s.kind == "union" {
-  let tag = if s.exclusive { "<one-of>" } else { "<any-of>" }
-  s.members.map(m => (tag, m))
-} else if s.kind == "not" { (("<not>", s.member),) } else { () }
-
 // Every path of a leaf equal to `leaf` anywhere in `schema`, including
 // inside union members, a `not` member and typed `additional`.
 #let _leaf-paths(schema, leaf) = (
-  _nodes(schema, more: _members)
-    .filter(((_, n)) => n == leaf)
-    .map(((p, _)) => p)
+  _nodes(schema).filter(((_, n)) => n == leaf).map(((p, _)) => p)
 )
 
 // Completeness guard for the iso8601 override: `_override-fold` only
@@ -146,17 +135,20 @@
 //
 // A free-form bag (`_is-free-form`, upstream's `custom`) keeps its
 // `additional: true` — stripping it would accept only `{}`.
+//
+// Union members are positive matchers, so stripping them tightens
+// them, as everywhere else. That assumes no one-of has two members
+// that differ only by `additional: true`: stripping one can turn a
+// value that matched both (rejected) into one that matches one
+// (accepted). JSON Resume's one-ofs (`location`: a string or an
+// object) can't match twice, so it holds there.
+//
+// A `not` member is left alone: it is a NEGATED matcher, so stripping
+// there would make the negation accept more documents, loosening the
+// strict variant instead of tightening it.
 #let _strip-permissive-additional(schema) = {
-  if _is-free-form(schema) { return schema }
+  if _is-free-form(schema) or schema.kind == "not" { return schema }
   let s = _map-children(schema, _strip-permissive-additional)
-  if s.kind == "union" {
-    // Union members are positive matchers for the document, so
-    // stripping tightens them — same promise as everywhere else. A
-    // `not` member is deliberately left alone: it is a NEGATED
-    // matcher, so stripping there would make the negation accept more
-    // documents, loosening the strict variant instead of tightening it.
-    s = (..s, members: s.members.map(_strip-permissive-additional))
-  }
   // Only objects carry `additional`. Route through the public
   // constructor so any future invariant added to `object()` applies
   // here too.
