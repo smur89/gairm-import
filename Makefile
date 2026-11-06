@@ -29,7 +29,7 @@ PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md REFERENCE.md CONT
 # get it, at version 0.0.0 so its imports never need bumping. Gitignored.
 PACKAGE_PATH  := .package-path
 
-.PHONY: all test test-fixtures test-panics test-package stage-test-package check fmt fmt-check check-layers clean help stage-package-dir package-tarball
+.PHONY: all test test-fixtures test-panics test-package stage-test-package check fmt fmt-check check-layers check-conventions clean help stage-package-dir package-tarball
 
 all: test
 
@@ -98,7 +98,7 @@ test-package: $(PACKAGE_CHECKS) ## compile tests/package/*.typ against the stage
 
 # Exactly what CI's `test` job runs, so a green `make check` locally
 # means a green required check.
-check: test fmt-check check-layers ## test + fmt-check + check-layers: what CI runs
+check: test fmt-check check-layers check-conventions ## test + fmt-check + check-layers + check-conventions: what CI runs
 
 # Layer rules, bottom up, one row per layer: the files, the imports
 # they may make (an extended regex), and how the error says so.
@@ -139,20 +139,50 @@ json-resume.files := internal/json-resume/*.typ
 json-resume.allow := $(SIBLING_IMPORT)|\#import +"\.\./((core|kinds|json-schema)/[a-z][a-z0-9-]*|engine|lens|introspect)\.typ"
 json-resume.says  := internal/json-resume/ may import only the layers below it and its own siblings
 
-# One layer's check, as shell that sets `status=1` on a violation.
-#   $(call check-layer,<row>)
-define check-layer
-bad=$$(grep -HnE '#import +"' $($(1).files) \
-  | grep -vE '$($(1).allow)' || true); \
+# Shell that sets `status=1` and prints `<check>: <message>:` and the
+# hits when the command lists any. The message and the command are
+# passed by variable name, so they may contain commas and parentheses.
+#   $(call report,<check>,<message variable>,<command variable>)
+define report
+bad=$$($($(3)) || true); \
 if [ -n "$$bad" ]; then \
-  printf 'check-layers: %s:\n%s\n' '$($(1).says)' "$$bad" >&2; \
+  printf '$(1): %s:\n%s\n' '$($(2))' "$$bad" >&2; \
   status=1; \
 fi;
+endef
+
+# One layer's check: its imports that its `allow` doesn't match.
+#   $(call check-layer,<row>)
+$(foreach l,$(LAYERS),$(eval $(l).find = grep -HnE '\#import +"' $$($(l).files) | grep -vE '$$($(l).allow)'))
+define check-layer
+$(call report,check-layers,$(1).says,$(1).find)
 endef
 
 check-layers: ## fail if an internal/ module imports above its layer
 	@status=0; \
 	$(foreach layer,$(LAYERS),$(call check-layer,$(layer))) \
+	exit $$status
+
+# The conventions CONTRIBUTING.md states that the layering doesn't
+# cover: kind tests, panics and panic-case names.
+INTERNAL_TYP   := lib.typ $(wildcard internal/*.typ internal/*/*.typ)
+KIND_TEST_FILES := $(filter-out internal/kinds/%,$(INTERNAL_TYP))
+PANIC_FILES    := $(filter-out internal/core/error.typ,$(INTERNAL_TYP))
+# Every export (tests/exports.typ pins them), as a regex alternation,
+# plus `import` for the checks that run when the package loads.
+PANIC_PREFIXES  = import|$(shell sed -nE 's/^  "([a-z0-9-]+)",$$/\1/p' tests/exports.typ | paste -sd'|' -)
+
+kind-tests.says  := a test for a named kind outside internal/kinds/ (use a kinds/ helper or descriptor, or mark it // kind-check: <why> on that line or the one above)
+panics.says      := panic outside internal/core/error.typ (use its helpers)
+panic-names.says := panic cases must be named <public-function>-<problem>.typ or import-<problem>.typ
+
+kind-tests.find  = awk '/\.kind *[!=]= *"|" *[!=]= *[^ ]*\.kind/ && !/^[[:space:]]*\/\// && !/kind-check:/ && prev !~ /kind-check:/ { print FILENAME ":" FNR ": " $$0 } { prev = $$0 }' $(KIND_TEST_FILES)
+panics.find      = grep -HnE '(^|[^a-z_-])panic\(' $(PANIC_FILES) | grep -vE '^[^:]+:[0-9]+: *//'
+panic-names.find = printf '%s\n' $(PANIC_TESTS) | grep -vE '/($(PANIC_PREFIXES))-[^/]*$$'
+
+check-conventions: ## fail on a kind test outside kinds/, a bare panic, or a misnamed panic case
+	@status=0; \
+	$(foreach c,kind-tests panics panic-names,$(call report,check-conventions,$(c).says,$(c).find)) \
 	exit $$status
 
 fmt: ## typstyle-format lib.typ, internal/ and tests/ in place

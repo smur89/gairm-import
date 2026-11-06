@@ -87,6 +87,10 @@
 // The one gate for a node entering from user code: a lens-put value, a
 // lens-over result, a constructor's sub-schema. A malformed node fails
 // here, naming what took it, not later as an unknown kind mid-walk.
+// Whether `node` is an object schema: for the operations only an
+// object supports (the field edits, the allOf merge).
+#let _is-object(node) = node.kind == "object"
+
 #let _require-schema(node, who) = {
   if not _is-schema(node) {
     _bail(

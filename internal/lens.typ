@@ -41,14 +41,16 @@
 // _location-path in traverse.typ).
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
-#import "kinds/structure.typ": _require-schema, _is-schema, _object-with
+#import "kinds/structure.typ": (
+  _require-schema, _is-schema, _is-object, _object-with,
+)
 #import "core/error.typ": _bail, _not-in, _require-key-names
 
 // A node entering from user code: a schema, and an object one rebuilt
 // through object() so it can't break the constructor's invariants.
 #let _checked(node, who) = {
   _require-schema(node, who)
-  if node.kind == "object" { _object-with(node) } else { node }
+  if _is-object(node) { _object-with(node) } else { node }
 }
 
 /// Deprecated: use the path array itself, or `(lens: path)`, instead;
@@ -165,7 +167,7 @@
   _require-schema(schema, op + "'s first argument")
   let path = _location-path(at, op)
   let parent = _get-at(schema, path)
-  if parent.kind != "object" {
+  if not _is-object(parent) {
     _bail(
       op,
       "expects an object schema at the lens target, got kind="
