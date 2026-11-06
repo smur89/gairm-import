@@ -11,7 +11,7 @@
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "kinds/registry.typ": _kinds, _descriptor
-#import "kinds/traverse.typ": _children, _get-at, _nodes
+#import "kinds/traverse.typ": _children, _get-at, _nodes, _location-path
 #import "kinds/constraint.typ": _constraint-rows
 
 // The kinds paths-of-kind can look for: every kind but the plain
@@ -192,12 +192,17 @@
   _nodes(schema).filter(((_, n)) => n.kind == kind-name).map(((p, _)) => p)
 }
 
-// Same as `lens-get(lens(path), schema).kind` — keeps the common
+// Same as `lens-get(schema, at).kind` — keeps the common
 // "what kind is at X" debugging step a single call.
-/// The kind name of the schema node at `path`, such as `"str"` or
+/// The kind name of the schema node at `at`, such as `"str"` or
 /// `"object"`. Panics if the path does not exist.
 ///
 /// - schema (dictionary): The schema to look in.
-/// - path (array): The lens path to the node.
+/// - at (dictionary, array): Where: a lens or a path array.
 /// -> str
-#let kind-at(schema, path) = _get-at(schema, path).kind
+#let kind-at(schema, at) = {
+  _get-at(
+    schema,
+    _location-path(at, "kind-at"),
+  ).kind
+}

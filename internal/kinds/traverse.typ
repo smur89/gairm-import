@@ -42,3 +42,32 @@
 #let _map-children(s, f) = _children(s).fold(s, (acc, (seg, sub)) => (
   (_descriptor(acc).with-child)(acc, seg, f(sub))
 ))
+
+// A location: where lens and introspection functions point. A lens
+// `(lens: path)`, or a bare path array. The old lens shape
+// `(kind: "lens", path: …)` is accepted too, deprecated, until 1.0.
+// None of the three is a schema node: an array is not a dictionary, a
+// lens has no `kind`, and "lens" is no registered kind.
+#let _is-lens(x) = (
+  type(x) == dictionary and x.keys() == ("lens",) and type(x.lens) == array
+)
+#let _is-old-lens(x) = (
+  type(x) == dictionary
+    and x.at("kind", default: none) == "lens"
+    and type(x.at("path", default: none)) == array
+)
+#let _is-location(x) = type(x) == array or _is-lens(x) or _is-old-lens(x)
+
+// The path a location names. Panics, naming `who`, on anything else.
+#let _location-path(at, who) = {
+  if type(at) == array { return at }
+  if _is-lens(at) { return at.lens }
+  if _is-old-lens(at) { return at.path }
+  panic(
+    "gairm-import: "
+      + who
+      + " location must be a lens or a path array; got: "
+      + repr(at)
+      + ".",
+  )
+}

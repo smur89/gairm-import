@@ -529,7 +529,7 @@ Every date field in JSON Resume (`work[].startDate`, `awards[].date`,
 `resume-schema-strict` to type them all as `date-string` (and
 `meta.lastModified` as the upstream-described `YYYY-MM-DDThh:mm:ss`
 `datetime-string`, or a bare `date-string`), or build your own override list
-with `lens-put(lens(path), schema, date-string)`.
+with `lens-put(schema, path, date-string)`.
 
 Coercion is pass-through: format-checked values flow through to the model as
 plain strings, so renderers receive `model.basics.email == "name@example.com"`
@@ -546,13 +546,13 @@ for how it combines with `format`:
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.10.1": (
-  resume-schema, lens, lens-put, pattern-string,
+  resume-schema, lens-put, pattern-string,
 )
 
 // Gate basics.location.countryCode as an ISO 3166-1 alpha-2 code.
 #let with-country-code = lens-put(
-  lens(("basics", "location", "countryCode")),
   resume-schema,
+  ("basics", "location", "countryCode"),
   pattern-string(
     "^[A-Z]{2}$",
     expected: "an ISO 3166-1 alpha-2 code (e.g. \"US\")",
@@ -629,7 +629,7 @@ the targeted node replaced or transformed:
 // Widen basics.summary from content (rich) to str (plain) — useful if
 // you want the summary rendered as plain text instead of formatted:
 #let plain-summary = lens-put(
-  lens(("basics", "summary")), resume-schema, str-type,
+  resume-schema, ("basics", "summary"), str-type,
 )
 
 // Add a numeric `rating` to every language entry — touches
@@ -640,21 +640,19 @@ the targeted node replaced or transformed:
 
 // Transform an existing node with a function:
 #let with-extra-meta = lens-over(
-  lens(("meta",)),
   resume-schema,
+  ("meta",),
   meta => object((..meta.shape, source: str-type)),
 )
 
 // Make basics.name and basics.email required for your template
-// (canonical schema declares no required keys):
-#let strict-basics = set-required(
-  resume-schema, lens(("basics",)), ("name", "email"),
-)
+// (canonical schema declares no required keys). A lens names a location
+// you reuse:
+#let basics = lens(("basics",))
+#let strict-basics = set-required(resume-schema, basics, ("name", "email"))
 
 // Relax email back without re-spelling the rest of the required list:
-#let mixed-basics = unset-required(
-  strict-basics, lens(("basics",)), ("email",),
-)
+#let mixed-basics = unset-required(strict-basics, basics, ("email",))
 ```
 <!-- x-release-please-end -->
 
@@ -666,21 +664,33 @@ not `true`). A union member is entered by its index (`("meta",
 "lastModified", 0)`, the same for `any-of` and `one-of`) and a `not-of`
 member by the literal `"not"`, so `lens-put` can replace one member and
 keep the rest. Composition (`lens-then(a, b)`) concatenates paths, so
-`lens-then(lens(("work",)), lens(("items", "highlights")))` is the same
-lens as `lens(("work", "items", "highlights"))`. The empty path `lens(())`
+`lens-then(lens(("work",)), ("items", "highlights"))` is the same
+lens as `lens(("work", "items", "highlights"))`. The empty path `()`
 is the identity lens.
+
+The schema always comes first, so edits chain through `.fold`. A location
+is a lens, `lens(path)` (the dictionary `(lens: path)`), or the bare path
+array: every function that takes a location takes either, and `kind-at`
+too.
 
 | Function | Shape | Behaviour |
 |---|---|---|
 | `lens(path)` | `path → lens` | Construct a lens from a path tuple |
-| `lens-get(l, schema)` | `lens, schema → sub-schema` | Read the targeted node |
-| `lens-put(l, schema, value)` | `lens, schema, sub → schema` | Replace the targeted node |
-| `lens-over(l, schema, fn)` | `lens, schema, (sub → sub) → schema` | Apply a function to the targeted node |
-| `lens-then(a, b)` | `lens, lens → lens` | Compose two lenses (path concatenation) |
-| `add-field(schema, parent, key, sub)` | … → schema | Add a key to the object at `parent` |
-| `remove-field(schema, parent, key)` | … → schema | Remove a key from the object at `parent` |
-| `set-required(schema, parent, keys)` | … → schema | Replace the object's `required-keys` list at `parent` |
-| `unset-required(schema, parent, keys)` | … → schema | Drop specific entries from the object's `required-keys` list at `parent` |
+| `lens-get(schema, at)` | `schema, at → sub-schema` | Read the targeted node |
+| `lens-put(schema, at, value)` | `schema, at, sub → schema` | Replace the targeted node |
+| `lens-over(schema, at, fn)` | `schema, at, (sub → sub) → schema` | Apply a function to the targeted node |
+| `lens-then(a, b)` | `at, at → lens` | Compose two locations (path concatenation) |
+| `add-field(schema, at, key, sub)` | … → schema | Add a key to the object at `at` |
+| `remove-field(schema, at, key)` | … → schema | Remove a key from the object at `at` |
+| `set-required(schema, at, keys)` | … → schema | Replace the object's `required-keys` list at `at` |
+| `unset-required(schema, at, keys)` | … → schema | Drop specific entries from the object's `required-keys` list at `at` |
+
+**Deprecated, accepted until 1.0:** the lens-first order
+`lens-get(at, schema)`, `lens-put(at, schema, value)` and
+`lens-over(at, schema, fn)`, and the old lens shape
+`(kind: "lens", path: …)` wherever a location is taken. Arguments are
+told apart by type, so an old call still works unchanged; a call that is
+neither a schema then a location nor the old order panics.
 
 Operations are functional — each helper above returns a NEW schema and
 leaves the input untouched, so you can chain edits without disturbing the
@@ -759,7 +769,8 @@ field, `paths-of-kind(s, number-type)` no longer lists integers, and
 Validation and coercion are unchanged.
 
 Array segments in returned path tuples use `"items"`, union members their
-index and a `not` member `"not"`, so they plug straight into `lens(path)`;
+index and a `not` member `"not"`, so they plug straight into the lens
+functions as locations;
 the `[]` suffix and `[0]` labels in `describe-schema`'s output are
 human-friendly visual only. `paths-of-kind` and the lens functions reach
 into union and `not` members, so `paths-of-kind(…, any-of)` returns the
@@ -774,7 +785,7 @@ bump introduces are covered automatically:
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.10.1": (
-  resume-schema, paths-of-kind, lens, lens-put, pattern-string, uri-string,
+  resume-schema, paths-of-kind, lens-put, pattern-string, uri-string,
 )
 
 // Tighten every uri-string field to a corporate-domain pattern,
@@ -785,7 +796,7 @@ bump introduces are covered automatically:
 )
 #let corporate-schema = paths-of-kind(resume-schema, uri-string).fold(
   resume-schema,
-  (schema, path) => lens-put(lens(path), schema, corporate-uri),
+  (schema, path) => lens-put(schema, path, corporate-uri),
 )
 ```
 <!-- x-release-please-end -->
