@@ -22,25 +22,8 @@ schema built by the caller (see
 
 ## Project layout
 
-```text
-lib.typ                     # the only public surface
-internal/core/              # L0: input forms, errors, the walk context, JSON Pointer
-internal/kinds/             # L1: constructors, formats, constraint rows, the kind registry, traversal
-internal/engine.typ         # L2: the one walk over schema and value: validate, coerce, parse
-internal/json-schema/       # L3: the JSON Schema translator: keyword table, builders, allOf, $ref
-internal/lens.typ           # L3: lens-get / lens-put / lens-over and the field edits
-internal/introspect.typ     # L3: describe-schema, paths-of-kind
-internal/json-resume/       # L4: the vendored upstream schema.json, resume-schema and resume-schema-strict
-tests/*.typ                 # assertions, one file per public concept
-tests/panics/               # one case per place the package panics
-tests/package/              # compiled against the staged package; readme-* and reference-* mirror the docs
-```
-
-A module imports only from layers below it and its own siblings, and the
-two L3 modules outside `json-schema/` import only from core, kinds and the
-engine, never each other. `make check-layers` enforces this. `lib.typ`
-reaches internals through underscore aliases, so a name that starts with
-an underscore is never part of the API.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the codemap, the layering
+rule and where to make each kind of change.
 
 ## Development loop
 
