@@ -39,19 +39,25 @@
 /// `(path, code, message, expected, got)` records; the README lists the
 /// codes. An empty array means the data is valid.
 ///
-/// - data (dictionary, path, bytes): The document, or where to read it.
-///   A `path` resolves from your file. A string is the value itself (a
-///   scalar schema checks it), never a path; use `path(..)` or
-///   `json(..)` to read a file. Null panics.
+/// - data (any): The document, or where to read it: a `path` or bytes
+///   is read as JSON, and a `path` resolves from your file. Any other
+///   value is the document itself, whatever root the schema takes. Null
+///   panics, and so does a string ending in `.json` that the schema's
+///   root does not take, as a string path would resolve from the
+///   package: use `path(..)` or `json(..)` to read a file.
 /// - schema (dictionary): The schema to check against.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> array
 #let validate(data, schema: resume-schema, strict-null: false) = {
   let value = _input-mod._decode-input("validate", data, str-is-data: true)
-  _engine-mod
-    ._walk(schema, value, _ctx-mod._ctx(strict-null: strict-null))
-    .errors
+  let r = _engine-mod._walk(
+    schema,
+    value,
+    _ctx-mod._ctx(strict-null: strict-null),
+  )
+  _input-mod._refuse-path("validate", data, r)
+  r.errors
 }
 
 // Unknown keys are dropped silently rather than panicking, so direct
@@ -63,46 +69,40 @@
 /// keys (unless `strict-null`); an object left with no keys stays an
 /// empty dictionary.
 ///
-/// - data (dictionary, path, bytes): The document, or where to read it.
-///   A `path` resolves from your file. A string is the value itself (a
-///   scalar schema converts it), never a path; use `path(..)` or
-///   `json(..)` to read a file. Null panics.
+/// - data (any): The document, or where to read it, as for `validate`.
 /// - schema (dictionary): The schema that says what each field becomes.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
-/// -> dictionary
+/// -> any
 #let coerce(data, schema: resume-schema, strict-null: false) = {
   let value = _input-mod._decode-input("coerce", data, str-is-data: true)
-  _engine-mod._coerce-result(_engine-mod._walk(
+  let r = _engine-mod._walk(
     schema,
     value,
     _ctx-mod._ctx(strict-null: strict-null),
-  ))
+  )
+  _input-mod._refuse-path("coerce", data, r)
+  _engine-mod._coerce-result(r)
 }
 
 /// Validates `data` against `schema`, then coerces it into the typed
 /// model. Panics with every problem found, so one compile shows them
 /// all.
 ///
-/// - data (dictionary, path, bytes): The document, or where to read it.
-///   A `path` resolves from your file. A `str` panics, because inside a
-///   package it would resolve from the package; use `path(..)` or
-///   `json(..)` instead.
+/// - data (any): The document, or where to read it, as for `validate`:
+///   the root may be anything the schema takes, an array or a scalar
+///   included.
 /// - schema (dictionary): The schema to check against.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
-/// -> dictionary
+/// -> any
 #let parse(data, schema: resume-schema, strict-null: false) = {
-  let dict-data = _input-mod._decode-input("parse", data)
-  if type(dict-data) != dictionary {
-    _error-mod._bail(
-      "parse",
-      "expected a dict, a path, or bytes, got " + repr(type(dict-data)) + ".",
-    )
-  }
-  _engine-mod._parse-result(_engine-mod._walk(
+  let value = _input-mod._decode-input("parse", data, str-is-data: true)
+  let r = _engine-mod._walk(
     schema,
-    dict-data,
+    value,
     _ctx-mod._ctx(strict-null: strict-null),
-  ))
+  )
+  _input-mod._refuse-path("parse", data, r)
+  _engine-mod._parse-result(r)
 }

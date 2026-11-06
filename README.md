@@ -198,10 +198,12 @@ package, not your project, so `parse("/resume.json")` could never find your
 file. Pass `path("resume.json")`.
 
 The same input forms apply to `parse`, `validate`, `coerce` and
-`schema-from-json-schema`: a dictionary, `path(..)` or bytes. `parse` and
-`schema-from-json-schema` panic on a string path. `validate` and `coerce`
-take a string as the value itself, for a scalar schema such as
-`date-string`, so read a file there with `path(..)` or `json(..)`.
+`schema-from-json-schema`: a dictionary, `path(..)` or bytes. `parse`,
+`validate` and `coerce` also take any other root the schema accepts, such
+as an array, or a string for a scalar schema such as `date-string`; they
+panic on a string ending in `.json` that the schema's root does not take,
+as a path it could never find. `schema-from-json-schema` panics on any
+string.
 
 ### The returned model
 
