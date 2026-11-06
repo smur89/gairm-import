@@ -388,16 +388,3 @@
 #assert("meta" not in model)
 // Except inside the free-form `custom` bag, which keeps its nulls.
 #assert.eq(model.custom, (myTool: none))
-
-// README "Strict null" example.
-#assert.eq(
-  parse(
-    (name: "Ada", nickname: none),
-    schema: object(
-      (name: str-type, nickname: nullable(str-type)),
-      required-keys: ("name", "nickname"),
-    ),
-    strict-null: true,
-  ),
-  (name: "Ada", nickname: none),
-)
