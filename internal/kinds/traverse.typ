@@ -1,15 +1,17 @@
 // One schema traversal, through the kind descriptors, shared by lens,
 // introspection and the strict-schema walkers. Paths are lens paths: a
 // field name, "items" for an array's elements, "additionalProperties"
-// for an object's additional schema. Unions and `not` are leaves here
-// for now.
+// for an object's additional schema, an int index for a union member,
+// "not" for a `not` member.
 
 #import "registry.typ": _descriptor
 
 #let _children(s) = (_descriptor(s).children)(s)
 
+// Segments match by type as well as value, so `1.0` or `"0"` names no
+// union member.
 #let _child(s, seg) = {
-  let hit = _children(s).find(((k, _)) => k == seg)
+  let hit = _children(s).find(((k, _)) => type(k) == type(seg) and k == seg)
   if hit == none {
     panic("gairm-import: " + (_descriptor(s).bad-segment)(s, seg))
   }
@@ -25,12 +27,11 @@
   (_descriptor(s).with-child)(s, head, _set-at(_child(s, head), rest, sub))
 }
 
-// Every (path, node) pair, pre-order. `more` lists extra
-// (segment, node) pairs to walk into beyond a node's children.
-#let _nodes(s, path: (), more: s => ()) = {
+// Every (path, node) pair, pre-order.
+#let _nodes(s, path: ()) = {
   let out = ((path, s),)
-  for (seg, sub) in _children(s) + more(s) {
-    out += _nodes(sub, path: path + (seg,), more: more)
+  for (seg, sub) in _children(s) {
+    out += _nodes(sub, path: path + (seg,))
   }
   out
 }

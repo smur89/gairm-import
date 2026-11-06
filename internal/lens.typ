@@ -11,6 +11,8 @@
 //   - object   : literal "additionalProperties" to enter `.additional`
 //                (only when set to a schema dict, not `true`)
 //   - array    : literal "items" to enter `.elem`
+//   - union    : int index into `.members` (any-of and one-of alike)
+//   - not      : literal "not" to enter `.member`
 //   - empty `()` : identity lens
 //
 // Shape-first precedence for objects: if `"additionalProperties"` is
@@ -51,8 +53,9 @@
 
 /// A lens: a path to one node in a schema. A path is an array of
 /// segments: a field name to enter an object, `"items"` to enter an
-/// array's elements, or `"additionalProperties"` to enter an object's
-/// additional schema. `()` is the identity lens.
+/// array's elements, `"additionalProperties"` to enter an object's
+/// additional schema, an int index to enter a union member, or `"not"`
+/// to enter a `not` member. `()` is the identity lens.
 ///
 /// - path (array): The segments.
 /// -> dictionary

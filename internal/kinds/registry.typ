@@ -2,12 +2,18 @@
 // and the strict-schema walkers ask the registry instead of keeping
 // their own `kind ==` ladders. A descriptor holds:
 //
-//   leaf          traversal stops here (unions and `not` do too, for now)
+//   leaf          no children: traversal stops here
+//   searchable    paths-of-kind finds it, rather than only walking
+//                 through it
 //   children      schema => ((segment, sub-schema), ..), segments as lens
 //                 paths spell them
 //   with-child    (schema, segment, sub) => the node with that child
 //                 replaced
-//   suffix        schema => what describe-schema prints for it as a leaf
+//   suffix        schema => what describe-schema prints on the node's own
+//                 row: a leaf's kind, a union's header, none for no
+//                 header
+//   labels        schema => describe-schema's label for each child, in
+//                 children order
 //   bad-segment   (schema, segment) => what a lens says when the segment
 //                 names no child
 //   constructors  the public functions that build this kind
@@ -41,9 +47,11 @@
 
 #let _kind(
   leaf: true,
+  searchable: true,
   children: s => (),
   with-child: none,
   suffix: s => s.kind,
+  labels: s => (),
   bad-segment: (s, seg) => (
     "lens cannot descend into a leaf schema (kind="
       + repr(s.kind)
@@ -58,9 +66,11 @@
   walk: none,
 ) = (
   leaf: leaf,
+  searchable: searchable,
   children: children,
   with-child: with-child,
   suffix: suffix,
+  labels: labels,
   bad-segment: bad-segment,
   constructors: constructors,
   family: family,
@@ -96,11 +106,17 @@
     suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
     constructors: (enum-of, const-of),
   ),
+  // paths-of-kind only walks through the two plain containers: every
+  // schema is full of them, so asking for one is more likely a slip
+  // than a question.
   array: _kind(
     walk: _array-walk,
     leaf: false,
+    searchable: false,
     children: s => (("items", s.elem),),
     with-child: (s, _, sub) => (..s, elem: sub),
+    suffix: s => none,
+    labels: s => ("[]",),
     bad-segment: (s, seg) => (
       "lens segment for an array schema must be \"items\", got "
         + repr(seg)
@@ -115,6 +131,7 @@
   object: _kind(
     walk: _object-walk,
     leaf: false,
+    searchable: false,
     children: s => {
       let pairs = s.shape.pairs().sorted(key: p => p.at(0))
       let additional = s.at("additional", default: none)
@@ -128,6 +145,21 @@
       shape.insert(seg, sub)
       (..s, shape: shape)
     } else { (..s, additional: sub) },
+    suffix: s => none,
+    // A required field is marked `name*`; the additional schema shows
+    // as `*`, the display-only key for "any other key".
+    labels: s => {
+      let fields = s
+        .shape
+        .keys()
+        .sorted()
+        .map(k => if k in s.at("required-keys", default: ()) { k + "*" } else {
+          k
+        })
+      if type(s.at("additional", default: none)) == dictionary {
+        fields + ("*",)
+      } else { fields }
+    },
     bad-segment: (s, seg) => if seg == "additionalProperties" {
       (
         "lens segment \"additionalProperties\" requires the object's "
@@ -147,20 +179,41 @@
     },
     constructors: (object, map),
   ),
-  // Members name their kind only, one level deep.
+  // A member's segment is its index, so a path doesn't say whether it
+  // went through any-of or one-of.
   union: _kind(
     walk: _union-walk,
-    suffix: s => (
-      (if s.exclusive { "one of" } else { "any of" })
-        + " ("
-        + s.members.map(m => m.kind).join(" | ")
-        + ")"
+    leaf: false,
+    children: s => s.members.enumerate(),
+    with-child: (s, i, sub) => {
+      // Typst arrays are values: this copy leaves `s` untouched.
+      let members = s.members
+      members.at(i) = sub
+      (..s, members: members)
+    },
+    bad-segment: (s, seg) => (
+      "lens segment for a union schema must be a member index, 0 to "
+        + str(s.members.len() - 1)
+        + ", got "
+        + repr(seg)
+        + "."
     ),
+    // The header says which union; the members are listed below it.
+    suffix: s => if s.exclusive { "one of" } else { "any of" },
+    labels: s => range(s.members.len()).map(i => "[" + str(i) + "]"),
     constructors: (any-of, one-of),
   ),
   "not": _kind(
     walk: _not-walk,
-    suffix: s => "not " + s.member.kind,
+    leaf: false,
+    children: s => (("not", s.member),),
+    with-child: (s, _, sub) => (..s, member: sub),
+    bad-segment: (s, seg) => (
+      "lens segment for a not schema must be \"not\", got " + repr(seg) + "."
+    ),
+    // No header: the member's label, its lens segment, says it.
+    suffix: s => none,
+    labels: s => ("not",),
     constructors: (not-of,),
   ),
 )

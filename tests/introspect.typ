@@ -122,7 +122,9 @@ work[]:
 // Every upstream date is an iso8601 $ref now, so the faithful base
 // has none.
 #let date-paths-strict = paths-of-kind(resume-schema-strict, "date-string")
-#assert.eq(date-paths-strict.len(), 13) // the 13 _iso8601-date-paths
+// The 13 _iso8601-date-paths, and meta.lastModified's date member.
+#assert.eq(date-paths-strict.len(), 14)
+#assert(("meta", "lastModified", 1) in date-paths-strict)
 #assert(("work", "items", "startDate") in date-paths-strict)
 #assert(("certificates", "items", "date") in date-paths-strict)
 #assert.eq(paths-of-kind(resume-schema, "date-string"), ())

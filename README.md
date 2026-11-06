@@ -557,7 +557,10 @@ Path segments match JSON Schema keyword names: object keys as strings, the
 literal `"items"` to enter an array's element schema, and the literal
 `"additionalProperties"` to enter an object's `additional` (the
 additionalProperties schema; only valid when `additional` is a schema dict,
-not `true`). Composition (`lens-then(a, b)`) concatenates paths, so
+not `true`). A union member is entered by its index (`("meta",
+"lastModified", 0)`, the same for `any-of` and `one-of`) and a `not-of`
+member by the literal `"not"`, so `lens-put` can replace one member and
+keep the rest. Composition (`lens-then(a, b)`) concatenates paths, so
 `lens-then(lens(("work",)), lens(("items", "highlights")))` is the same
 lens as `lens(("work", "items", "highlights"))`. The empty path `lens(())`
 is the identity lens.
@@ -593,26 +596,50 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
   resume-schema-strict, describe-schema, paths-of-kind, kind-at, date-string,
 )
 
-// Tree view of every leaf, with array sections suffixed `[]`.
+// Tree view of every leaf, with array sections suffixed `[]` and union
+// members listed under their field by index.
 #describe-schema(resume-schema-strict)
 // basics:
 //   email    email-string
 //   name     str
 //   summary  content
 //   …
+// meta:
+//   canonical     uri-string
+//   lastModified  any of:
+//     [0]  datetime-string
+//     [1]  date-string
+//   version       str
+// …
 // work[]:
 //   highlights[]  content
+//   location      one of:
+//     [0]  str
+//     [1]:
+//       address      str
+//       …
 //   startDate     date-string
 //   …
 
-// Every lens-compatible path whose terminal kind matches.
+// Every lens-compatible path whose terminal kind matches, inside union
+// members too.
 #paths-of-kind(resume-schema-strict, date-string)
-// → (("work", "items", "startDate"), …)
+// → (("awards", "items", "date"), …, ("meta", "lastModified", 1), …)
 
 // Kind at a single path — thin wrapper over lens-get.
 #kind-at(resume-schema-strict, ("basics", "summary"))  // "content"
+#kind-at(resume-schema-strict, ("meta", "lastModified", 0))  // "datetime-string"
 ```
 <!-- x-release-please-end -->
+
+`describe-schema` marks what a node sets beyond its kind. A required field
+is suffixed `*` (`name*  str`), constraints follow the kind in brackets
+(`str (min-length 1, max-length 80)`, `number (integer, minimum 0)`,
+`tags[]  str (min-items 1, unique-items)`), a union lists its members as
+`[0]`, `[1]`, … under an `any of:` or `one of:` header, a `not` member shows
+under its field as `not`, and an object's `dependent-required` entries close
+its block as `phone → email`. Neither JSON Resume schema has required
+fields or constraints, so they show none of these.
 
 `paths-of-kind` takes the kind as a value: a schema node such as
 `date-string` (matched by kind, so `integer-type` finds every number), or a
@@ -620,10 +647,13 @@ constructor such as `pattern-string`. The kind name as a string
 (`"date-string"`) still works but is deprecated, and will be removed in the
 next major version.
 
-Array segments in returned path tuples use `"items"` so they plug straight
-into `lens(path)`; the `[]` suffix in `describe-schema`'s output is
-human-friendly visual only. Keys sort alphabetically so diffs across schema
-versions stay stable.
+Array segments in returned path tuples use `"items"`, union members their
+index and a `not` member `"not"`, so they plug straight into `lens(path)`;
+the `[]` suffix and `[0]` labels in `describe-schema`'s output are
+human-friendly visual only. `paths-of-kind` and the lens functions reach
+into union and `not` members, so `paths-of-kind(…, any-of)` returns the
+union and `paths-of-kind(…, date-string)` a date member inside it. Keys
+sort alphabetically so diffs across schema versions stay stable.
 
 The real leverage comes from folding `paths-of-kind` together with
 `lens-put` to bulk-edit every field of a kind in one pass — the list of
@@ -676,8 +706,9 @@ cross the boundary:
 **Two addressing schemes share the same encoder.** Validator error paths
 (mixed `str` / non-negative `int`) address into **data** — the output is a
 real RFC 6901 pointer any JSON-Pointer-aware tool can dereference against
-the document. Lens and introspect paths (`str`-only, with `"items"` and
-`"additionalProperties"`) address into the **schema** — the output names a
+the document. Lens and introspect paths (`str` segments with `"items"`,
+`"additionalProperties"` and `"not"`, plus an `int` for a union member)
+address into the **schema** — the output names a
 schema location the way JSON Schema tooling does in `$ref`
 (e.g. `#/properties/foo/items`), not a data position.
 
