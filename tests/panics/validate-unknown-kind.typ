@@ -1,3 +1,7 @@
-// expect: internal — unknown schema kind "bogus"
-#import "../../lib.typ": object, validate
-#validate((a: 1), schema: object((a: (kind: "bogus"))))
+// expect: unknown schema kind "bogus"; build schemas with the constructors.
+// Hand-built, since the constructors reject an unknown kind.
+#import "../../lib.typ": validate
+#validate(
+  (a: 1),
+  schema: (kind: "object", shape: (a: (kind: "bogus")), required-keys: ()),
+)

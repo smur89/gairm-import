@@ -9,7 +9,7 @@
 // is re-exported to callers by lib.typ directly from kinds/.
 #import "kinds/leaf.typ": str-type, content-type, pattern-string
 #import "kinds/format.typ": date-string, datetime-string
-#import "kinds/structure.typ": object, any-of, _is-free-form
+#import "kinds/structure.typ": any-of, _is-free-form, _object-with
 #import "json-schema.typ": schema-from-json-schema
 #import "lens.typ": lens, lens-get, lens-put
 #import "kinds/traverse.typ": _map-children, _nodes
@@ -149,15 +149,10 @@
 #let _strip-permissive-additional(schema) = {
   if _is-free-form(schema) or schema.kind == "not" { return schema }
   let s = _map-children(schema, _strip-permissive-additional)
-  // Only objects carry `additional`. Route through the public
-  // constructor so any future invariant added to `object()` applies
-  // here too.
+  // Only objects carry `additional`. Rebuilt through object(), so
+  // closing it re-checks the constructor's invariants.
   if s.at("additional", default: none) == true {
-    object(
-      s.shape,
-      required-keys: s.required-keys,
-      dependent-required: s.at("dependent-required", default: (:)),
-    )
+    _object-with(s, additional: none)
   } else { s }
 }
 

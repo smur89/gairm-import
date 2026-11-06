@@ -11,7 +11,8 @@
 //           leaves no sound model, as (expected, got) for coerce's panic
 //
 // Only the public entry points panic on a result; the walk itself
-// panics only on a schema it cannot read (an unknown kind).
+// panics only on a schema it cannot read (an unknown kind, which only
+// a hand-built node can carry).
 
 #import "core/ctx.typ": _absent
 #import "core/error.typ": _coerce-message, _format-report
@@ -22,7 +23,11 @@
   if _absent(value, ctx) { return (errors: (), value: none, fatal: none) }
   let d = _kinds.at(schema.kind, default: none)
   if d == none {
-    panic("gairm-import: internal — unknown schema kind " + repr(schema.kind))
+    panic(
+      "gairm-import: unknown schema kind "
+        + repr(schema.kind)
+        + "; build schemas with the constructors.",
+    )
   }
   if d.walk != none { return (d.walk)(schema, value, ctx, _walk) }
   let r = (d.check)(schema, value, ctx)
