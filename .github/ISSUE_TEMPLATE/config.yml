@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: Discussion / question
     url: https://github.com/smur89/gairm-import/discussions
-    about: For open-ended questions about the loader, schema coverage, or how to consume it from a Typst template.
+    about: For open-ended questions about gairm-import, schema coverage, or how to use it from a Typst template.

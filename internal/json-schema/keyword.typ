@@ -166,7 +166,7 @@
     _bail(
       "unsupported JSON Schema keyword(s): "
         + unknown.map(repr).join(", ")
-        + ". They are outside the supported subset (see the README); translating would silently drop their constraints.",
+        + ". They are outside the supported subset (see REFERENCE.md); translating would silently drop their constraints.",
     )
   }
   // A null value would otherwise read as an absent keyword, dropping it.

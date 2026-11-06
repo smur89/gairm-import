@@ -6,18 +6,17 @@
 // highlights/1" form external tooling (editor extensions, schema
 // linters, JSON Schema doc generators) expects.
 //
-// Two addressing schemes share the same encoder:
-//   - Validator error paths: address INTO data (mixed str|int,
-//     with non-negative ints for array indices). Encodes to a real
-//     RFC 6901 JSON Pointer that a data-aware tool can dereference.
-//   - Lens / introspect paths: address INTO a schema (str-only,
-//     with `"items"` for array elements and `"additionalProperties"`
-//     for the additional schema). Encodes to a JSON-Pointer-shaped
-//     string that addresses a schema position — meaningful to JSON
-//     Schema tooling that uses JSON Pointer in `$ref` (e.g.
-//     `#/properties/foo/items`), but NOT a data pointer.
-// The encoder doesn't distinguish; the caller picks the right
-// addressing scheme for the path they have.
+// Two kinds of path share the same encoder:
+//   - Validator error paths address INTO data (str keys, non-negative
+//     int indices) and encode to a real RFC 6901 pointer a data-aware
+//     tool can dereference.
+//   - Lens / introspect paths address INTO a schema, in this
+//     package's own segments (`"items"`, `"additionalProperties"`,
+//     `"not"`, an int union index) and with no `properties` segment,
+//     so they encode segment for segment: `("work", "items")` is
+//     `/work/items`. That is neither a data pointer nor a JSON Schema
+//     location (`/properties/work/items`).
+// The encoder doesn't distinguish; the caller knows which path it has.
 //
 // Encoding accepts str (object key) or int (non-negative array
 // index) segments; other types and negative ints panic. Decoding
@@ -48,9 +47,17 @@
 
 // RFC 6901 array-index ABNF: `0` | `[1-9][0-9]*` — leading zeros
 // (other than "0" itself) aren't valid array indices, so e.g. "01"
-// round-trips as the string "01" rather than becoming int 1.
+// round-trips as the string "01" rather than becoming int 1. An index
+// past Typst's 64-bit int stays a string too, rather than overflowing.
 #let _int-token-re = regex("^(0|[1-9][0-9]*)$")
-#let _try-int(token) = if token.match(_int-token-re) != none {
+#let _int-max = str(9223372036854775807)
+#let _try-int(token) = if (
+  token.match(_int-token-re) != none
+    and (
+      token.len() < _int-max.len()
+        or (token.len() == _int-max.len() and token <= _int-max)
+    )
+) {
   int(token)
 } else { token }
 
@@ -80,7 +87,7 @@
       // RFC 6901 array-index ABNF is non-negative only — emitting
       // "/-1" would round-trip back to the string "-1" (regex
       // rejects the minus sign), silently breaking the round-trip
-      // property the README promises.
+      // property REFERENCE.md promises.
       if seg < 0 {
         _bail(
           "path-to-pointer",

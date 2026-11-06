@@ -1,8 +1,7 @@
 // Mirrors README.md, "Errors": the combined report, the note that the
-// default schema reports only its first line, and the record "Handling
-// validation errors yourself" shows for that line. The document is
-// ours; the report text must match the README's block (after "panicked
-// with: ").
+// default schema reports only its first line, and the record it gives
+// for that line. The document is ours; the report text must match the
+// README's block (after "panicked with: ").
 #import "@preview/gairm-import:0.0.0": (
   validate, format-errors, resume-schema-strict,
 )

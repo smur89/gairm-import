@@ -1,5 +1,5 @@
-// Mirrors README.md, "Quick start", and the types "The returned model"
-// lists. The import, the parse call and resume.json (this directory)
+// Mirrors README.md, "Quick start", and the types it says the result
+// holds. The import, the parse call and resume.json (this directory)
 // match the README; the asserts are ours.
 #import "@preview/gairm-import:0.0.0": parse
 
@@ -15,8 +15,7 @@
   ("Led the event-sourcing platform migration.",),
 )
 
-// The returned model: every field the README lists is a plain str, or
-// an array of them.
+// Every field the README names is a plain str, or an array of them.
 #for value in (
   resume.basics.name,
   resume.basics.summary,

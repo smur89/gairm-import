@@ -3,7 +3,7 @@
 // https://github.com/jsonresume/jsonresume.org/blob/master/packages/schema/CHANGELOG.md
 // `resume-schema` is a faithful derivation of the upstream document;
 // `resume-schema-strict` layers content + date opinions on it.
-// See README "Two schemas" for the trade-off.
+// See README "The two resume schemas" for the trade-off.
 
 // Only the kinds this module itself uses — the full combinator surface
 // is re-exported to callers by lib.typ directly from kinds/.

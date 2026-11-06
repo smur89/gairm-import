@@ -27,7 +27,9 @@ defaults:
     shell: bash
 
 jobs:
-  # `make test`: every fixture, panic case and package test.
+  # `make check`: every fixture, panic case and package test, the
+  # typstyle check and the layering check. The one required check, so
+  # a green `make check` locally means a green `test` here.
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -39,7 +41,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # Cached per version: saves a download, and a 504 on it.
+      # Each tool is cached per version: saves a download, and a 504 on it.
       - name: Restore Typst
         id: typst-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -53,31 +55,6 @@ jobs:
           mkdir -p ~/.local/bin
           curl -sSfL "https://github.com/typst/typst/releases/download/${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
             | tar -xJ --strip-components=1 -C ~/.local/bin typst-x86_64-unknown-linux-musl/typst
-
-      - name: Put the cached tools on PATH
-        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      # `-k`: report every failure. `-j4 -O`: four cores, each check's
-      # log kept together.
-      - name: Compile fixtures, check panic cases and package tests
-        run: make -k -j4 -O test
-
-      - name: Check layering
-        run: make check-layers
-
-  # typstyle parses source only, so no Typst needed. The flags live in
-  # the Makefile, so this job and `make fmt` agree.
-  format:
-    name: typstyle
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
 
       - name: Restore typstyle
         id: typstyle-cache
@@ -97,8 +74,10 @@ jobs:
       - name: Put the cached tools on PATH
         run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Check formatting
-        run: make fmt-check
+      # `-k`: report every failure. `-j4 -O`: four cores, each check's
+      # log kept together.
+      - name: Run make check
+        run: make -k -j4 -O check
 
   # Runs the same checker as typst/packages' CI before a release is
   # cut: catches tarball-list drift, README-link rot and deprecated APIs.
@@ -136,7 +115,7 @@ jobs:
   # release-please-config.json bumps typst.toml's `package.version`
   # as an extra-file, keeping it in lockstep with the tag.
   release-please:
-    needs: [test, format]
+    needs: [test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -190,11 +169,6 @@ jobs:
   # The PR is created from a maintainer-owned fork (smur89/packages),
   # branched off the current typst/packages main so the diff is just
   # the new package directory.
-  #
-  # NOTE: this workflow only handles version *updates*. The very first
-  # submission of gairm-import to typst/packages must be opened manually
-  # so the maintainers can do a full new-package review. See
-  # CONTRIBUTING.md.
   #
   # Prerequisites (one-time setup):
   #   1. Fork github.com/typst/packages to smur89/packages.

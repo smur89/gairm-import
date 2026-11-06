@@ -9,8 +9,9 @@
 // A location is a lens `(lens: path)` or the bare path array, and
 // every function here takes either.
 //
-// Path segments match the JSON Schema keyword name (not the engine
-// field name) so a lens path reads as a JSON Schema location:
+// Path segments borrow JSON Schema keyword names (not the engine field
+// names), but a lens path is not a JSON Schema location: a field is
+// entered by its bare name, with no `properties` segment. Segments:
 //   - object   : string key into `.shape`
 //   - object   : literal "additionalProperties" to enter `.additional`
 //                (only when set to a schema dict, not `true`)
