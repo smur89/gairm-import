@@ -6,7 +6,7 @@
 )
 
 #let identity = lens(())
-#assert.eq(identity.path, ())
+#assert.eq(identity.lens, ())
 #assert.eq(lens-get(identity, resume-schema), resume-schema)
 
 // Wholesale replace via identity — supports call sites that take a
@@ -16,5 +16,5 @@
 #assert.eq(lens-over(identity, resume-schema, _ => str-type), str-type)
 
 #let name = lens(("basics", "name"))
-#assert.eq(lens-then(identity, name).path, name.path)
-#assert.eq(lens-then(name, identity).path, name.path)
+#assert.eq(lens-then(identity, name).lens, name.lens)
+#assert.eq(lens-then(name, identity).lens, name.lens)

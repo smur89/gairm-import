@@ -11,7 +11,7 @@
 #import "kinds/format.typ": date-string, datetime-string
 #import "kinds/structure.typ": any-of, _is-free-form, _object-with
 #import "json-schema.typ": schema-from-json-schema
-#import "lens.typ": lens, lens-get, lens-put
+#import "lens.typ": lens-get, lens-put
 #import "kinds/traverse.typ": _map-children, _nodes
 
 /// The JSON Resume schema, translated from the upstream document as it stands.
@@ -84,8 +84,7 @@
 // change instead of surfacing it.
 #let _override-fold(schema, paths, expected-source, replacement, list-name) = {
   paths.fold(schema, (s, p) => {
-    let l = lens(p)
-    let current = lens-get(l, s)
+    let current = lens-get(s, p)
     assert(
       current == expected-source,
       message: "gairm-import: "
@@ -98,7 +97,7 @@
         + repr(current)
         + ". Audit upstream schema bump.",
     )
-    lens-put(l, s, replacement)
+    lens-put(s, p, replacement)
   })
 }
 

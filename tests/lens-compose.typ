@@ -11,7 +11,7 @@
 #let composed = lens-then(basics, just-name)
 #let direct = lens(("basics", "name"))
 
-#assert.eq(composed.path, direct.path)
+#assert.eq(composed.lens, direct.lens)
 #assert.eq(lens-get(composed, resume-schema), lens-get(direct, resume-schema))
 #assert.eq(lens-get(composed, resume-schema), str-type)
 
@@ -24,5 +24,5 @@
 #let items = lens(("items",))
 #let highlights = lens(("highlights",))
 #let work-highlights = lens-then(lens-then(work, items), highlights)
-#assert.eq(work-highlights.path, ("work", "items", "highlights"))
+#assert.eq(work-highlights.lens, ("work", "items", "highlights"))
 #assert.eq(lens-get(work-highlights, resume-schema).kind, "array")

@@ -5,8 +5,8 @@
 )
 
 #let basics = lens(("basics",))
-#assert.eq(basics.path, ("basics",))
-#assert.eq(basics.kind, "lens")
+#assert.eq(basics.lens, ("basics",))
+#assert("kind" not in basics)
 #assert.eq(lens-get(basics, resume-schema).kind, "object")
 #assert("name" in lens-get(basics, resume-schema).shape)
 

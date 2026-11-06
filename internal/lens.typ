@@ -5,6 +5,10 @@
 // of the closure stored under that key, so methods would force
 // `(lens.put)(args)` at every call site.
 //
+// The schema comes first everywhere, so edits pipe through `.fold`.
+// A location is a lens `(lens: path)` or the bare path array, and
+// every function here takes either.
+//
 // Path segments match the JSON Schema keyword name (not the engine
 // field name) so a lens path reads as a JSON Schema location:
 //   - object   : string key into `.shape`
@@ -28,9 +32,13 @@
 // shallowly: its children were checked when it was built), and an
 // edited object, the written node or any object above it, is rebuilt
 // through object(). Build replacements with the constructors.
+//
+// Deprecated until 1.0: the lens-first order of lens-get / lens-put /
+// lens-over, and the `(kind: "lens", path: …)` lens shape (accepted by
+// _location-path in traverse.typ).
 
-#import "kinds/traverse.typ": _get-at, _set-at
-#import "kinds/structure.typ": _require-schema, _object-with
+#import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
+#import "kinds/structure.typ": _require-schema, _is-schema, _object-with
 
 #let _bail(msg) = panic("gairm-import: " + msg)
 
@@ -52,73 +60,126 @@
   }
 }
 
-/// A lens: a path to one node in a schema. A path is an array of
-/// segments: a field name to enter an object, `"items"` to enter an
-/// array's elements, `"additionalProperties"` to enter an object's
-/// additional schema, an int index to enter a union member, or `"not"`
-/// to enter a `not` member. `()` is the identity lens.
+/// A lens: a path to one node in a schema, as `(lens: path)`. A path is
+/// an array of segments: a field name to enter an object, `"items"` to
+/// enter an array's elements, `"additionalProperties"` to enter an
+/// object's additional schema, an int index to enter a union member, or
+/// `"not"` to enter a `not` member. `()` is the identity lens. Every
+/// function that takes a location takes a lens or the bare path array.
 ///
 /// - path (array): The segments.
 /// -> dictionary
-#let lens(path) = (kind: "lens", path: path)
+#let lens(path) = {
+  if type(path) != array {
+    _bail("lens path must be an array of segments; got: " + repr(path) + ".")
+  }
+  (lens: path)
+}
 
-/// Reads the schema node the lens points at. Panics if the path does
-/// not exist.
+// What an argument is, for the order panic below.
+#let _what(x) = if _is-schema(x) { "a schema" } else if _is-location(x) {
+  "a location"
+} else { "a " + str(type(x)) }
+
+// The schema and the path of a lens-get / lens-put / lens-over call.
+// Schema first. The lens-first order of earlier releases is deprecated,
+// accepted until 1.0, and told apart by type: a schema is never a
+// location, so at most one order fits, and a call that fits neither
+// panics rather than guess.
+#let _subject(a, b, op) = {
+  if _is-schema(a) and _is-location(b) {
+    return (a, _location-path(b, op))
+  }
+  if _is-location(a) and _is-schema(b) {
+    return (b, _location-path(a, op))
+  }
+  _bail(
+    op
+      + " takes a schema, then a location (a lens or a path array); got "
+      + _what(a)
+      + " and "
+      + _what(b)
+      + ".",
+  )
+}
+
+// An edit function's location as a path, after checking its schema.
+#let _edit-path(schema, at, op) = {
+  _require-schema(schema, op + "'s first argument")
+  _location-path(at, op)
+}
+
+/// Reads the schema node at `at`. Panics if the path does not exist.
+/// The lens-first order `lens-get(at, schema)` is deprecated, and
+/// accepted until 1.0.
 ///
-/// - l (dictionary): The lens.
 /// - schema (dictionary): The schema to read from.
+/// - at (dictionary, array): Where: a lens or a path array.
 /// -> dictionary
-#let lens-get(l, schema) = _get-at(schema, l.path)
+#let lens-get(schema, at) = {
+  let (schema, path) = _subject(schema, at, "lens-get")
+  _get-at(schema, path)
+}
 
 // `put` because `set` is a Typst keyword.
-/// Returns a new schema with the node at the lens replaced by `value`.
-/// The input schema is not changed. Panics if `value` is not a schema,
-/// or if the edit breaks an object's invariants (as `object` would).
+/// Returns a new schema with the node at `at` replaced by `value`. The
+/// input schema is not changed. Panics if `value` is not a schema, or
+/// if the edit breaks an object's invariants (as `object` would). The
+/// lens-first order `lens-put(at, schema, value)` is deprecated, and
+/// accepted until 1.0.
 ///
-/// - l (dictionary): The lens.
 /// - schema (dictionary): The schema to edit.
+/// - at (dictionary, array): Where: a lens or a path array.
 /// - value (dictionary): The replacement node.
 /// -> dictionary
-#let lens-put(l, schema, value) = _set-at(schema, l.path, _checked(
-  value,
-  "lens-put value",
-))
+#let lens-put(schema, at, value) = {
+  let (schema, path) = _subject(schema, at, "lens-put")
+  _set-at(schema, path, _checked(value, "lens-put value"))
+}
 
-/// Returns a new schema with the node at the lens replaced by `fn` applied
+/// Returns a new schema with the node at `at` replaced by `fn` applied
 /// to it. Panics if `fn` returns anything but a schema, or if the edit
-/// breaks an object's invariants (as `object` would).
+/// breaks an object's invariants (as `object` would). The lens-first
+/// order `lens-over(at, schema, fn)` is deprecated, and accepted until
+/// 1.0.
 ///
-/// - l (dictionary): The lens.
 /// - schema (dictionary): The schema to edit.
+/// - at (dictionary, array): Where: a lens or a path array.
 /// - fn (function): Takes the current node, returns the new one.
 /// -> dictionary
-#let lens-over(l, schema, fn) = _set-at(schema, l.path, _checked(
-  fn(_get-at(schema, l.path)),
-  "lens-over result",
-))
+#let lens-over(schema, at, fn) = {
+  let (schema, path) = _subject(schema, at, "lens-over")
+  _set-at(schema, path, _checked(
+    fn(_get-at(schema, path)),
+    "lens-over result",
+  ))
+}
 
 // `lens-then(a, b)` applies a then b — paths concatenate in that order.
-/// Joins two lenses: follows `a`, then `b` from there.
+/// Joins two locations into one lens: follows `a`, then `b` from there.
 ///
-/// - a (dictionary): The first lens.
-/// - b (dictionary): The lens to follow after `a`.
+/// - a (dictionary, array): The first lens or path.
+/// - b (dictionary, array): The lens or path to follow after `a`.
 /// -> dictionary
-#let lens-then(a, b) = lens(a.path + b.path)
+#let lens-then(a, b) = lens(
+  _location-path(a, "lens-then") + _location-path(b, "lens-then"),
+)
 
 // Collisions panic instead of overwriting silently — for the
 // overwrite-an-existing-key case, callers can reach for lens-put / lens-over.
-/// Returns a new schema with `key` added to the object at `parent-lens`.
-/// Panics if the target is not an object or already has that key; use
+/// Returns a new schema with `key` added to the object at `at`. Panics
+/// if the target is not an object or already has that key; use
 /// `lens-put` to replace a field.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - parent-lens (dictionary): Lens to the object that gets the field.
+/// - at (dictionary, array): The object that gets the field: a lens or
+///   a path array.
 /// - key (str): The new field's name.
 /// - sub-schema (dictionary): The schema for the field.
 /// -> dictionary
-#let add-field(schema, parent-lens, key, sub-schema) = lens-over(
-  parent-lens,
+#let add-field(schema, at, key, sub-schema) = lens-over(
   schema,
+  _edit-path(schema, at, "add-field"),
   parent => {
     _require-object(parent, "add-field")
     if key in parent.shape {
@@ -139,17 +200,17 @@
 // Replace, not merge — mirrors lens-put. On a closed object keys must
 // exist in shape so a typo fails at edit time, not as a phantom
 // "missing X" error; an open one allows what object() allows.
-/// Returns a new schema where the object at `parent-lens` requires
-/// exactly `keys`, replacing its earlier list. Panics if a key is not in
-/// the shape of an object that rejects other keys.
+/// Returns a new schema where the object at `at` requires exactly
+/// `keys`, replacing its earlier list. Panics if a key is not in the
+/// shape of an object that rejects other keys.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - parent-lens (dictionary): Lens to the object.
+/// - at (dictionary, array): The object: a lens or a path array.
 /// - keys (array): The fields to require.
 /// -> dictionary
-#let set-required(schema, parent-lens, keys) = lens-over(
-  parent-lens,
+#let set-required(schema, at, keys) = lens-over(
   schema,
+  _edit-path(schema, at, "set-required"),
   parent => {
     _require-object(parent, "set-required")
     let closed = parent.at("additional", default: none) == none
@@ -169,16 +230,16 @@
 
 // Symmetric to set-required — relax specific keys without re-listing.
 // Absent-key panics so a stale "still required" assumption surfaces.
-/// Returns a new schema where the object at `parent-lens` no longer
-/// requires `keys`. Panics if a key was not required.
+/// Returns a new schema where the object at `at` no longer requires
+/// `keys`. Panics if a key was not required.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - parent-lens (dictionary): Lens to the object.
+/// - at (dictionary, array): The object: a lens or a path array.
 /// - keys (array): The fields to stop requiring.
 /// -> dictionary
-#let unset-required(schema, parent-lens, keys) = lens-over(
-  parent-lens,
+#let unset-required(schema, at, keys) = lens-over(
   schema,
+  _edit-path(schema, at, "unset-required"),
   parent => {
     _require-object(parent, "unset-required")
     let absent = keys.filter(k => k not in parent.required-keys)
@@ -199,17 +260,17 @@
 )
 
 // Absent-key panics rather than being a silent no-op so caller typos surface.
-/// Returns a new schema with `key` removed from the object at
-/// `parent-lens`, and from its required keys and dependent-required
-/// entries. Panics if the target is not an object or has no such key.
+/// Returns a new schema with `key` removed from the object at `at`, and
+/// from its required keys and dependent-required entries. Panics if the
+/// target is not an object or has no such key.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - parent-lens (dictionary): Lens to the object.
+/// - at (dictionary, array): The object: a lens or a path array.
 /// - key (str): The field to remove.
 /// -> dictionary
-#let remove-field(schema, parent-lens, key) = lens-over(
-  parent-lens,
+#let remove-field(schema, at, key) = lens-over(
   schema,
+  _edit-path(schema, at, "remove-field"),
   parent => {
     _require-object(parent, "remove-field")
     if key not in parent.shape {
