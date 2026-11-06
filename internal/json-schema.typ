@@ -330,7 +330,9 @@
       _bail(repr(row.json) + " must be " + must + ", got: " + repr(v) + ".")
     }
     // `uniqueItems: false` is the default: leave it off the node.
-    if v != false { result.insert(row.field, v) }
+    if v != false {
+      result.insert(row.field, row.at("read", default: x => x)(v))
+    }
   }
   let clash = _bounds-conflict(result)
   if clash != none {

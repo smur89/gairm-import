@@ -841,6 +841,8 @@ in sync:
 - Number constraints: `minimum`, `maximum`, `exclusiveMinimum`,
   `exclusiveMaximum`, `multipleOf`
 - Array constraints: `minItems`, `maxItems`, `uniqueItems`
+- `minLength`, `maxLength`, `minItems` and `maxItems` take a non-negative
+  integer; a whole-number float (`2.0`) counts, as it does for `integer`
 - `additionalProperties`: a schema, `true`, or `false` — `false` matches
   the strict default; `true` permits extras without validation; a schema
   validates every extra against it (also reachable via the

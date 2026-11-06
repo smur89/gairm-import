@@ -153,6 +153,33 @@
   array-of(str-type),
 )
 
+// A count keyword takes a whole-number float, as `integer` does (`1.0`
+// counts as an integer per draft 7; adapted from the JSON Schema test
+// suite's "float value with zero fractional part" cases), stored as
+// an int so the bound reads as one.
+#assert.eq(
+  schema-from-json-schema((type: "string", minLength: 2.0, maxLength: 4.0)),
+  (kind: "str", min-length: 2, max-length: 4),
+)
+#assert.eq(
+  schema-from-json-schema((
+    type: "array",
+    items: (type: "string"),
+    minItems: 1.0,
+    maxItems: 3.0,
+  )),
+  (kind: "array", elem: str-type, min-items: 1, max-items: 3),
+)
+#assert.eq(
+  validate("a", schema: schema-from-json-schema((
+    type: "string",
+    minLength: 2.0,
+  )))
+    .at(0)
+    .message,
+  "expected string length ≥ 2, got 1.",
+)
+
 // Constraints carry through format-specialised strings.
 #assert.eq(
   schema-from-json-schema((type: "string", format: "email", maxLength: 254)),
