@@ -13,7 +13,7 @@
 #import "internal/kinds/structure.typ": (
   array-of, object, map, any-of, one-of, not-of, nullable,
 )
-#import "internal/schema.typ": resume-schema, resume-schema-strict
+#import "internal/json-resume/schema.typ": resume-schema, resume-schema-strict
 #import "internal/engine.typ" as _engine-mod
 #import "internal/core/ctx.typ" as _ctx-mod
 #import "internal/core/error.typ" as _error-mod

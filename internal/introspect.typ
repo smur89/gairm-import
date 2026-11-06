@@ -12,7 +12,7 @@
 
 #import "core/error.typ": _bail
 #import "kinds/registry.typ": _kinds, _descriptor
-#import "kinds/traverse.typ": _children, _get-at, _nodes, _location-path
+#import "kinds/traverse.typ": _children, _get-at, _paths-where, _location-path
 #import "kinds/constraint.typ": _constraint-rows
 
 // The kinds paths-of-kind can look for: every kind but the plain
@@ -181,7 +181,7 @@
         + ".",
     )
   }
-  _nodes(schema).filter(((_, n)) => n.kind == kind-name).map(((p, _)) => p)
+  _paths-where(schema, n => n.kind == kind-name)
 }
 
 // Same as `lens-get(schema, at).kind` — keeps the common

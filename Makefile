@@ -106,13 +106,18 @@ check: test fmt-check check-layers ## test + fmt-check + check-layers: the local
 # may also import from core/ (`../core/<name>.typ`), and nothing else.
 # internal/engine.typ (L2) imports only from core/ and kinds/.
 # internal/json-schema/ (L3) imports from core/, kinds/, the engine and
-# its own siblings: never lens, introspect or schema.
+# its own siblings: never lens, introspect or json-resume. The other L3
+# modules, internal/lens.typ and internal/introspect.typ, import only
+# from core/, kinds/ and the engine: never each other. internal/
+# json-resume/ (L4) may import anything below it and its siblings.
 SIBLING_IMPORT     := \#import +"[a-z][a-z0-9-]*\.typ"
 CORE_IMPORT        := \#import +"\.\./core/[a-z][a-z0-9-]*\.typ"
 ENGINE_IMPORT      := \#import +"(core|kinds)/[a-z][a-z0-9-]*\.typ"
 JSON_SCHEMA_IMPORT := \#import +"\.\./((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
+L3_IMPORT          := \#import +"((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
+JSON_RESUME_IMPORT := \#import +"\.\./((core|kinds|json-schema)/[a-z][a-z0-9-]*|engine|lens|introspect)\.typ"
 
-check-layers: ## fail if internal/core/, internal/kinds/, the engine or internal/json-schema/ import above their layer
+check-layers: ## fail if an internal/ module imports above its layer
 	@status=0; \
 	bad=$$(grep -HnE '#import +"' internal/core/*.typ \
 	  | grep -vE '$(SIBLING_IMPORT)' || true); \
@@ -136,6 +141,18 @@ check-layers: ## fail if internal/core/, internal/kinds/, the engine or internal
 	  | grep -vE '$(SIBLING_IMPORT)|$(JSON_SCHEMA_IMPORT)' || true); \
 	if [ -n "$$bad" ]; then \
 	  printf 'check-layers: internal/json-schema/ may import only internal/core/, internal/kinds/, internal/engine.typ and its own siblings:\n%s\n' "$$bad" >&2; \
+	  status=1; \
+	fi; \
+	bad=$$(grep -HnE '#import +"' internal/lens.typ internal/introspect.typ \
+	  | grep -vE '$(L3_IMPORT)' || true); \
+	if [ -n "$$bad" ]; then \
+	  printf 'check-layers: internal/lens.typ and internal/introspect.typ may import only internal/core/, internal/kinds/ and internal/engine.typ:\n%s\n' "$$bad" >&2; \
+	  status=1; \
+	fi; \
+	bad=$$(grep -HnE '#import +"' internal/json-resume/*.typ \
+	  | grep -vE '$(SIBLING_IMPORT)|$(JSON_RESUME_IMPORT)' || true); \
+	if [ -n "$$bad" ]; then \
+	  printf 'check-layers: internal/json-resume/ may import only the layers below it and its own siblings:\n%s\n' "$$bad" >&2; \
 	  status=1; \
 	fi; \
 	exit $$status

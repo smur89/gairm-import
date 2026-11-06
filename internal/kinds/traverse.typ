@@ -37,6 +37,11 @@
   out
 }
 
+// The path of every node in `s` that `keep` holds for, pre-order.
+#let _paths-where(s, keep) = (
+  _nodes(s).filter(((_, n)) => keep(n)).map(((p, _)) => p)
+)
+
 // `s` with `f` applied to each child. As in lens paths, an object
 // field literally named "additionalProperties" shadows the additional
 // schema, so in that collision both writes land on the field.

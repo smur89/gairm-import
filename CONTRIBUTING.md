@@ -35,15 +35,16 @@ internal/kinds/structure.typ         # containers and combinators (object, map, 
 internal/kinds/constraint.typ        # constraint rows (min-length, maximum, …)
 internal/kinds/registry.typ          # one descriptor per kind, checked for coverage at load
 internal/kinds/traverse.typ          # the one schema traversal (children, get/set at a path, every node)
-internal/schema.typ                  # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
-internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.7.0
+internal/json-resume/schema.typ      # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
+internal/json-resume/schema.json     # vendored upstream schema, pinned to v1.7.0
 internal/engine.typ                  # the one walk over schema and value; validate, coerce and parse
-internal/json-schema/translate.typ   # JSON Schema → Typst-schema translator: entry, $ref, one builder per type
+internal/json-schema/translate.typ   # JSON Schema → Typst-schema translator: entry, $ref, dispatcher
+internal/json-schema/build.typ       # one builder per JSON type, constraint keywords, the enum/const fold
 internal/json-schema/keyword.typ     # the keywords it knows, their roles and JSON types
 internal/json-schema/all-of.typ      # the allOf object merge
 internal/lens.typ                    # path-based functional editing of schemas
 internal/introspect.typ              # read-only schema inspection (describe-schema, paths-of-kind, kind-at)
-internal/core/pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop
+internal/core/pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop, $ref fragment reading
 internal/core/error.typ              # error formatting (paths, type names, did-you-mean)
 internal/core/input.typ              # the input forms every entry point shares
 internal/core/ctx.typ                # the walk context, and the one definition of absence
@@ -54,18 +55,20 @@ tests/panics/                        # one file per panic; each must fail with i
 `internal/core/` is the bottom layer and imports nothing else internal;
 `internal/kinds/` imports only `internal/core/` and its own siblings;
 `internal/engine.typ` imports only `internal/core/` and `internal/kinds/`;
-`internal/json-schema/` imports only those, the engine and its own siblings
-(`make check-layers` enforces all four). `lib.typ` is the only public surface;
+`internal/json-schema/` imports only those, the engine and its own siblings;
+`internal/lens.typ` and `internal/introspect.typ` import only `internal/core/`,
+`internal/kinds/` and the engine; `internal/json-resume/` imports anything
+below it (`make check-layers` enforces all six). `lib.typ` is the only public surface;
 it reaches internals through underscore module aliases, so a name that
 starts with an underscore is internal and never part of the API.
 
 ## Bumping the vendored JSON Resume schema
 
-`internal/schema.typ` derives `resume-schema` from
-`internal/assets/jsonresume-schema.json` at module-load time, so the
+`internal/json-resume/schema.typ` derives `resume-schema` from
+`internal/json-resume/schema.json` at module-load time, so the
 upstream document is the source of truth. To pull a newer upstream version:
 
-1. Replace `internal/assets/jsonresume-schema.json` with `schema.json` from
+1. Replace `internal/json-resume/schema.json` with `schema.json` from
    the chosen version of the
    [`@jsonresume/schema`](https://www.npmjs.com/package/@jsonresume/schema)
    npm package (source: `packages/schema` in
@@ -84,14 +87,14 @@ upstream document is the source of truth. To pull a newer upstream version:
    them. If a panic surfaces, extend `internal/json-schema/` rather
    than silently dropping the constraint.
 3. Audit `_content-paths`, `_iso8601-date-paths`, and `_last-modified-paths` in
-   `internal/schema.typ` against the bumped document. These lists are the
+   `internal/json-resume/schema.typ` against the bumped document. These lists are the
    opt-in `resume-schema-strict` variant's opinions — `_content-paths` lifts
    free-text `string` fields to Typst `content` for inline rendering;
    `_iso8601-date-paths` lifts iso8601 `$ref` fields (which the translator
    surfaces as pattern-strings) to `date-string`, and `_last-modified-paths`
    lifts the plain-string `meta.lastModified` to a datetime-or-date union.
    If a new free-text or iso8601-referenced field lands in the upstream
-   document, add its path here. The drift guard in `_override-fold` will
+   document, add its path here. The drift guard in `_apply-overrides` will
    panic at module-load if an existing path's source kind changes, so you'll
    see the audit prompt automatically.
 
