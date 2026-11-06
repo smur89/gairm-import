@@ -35,6 +35,7 @@
 - [Errors](#errors)
   - [Handling validation errors yourself](#handling-validation-errors-yourself)
   - [Null handling](#null-handling)
+  - [Strict null](#strict-null)
 - [Schemas and composition](#schemas-and-composition)
   - [Two schemas](#two-schemas)
   - [Format validation](#format-validation)
@@ -336,6 +337,47 @@ Root null is rejected: if the entire input document is `null`, `validate`,
 `gairm-import: input must be a dict, got null.` The null-as-absent policy
 applies to leaf positions inside a document, not to the document itself.
 
+### Strict null
+
+When `null` must mean something, pass `strict-null: true` to `parse`,
+`validate` or `coerce`. `null` is then an ordinary value that a schema
+accepts or rejects, and only a missing key is missing:
+
+| Input | Default | `strict-null: true` |
+|---|---|---|
+| required key missing | `required` | `required` |
+| key holding `null`, field not nullable | `required` if required, else dropped | `type`, "got null" |
+| key holding `null`, field `nullable(X)` | dropped | accepted, kept as `none` |
+| `null` array element | dropped | `type`, or kept if the element is `nullable(X)` (and counted by `min-items` / `unique-items`) |
+| dependent-required trigger holding `null` | does not fire | fires |
+
+A root `null` still panics, and a free-form object (no fields,
+`additional: true`) still passes through as given.
+
+`nullable(X)` is `any-of((X, null-type))`: it accepts `null` or whatever
+`X` accepts, and judges a non-null value exactly as `X` does, messages
+included. `describe-schema` draws it as `X?`. Without `strict-null` it
+behaves as `X`, since every field already treats `null` as absent.
+`schema-from-json-schema` translates `type: [X, "null"]` to `nullable(X)`.
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.10.1": parse, object, str-type, nullable
+
+#let schema = object(
+  (name: str-type, nickname: nullable(str-type)),
+  required-keys: ("name", "nickname"),
+)
+#parse((name: "Ada", nickname: none), schema: schema, strict-null: true)
+// → (name: "Ada", nickname: none)
+```
+<!-- x-release-please-end -->
+
+JSON Resume's upstream schema declares no nullable fields, so
+`strict-null: true` with `resume-schema` (or `resume-schema-strict`)
+rejects every `null` in a résumé. Use it with your own schema, or a
+translated one that says `"null"` where it means it.
+
 ## Schemas and composition
 
 ### Two schemas
@@ -636,7 +678,8 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 is suffixed `*` (`name*  str`), constraints follow the kind in brackets
 (`str (min-length 1, max-length 80)`, `number (integer, minimum 0)`,
 `tags[]  str (min-items 1, unique-items)`), a union lists its members as
-`[0]`, `[1]`, … under an `any of:` or `one of:` header, a `not` member shows
+`[0]`, `[1]`, … under an `any of:` or `one of:` header (a `nullable(X)`
+draws as `X?`), a `not` member shows
 under its field as `not`, and an object's `dependent-required` entries close
 its block as `phone → email`. Neither JSON Resume schema has required
 fields or constraints, so they show none of these.
@@ -785,12 +828,14 @@ in sync:
   members, with an undeclared member counting as closed). Members with
   `additionalProperties: false` or a schema must declare the same
   properties, since draft 7 applies each member's `additionalProperties`
-  to its own properties only. Non-object composition (e.g. string + extra
-  constraints) panics
-- `type: [X, "null"]` nullable unions (under the engine's null-as-absent
-  policy these translate to plain `X`)
-- `type: [A, B, ...]` unions → `any-of` over one member per type (`"null"`
-  members drop). Type-specific keywords (`minLength`, `minimum`, `items`,
+  to its own properties only. A `type: ["object", "null"]` member merges
+  as its object, and the result is nullable only when every member is.
+  Non-object composition (e.g. string + extra constraints) panics
+- `type: [X, "null"]` → `nullable(X)`, which behaves as `X` by default
+  and accepts `null` under [`strict-null: true`](#strict-null); lenses
+  and `paths-of-kind` reach `X` as member `0`
+- `type: [A, B, ...]` unions → `any-of` over one member per type, with a
+  final `null-type` member when `"null"` is listed. Type-specific keywords (`minLength`, `minimum`, `items`,
   ...) apply only to the member of their own type, as in JSON Schema
 - String constraints: `minLength`, `maxLength`
 - Number constraints: `minimum`, `maximum`, `exclusiveMinimum`,

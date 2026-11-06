@@ -24,8 +24,9 @@
 /// A number with no fractional part. `1.0` passes and `1.5` fails.
 #let integer-type = (kind: "number", integer: true)
 
-// "Must be null or absent": `none` passes via the engine's global
-// early return, non-none hits the kind branch and errors.
+// "Must be null or absent". By default a null is absent before any
+// kind sees it; in strict-null mode it reaches the check, which takes
+// it.
 /// `null` or an absent key. Any other value is an error.
 #let null-type = (kind: "null")
 
@@ -114,14 +115,12 @@
   _pass(value)
 }
 
-// An absent value never reaches a check, so the null kind sees only
-// values it rejects.
-#let _null-check(schema, value, ctx) = _type-miss(
-  ctx.path,
-  "null",
-  "null",
-  value,
-)
+// An absent value never reaches a check, so a null arrives here only
+// in strict-null mode, where it is this kind's one value. Every other
+// check rejects a null with `type` ("got null") at its type gate.
+#let _null-check(schema, value, ctx) = if value == none { _pass(value) } else {
+  _type-miss(ctx.path, "null", "null", value)
+}
 
 // The node's own `pattern` gate, if it carries one (a pattern-string,
 // or a format kind with an extra pattern).

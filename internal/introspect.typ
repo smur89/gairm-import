@@ -45,8 +45,16 @@
   if extras == () { "" } else { " (" + extras.join(", ") + ")" }
 }
 
-// A leaf's text: its kind, then what it sets beyond it.
-#let _text(s) = _suffix(s) + _paren(s)
+// A node its descriptor draws as another node plus a mark
+// (`nullable(X)` as `X?`), as (node, mark); any other node as itself
+// with no mark.
+#let _shown(s) = {
+  let short = (_descriptor(s).shorthand)(s)
+  if short == none { (s, "") } else { (short.of, short.mark) }
+}
+
+// A leaf's text: its kind, its mark, then what it sets beyond it.
+#let _text(s, mark) = _suffix(s) + mark + _paren(s)
 
 // The tree layout is where arrays differ from the rest: an array's
 // element extends its parent's row with `[]` (and the array's own
@@ -59,20 +67,26 @@
 // with its own header text (`any of`) when it has one, and its own
 // block below it. An array's constraints follow its element's text
 // inline, and its label otherwise, so they don't widen the column.
+// A mark follows a leaf's kind or a block's header, and the label of
+// a node drawn by its label alone (an object, an array, a `not`).
 #let _row(label, sub) = {
-  let (label, sub, after) = if _is-array(sub) {
-    (label + "[]", _elem(sub), _paren(sub))
-  } else { (label, sub, "") }
-  if _leaf(sub) { (label: label, text: _text(sub) + after) } else {
-    (label: label + after, head: _suffix(sub), block: sub)
-  }
+  let (sub, mark) = _shown(sub)
+  let (label, sub, mark, after) = if _is-array(sub) {
+    let (elem, elem-mark) = _shown(_elem(sub))
+    (label + mark + "[]", elem, elem-mark, _paren(sub))
+  } else { (label, sub, mark, "") }
+  if _leaf(sub) { return (label: label, text: _text(sub, mark) + after) }
+  let head = _suffix(sub)
+  if head == none {
+    (label: label + mark + after, head: none, block: sub)
+  } else { (label: label + after, head: head + mark, block: sub) }
 }
 
 // Recursive pretty-printer. `indent` prefixes every line at this
 // depth; nested blocks add two more spaces. A node's header text is
 // drawn by its parent's row, or by describe-schema at the root.
 #let _describe(schema, indent) = {
-  if _leaf(schema) { return indent + _text(schema) }
+  if _leaf(schema) { return indent + _text(schema, "") }
   if _is-array(schema) {
     let r = _row("", schema)
     return if "text" in r { indent + r.label + " " + r.text } else {
@@ -126,11 +140,12 @@
 /// - schema (dictionary): The schema to draw.
 /// -> str
 #let describe-schema(schema) = {
-  let head = if _leaf(schema) or _is-array(schema) { none } else {
-    _suffix(schema)
-  }
-  if head == none { _describe(schema, "") } else {
-    head + ":\n" + _describe(schema, "  ")
+  // The root is a row with no label.
+  let r = _row("", schema)
+  if "text" in r { return (r.label + " " + r.text).trim(at: start) }
+  let head = (r.label + if r.head != none { " " + r.head }).trim(at: start)
+  if head == "" { _describe(r.block, "") } else {
+    head + ":\n" + _describe(r.block, "  ")
   }
 }
 

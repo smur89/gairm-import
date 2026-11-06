@@ -1,8 +1,8 @@
 // type: [A, B, ...] with more than one non-null member — #113.
-// Translates to any-of over one member per type; "null" members drop.
+// Translates to any-of over one member per type; "null" adds a null-type member.
 
 #import "../lib.typ": (
-  validate, schema-from-json-schema, str-type, number-type, any-of,
+  validate, schema-from-json-schema, str-type, number-type, null-type, any-of,
 )
 
 #let su = schema-from-json-schema((type: ("string", "number")))
@@ -18,11 +18,11 @@
 // Null is absent, so it passes without a null member.
 #assert.eq(validate((v: none), schema: schema), ())
 
-// Null members drop from the union.
-#assert.eq(
-  schema-from-json-schema((type: ("string", "number", "null"))),
-  any-of((str-type, number-type)),
-)
+// A null member ends the union, flat, and judges no non-null value:
+// by default the union reports what the types alone would.
+#let with-null = schema-from-json-schema((type: ("string", "number", "null")))
+#assert.eq(with-null, any-of((str-type, number-type, null-type)))
+#assert.eq(validate(true, schema: with-null), validate(true, schema: su))
 #assert.eq(
   schema-from-json-schema((type: ("null", "null"))),
   schema-from-json-schema((type: "null")),

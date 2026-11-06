@@ -2,7 +2,7 @@
 
 #import "../lib.typ": (
   validate, coerce, schema-from-json-schema, bool-type, null-type, str-type,
-  integer-type, email-string, object, paths-of-kind,
+  integer-type, email-string, object, paths-of-kind, nullable,
 )
 
 // --- bool-type --------------------------------------------------------
@@ -41,23 +41,27 @@
 
 // --- translator: [X, "null"] nullable union --------------------------
 //
-// Translates to plain X — a wrapper would be a no-op under
-// null-as-absent.
+// Translates to nullable(X): X under null-as-absent, and the way a
+// field accepts null under strict-null.
 
 #assert.eq(
   schema-from-json-schema((type: ("string", "null"))),
-  str-type,
+  nullable(str-type),
 )
 // Order doesn't matter — `null` can come first. The inner type keeps
 // its own semantics (`integer` stays integral-gated).
 #assert.eq(
   schema-from-json-schema((type: ("null", "integer"))),
-  integer-type,
+  nullable(integer-type),
 )
 // Sibling keywords on the union carry through to the inner.
 #assert.eq(
   schema-from-json-schema((type: ("string", "null"), format: "email")),
-  email-string,
+  nullable(email-string),
+)
+#assert.eq(
+  schema-from-json-schema((type: ("string", "string", "null"))),
+  nullable(str-type),
 )
 
 // --- introspection: new kinds register as leaves --------------------

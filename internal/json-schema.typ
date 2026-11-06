@@ -9,7 +9,9 @@
   str-type, number-type, integer-type, bool-type, null-type, pattern-string,
   enum-of,
 )
-#import "kinds/structure.typ": array-of, object, any-of, one-of, not-of
+#import "kinds/structure.typ": (
+  array-of, object, any-of, one-of, not-of, nullable,
+)
 #import "kinds/format.typ": _format-for-json-schema
 #import "kinds/constraint.typ": (
   _constraint-rows, _constraints, _value-problem, _bounds-conflict,
@@ -293,6 +295,26 @@
   )
 }
 
+// X when `node` is nullable(X), else none.
+#let _nullable-of(node) = {
+  let members = node.at("members", default: ())
+  if members != () and node == nullable(members.first()) {
+    members.first()
+  }
+}
+
+// A member translated from `type: ["object", "null"]` is nullable(object):
+// merge its object. A null meets allOf only when every member takes it,
+// so the merge is nullable only then.
+#let _merge-all-of-nullable(members, restricts) = {
+  let inner = members.map(m => _nullable-of(m))
+  let merged = _merge-all-of(
+    members.zip(inner).map(((m, x)) => if x == none { m } else { x }),
+    restricts,
+  )
+  if inner.all(x => x != none) { nullable(merged) } else { merged }
+}
+
 // Reads the constraint keywords of `family` onto `node`, bailing at
 // translate time on a bad-shape value — better than a kind dict the
 // validator can't reason about — and on bounds no value can satisfy
@@ -519,7 +541,7 @@
   }
   if "allOf" in js {
     let raw = _require-member-array(js, "allOf")
-    return _merge-all-of(
+    return _merge-all-of-nullable(
       raw.map(m => _from-json-schema(m, root, seen)),
       raw.map(m => _restricts-extras(m, root)),
     )
@@ -653,9 +675,11 @@
   if t == "boolean" { return bool-type }
   if t == "null" { return null-type }
   if type(t) == array {
-    // "null" members drop: under null-as-absent every kind already
-    // accepts null, so [X, "null"] is plain X and a wrapper would be a
-    // no-op.
+    // "null" keeps the source's nullability: [X, "null"] is nullable(X)
+    // and several types plus "null" end in a null-type member. By
+    // default that judges every value as X does (a null is absent
+    // before the union sees it); with strict-null it accepts null.
+    let nullable-type = "null" in t
     let non-null = t.filter(x => x != "null").dedup()
     if non-null.len() == 0 { return null-type }
     // Each member is translated from the whole node with `type` narrowed
@@ -673,7 +697,10 @@
       }
       _from-json-schema(member, root, seen)
     })
-    return if members.len() == 1 { members.at(0) } else { any-of(members) }
+    if members.len() == 1 {
+      return if nullable-type { nullable(members.at(0)) } else { members.at(0) }
+    }
+    return any-of(if nullable-type { members + (null-type,) } else { members })
   }
   _bail(
     "unrecognised JSON Schema fragment (no recognised \"type\" or \"$ref\"); keys: "

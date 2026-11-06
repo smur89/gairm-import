@@ -97,13 +97,17 @@
     ),
 )
 
-// A nullable object wrap keeps the constraint.
+// A nullable object wrap keeps the constraint on its object member.
 #let nullable = schema-from-json-schema((
   type: ("object", "null"),
   properties: props,
   dependentRequired: (phone: ("email",)),
 ))
-#assert.eq(nullable.dependent-required, (phone: ("email",)))
+#assert.eq(nullable.members.at(0).dependent-required, (phone: ("email",)))
+#assert.eq(
+  validate((phone: "1"), schema: nullable).map(e => e.code),
+  ("dependent",),
+)
 
 // A type array's non-object members don't see the dependency keywords;
 // the object member keeps them.

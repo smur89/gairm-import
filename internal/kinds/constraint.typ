@@ -19,13 +19,13 @@
 
 // What a bound measures in each family, and how a message names it.
 // Strings count clusters, not bytes — JSON Schema talks "length"
-// without pinning. An array arrives as the walk leaves it, with `none`
-// where an item was absent; the model drops those, so counting them
-// would validate inputs whose model violates min-items.
+// without pinning. An array arrives as the items its model keeps, each
+// as (source index, item): an absent item is not among them, so the
+// bounds judge what the model holds.
 #let _measures = (
   string: (label: "string length ", of: v => v.clusters().len()),
   number: (label: "", of: v => v),
-  array: (label: "array length ", of: v => v.filter(e => e != none).len()),
+  array: (label: "array length ", of: v => v.len()),
 )
 
 #let _holds = (
@@ -64,18 +64,17 @@
   }
 }
 
-// The first duplicate only, cited by original positions (absent items
-// skipped) so callers can find it. The items are the walked ones, so
-// they compare as the model holds them: null keys dropped, items
-// coerced, and free-form objects kept as given.
-#let _unique-test(on, value) = {
+// The first duplicate only, cited by source positions so callers can
+// find it. The items are the walked ones the model keeps, so they
+// compare as the model holds them: absent items and null keys dropped,
+// items coerced, and free-form objects kept as given.
+#let _unique-test(on, kept) = {
   if not on { return none }
-  let present = value.enumerate().filter(((_, elem)) => elem != none)
-  for i in range(present.len()) {
-    for j in range(i + 1, present.len()) {
-      if present.at(i).at(1) == present.at(j).at(1) {
-        let orig-i = present.at(i).at(0)
-        let orig-j = present.at(j).at(0)
+  for i in range(kept.len()) {
+    for j in range(i + 1, kept.len()) {
+      if kept.at(i).at(1) == kept.at(j).at(1) {
+        let orig-i = kept.at(i).at(0)
+        let orig-j = kept.at(j).at(0)
         return (
           message: "expected unique items, duplicate at indices "
             + str(orig-i)
