@@ -57,10 +57,17 @@
 }
 
 // No `items`: items of any value, as in draft 7.
-#let _array-base(js, ctx, recur) = array-of(recur(
-  js.at("items", default: (:)),
-  ctx,
-))
+#let _array-base(js, ctx, recur) = {
+  let items = js.at("items", default: (:))
+  if type(items) == array {
+    _bail(
+      "unsupported JSON Schema keyword: the array form of \"items\" "
+        + "(one schema per position). Tuple validation is out of scope; "
+        + "give \"items\" one schema for every element.",
+    )
+  }
+  array-of(recur(items, ctx))
+}
 
 #let _object-base(js, ctx, recur) = {
   let has-props = "properties" in js

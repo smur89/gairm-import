@@ -21,10 +21,17 @@
     + ") instead.",
 )
 
-#let _decode-input(fn-name, data, str-is-data: false) = {
+// `null-ok` leaves a null for the caller's own type check, for a caller
+// whose input is not a document root (a schema).
+#let _decode-input(fn-name, data, str-is-data: false, null-ok: false) = {
   if type(data) == str and not str-is-data { _path-hint(fn-name, data) }
   let value = if type(data) in (path, bytes) { json(data) } else { data }
-  if value == none { _bail(none, "input must be a dict, got null.") }
+  if value == none and not null-ok {
+    _bail(
+      none,
+      "input must not be null: the document root has to be a value the schema accepts.",
+    )
+  }
   value
 }
 
