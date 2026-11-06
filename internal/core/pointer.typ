@@ -1,4 +1,6 @@
-// RFC 6901 JSON Pointer interop. Path tuples used by lenses
+// RFC 6901 JSON Pointer: the public path <-> pointer pair, and below
+// it the reading the translator's `$ref` needs (percent-decoding a URI
+// fragment, looking a path up in a document). Path tuples used by lenses
 // (`("basics", "email")`) and validator error reports (`("work",
 // 0, "highlights", 1)`) <-> the "/basics/email" / "/work/0/
 // highlights/1" form external tooling (editor extensions, schema
@@ -132,4 +134,67 @@
     )
   }
   read.path
+}
+
+// RFC 3986 percent-decoding of a `$ref` fragment, as UTF-8; none when
+// a `%` is not followed by two hex digits or the bytes are not
+// well-formed UTF-8 (RFC 3629).
+#let _hex-digits = "0123456789abcdef"
+#let _utf8-length(lead) = if lead < 0x80 { 1 } else if (
+  lead >= 0xC2 and lead < 0xE0
+) { 2 } else if lead >= 0xE0 and lead < 0xF0 { 3 } else if (
+  lead >= 0xF0 and lead < 0xF5
+) { 4 }
+// The range a lead byte's second byte must fall in (RFC 3629 §4), as
+// (low, high) inclusive: these leads narrow 0x80–0xBF to rule out an
+// overlong encoding (E0, F0), a UTF-16 surrogate (ED) or a code point
+// past U+10FFFF (F4), which `str(bytes(…))` would reject with a raw
+// Typst error.
+#let _second-byte-range(lead) = if lead == 0xE0 { (0xA0, 0xBF) } else if (
+  lead == 0xED
+) { (0x80, 0x9F) } else if lead == 0xF0 { (0x90, 0xBF) } else if (
+  lead == 0xF4
+) { (0x80, 0x8F) } else { (0x80, 0xBF) }
+#let _percent-decode(s) = {
+  if "%" not in s { return s }
+  let parts = s.split("%")
+  let out = array(bytes(parts.first()))
+  for part in parts.slice(1) {
+    let digits = part
+      .codepoints()
+      .slice(0, calc.min(2, part.codepoints().len()))
+    let values = digits.map(d => _hex-digits.position(lower(d)))
+    if values.len() < 2 or none in values { return none }
+    out.push(values.at(0) * 16 + values.at(1))
+    out += array(bytes(part.slice(2)))
+  }
+  let i = 0
+  while i < out.len() {
+    let n = _utf8-length(out.at(i))
+    if n == none or i + n > out.len() { return none }
+    if out.slice(i + 1, i + n).any(b => b < 0x80 or b >= 0xC0) { return none }
+    if n > 1 {
+      let (low, high) = _second-byte-range(out.at(i))
+      if out.at(i + 1) < low or out.at(i + 1) > high { return none }
+    }
+    i += n
+  }
+  str(bytes(out))
+}
+
+// The value at `path` in `doc`, as `(value, missing)`: `missing` is the
+// first segment that names nothing (and `value` none), or none. A
+// segment names a key of an object (a numeric one too, as its string)
+// or an index of an array.
+#let _pointer-get(doc, path) = {
+  let at = doc
+  for seg in path {
+    let key = if type(at) == dictionary { str(seg) } else { seg }
+    let found = if type(at) == dictionary { key in at } else {
+      type(at) == array and type(seg) == int and seg < at.len()
+    }
+    if not found { return (value: none, missing: seg) }
+    at = at.at(key)
+  }
+  (value: at, missing: none)
 }
