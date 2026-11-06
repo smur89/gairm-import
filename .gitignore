@@ -1,16 +1,12 @@
 # macOS
 .DS_Store
 
-# Typst build output
-target/
-
 # Editor / IDE
 .vscode/
 .idea/
 *.iml
 *.ipr
 *.iws
-out/
 *.swp
 
 # Staged package for tests/package/ (make stage-test-package)

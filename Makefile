@@ -100,61 +100,59 @@ test-package: $(PACKAGE_CHECKS) ## compile tests/package/*.typ against the stage
 # means a green required check.
 check: test fmt-check check-layers ## test + fmt-check + check-layers: what CI runs
 
-# Layer rules, bottom up. internal/core/ (L0) imports nothing outside
-# itself: any import that is not a bare sibling filename (a path
-# leaving core/, or a package) is a violation. internal/kinds/ (L1)
-# may also import from core/ (`../core/<name>.typ`), and nothing else.
-# internal/engine.typ (L2) imports only from core/ and kinds/.
-# internal/json-schema/ (L3) imports from core/, kinds/, the engine and
-# its own siblings: never lens, introspect or json-resume. The other L3
-# modules, internal/lens.typ and internal/introspect.typ, import only
-# from core/, kinds/ and the engine: never each other. internal/
-# json-resume/ (L4) may import anything below it and its siblings.
-SIBLING_IMPORT     := \#import +"[a-z][a-z0-9-]*\.typ"
-CORE_IMPORT        := \#import +"\.\./core/[a-z][a-z0-9-]*\.typ"
-ENGINE_IMPORT      := \#import +"(core|kinds)/[a-z][a-z0-9-]*\.typ"
-JSON_SCHEMA_IMPORT := \#import +"\.\./((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
-L3_IMPORT          := \#import +"((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
-JSON_RESUME_IMPORT := \#import +"\.\./((core|kinds|json-schema)/[a-z][a-z0-9-]*|engine|lens|introspect)\.typ"
+# Layer rules, bottom up, one row per layer: the files, the imports
+# they may make (an extended regex), and how the error says so.
+# internal/core/ (L0) imports nothing outside itself: any import that
+# is not a bare sibling filename (a path leaving core/, or a package)
+# is a violation. internal/kinds/ (L1) may also import from core/
+# (`../core/<name>.typ`), and nothing else. internal/engine.typ (L2)
+# imports only from core/ and kinds/. internal/json-schema/ (L3)
+# imports from core/, kinds/, the engine and its own siblings: never
+# lens, introspect or json-resume. The other L3 modules,
+# internal/lens.typ and internal/introspect.typ, import only from
+# core/, kinds/ and the engine: never each other. internal/json-resume/
+# (L4) may import anything below it and its siblings.
+SIBLING_IMPORT := \#import +"[a-z][a-z0-9-]*\.typ"
+LAYERS := core kinds engine json-schema lens-introspect json-resume
+
+core.files := internal/core/*.typ
+core.allow := $(SIBLING_IMPORT)
+core.says  := internal/core/ may import only its own siblings
+
+kinds.files := internal/kinds/*.typ
+kinds.allow := $(SIBLING_IMPORT)|\#import +"\.\./core/[a-z][a-z0-9-]*\.typ"
+kinds.says  := internal/kinds/ may import only internal/core/ and its own siblings
+
+engine.files := internal/engine.typ
+engine.allow := \#import +"(core|kinds)/[a-z][a-z0-9-]*\.typ"
+engine.says  := internal/engine.typ may import only internal/core/ and internal/kinds/
+
+json-schema.files := internal/json-schema/*.typ
+json-schema.allow := $(SIBLING_IMPORT)|\#import +"\.\./((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
+json-schema.says  := internal/json-schema/ may import only internal/core/, internal/kinds/, internal/engine.typ and its own siblings
+
+lens-introspect.files := internal/lens.typ internal/introspect.typ
+lens-introspect.allow := \#import +"((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
+lens-introspect.says  := internal/lens.typ and internal/introspect.typ may import only internal/core/, internal/kinds/ and internal/engine.typ
+
+json-resume.files := internal/json-resume/*.typ
+json-resume.allow := $(SIBLING_IMPORT)|\#import +"\.\./((core|kinds|json-schema)/[a-z][a-z0-9-]*|engine|lens|introspect)\.typ"
+json-resume.says  := internal/json-resume/ may import only the layers below it and its own siblings
+
+# One layer's check, as shell that sets `status=1` on a violation.
+#   $(call check-layer,<row>)
+define check-layer
+bad=$$(grep -HnE '#import +"' $($(1).files) \
+  | grep -vE '$($(1).allow)' || true); \
+if [ -n "$$bad" ]; then \
+  printf 'check-layers: %s:\n%s\n' '$($(1).says)' "$$bad" >&2; \
+  status=1; \
+fi;
+endef
 
 check-layers: ## fail if an internal/ module imports above its layer
 	@status=0; \
-	bad=$$(grep -HnE '#import +"' internal/core/*.typ \
-	  | grep -vE '$(SIBLING_IMPORT)' || true); \
-	if [ -n "$$bad" ]; then \
-	  printf 'check-layers: internal/core/ may import only its own siblings:\n%s\n' "$$bad" >&2; \
-	  status=1; \
-	fi; \
-	bad=$$(grep -HnE '#import +"' internal/kinds/*.typ \
-	  | grep -vE '$(SIBLING_IMPORT)|$(CORE_IMPORT)' || true); \
-	if [ -n "$$bad" ]; then \
-	  printf 'check-layers: internal/kinds/ may import only internal/core/ and its own siblings:\n%s\n' "$$bad" >&2; \
-	  status=1; \
-	fi; \
-	bad=$$(grep -HnE '#import +"' internal/engine.typ \
-	  | grep -vE '$(ENGINE_IMPORT)' || true); \
-	if [ -n "$$bad" ]; then \
-	  printf 'check-layers: internal/engine.typ may import only internal/core/ and internal/kinds/:\n%s\n' "$$bad" >&2; \
-	  status=1; \
-	fi; \
-	bad=$$(grep -HnE '#import +"' internal/json-schema/*.typ \
-	  | grep -vE '$(SIBLING_IMPORT)|$(JSON_SCHEMA_IMPORT)' || true); \
-	if [ -n "$$bad" ]; then \
-	  printf 'check-layers: internal/json-schema/ may import only internal/core/, internal/kinds/, internal/engine.typ and its own siblings:\n%s\n' "$$bad" >&2; \
-	  status=1; \
-	fi; \
-	bad=$$(grep -HnE '#import +"' internal/lens.typ internal/introspect.typ \
-	  | grep -vE '$(L3_IMPORT)' || true); \
-	if [ -n "$$bad" ]; then \
-	  printf 'check-layers: internal/lens.typ and internal/introspect.typ may import only internal/core/, internal/kinds/ and internal/engine.typ:\n%s\n' "$$bad" >&2; \
-	  status=1; \
-	fi; \
-	bad=$$(grep -HnE '#import +"' internal/json-resume/*.typ \
-	  | grep -vE '$(SIBLING_IMPORT)|$(JSON_RESUME_IMPORT)' || true); \
-	if [ -n "$$bad" ]; then \
-	  printf 'check-layers: internal/json-resume/ may import only the layers below it and its own siblings:\n%s\n' "$$bad" >&2; \
-	  status=1; \
-	fi; \
+	$(foreach layer,$(LAYERS),$(call check-layer,$(layer))) \
 	exit $$status
 
 fmt: ## typstyle-format lib.typ, internal/ and tests/ in place
