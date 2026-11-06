@@ -14,6 +14,7 @@
 )
 #import "build.typ": _builders, _build, _fold-membership
 #import "all-of.typ": _all-of
+#import "conditional.typ": _conditional
 
 // `seen` is the chain of refs traversed so far; a repeat means a
 // cycle (e.g. `definitions.alias → alias`) — panic before Typst's
@@ -121,13 +122,18 @@
 // array.
 #let _untyped-types = ("boolean", "object", "array", "number", "string", "null")
 
-// The composition keywords (#108), each with its member schemas.
+// A `$ref` to its target in `ctx`'s document, for the merges that read
+// raw members (all-of.typ).
+#let _resolver(ctx) = ref => _resolve-ref(ref, ctx.root, ())
+
+// The composition keywords (#108), each with its member schemas, and
+// `if`, which reads its node's other keywords too (conditional.typ).
 #let _applicators = (
   allOf: (js, ctx, recur) => _all-of(
     _require-member-array(js, "allOf"),
     ctx,
     recur,
-    ref => _resolve-ref(ref, ctx.root, ()),
+    _resolver(ctx),
   ),
   anyOf: (js, ctx, recur) => any-of(
     _require-member-array(js, "anyOf").map(m => recur(m, ctx)),
@@ -136,10 +142,11 @@
     _require-member-array(js, "oneOf").map(m => recur(m, ctx)),
   ),
   "not": (js, ctx, recur) => not-of(recur(js.at("not"), ctx)),
+  "if": (js, ctx, recur) => _conditional(js, ctx, recur, _resolver(ctx)),
 )
 
-// `ctx` is the document `root` and `seen`, the chain of `$ref`s that
-// led here.
+// `ctx` is the document `root`, `seen`, the chain of `$ref`s that led
+// here, and `open-objects`, set under an `if` (conditional.typ).
 #let _translate(js, ctx) = {
   // A `properties` value or `$ref` target reaches here unchecked; a
   // boolean would otherwise fail with a raw Typst error on `in` below.
@@ -216,5 +223,5 @@
         + ".",
     )
   }
-  _translate(parsed, (root: parsed, seen: ()))
+  _translate(parsed, (root: parsed, seen: (), open-objects: false))
 }

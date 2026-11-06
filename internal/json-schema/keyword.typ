@@ -33,10 +33,6 @@
 // tolerated anywhere, beside a composition keyword or `$ref` too.
 #let _annotation = (role: "annotation")
 #let _base(t) = (role: "base", types: (t,))
-#let _conditional = (
-  role: "unsupported",
-  reason: "Conditional schemas (if/then/else, dependentSchemas, schema-form dependencies) are out of scope.",
-)
 // Draft 7 keywords outside the subset, with no reason of their own:
 // they bail with any unknown key, as translating would drop them.
 #let _outside = (role: "unsupported")
@@ -61,6 +57,12 @@
   anyOf: (role: "applicator"),
   oneOf: (role: "applicator"),
   "not": (role: "applicator"),
+  // `if` is the one applicator that `joins` its node's other keywords
+  // rather than standing alone (conditional.typ); `then` and `else` are
+  // branches `of` it, read with it.
+  "if": (role: "applicator", joins: true),
+  then: (role: "branch", of: "if"),
+  "else": (role: "branch", of: "if"),
   "$ref": (role: "ref"),
   enum: (role: "membership"),
   // `const: null` means the value must be null.
@@ -87,10 +89,10 @@
       ),
     ))
     .to-dict(),
-  "if": _conditional,
-  then: _conditional,
-  "else": _conditional,
-  dependentSchemas: _conditional,
+  dependentSchemas: (
+    role: "unsupported",
+    reason: "dependentSchemas and the schema form of dependencies are out of scope.",
+  ),
   additionalItems: _outside,
   contains: _outside,
   maxProperties: _outside,
@@ -132,12 +134,16 @@
 // Bails on a keyword the translator cannot honour: a sibling beside a
 // composition keyword or `$ref` (checked before the `$ref` is resolved,
 // which would drop it), an unsupported keyword with a reason of its
-// own, then every unknown or outside-the-subset key at once (a typo
-// like `minLenght` included: draft 7 would ignore it), then a null
-// value.
+// own, a `then` / `else` with no `if` (draft 7 ignores them), then
+// every unknown or outside-the-subset key at once (a typo like
+// `minLenght` included: draft 7 would ignore it), then a null value.
 #let _check-keywords(js) = {
   for (keyword, entry) in _keywords {
-    if keyword not in js or entry.role not in _lone-hints { continue }
+    if (
+      keyword not in js
+        or entry.role not in _lone-hints
+        or entry.at("joins", default: false)
+    ) { continue }
     let extras = js
       .keys()
       .filter(k => k != keyword and _role-of(k) != "annotation")
@@ -158,6 +164,16 @@
           + repr(keyword)
           + ". "
           + entry.reason,
+      )
+    }
+  }
+  for (keyword, entry) in _keywords {
+    if keyword in js and entry.role == "branch" and entry.of not in js {
+      _bail(
+        repr(keyword)
+          + " has no effect without "
+          + repr(entry.of)
+          + " (draft 7 ignores it), so translating would silently drop its constraints.",
       )
     }
   }

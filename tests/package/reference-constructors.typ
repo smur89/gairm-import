@@ -30,6 +30,12 @@
 #assert.eq(any-of(string(), number()), any-of((string(), number())))
 #assert.eq(const-of(1), enum-of((1,)))
 
+// The if-of example.
+#let long-x = if-of(string(min-length: 5), then: string(pattern: "^x"))
+#assert.eq(validate("abc", schema: long-x), ())
+#assert.eq(validate("xyzzy", schema: long-x), ())
+#assert.eq(validate("abcde", schema: long-x).map(e => e.code), ("pattern",))
+
 #assert.eq(
   validate(
     (

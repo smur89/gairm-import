@@ -15,8 +15,8 @@
 
 // `dependentRequired` (2019-09) and draft 7's array-form `dependencies`
 // are the same constraint, read as (keyword, value); object() checks the
-// value's shape. The schema form of `dependencies` needs conditional
-// schemas, like `dependentSchemas`.
+// value's shape. The schema form of `dependencies` is out of scope, like
+// `dependentSchemas`, which it means.
 #let _dependent-required(js) = {
   let has-dr = "dependentRequired" in js
   let has-dep = "dependencies" in js
@@ -33,7 +33,7 @@
       _bail(
         "unsupported JSON Schema keyword: the schema form of \"dependencies\" (for "
           + repr(trigger)
-          + "). Conditional schemas are out of scope.",
+          + "). dependentSchemas and the schema form of dependencies are out of scope.",
       )
     }
   }
@@ -69,11 +69,15 @@
   array-of(recur(items, ctx))
 }
 
+// Under an `if` (`ctx.open-objects`, conditional.typ) an undeclared
+// `additionalProperties` is open, as draft 7 reads it: the condition is
+// only a test, and a closed one would fail on every key it doesn't
+// mention.
 #let _object-base(js, ctx, recur) = {
   let has-props = "properties" in js
   let has-ap = "additionalProperties" in js
   // Fully open with no constraints inverts the engine's strict intent.
-  if not has-props and not has-ap {
+  if not has-props and not has-ap and not ctx.open-objects {
     _bail(
       "open object schemas (`type: \"object\"` with no `properties` "
         + "or `additionalProperties`) are out of scope; every field "
@@ -85,7 +89,7 @@
     _bail("\"properties\" must be an object, got: " + repr(type(props)) + ".")
   }
   let additional = if not has-ap {
-    none
+    if ctx.open-objects { true } else { none }
   } else {
     let ap = js.at("additionalProperties")
     if ap == false { none } else if ap == true { true } else if (

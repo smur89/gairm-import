@@ -1,7 +1,7 @@
-// The structural kinds' constructors, arrays, unions, `not`, objects
-// and maps, and the walks the engine runs for them. Leaves live in
-// leaf.typ and format.typ, and registry.typ holds a descriptor for
-// every kind.
+// The structural kinds' constructors, arrays, unions, `not`,
+// conditionals, objects and maps, and the walks the engine runs for
+// them. Leaves live in leaf.typ and format.typ, and registry.typ holds a
+// descriptor for every kind.
 
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": (
@@ -28,6 +28,7 @@
   "object",
   "union",
   "not",
+  "if",
 )
 
 // Kind names a hand-built node may still carry, deprecated, until 1.0,
@@ -127,7 +128,19 @@
 // A member's kind as union and `not` errors name it. An integer member
 // reads `number`, as it did before integer was a kind of its own, so
 // the messages and `expected` values validate returns stay as they were.
-#let _reported-kind(member) = if member.kind == "integer" { "number" } else {
+// A conditional reads as its branches when both are set and agree (the
+// translated `{type: "object", if: …, then: …, else: …}` is an object
+// either way), and as `conditional` otherwise.
+#let _reported-kind(member) = if member.kind == "integer" { "number" } else if (
+  member.kind == "if"
+) {
+  let kinds = ("then", "otherwise").map(b => if b in member {
+    _reported-kind(member.at(b))
+  })
+  if none not in kinds and kinds.dedup().len() == 1 { kinds.first() } else {
+    "conditional"
+  }
+} else {
   _kind-label(member)
 }
 
@@ -226,6 +239,39 @@
     )
   }
   (kind: "not", member: member)
+}
+
+// JSON Schema `if` / `then` / `else`. Named if-of because `if` is a
+// Typst keyword, and the else branch `otherwise` because `else` is one
+// too. A branch left out is not stored, as object() leaves out its
+// optional fields.
+/// A value that must match `then` if it matches `cond`, and `otherwise`
+/// if it does not (JSON Schema `if` / `then` / `else`). A branch left
+/// out accepts the value as given. Panics if an argument is not a
+/// schema, or if both branches are left out.
+///
+/// - cond (dictionary): The schema that picks the branch. Only whether
+///   the value matches it counts; its errors are never reported.
+/// - then (none, dictionary): The schema for a value that matches
+///   `cond`.
+/// - otherwise (none, dictionary): The schema for a value that does not.
+/// -> dictionary
+#let if-of(cond, then: none, otherwise: none) = {
+  _require-schema(cond, "if-of() cond")
+  let node = (kind: "if", cond: cond)
+  for (name, branch) in (then: then, otherwise: otherwise) {
+    if branch != none {
+      _require-schema(branch, "if-of() " + name)
+      node.insert(name, branch)
+    }
+  }
+  if then == none and otherwise == none {
+    _bail(
+      "if-of()",
+      "needs a then or an otherwise branch; got neither. With no branch the condition checks nothing.",
+    )
+  }
+  node
 }
 
 // `additional` controls keys not in `shape` (the engine-side name for
@@ -620,4 +666,24 @@
     )
   } else { () }
   (errors: errors, value: value, fatal: none)
+}
+
+// `if` / `then` / `else`. The condition is walked in the same ctx, so
+// the same null mode, and only its verdict counts: its errors and model
+// are discarded, as `not` discards its member's. The branch it picks is
+// the result, errors, model and fatal alike, so coerce follows the
+// branch validate judged by. A missing branch accepts the value as
+// given, like an `additional: true` extra.
+//
+// So in a union a conditional member claims a value as its chosen
+// branch does (_union-walk reads only that branch's errors), and a
+// missing branch, having no errors, matches it outright.
+#let _if-walk(schema, value, ctx, recur) = {
+  let matched = recur(schema.cond, value, ctx).errors == ()
+  let branch = schema.at(
+    if matched { "then" } else { "otherwise" },
+    default: none,
+  )
+  if branch == none { return (errors: (), value: value, fatal: none) }
+  recur(branch, value, ctx)
 }

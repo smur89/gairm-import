@@ -9,7 +9,7 @@
   email-string, date-string, datetime-string, uri-string, uuid-string,
   hostname-string, ipv4-string, ipv6-string, time-string, pattern-string,
   schema-from-json-schema, validate, coerce, object, paths-of-kind,
-  content-type, any-of,
+  content-type, any-of, if-of,
 )
 
 // ---- the nodes ---------------------------------------------------------
@@ -33,6 +33,15 @@
     shape: (a: (kind: "string"), b: (kind: "string")),
     required-keys: ("a", "b"),
   ),
+)
+// A conditional stores the branches it has, `else` as `otherwise`.
+#assert.eq(
+  if-of(str-type, then: number-type),
+  (kind: "if", cond: (kind: "string"), then: (kind: "number")),
+)
+#assert.eq(
+  if-of(str-type, otherwise: number-type),
+  (kind: "if", cond: (kind: "string"), otherwise: (kind: "number")),
 )
 
 // A patterned string is the string kind with a `pattern` and the hint

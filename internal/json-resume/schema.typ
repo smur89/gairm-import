@@ -164,10 +164,19 @@
 //
 // A `not` member is left alone: it is a NEGATED matcher, so stripping
 // there would make the negation accept more documents, loosening the
-// strict variant instead of tightening it.
+// strict variant instead of tightening it. So is a conditional's
+// condition, which only picks the branch; its branches are stripped.
 #let _strip-permissive-additional(schema) = {
   if _is-free-form(schema) or schema.kind == "not" { return schema }
-  let s = _map-children(schema, _strip-permissive-additional)
+  let s = if schema.kind == "if" {
+    let branches = ("then", "otherwise").filter(k => k in schema)
+    (:
+      ..schema,
+      ..branches
+        .map(k => (k, _strip-permissive-additional(schema.at(k))))
+        .to-dict(),
+    )
+  } else { _map-children(schema, _strip-permissive-additional) }
   // Only objects carry `additional`. Rebuilt through object(), so
   // closing it re-checks the constructor's invariants.
   if s.at("additional", default: none) == true {

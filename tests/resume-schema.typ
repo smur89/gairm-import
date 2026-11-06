@@ -7,7 +7,7 @@
 #import "../internal/json-resume/schema.typ": _strip-permissive-additional
 #import "../lib.typ": (
   lens-get, resume-schema, resume-schema-strict, schema-from-json-schema,
-  validate, object, any-of, not-of, str-type, content-type, number-type,
+  validate, object, any-of, not-of, if-of, str-type, content-type, number-type,
   date-string, datetime-string, uri-string, email-string, describe-schema,
 )
 
@@ -165,3 +165,10 @@
 // make it reject less.
 #let negated = not-of(object((x: str-type), additional: true))
 #assert.eq(_strip-permissive-additional(negated), negated)
+// So does a conditional's condition, which only picks the branch; the
+// branches close.
+#let open-x = object((x: str-type), additional: true)
+#assert.eq(
+  _strip-permissive-additional(if-of(open-x, then: open-x, otherwise: open-x)),
+  if-of(open-x, then: object((x: str-type)), otherwise: object((x: str-type))),
+)

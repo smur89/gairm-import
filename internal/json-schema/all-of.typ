@@ -28,12 +28,15 @@
 // extras (`restricts`, see _restricts-extras) need identical property
 // sets. Non-object composition (e.g. string + extra constraints) stays
 // out of scope; deep-merging conflicting sub-schemas is a rabbit hole
-// the engine's flat kinds can't express.
-#let _merge-all-of(members, restricts) = {
+// the engine's flat kinds can't express. `who` names the members in
+// the messages, so a conditional's branches (conditional.typ) bail in
+// their own words.
+#let _merge-all-of(members, restricts, who) = {
   for m in members {
     if m.kind != "object" {
       _bail(
-        "allOf members must all be object schemas; got kind "
+        who
+          + " must all be object schemas; got kind "
           + repr(m.kind)
           + ". Non-object composition is out of scope.",
       )
@@ -46,9 +49,7 @@
     for (key, sub) in m.shape {
       if key in shape and shape.at(key) != sub {
         _bail(
-          "allOf members declare conflicting schemas for key "
-            + repr(key)
-            + ".",
+          who + " declare conflicting schemas for key " + repr(key) + ".",
         )
       }
       shape.insert(key, sub)
@@ -73,7 +74,8 @@
   for a in additionals {
     if a != additionals.at(0) {
       _bail(
-        "allOf members declare conflicting additionalProperties (open, closed, and typed members must all agree).",
+        who
+          + " declare conflicting additionalProperties (open, closed, and typed members must all agree).",
       )
     }
   }
@@ -84,7 +86,8 @@
   let keys = members.map(m => m.shape.keys().sorted())
   if restricts.any(r => r) and keys.any(k => k != keys.at(0)) {
     _bail(
-      "allOf members with `additionalProperties: false` or a schema must all declare the same properties: draft 7 applies each member's additionalProperties to its own properties only, so a merged schema would accept keys that member rejects. Declare the properties in every member, or drop the restriction.",
+      who
+        + " with `additionalProperties: false` or a schema must all declare the same properties: draft 7 applies each member's additionalProperties to its own properties only, so a merged schema would accept keys that member rejects. Declare the properties in every member, or drop the restriction.",
     )
   }
   object(
@@ -103,17 +106,22 @@
   }
 }
 
-// The allOf of the schema objects `raw`, each translated by `recur`. A
-// member translated from `type: ["object", "null"]` is
-// nullable(object): its object merges. A null meets allOf only when
-// every member takes it, so the merge is nullable only then.
-#let _all-of(raw, ctx, recur, resolve) = {
-  let members = raw.map(m => recur(m, ctx))
-  let restricts = raw.map(m => _restricts-extras(m, resolve))
+// The merge of already translated `members`, each with its raw
+// member's `restricts`. A member translated from `type: ["object",
+// "null"]` is nullable(object): its object merges. A null meets allOf
+// only when every member takes it, so the merge is nullable only then.
+#let _join(members, restricts, who: "allOf members") = {
   let inner = members.map(m => _nullable-of(m))
   let merged = _merge-all-of(
     members.zip(inner).map(((m, x)) => if x == none { m } else { x }),
     restricts,
+    who,
   )
   if inner.all(x => x != none) { nullable(merged) } else { merged }
 }
+
+// The allOf of the schema objects `raw`, each translated by `recur`.
+#let _all-of(raw, ctx, recur, resolve) = _join(
+  raw.map(m => recur(m, ctx)),
+  raw.map(m => _restricts-extras(m, resolve)),
+)

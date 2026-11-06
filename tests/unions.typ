@@ -7,7 +7,7 @@
   validate, coerce, parse, schema-from-json-schema, describe-schema,
   paths-of-kind, kind-at, lens, lens-get, lens-put, str-type, content-type,
   number-type, integer-type, null-type, date-string, array-of, object, enum-of,
-  any-of, one-of, not-of, nullable, pattern-string,
+  any-of, one-of, not-of, if-of, nullable, pattern-string, string, bool-type,
 )
 
 #let T = schema-from-json-schema
@@ -111,6 +111,69 @@
 #let negated = validate("nope", schema: not-str)
 #assert.eq(negated.len(), 1)
 #assert(negated.at(0).message.contains("not matching"))
+
+// ---- if-of (#109) --------------------------------------------------------
+//
+// The condition's verdict picks the branch, and only the branch's
+// errors are reported; a missing branch takes the value as it is.
+
+#let x-word = string(pattern: "^x", expected: "starting with x")
+#let long-x = if-of(string(min-length: 5), then: x-word)
+#assert.eq(validate("abc", schema: long-x), ())
+#assert.eq(validate("xyzzy", schema: long-x), ())
+#assert.eq(validate(42, schema: long-x), ())
+#assert.eq(validate("abcde", schema: long-x).map(e => e.message), (
+  "expected starting with x.",
+))
+// Coerce follows the branch validate judged by.
+#let rich-if-str = if-of(str-type, then: content-type, otherwise: number-type)
+#assert.eq(type(coerce("hi", schema: rich-if-str)), content)
+#assert.eq(coerce(3, schema: rich-if-str), 3)
+#assert.eq(validate(true, schema: rich-if-str).map(e => e.code), ("type",))
+
+// In a union, a conditional member claims a value as its chosen branch
+// does: here a string, whose branch only breaks a constraint, so its
+// own error is reported.
+#let short-str = if-of(
+  str-type,
+  then: string(min-length: 2),
+  otherwise: number-type,
+)
+#let bool-or-cond = any-of(bool-type, short-str)
+#assert.eq(validate(true, schema: bool-or-cond), ())
+#assert.eq(validate(1, schema: bool-or-cond), ())
+#assert.eq(validate("a", schema: bool-or-cond).map(e => e.code), ("length",))
+// Neither branch takes an object: no member claims it. The member is
+// named `conditional` when its branches differ...
+#let unclaimed = validate((a: 1), schema: bool-or-cond)
+#assert.eq(unclaimed.map(e => e.code), ("type",))
+#assert.eq(unclaimed.at(0).expected, "bool | conditional")
+// ...and by its branches' kind when they agree.
+#assert.eq(
+  validate(
+    1,
+    schema: any-of(
+      bool-type,
+      if-of(str-type, then: string(min-length: 2), otherwise: x-word),
+    ),
+  )
+    .at(0)
+    .expected,
+  "bool | string",
+)
+#assert(
+  validate("ab", schema: not-of(short-str))
+    .at(0)
+    .message
+    .contains("negated conditional schema"),
+)
+// A missing branch matches every value that takes it, so a one-of
+// counts the conditional for a number here.
+#let num-or-cond = one-of(number-type, if-of(str-type, then: x-word))
+#assert.eq(validate("xy", schema: num-or-cond), ())
+#assert(
+  validate(1, schema: num-or-cond).at(0).message.contains("2 matched"),
+)
 
 // ---- coerce --------------------------------------------------------------
 

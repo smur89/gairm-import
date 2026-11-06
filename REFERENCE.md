@@ -44,6 +44,7 @@ built.
 | `any-of(a, b, …)` | | a value matching at least one member |
 | `one-of(a, b, …)` | | a value matching exactly one member |
 | `not-of(member)` | | a value that does not match `member` |
+| `if-of(cond, ..)` | `then`, `otherwise` | a value that matches `then` if it matches `cond`, and `otherwise` if not |
 | `nullable(member)` | | `null` or a value `member` accepts (see [Null handling](README.md#null-handling)) |
 | `enum-of(values)` | | one of `values`, which may mix types |
 | `const-of(value)` | | `value` only; the same as `enum-of((value,))` |
@@ -56,6 +57,13 @@ built.
   string must have the format and match the pattern.
 - `any-of` and `one-of` take their members as separate arguments or as one
   array: `any-of(a, b)` equals `any-of((a, b))`.
+- `if-of` is JSON Schema's `if` / `then` / `else`, with the else branch
+  named `otherwise` (`else` is a Typst keyword). It takes `then`,
+  `otherwise` or both; a branch left out accepts the value as it is. Only
+  whether the value matches `cond` counts: `cond`'s errors are never
+  reported, and the branch it picks gives the errors and the model.
+  `if-of(string(min-length: 5), then: string(pattern: "^x"))` accepts
+  `"abc"` and `"xyzzy"`, and rejects `"abcde"`.
 - `object`'s `additional` says what to do with keys not in `shape`:
   `none` (the default) or `false` rejects them, `true` lets them through
   unchecked, and a schema checks each one against it. `required-keys` lists
@@ -136,6 +144,7 @@ Every function below takes either. A path's segments are:
 | `"additionalProperties"` | an object's `additional` schema (only when it is a schema, not `true`) |
 | an int (`0`) | that member of an `any-of` or `one-of` |
 | `"not"` | a `not-of` member |
+| `"if"`, `"then"`, `"else"` | an `if-of`'s condition, or a branch it has (`"else"` is `otherwise`) |
 
 `()` is the whole schema. A field literally named `"additionalProperties"`
 wins over the keyword; reach the additional schema in that case with
@@ -216,8 +225,9 @@ field with its kind:
 - constraints follow the kind in brackets, a format in parentheses, and a
   pattern as `+ pattern`;
 - a union lists its members as `[0]`, `[1]`, … under `any of:` or
-  `one of:`, `nullable(X)` draws as `X?`, and a `not-of` member shows as
-  `not`;
+  `one of:`, `nullable(X)` draws as `X?`, a `not-of` member shows as
+  `not`, and an `if-of`'s condition and branches as `if`, `then` and
+  `else`;
 - an object's `dependent-required` entries close its block as
   `trigger → dependents`.
 
@@ -264,17 +274,26 @@ work[]:
       …
 ```
 
+A conditional, `if-of(string(min-length: 5), then: string(pattern: "^x"),
+otherwise: number())`:
+
+```text
+if    string (min-length 5)
+then  string + pattern
+else  number
+```
+
 `paths-of-kind(schema, query)` lists the path of every node matching
-`query`, inside union and `not-of` members too, sorted as above. The paths
-use the segments under [Lenses and edits](#lenses-and-edits), so they work
-wherever a location does. A query is:
+`query`, inside union, `not-of` and `if-of` members too, sorted as above.
+The paths use the segments under [Lenses and edits](#lenses-and-edits), so
+they work wherever a location does. A query is:
 
 - a schema node, which matches the nodes of its kind that have every field
   the query sets, with the same value: `string()` finds every string,
   `string(format: "date")` only the date strings, `number()` numbers but
   not integers, and `number(minimum: 0)` only numbers with that minimum;
 - or a constructor, which matches every node of the kind it builds:
-  `enum-of`, `any-of`, `one-of`, `not-of`.
+  `enum-of`, `any-of`, `one-of`, `not-of`, `if-of`.
 
 `object` and `array` are walked through, not searched for, and panic as a
 query.
@@ -368,6 +387,16 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   closed), and members that are closed or typed must declare the same
   properties. A `type: ["object", "null"]` member merges as its object;
   the result is nullable only if every member is.
+- `if`, `then` and `else` become `if-of`. With no other keywords on the
+  node, the branches are `then` and `else` as written, of any kind. Beside
+  other keywords, each branch is the `allOf` of those keywords and the
+  branch, merged as above, and a missing branch is those keywords alone:
+  the node and each branch must be object schemas. A branch takes the
+  node's `type`, and, unless it sets `additionalProperties`, the node's
+  `properties` and `additionalProperties`, so `then: {required: ["b"]}`
+  requires a property the node declares. `if` is only a test, so every
+  object in it without `additionalProperties` is open, as draft 7 reads
+  it. `if` with neither `then` nor `else` checks nothing and is dropped.
 - `$ref` to a fragment in the same document (`#/definitions/…`,
   `#/$defs/…`), percent-decoded and then read as a JSON Pointer, so a
   numeric segment can index an array (`#/definitions/pair/anyOf/0`).
@@ -382,8 +411,7 @@ integer; a whole-number float (`2.0`) counts.
 
 Each of these panics with a message naming it:
 
-- `if` / `then` / `else`, `dependentSchemas`, and the schema form of
-  `dependencies`;
+- `dependentSchemas`, and the schema form of `dependencies`;
 - `additionalItems`, `contains`, `minProperties`, `maxProperties`,
   `patternProperties`, `propertyNames`, `contentMediaType`,
   `contentEncoding`, and any keyword not listed above, a misspelling like
@@ -394,9 +422,11 @@ Each of these panics with a message naming it:
   anchor, or in a cycle;
 - formats other than the nine;
 - `allOf` with non-object members or with closed members that declare
-  different properties;
+  different properties, and the same of `if` / `then` / `else` beside
+  other keywords (move those keywords into `then` and `else`);
 - a keyword beside `allOf`, `anyOf`, `oneOf`, `not` or `$ref` other than
-  an annotation (move it into the members or the definition);
+  an annotation (move it into the members or the definition), `if`
+  included;
 - `properties`, `required`, `additionalProperties`, `items` or the
   dependency keywords beside `enum` / `const`, and an `enum` / `const`
   that no value survives;
@@ -422,7 +452,8 @@ Where a draft 7 validator and this package disagree on the same schema:
   keys through unless `additionalProperties` says otherwise; here they are
   rejected unless it is `true` or a schema. `type: "object"` with neither
   `properties` nor `additionalProperties` panics, and an `allOf` member
-  without `additionalProperties` counts as closed.
+  without `additionalProperties` counts as closed (except inside `if`;
+  see the translation).
 - **Unknown keywords panic.** Draft 7 ignores a keyword it does not know;
   here it panics, so a typo cannot silently drop a constraint. So does a
   keyword that applies to none of a node's `type`s, and one whose value is
@@ -448,10 +479,14 @@ Where a draft 7 validator and this package disagree on the same schema:
   panic.
 - **`$ref` and the composition keywords stand alone.** Draft 7 ignores a
   `$ref`'s siblings and applies a composition keyword's siblings as well;
-  here a sibling that is not an annotation panics.
-- **`allOf` is merged at translate time**, so only object members are
-  supported, and members that are closed or typed must declare the same
-  properties.
+  here a sibling that is not an annotation panics. `if` / `then` / `else`
+  take plain siblings (below), but not a `$ref` or a composition keyword.
+- **`allOf`, and `if` / `then` / `else` beside other keywords, are merged
+  at translate time**, so only object members are supported, members that
+  are closed or typed must declare the same properties, and a branch
+  cannot narrow a property its node already declares. Alone on a node, the
+  branches may be any schema.
+- **`then` and `else` without `if` panic**; draft 7 ignores them.
 - **`enum` and `const` are folded with their siblings** at translate time;
   an `enum` that no value survives panics instead of rejecting every
   value.

@@ -8,7 +8,7 @@
   integer-type, bool-type, null-type, any-type, array-of, object, date-string,
   datetime-string, uri-string, email-string, uuid-string, hostname-string,
   ipv4-string, ipv6-string, time-string, pattern-string, enum-of, const-of,
-  any-of, one-of, not-of, nullable, number, describe-schema,
+  any-of, one-of, not-of, if-of, nullable, number, string, describe-schema,
 )
 
 #let T = schema-from-json-schema
@@ -113,6 +113,25 @@
     one-of((str-type, bool-type)),
   ),
   (("not": (type: "string")), not-of(str-type)),
+  // if / then / else with no siblings: the branches as written, of any
+  // kind; `if` with neither branch is dropped (draft 7 checks nothing).
+  (
+    (
+      "if": (type: "string", minLength: 5),
+      then: (type: "string", pattern: "^x$"),
+      "else": (type: "number"),
+    ),
+    if-of(string(min-length: 5), then: string(..x-gate), otherwise: number()),
+  ),
+  (
+    ("if": (type: "string"), "else": (type: "number")),
+    if-of(
+      str-type,
+      otherwise: number-type,
+    ),
+  ),
+  (("if": (type: "string")), any-type),
+  ((type: "string", minLength: 2, "if": (minLength: 5)), string(min-length: 2)),
   (
     (anyOf: ((type: "string"), (oneOf: ((type: "number"), (type: "boolean"))))),
     any-of((str-type, one-of((number-type, bool-type)))),
@@ -405,3 +424,162 @@
 #assert.eq(validate("x", schema: T((format: "date"))).map(e => e.code), (
   "format",
 ))
+
+// ---- if / then / else (#109) -----------------------------------------------
+//
+// `{A…, if: I, then: T, else: E}` is if-of(I, then: allOf(A, T),
+// otherwise: allOf(A, E)), so the siblings apply whichever branch the
+// value takes. With no siblings the branches are T and E as written.
+
+#let codes(errs) = errs.map(e => (e.path, e.code))
+
+// A lone if / then on strings. A missing `else` takes the value as it
+// is, and an untyped keyword passes other types, as in draft 7.
+#let long-x = T(("if": (minLength: 5), then: (pattern: "^x")))
+#assert.eq(long-x, if-of(T((minLength: 5)), then: T((pattern: "^x"))))
+#for v in ("abc", "xyzzy", 42, (a: 1)) {
+  assert.eq(validate(v, schema: long-x), (), message: repr(v))
+  assert.eq(coerce(v, schema: long-x), v)
+}
+#assert.eq(codes(validate("abcde", schema: long-x)), (((), "pattern"),))
+// A missing `then`.
+#let not-string = T(("if": (type: "string"), "else": (type: "number")))
+#assert.eq(validate("a", schema: not-string), ())
+#assert.eq(validate(1, schema: not-string), ())
+#assert.eq(codes(validate(true, schema: not-string)), (((), "type"),))
+
+// The classic example, from the JSON Schema guide: the postal code's
+// pattern depends on the country.
+#let us-zip = "^[0-9]{5}(-[0-9]{4})?$"
+#let ca-post = "^[A-Z][0-9][A-Z] [0-9][A-Z][0-9]$"
+#let address = T((
+  type: "object",
+  properties: (country: (type: "string")),
+  "if": (properties: (country: (const: "US"))),
+  then: (properties: (postal_code: (pattern: us-zip))),
+  "else": (properties: (postal_code: (pattern: ca-post))),
+))
+#assert.eq(
+  address,
+  if-of(
+    // The condition is only a test: its object is open, so it holds
+    // for an address with more keys than `country`.
+    T((properties: (country: (const: "US")), additionalProperties: true)),
+    then: T((
+      type: "object",
+      properties: (country: (type: "string"), postal_code: (pattern: us-zip)),
+    )),
+    otherwise: T((
+      type: "object",
+      properties: (country: (type: "string"), postal_code: (pattern: ca-post)),
+    )),
+  ),
+)
+#for (value, errors) in (
+  ((country: "US", postal_code: "12345"), ()),
+  ((country: "CA", postal_code: "K1A 0B1"), ()),
+  ((country: "US", postal_code: "K1A 0B1"), ((("postal_code",), "pattern"),)),
+  ((country: "CA", postal_code: "12345"), ((("postal_code",), "pattern"),)),
+  // No country: `properties` holds, as in draft 7, so the US branch.
+  ((postal_code: "K1A 0B1"), ((("postal_code",), "pattern"),)),
+  // The siblings apply in both branches: `country` is a string, and
+  // the object is closed.
+  ((country: 1, postal_code: "K1A 0B1"), ((("country",), "type"),)),
+  (
+    (country: "US", postal_code: "12345", street: "x"),
+    (
+      (("street",), "unknown-key"),
+    ),
+  ),
+) {
+  assert.eq(
+    codes(validate(value, schema: address)),
+    errors,
+    message: repr(
+      value,
+    ),
+  )
+}
+#assert.eq(
+  validate((country: "CA", postal_code: "12345"), schema: address)
+    .at(0)
+    .expected,
+  "matching " + repr(ca-post),
+)
+// Every object in the condition is open, nested ones and `type:
+// "object"` with no properties too; a declared additionalProperties
+// is kept.
+#assert.eq(
+  T((
+    "if": (
+      type: "object",
+      properties: (
+        a: (type: "object", properties: (b: (const: 1))),
+        c: (type: "object"),
+        d: (type: "object", properties: (:), additionalProperties: false),
+      ),
+    ),
+    then: (type: "string"),
+  )).cond,
+  object(
+    (
+      a: object((b: const-of(1)), additional: true),
+      c: object((:), additional: true),
+      d: object((:)),
+    ),
+    additional: true,
+  ),
+)
+// A branch that is a `$ref` merges as its target.
+#assert.eq(
+  T((
+    definitions: (
+      us: (
+        type: "object",
+        properties: (country: (type: "string"), postal_code: (pattern: us-zip)),
+      ),
+    ),
+    type: "object",
+    properties: (country: (type: "string")),
+    "if": (properties: (country: (const: "US"))),
+    then: ("$ref": "#/definitions/us"),
+    "else": (properties: (postal_code: (pattern: ca-post))),
+  )),
+  address,
+)
+// Coerce follows the branch: the undeclared key is dropped.
+#assert.eq(
+  coerce((country: "CA", postal_code: "K1A 0B1", street: "x"), schema: address),
+  (country: "CA", postal_code: "K1A 0B1"),
+)
+
+// A branch reads its siblings' `type`, `properties` and
+// `additionalProperties` when it doesn't set them, so `then:
+// {required: […]}` requires a sibling property. A missing branch is
+// the siblings alone.
+#let kinded = T((
+  type: "object",
+  properties: (kind: (type: "string"), extra: (type: "string")),
+  "if": (properties: (kind: (const: "x")), required: ("kind",)),
+  then: (required: ("extra",)),
+))
+#assert.eq(
+  kinded.then,
+  object((kind: str-type, extra: str-type), required-keys: ("extra",)),
+)
+#assert.eq(kinded.otherwise, object((kind: str-type, extra: str-type)))
+#assert.eq(codes(validate((kind: "x"), schema: kinded)), (
+  (("extra",), "required"),
+))
+#assert.eq(validate((kind: "x", extra: "e"), schema: kinded), ())
+#assert.eq(validate((kind: "y"), schema: kinded), ())
+#assert.eq(
+  T((
+    type: "object",
+    properties: (a: (type: "string")),
+    additionalProperties: true,
+    "if": (required: ("a",)),
+    then: (properties: (b: (type: "number"))),
+  )).then,
+  object((a: str-type, b: number-type), additional: true),
+)

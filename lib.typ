@@ -12,7 +12,7 @@
   time-string,
 )
 #import "internal/kinds/structure.typ": (
-  array-of, object, map, any-of, one-of, not-of, nullable,
+  array-of, object, map, any-of, one-of, not-of, if-of, nullable,
 )
 #import "internal/json-resume/schema.typ": resume-schema, resume-schema-strict
 #import "internal/engine.typ" as _engine-mod

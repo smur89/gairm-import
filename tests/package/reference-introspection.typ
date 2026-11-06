@@ -57,6 +57,14 @@ phone → email",
 #assert.eq(describe-schema(object((a: nullable(string())))), "a  string?")
 #assert.eq(describe-schema(object((a: not-of(null-type)))), "a:\n  not  null")
 #assert.eq(describe-schema(map(number())), "*  number")
+#assert.eq(
+  describe-schema(if-of(
+    string(min-length: 5),
+    then: string(pattern: "^x"),
+    otherwise: number(),
+  )),
+  "if    string (min-length 5)\nthen  string + pattern\nelse  number",
+)
 
 #let dates = paths-of-kind(resume-schema-strict, string(format: "date"))
 #assert.eq(dates.first(), ("awards", "items", "date"))

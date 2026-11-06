@@ -2,7 +2,8 @@
 // introspection and the strict-schema walkers. Paths are lens paths: a
 // field name, "items" for an array's elements, "additionalProperties"
 // for an object's additional schema, an int index for a union member,
-// "not" for a `not` member.
+// "not" for a `not` member, "if", "then" and "else" for a conditional's
+// condition and branches.
 
 #import "../core/error.typ": _bail
 #import "registry.typ": _descriptor
