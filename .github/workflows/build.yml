@@ -36,8 +36,8 @@ defaults:
 
 jobs:
   # `make check`: every fixture, panic case and package test, the
-  # typstyle check and the layering check. The one required check, so
-  # a green `make check` locally means a green `test` here.
+  # typstyle check and the layering check. A required check, so a
+  # green `make check` locally means a green `test` here.
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -97,6 +97,7 @@ jobs:
 
   # Runs the same checker as typst/packages' CI before a release is
   # cut: catches tarball-list drift, README-link rot and deprecated APIs.
+  # A required check alongside `test`, so the release PR can't merge red.
   package-check:
     name: typst-package-check
     if: github.event_name == 'pull_request'
@@ -132,6 +133,18 @@ jobs:
 
   # release-please-config.json bumps typst.toml's `package.version`
   # as an extra-file, keeping it in lockstep with the tag.
+  #
+  # It runs with a PAT, not GITHUB_TOKEN: a PR opened with GITHUB_TOKEN
+  # triggers no `pull_request` workflows, so the release PR (the bumped
+  # typst.toml and README) would never be tested or package-checked, and
+  # the required checks would never report on it.
+  #
+  # Prerequisite (one-time setup): a fine-grained PAT limited to
+  # smur89/gairm-import with Contents, Pull requests and Issues (for
+  # release-please's labels) set to read and write, stored as the
+  # repository secret RELEASE_PLEASE_TOKEN. There is deliberately no
+  # fallback to GITHUB_TOKEN: a missing token fails this job instead of
+  # quietly opening an untested release PR.
   release-please:
     needs: [test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -148,6 +161,7 @@ jobs:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: rp
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 

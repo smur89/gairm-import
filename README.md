@@ -45,7 +45,7 @@ before use. Requires Typst `0.15.0` or later.
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.10.1": parse
+#import "@preview/gairm-import:0.11.0": parse
 
 #let resume = parse(path("resume.json"))
 // hand `resume` to any compatible Typst CV template
@@ -88,7 +88,7 @@ Pass the result to any renderer that takes JSON Resume data, such as
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.10.1": parse
+#import "@preview/gairm-import:0.11.0": parse
 
 #alta(parse(path("resume.json")))
 ```
@@ -101,7 +101,7 @@ already have:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.10.1": parse, schema-from-json-schema
+#import "@preview/gairm-import:0.11.0": parse, schema-from-json-schema
 
 #let book-schema = schema-from-json-schema(json("book-schema.json"))
 #let book = parse(path("book.json"), schema: book-schema)
@@ -112,7 +112,7 @@ Or build the schema in Typst:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.10.1": (
+#import "@preview/gairm-import:0.11.0": (
   parse, object, array-of, string, number,
 )
 
@@ -220,7 +220,7 @@ only `path` and `message`:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.10.1": validate, coerce, format-errors
+#import "@preview/gairm-import:0.11.0": validate, coerce, format-errors
 
 #let doc = json("resume.json")
 #let errors = validate(doc)
@@ -258,7 +258,7 @@ value exactly as `X` does:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.10.1": parse, object, string, nullable
+#import "@preview/gairm-import:0.11.0": parse, object, string, nullable
 
 #let schema = object(
   (name: string(), nickname: nullable(string())),
@@ -296,7 +296,7 @@ and `meta.lastModified` is a plain string.
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.10.1": parse, resume-schema-strict
+#import "@preview/gairm-import:0.11.0": parse, resume-schema-strict
 
 #let resume = parse(path("resume.json"), schema: resume-schema-strict)
 ```
