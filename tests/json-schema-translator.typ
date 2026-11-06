@@ -168,6 +168,24 @@
 #assert.eq(percent.shape.plain, integer-type)
 #assert.eq(percent.shape.utf8, str-type)
 
+// The edges of the lead bytes whose second byte is narrowed (RFC 3629
+// §4) still decode; one past each is a malformed escape (tests/panics/).
+#let edges = (
+  "%E0%A0%80": "\u{800}",
+  "%ED%9F%BF": "\u{D7FF}",
+  "%F0%90%80%80": "\u{10000}",
+  "%F4%8F%BF%BF": "\u{10FFFF}",
+)
+#for (escaped, key) in edges {
+  assert.eq(
+    schema-from-json-schema((
+      definitions: ((key): (type: "string")),
+      "$ref": "#/definitions/" + escaped,
+    )),
+    str-type,
+  )
+}
+
 // enum maps to enum-of regardless of accompanying `type`. The values
 // array is preserved verbatim; the type keyword (if present) is
 // redundant because enum-membership already constrains shape.
