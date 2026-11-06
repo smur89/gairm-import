@@ -36,12 +36,12 @@
 
 #import "leaf.typ" as _leaf-mod
 #import "leaf.typ": (
-  pattern-string, enum-of, const-of, _string-check, _number-check,
-  _integer-check, _bool-check, _null-check, _any-check, _pattern-check,
-  _enum-check,
+  number, integer, pattern-string, enum-of, const-of, _string-check,
+  _number-check, _integer-check, _bool-check, _null-check, _any-check,
+  _pattern-check, _enum-check,
 )
 #import "format.typ" as _format-mod
-#import "format.typ": _formats, _format-check
+#import "format.typ": string, _formats, _format-check
 #import "structure.typ" as _structure-mod
 #import "structure.typ": (
   array-of, object, map, any-of, one-of, not-of, nullable, _array-walk,
@@ -93,12 +93,20 @@
 )
 
 #let _kinds = (
-  str: _kind(check: _string-check, family: "string"),
+  // string() also builds the format kinds and pattern-string, but a
+  // paths-of-kind search for it means the plain kind.
+  str: _kind(check: _string-check, family: "string", constructors: (string,)),
   // The model wraps the string so it splices into markup.
   content: _kind(check: _string-check, family: "string", model: v => [#v]),
-  number: _kind(check: _number-check, family: "number"),
+  number: _kind(check: _number-check, family: "number", constructors: (
+    number,
+  )),
   // A number with the integral gate; the number rows apply.
-  integer: _kind(check: _integer-check, family: "number"),
+  integer: _kind(
+    check: _integer-check,
+    family: "number",
+    constructors: (integer,),
+  ),
   bool: _kind(check: _bool-check),
   null: _kind(check: _null-check),
   any: _kind(check: _any-check),

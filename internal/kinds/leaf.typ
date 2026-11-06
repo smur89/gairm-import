@@ -5,14 +5,16 @@
 // for every kind.
 
 #import "../core/error.typ": _error, _type-miss, _type-name-of
-#import "constraint.typ": _constraint-errors
+#import "constraint.typ": _constraint-errors, _constrain
 
-/// A string, passed through as it is.
+/// A string, passed through as it is. The same as `string()`, which
+/// also takes constraints; prefer it. Kept until 1.0.
 #let str-type = (kind: "str")
 /// A string that the model returns as Typst `content`, so it splices into
 /// markup.
 #let content-type = (kind: "content")
-/// An integer or a float.
+/// An integer or a float. The same as `number()`, which also takes
+/// constraints; prefer it. Kept until 1.0.
 #let number-type = (kind: "number")
 /// A boolean.
 #let bool-type = (kind: "bool")
@@ -21,8 +23,73 @@
 // (draft-7 semantics — 1.0 passes, 1.5 fails). A kind of its own, so
 // introspection tells it from a number; the engine judges it as a
 // number plus the integral gate.
-/// A number with no fractional part. `1.0` passes and `1.5` fails.
+/// A number with no fractional part. `1.0` passes and `1.5` fails. The
+/// same as `integer()`, which also takes constraints; prefer it. Kept
+/// until 1.0.
 #let integer-type = (kind: "integer")
+
+// The constructors take their constraints as named arguments, as
+// Typst's own functions take their options (`text(size:)`,
+// `rect(stroke:)`). The parameters are the number rows' fields
+// (constraint.typ); _constrain checks each against its row, so a
+// constructor holds no rule of its own. An unset argument adds no
+// field, so `number() == number-type`.
+
+/// A number (an integer or a float), with optional bounds. Each
+/// argument is the JSON Schema keyword of the same meaning; an argument
+/// left at `none` sets nothing, so `number()` is `number-type`. Panics
+/// on a value of the wrong type, or on bounds no number satisfies.
+///
+/// - minimum (int, float, none): The smallest allowed value.
+/// - maximum (int, float, none): The largest allowed value.
+/// - exclusive-minimum (int, float, none): A value the number must be
+///   greater than.
+/// - exclusive-maximum (int, float, none): A value the number must be
+///   less than.
+/// - multiple-of (int, float, none): A positive number the value must be
+///   a multiple of.
+/// -> dictionary
+#let number(
+  minimum: none,
+  maximum: none,
+  exclusive-minimum: none,
+  exclusive-maximum: none,
+  multiple-of: none,
+) = _constrain("number()", number-type, "number", (
+  minimum: minimum,
+  maximum: maximum,
+  exclusive-minimum: exclusive-minimum,
+  exclusive-maximum: exclusive-maximum,
+  multiple-of: multiple-of,
+))
+
+/// A number with no fractional part (`1.0` passes, `1.5` fails), with
+/// optional bounds. Takes the same arguments as `number()`; `integer()`
+/// is `integer-type`. Panics on a value of the wrong type, or on bounds
+/// no number satisfies.
+///
+/// - minimum (int, float, none): The smallest allowed value.
+/// - maximum (int, float, none): The largest allowed value.
+/// - exclusive-minimum (int, float, none): A value the number must be
+///   greater than.
+/// - exclusive-maximum (int, float, none): A value the number must be
+///   less than.
+/// - multiple-of (int, float, none): A positive number the value must be
+///   a multiple of.
+/// -> dictionary
+#let integer(
+  minimum: none,
+  maximum: none,
+  exclusive-minimum: none,
+  exclusive-maximum: none,
+  multiple-of: none,
+) = _constrain("integer()", integer-type, "number", (
+  minimum: minimum,
+  maximum: maximum,
+  exclusive-minimum: exclusive-minimum,
+  exclusive-maximum: exclusive-maximum,
+  multiple-of: multiple-of,
+))
 
 // JSON Schema `{}`: no constraint at all. A leaf, so nested values
 // pass through as given; in strict-null mode it takes null too.

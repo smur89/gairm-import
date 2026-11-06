@@ -6,15 +6,14 @@
 #import "engine.typ": _validate
 #import "core/ctx.typ": _ctx
 #import "kinds/leaf.typ": (
-  str-type, number-type, integer-type, bool-type, null-type, any-type,
-  pattern-string, enum-of,
+  str-type, number-type, integer-type, bool-type, null-type, any-type, enum-of,
 )
 #import "kinds/structure.typ": (
   array-of, object, any-of, one-of, not-of, nullable,
 )
-#import "kinds/format.typ": _format-for-json-schema
+#import "kinds/format.typ": string, _format-for-json-schema
 #import "kinds/constraint.typ": (
-  _constraint-rows, _constraints, _value-problem, _bounds-conflict,
+  _constraint-rows, _constraints, _read-constraints, _clash-message,
 )
 
 // One panic prefix so every diagnostic from this module is grep-able
@@ -362,56 +361,41 @@
 // (min > max, etc.), which would translate cleanly but reject every
 // input as a mystery validation failure.
 #let _with-constraints(node, js, family) = {
-  let result = node
-  for row in _constraint-rows {
-    if row.family != family or row.json not in js { continue }
-    let v = js.at(row.json)
-    let must = _value-problem(row, v)
-    if must != none {
-      _bail(repr(row.json) + " must be " + must + ", got: " + repr(v) + ".")
-    }
-    // `uniqueItems: false` is the default: leave it off the node.
-    if v != false {
-      result.insert(row.field, row.at("read", default: x => x)(v))
-    }
-  }
-  let clash = _bounds-conflict(result)
-  if clash != none {
-    let (lower, upper) = (clash.lower, clash.upper).map(field => (
-      _constraints.at(field).json + " (" + repr(result.at(field)) + ")"
-    ))
+  let read = _read-constraints(node, family, js, row => row.json)
+  if read.bad != none {
+    let (row, value, must) = read.bad
     _bail(
-      if clash.strict {
-        lower + " and " + upper + " leave no satisfying value."
-      } else { lower + " > " + upper + " is unsatisfiable." },
+      repr(row.json) + " must be " + must + ", got: " + repr(value) + ".",
     )
   }
-  result
+  if read.clash != none {
+    _bail(_clash-message(
+      read.clash,
+      read.node,
+      field => _constraints.at(field).json,
+    ))
+  }
+  read.node
 }
 
 // Both keywords apply when both are present (JSON Schema's "all
-// keywords apply"): the format kind carries the pattern as an extra
-// gate, checked after the format regex.
+// keywords apply"): string() gives the format kind the pattern as an
+// extra gate, checked after the format regex. The keywords are checked
+// here first, so a bad one bails with the translator's own message.
 #let _string-base(js) = {
   let fmt = js.at("format", default: none)
   let pat = js.at("pattern", default: none)
   if pat != none and type(pat) != str {
     _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
   }
-  let expected = if pat != none { "matching " + repr(pat) }
-  if fmt != none {
-    if fmt not in _format-for-json-schema {
-      _bail("unsupported string format: " + repr(fmt) + ".")
-    }
-    let base = _format-for-json-schema.at(fmt)
-    if pat == none { base } else {
-      base + (pattern: regex(pat), expected: expected)
-    }
-  } else if pat != none {
-    pattern-string(pat, expected: expected)
-  } else {
-    str-type
+  if fmt != none and fmt not in _format-for-json-schema {
+    _bail("unsupported string format: " + repr(fmt) + ".")
   }
+  string(
+    format: fmt,
+    pattern: pat,
+    expected: if pat != none { "matching " + repr(pat) },
+  )
 }
 
 // Typst type name → JSON Schema `type` name, for the types that map

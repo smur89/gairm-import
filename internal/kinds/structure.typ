@@ -5,7 +5,7 @@
 
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": _error, _type-miss, _type-name-of, _closest-match
-#import "constraint.typ": _constraint-errors
+#import "constraint.typ": _constraint-errors, _constrain
 #import "leaf.typ": null-type
 #import "format.typ": _formats
 
@@ -50,14 +50,31 @@
   }
 }
 
-/// An array whose every element matches `elem`. Panics if `elem` is not
-/// a schema.
+// The named parameters are the array rows' fields (constraint.typ),
+// checked by _constrain as number() and string() check theirs.
+/// An array whose every element matches `elem`, with optional length
+/// bounds and uniqueness. An argument left at its default sets nothing.
+/// Panics if `elem` is not a schema, on a value of the wrong type, or
+/// on bounds no array satisfies.
 ///
 /// - elem (dictionary): The schema for each element.
+/// - min-items (int, none): The fewest elements allowed.
+/// - max-items (int, none): The most elements allowed.
+/// - unique-items (bool): Whether every element must differ from the
+///   others.
 /// -> dictionary
-#let array-of(elem) = {
+#let array-of(elem, min-items: none, max-items: none, unique-items: false) = {
   _require-schema(elem, "array-of() elem")
-  (kind: "array", elem: elem)
+  _constrain(
+    "array-of()",
+    (kind: "array", elem: elem),
+    "array",
+    (
+      min-items: min-items,
+      max-items: max-items,
+      unique-items: unique-items,
+    ),
+  )
 }
 
 // A member's kind as union and `not` errors name it. An integer member
