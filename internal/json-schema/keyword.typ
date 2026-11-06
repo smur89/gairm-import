@@ -55,7 +55,8 @@
   "not": (role: "applicator"),
   "$ref": (role: "ref"),
   enum: (role: "membership"),
-  const: (role: "membership"),
+  // `const: null` means the value must be null.
+  const: (role: "membership", null-ok: true),
   type: (role: "type"),
   format: _base("string"),
   pattern: _base("string"),
@@ -124,7 +125,8 @@
 // composition keyword or `$ref` (checked before the `$ref` is resolved,
 // which would drop it), an unsupported keyword with a reason of its
 // own, then every unknown or outside-the-subset key at once (a typo
-// like `minLenght` included: draft 7 would ignore it).
+// like `minLenght` included: draft 7 would ignore it), then a null
+// value.
 #let _check-keywords(js) = {
   for (keyword, entry) in _keywords {
     if keyword not in js or entry.role not in _lone-hints { continue }
@@ -159,4 +161,14 @@
         + ". They are outside the supported subset (see the README); translating would silently drop their constraints.",
     )
   }
+  // A null value would otherwise read as an absent keyword, dropping it.
+  // Only an annotation or a keyword that gives null a meaning takes one.
+  let null-key = js
+    .keys()
+    .find(k => (
+      js.at(k) == none
+        and _role-of(k) != "annotation"
+        and not _keywords.at(k).at("null-ok", default: false)
+    ))
+  if null-key != none { _bail(repr(null-key) + " must not be null.") }
 }

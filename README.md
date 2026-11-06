@@ -969,6 +969,14 @@ message rather than silently dropping the constraint:
   would ignore an unknown keyword; here it panics, naming the keyword. A
   supported keyword of another JSON type (`minimum` on a string) is
   ignored, as in draft 7
+- A JSON `null` as the value of a keyword (`type: null`, `items: null`,
+  …), rather than reading it as absent. Annotations such as `title` or
+  `default` may be null, `const: null` means the value must be null,
+  and `enum` may list null
+
+One failure doesn't come with the translator's own message: an invalid
+regex in `pattern` (e.g. `"("`) fails with Typst's regex parse error,
+since Typst can't catch it to report it as a translator error.
 
 ## Contributing
 

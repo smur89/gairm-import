@@ -132,14 +132,25 @@
   if type(map) != dictionary {
     _bail("\"" + keyword + "\" must be an object, got: " + repr(map) + ".")
   }
-  // Value shapes are checked by `object()`; only the schema form is
-  // invisible to it.
+  // Checked here, though object() checks them too, so a bad value
+  // reports under this module's prefix and the JSON keyword's name.
   for (trigger, dependents) in map {
     if type(dependents) == dictionary {
       _bail(
         "unsupported JSON Schema keyword: the schema form of \"dependencies\" (for "
           + repr(trigger)
           + "). Conditional schemas are out of scope.",
+      )
+    }
+    if type(dependents) != array or dependents.any(d => type(d) != str) {
+      _bail(
+        "\""
+          + keyword
+          + "\" for "
+          + repr(trigger)
+          + " must be an array of field names, got: "
+          + repr(dependents)
+          + ".",
       )
     }
   }
@@ -178,6 +189,9 @@
   let pat = js.at("pattern", default: none)
   if pat != none and type(pat) != str {
     _bail("\"pattern\" must be a string, got: " + repr(type(pat)) + ".")
+  }
+  if fmt != none and type(fmt) != str {
+    _bail("\"format\" must be a string, got: " + repr(type(fmt)) + ".")
   }
   if fmt != none and fmt not in _format-for-json-schema {
     _bail("unsupported string format: " + repr(fmt) + ".")
@@ -220,6 +234,15 @@
     _bail(
       "\"required\" must be an array of field names, got: "
         + repr(type(required))
+        + ".",
+    )
+  }
+  // object() reads the names as keys, so a non-string one would fail
+  // there with a raw Typst error, or pass and fail at validation.
+  if required.any(k => type(k) != str) {
+    _bail(
+      "\"required\" must be an array of field names, got: "
+        + repr(required)
         + ".",
     )
   }
