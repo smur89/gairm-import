@@ -21,8 +21,10 @@ env:
   TYPST_VERSION: v0.15.0
   TYPST_SHA256: 59b207df01be2dab9f13e80f73d04d7ff8273ffd46b3dd1b9eef5c60f3eeabea
   # Formatter output can shift between versions, so this must match the
-  # typstyle you run locally or `make check` and CI disagree. Bump
-  # deliberately and reformat in the same commit.
+  # typstyle you run locally or `make check` and CI disagree. Renovate
+  # proposes bumps (see .github/renovate.json5); reformat and update the
+  # hash in the same PR.
+  # renovate: datasource=github-releases depName=typstyle-rs/typstyle
   TYPSTYLE_VERSION: v0.15.2
   TYPSTYLE_SHA256: 4a00dc3270bbc545fb05d8d1c272f352ce68bf9e06d1cceba0126b4bcc1140ff
 
@@ -105,6 +107,7 @@ jobs:
     env:
       # Pinned by digest so a checker update (or a re-pushed tag) can't flip
       # the verdict on the same source; the tag is kept for readability.
+      # Renovate bumps both.
       PCHECK_IMAGE: ghcr.io/typst/package-check:0.6.0@sha256:97993f6cafed2d74442299b3f76f756fdaaadea284b178df47481d62adb8d8ef
       # Stamped into the staged manifest so the directory matches what
       # @preview/<name>:<version> resolves to.
