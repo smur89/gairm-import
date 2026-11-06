@@ -316,7 +316,9 @@ A segment that is not a `str` or a non-negative `int`, or a pointer with
 no leading `/` or a `~` escape other than `~0` and `~1`, panics.
 `pointer → path → pointer` round-trips exactly; `path → pointer → path`
 does too, except that a string segment that looks like an array index
-(`("0",)`) comes back as an int (`(0,)`).
+(`("0",)`) comes back as an int (`(0,)`). Only `0` or a number without a
+leading zero that fits a 64-bit int reads as an index; `"00"`, `"-0"` and
+larger numbers stay strings.
 
 ## JSON Schema translation
 
@@ -435,8 +437,10 @@ Where a draft 7 validator and this package disagree on the same schema:
   written as `e` plus a combining accent has length 1.
 - **`multipleOf` on floats uses a tolerance** (a ratio within 1e-9 of a
   whole number), so `0.3` is a multiple of `0.1`.
-- **`uniqueItems` compares items as the model holds them**: by default
-  `{"a": 1, "b": null}` and `{"a": 1}` are duplicates.
+- **`uniqueItems` compares items as the model holds them**: by default a
+  null key is dropped, so under an object schema `{"a": 1, "b": null}` and
+  `{"a": 1}` are duplicates. A free-form object (`additionalProperties:
+  true` and nothing declared) keeps its nulls, so there they differ.
 - **`integer`** accepts `1.0`, as draft 7 does, and the model keeps it as
   the float `1.0`.
 - **`$id` is ignored**: it sets no base URI, so `$ref` resolves against

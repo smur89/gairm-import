@@ -48,6 +48,13 @@
   ),
   ("type",),
 )
+// A free-form object keeps its nulls, so there the two items differ.
+#let bags = schema-from-json-schema((
+  type: "array",
+  uniqueItems: true,
+  items: (type: "object", additionalProperties: true),
+))
+#assert.eq(validate(((a: 1, b: none), (a: 1)), schema: bags), ())
 
 // integer accepts 1.0 and keeps it a float.
 #assert.eq(

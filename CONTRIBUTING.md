@@ -91,6 +91,9 @@ load time, so the upstream document is the source of truth.
    in `internal/json-resume/schema.typ`, the strict variant's opinions,
    for new free-text or iso8601 fields. A listed path whose kind changes
    panics at load, so drift there surfaces on its own.
+4. Update the recorded version: the header of
+   `internal/json-resume/schema.typ` and the "bundled schema is JSON
+   Resume **x.y.z**" sentence in the README.
 
 Use `feat:` if the bump adds fields or behaviour, `chore(deps):` if not.
 

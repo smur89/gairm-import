@@ -270,7 +270,9 @@ value exactly as `X` does:
 <!-- x-release-please-end -->
 
 The JSON Resume schema declares no nullable fields, so with
-`strict-null: true` either resume schema rejects every `null`.
+`strict-null: true` either resume schema rejects a `null` in any declared
+field. The free-form `custom` objects check nothing, so a `null` there
+is kept.
 
 ## The two resume schemas
 

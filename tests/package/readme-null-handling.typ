@@ -2,7 +2,8 @@
 // example with the result its comment shows. The schemas in the rows
 // are ours.
 #import "@preview/gairm-import:0.0.0": (
-  parse, validate, coerce, object, string, nullable, array-of,
+  parse, validate, coerce, object, string, nullable, array-of, resume-schema,
+  resume-schema-strict,
 )
 
 #let schema = object(
@@ -67,4 +68,23 @@
 // Free-form object.
 #for strict in (false, true) {
   assert.eq(coerce((a: none), schema: free, strict-null: strict), (a: none))
+}
+
+// Strict null on a resume schema: a declared field rejects null, the
+// free-form `custom` bag keeps it.
+#for schema in (resume-schema, resume-schema-strict) {
+  assert.eq(
+    validate((basics: (name: none)), schema: schema, strict-null: true).map(
+      e => e.code,
+    ),
+    ("type",),
+  )
+  assert.eq(
+    validate(
+      (basics: (name: "A", custom: (k: none))),
+      schema: schema,
+      strict-null: true,
+    ),
+    (),
+  )
 }
