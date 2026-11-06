@@ -16,20 +16,31 @@
   _constraints, _read-constraints, _clash-message,
 )
 #import "keyword.typ": (
-  _bail, _check-keywords, _constraint-family, _has-keyword-for,
-  _membership-structural, _role-of,
+  _bail, _check-keywords, _check-keywords-typed, _constraint-family,
+  _has-keyword-for, _membership-structural, _role-of,
 )
 #import "all-of.typ": _all-of
 
 
 // RFC 3986 percent-decoding of a `$ref` fragment, as UTF-8; none when
-// a `%` is not followed by two hex digits or the bytes are not UTF-8.
+// a `%` is not followed by two hex digits or the bytes are not
+// well-formed UTF-8 (RFC 3629).
 #let _hex-digits = "0123456789abcdef"
 #let _utf8-length(lead) = if lead < 0x80 { 1 } else if (
   lead >= 0xC2 and lead < 0xE0
 ) { 2 } else if lead >= 0xE0 and lead < 0xF0 { 3 } else if (
   lead >= 0xF0 and lead < 0xF5
 ) { 4 }
+// The range a lead byte's second byte must fall in (RFC 3629 §4), as
+// (low, high) inclusive: these leads narrow 0x80–0xBF to rule out an
+// overlong encoding (E0, F0), a UTF-16 surrogate (ED) or a code point
+// past U+10FFFF (F4), which `str(bytes(…))` would reject with a raw
+// Typst error.
+#let _second-byte-range(lead) = if lead == 0xE0 { (0xA0, 0xBF) } else if (
+  lead == 0xED
+) { (0x80, 0x9F) } else if lead == 0xF0 { (0x90, 0xBF) } else if (
+  lead == 0xF4
+) { (0x80, 0x8F) } else { (0x80, 0xBF) }
 #let _percent-decode(s) = {
   if "%" not in s { return s }
   let parts = s.split("%")
@@ -48,6 +59,10 @@
     let n = _utf8-length(out.at(i))
     if n == none or i + n > out.len() { return none }
     if out.slice(i + 1, i + n).any(b => b < 0x80 or b >= 0xC0) { return none }
+    if n > 1 {
+      let (low, high) = _second-byte-range(out.at(i))
+      if out.at(i + 1) < low or out.at(i + 1) > high { return none }
+    }
     i += n
   }
   str(bytes(out))
@@ -237,8 +252,8 @@
         + ".",
     )
   }
-  // object() reads the names as keys, so a non-string one would fail
-  // there with a raw Typst error, or pass and fail at validation.
+  // Checked here, though object() checks them too, so a bad name
+  // reports under this module's prefix and the JSON keyword's name.
   if required.any(k => type(k) != str) {
     _bail(
       "\"required\" must be an array of field names, got: "
@@ -468,17 +483,7 @@
     return _applicators.at(applicator)(js, ctx, _translate)
   }
   let names = _type-names-of(js)
-  // Only an object (possibly nullable, or untyped) can carry it;
-  // elsewhere it would be silently dropped.
-  if (
-    _dependent-required(js).len() > 0
-      and names != none
-      and "object" not in names
-  ) {
-    _bail(
-      "\"dependencies\" / \"dependentRequired\" are only supported on `type: \"object\"` schemas.",
-    )
-  }
+  if names != none { _check-keywords-typed(js, names) }
   if "enum" in js or "const" in js {
     return enum-of(_fold-membership(js, ctx, names, _translate))
   }

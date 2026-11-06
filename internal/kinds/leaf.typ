@@ -4,7 +4,7 @@
 // combinators in structure.typ, and registry.typ holds a descriptor
 // for every kind.
 
-#import "../core/error.typ": _error, _type-miss, _type-name-of
+#import "../core/error.typ": _error, _type-miss, _type-name-of, _require-array
 #import "constraint.typ": _constraint-errors, _constrain
 
 /// A string, passed through as it is. The same as `string()`, which
@@ -122,10 +122,14 @@
 // Mixed-type members allowed — the validator's `in` check gates on
 // equality, not type. `const` is a singleton enum.
 /// One of a fixed list of values. The values may be of mixed types.
+/// Panics if `values` is not an array.
 ///
 /// - values (array): The allowed values.
 /// -> dictionary
-#let enum-of(values) = (kind: "enum", values: values)
+#let enum-of(values) = {
+  _require-array(values, "enum-of() values", "an array", "value")
+  (kind: "enum", values: values)
+}
 /// Exactly one value. Same as `enum-of` with a single value.
 ///
 /// - value (any): The only allowed value.
@@ -140,8 +144,9 @@
 // that. When the check passes, the engine adds the family's constraint
 // errors.
 //
-// `fatal` is none, or (expected, got) when the value leaves no model at
-// all; coerce panics with it ("coerce expected <expected>, got …").
+// `fatal` is none, or (path, expected, got) when the value leaves no
+// model at all; coerce panics with it ("coerce at <path>: expected
+// <expected>, got …").
 // Each check says so itself: a miss that still leaves a usable value (a
 // pattern, a format regex, `integer`) has no fatal.
 //
@@ -266,6 +271,6 @@
   (
     errors: errors,
     value: value,
-    fatal: (expected: "one of " + listed, got: value),
+    fatal: (path: ctx.path, expected: "one of " + listed, got: value),
   )
 }

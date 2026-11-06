@@ -78,17 +78,51 @@
 #let _type-miss(path, expected, noun, value) = (
   errors: _type-error(path, expected, value),
   value: value,
-  fatal: (expected: noun, got: value),
+  fatal: (path: path, expected: noun, got: value),
 )
 
-/// What `coerce` panics with where a value leaves no sound model.
-/// `expected` is the noun phrase ("a string", "an array", …).
-#let _coerce-message(expected, value) = (
-  "gairm-import: coerce expected "
+/// What `coerce` panics with where a value leaves no sound model, at
+/// data path `path`. `expected` is the noun phrase ("a string", "an
+/// array", …).
+#let _coerce-message(path, expected, value) = (
+  "gairm-import: coerce at "
+    + _format-path(path)
+    + ": expected "
     + expected
     + ", got "
     + _type-name-of(value)
     + ". Run validate(data) first."
+)
+
+/// Panics unless `value` is an array whose every item passes `item-ok`,
+/// naming the argument as `who` and the array as `what`. Every list
+/// argument goes through here, and none accepts a lone item: a string
+/// is iterable in spirit only, so taking one would read `"ab"` as a key
+/// here and as the letters elsewhere. A string gets the one-item
+/// spelling as a hint instead.
+#let _require-array(value, who, what, one, item-ok: _ => true) = {
+  if type(value) == array and value.all(item-ok) { return }
+  panic(
+    "gairm-import: "
+      + who
+      + " must be "
+      + what
+      + "; got: "
+      + repr(value)
+      + "."
+      + if type(value) == str {
+        " Write (" + repr(value) + ",) for one " + one + "."
+      },
+  )
+}
+
+/// `_require-array` for a list of object keys.
+#let _require-key-names(value, who) = _require-array(
+  value,
+  who,
+  "an array of key names",
+  "key",
+  item-ok: k => type(k) == str,
 )
 
 #let _format-report(errors) = {

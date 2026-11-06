@@ -39,6 +39,7 @@
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": _require-schema, _is-schema, _object-with
+#import "core/error.typ": _require-key-names
 
 #let _bail(msg) = panic("gairm-import: " + msg)
 
@@ -201,63 +202,71 @@
 // exist in shape so a typo fails at edit time, not as a phantom
 // "missing X" error; an open one allows what object() allows.
 /// Returns a new schema where the object at `at` requires exactly
-/// `keys`, replacing its earlier list. Panics if a key is not in the
-/// shape of an object that rejects other keys.
+/// `keys`, replacing its earlier list. Panics if `keys` is not an array
+/// of key names, or if a key is not in the shape of an object that
+/// rejects other keys.
 ///
 /// - schema (dictionary): The schema to edit.
 /// - at (dictionary, array): The object: a lens or a path array.
 /// - keys (array): The fields to require.
 /// -> dictionary
-#let set-required(schema, at, keys) = lens-over(
-  schema,
-  _edit-path(schema, at, "set-required"),
-  parent => {
-    _require-object(parent, "set-required")
-    let closed = parent.at("additional", default: none) == none
-    let unknown = keys.filter(k => closed and k not in parent.shape)
-    if unknown.len() > 0 {
-      _bail(
-        "set-required keys not in object shape: "
-          + unknown.join(", ")
-          + ". Valid keys: "
-          + parent.shape.keys().join(", ")
-          + ".",
-      )
-    }
-    _object-with(parent, required-keys: keys)
-  },
-)
+#let set-required(schema, at, keys) = {
+  _require-key-names(keys, "set-required keys")
+  lens-over(
+    schema,
+    _edit-path(schema, at, "set-required"),
+    parent => {
+      _require-object(parent, "set-required")
+      let closed = parent.at("additional", default: none) == none
+      let unknown = keys.filter(k => closed and k not in parent.shape)
+      if unknown.len() > 0 {
+        _bail(
+          "set-required keys not in object shape: "
+            + unknown.join(", ")
+            + ". Valid keys: "
+            + parent.shape.keys().join(", ")
+            + ".",
+        )
+      }
+      _object-with(parent, required-keys: keys)
+    },
+  )
+}
 
 // Symmetric to set-required — relax specific keys without re-listing.
 // Absent-key panics so a stale "still required" assumption surfaces.
 /// Returns a new schema where the object at `at` no longer requires
-/// `keys`. Panics if a key was not required.
+/// `keys`. Panics if `keys` is not an array of key names, or if a key
+/// was not required.
 ///
 /// - schema (dictionary): The schema to edit.
 /// - at (dictionary, array): The object: a lens or a path array.
 /// - keys (array): The fields to stop requiring.
 /// -> dictionary
-#let unset-required(schema, at, keys) = lens-over(
-  schema,
-  _edit-path(schema, at, "unset-required"),
-  parent => {
-    _require-object(parent, "unset-required")
-    let absent = keys.filter(k => k not in parent.required-keys)
-    if absent.len() > 0 {
-      _bail(
-        "unset-required keys not in required-keys: "
-          + absent.join(", ")
-          + ". Current required: "
-          + parent.required-keys.join(", ")
-          + ".",
+#let unset-required(schema, at, keys) = {
+  _require-key-names(keys, "unset-required keys")
+  lens-over(
+    schema,
+    _edit-path(schema, at, "unset-required"),
+    parent => {
+      _require-object(parent, "unset-required")
+      let absent = keys.filter(k => k not in parent.required-keys)
+      if absent.len() > 0 {
+        _bail(
+          "unset-required keys not in required-keys: "
+            + absent.join(", ")
+            + ". Current required: "
+            + parent.required-keys.join(", ")
+            + ".",
+        )
+      }
+      _object-with(
+        parent,
+        required-keys: parent.required-keys.filter(k => k not in keys),
       )
-    }
-    _object-with(
-      parent,
-      required-keys: parent.required-keys.filter(k => k not in keys),
-    )
-  },
-)
+    },
+  )
+}
 
 // Absent-key panics rather than being a silent no-op so caller typos surface.
 /// Returns a new schema with `key` removed from the object at `at`, and

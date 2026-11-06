@@ -154,7 +154,7 @@ schema-building helpers are introduced later in [Schemas and composition](#schem
 | Export | Purpose |
 |---|---|
 | `parse(data, schema: ...)` | Validate and coerce in one call; aborts compilation with a combined report on errors. |
-| `validate(data, schema: ...)` | Return a list of `(path, message)` records — empty list means valid. |
+| `validate(data, schema: ...)` | Return a list of `(path, code, message, expected, got)` records — empty list means valid. |
 | `coerce(data, schema: ...)` | Coerce a (validated) document into the typed model. |
 | `resume-schema` | Default schema — faithful 1:1 derivation of the canonical JSON Resume document. |
 | `resume-schema-strict` | Renderer-friendly overlay — free-text fields typed as Typst `content`, iso8601 `$ref` fields validated as dates. |
@@ -248,10 +248,12 @@ see [Building an extension schema](#building-an-extension-schema).
 
 ## Errors
 
-`validate` returns a list of `(path, message)` records — empty list means
-the input is valid. `parse` validates first and aborts compilation with a
-combined report on the first invocation that finds issues, so every problem
-in the document surfaces in one error:
+`validate` returns a list of `(path, code, message, expected, got)` records
+— empty list means the input is valid. `parse` validates first and aborts
+compilation with a combined report on the first invocation that finds
+issues, so every problem in the document surfaces in one error. A document
+with a numeric `basics.email` and two stray keys, parsed with
+`schema: resume-schema-strict`:
 
 ```text
 error: panicked with: gairm-import: found 3 problems in the input:
@@ -262,7 +264,9 @@ error: panicked with: gairm-import: found 3 problems in the input:
 
 When a typo is within edit distance 2 of a valid key, the message surfaces
 a short "Did you mean …?" hint; otherwise it falls back to the full
-valid-keys list shown for `meta.foo`.
+valid-keys list shown for `meta.foo`. The default `resume-schema` reports
+only the first problem: upstream lets undeclared keys through at those
+positions (see [Two schemas](#two-schemas)).
 
 ### Handling validation errors yourself
 
@@ -480,7 +484,9 @@ Fields the canonical schema annotates with `format: "uri"`, `format: "email"`,
 or `format: "date"` are gated by a regex during `validate` / `parse`. The
 patterns are deliberately permissive — they reject obvious malformations
 without claiming full RFC compliance — and each emits a path-qualified
-message with a canonical example. A `uri` is any scheme, then `:` and no
+message with a canonical example (shown here under `resume-schema-strict`;
+in `resume-schema` the date fields are upstream's regex, and the message
+quotes it — see below). A `uri` is any scheme, then `:` and no
 whitespace (`https://…`, `mailto:…`, `urn:…`); an `email`'s domain may be a
 single label (`name@host`) or an address literal (`name@[127.0.0.1]`), and
 its local part may be quoted (`"joe bloggs"@example.com`):
@@ -581,23 +587,25 @@ public combinators and pass it to `parse` / `validate` / `coerce` via the
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.10.1": (
-  resume-schema, parse, object, array-of, content-type,
+  resume-schema, parse, add-field, array-of, content-type,
 )
 
-// Splice the canonical shape and add a renderer-specific field.
-#let altacv-schema = object((
-  ..resume-schema.shape,
-  focusAreas: array-of(content-type),
-))
+// Add a renderer-specific field at the top level (the empty path).
+#let altacv-schema = add-field(
+  resume-schema, (), "focusAreas", array-of(content-type),
+)
 
 #let model = parse(path("resume.json"), schema: altacv-schema)
 ```
 <!-- x-release-please-end -->
 
-`resume-schema.shape` is a plain dict, so `..resume-schema.shape` is the
-only operator you need to extend it. Per-section combinators (`work-item`,
-`volunteer-item`, …) are intentionally not exposed yet — splice the
-canonical top-level fields whole and add your own siblings.
+`add-field` keeps everything else about the object, including upstream's
+`additionalProperties: true`. Splicing the shape into a new object,
+`object((..resume-schema.shape, focusAreas: …))`, does not: `object()`
+defaults to rejecting undeclared keys, so it silently closes the top level.
+Per-section combinators (`work-item`, `volunteer-item`, …) are
+intentionally not exposed yet — reach a section through a path, as in
+[Targeted edits with lenses](#targeted-edits-with-lenses).
 
 `object` also takes `dependent-required`, a map from a key to the keys that
 must be present whenever it is; a `null` value counts as absent, as with
@@ -612,24 +620,22 @@ must be present whenever it is; a `null` value counts as absent, as with
 
 ### Targeted edits with lenses
 
-Splicing `..resume-schema.shape` works for top-level additions but is
-awkward when the field you want to touch is three or four levels deep
-(`work` items' `highlights` element schema, `basics.email`, …). For those
-cases, lenses target a path inside the schema and return a new schema with
+`add-field` at the empty path covers top-level additions. When the field
+you want to touch is three or four levels deep (`work` items'
+`highlights` element schema, `basics.email`, …), lenses target a path inside the schema and return a new schema with
 the targeted node replaced or transformed:
 
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.10.1": (
-  resume-schema, lens, lens-put, lens-over, add-field,
-  set-required, unset-required,
-  str-type, content-type, number-type, object,
+  resume-schema, resume-schema-strict, lens, lens-put, lens-over,
+  add-field, set-required, unset-required, str-type, number-type,
 )
 
-// Widen basics.summary from content (rich) to str (plain) — useful if
-// you want the summary rendered as plain text instead of formatted:
+// resume-schema-strict types basics.summary as content (rich); put str
+// (plain) back if you want the summary rendered as plain text instead:
 #let plain-summary = lens-put(
-  resume-schema, ("basics", "summary"), str-type,
+  resume-schema-strict, ("basics", "summary"), str-type,
 )
 
 // Add a numeric `rating` to every language entry — touches
@@ -638,11 +644,12 @@ the targeted node replaced or transformed:
   resume-schema, lens(("languages", "items")), "rating", number-type,
 )
 
-// Transform an existing node with a function:
+// Transform an existing node with a function (spreading `meta` keeps
+// its `additional` and `required-keys`):
 #let with-extra-meta = lens-over(
   resume-schema,
   ("meta",),
-  meta => object((..meta.shape, source: str-type)),
+  meta => (..meta, shape: (..meta.shape, source: str-type)),
 )
 
 // Make basics.name and basics.email required for your template
