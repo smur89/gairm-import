@@ -94,10 +94,9 @@
 #let parse(data, schema: resume-schema, strict-null: false) = {
   let dict-data = _input-mod._decode-input("parse", data)
   if type(dict-data) != dictionary {
-    panic(
-      "gairm-import: parse expected a dict, a path, or bytes, got "
-        + repr(type(dict-data))
-        + ".",
+    _error-mod._bail(
+      "parse",
+      "expected a dict, a path, or bytes, got " + repr(type(dict-data)) + ".",
     )
   }
   _engine-mod._parse-result(_engine-mod._walk(

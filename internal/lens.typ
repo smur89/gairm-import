@@ -39,9 +39,7 @@
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": _require-schema, _is-schema, _object-with
-#import "core/error.typ": _require-key-names
-
-#let _bail(msg) = panic("gairm-import: " + msg)
+#import "core/error.typ": _bail, _require-key-names
 
 // A node entering from user code: a schema, and an object one rebuilt
 // through object() so it can't break the constructor's invariants.
@@ -53,8 +51,8 @@
 #let _require-object(parent, op) = {
   if parent.kind != "object" {
     _bail(
-      op
-        + " expects an object schema at the lens target, got kind="
+      op,
+      "expects an object schema at the lens target, got kind="
         + repr(parent.kind)
         + ".",
     )
@@ -72,7 +70,7 @@
 /// -> dictionary
 #let lens(path) = {
   if type(path) != array {
-    _bail("lens path must be an array of segments; got: " + repr(path) + ".")
+    _bail("lens", "path must be an array of segments; got: " + repr(path) + ".")
   }
   (lens: path)
 }
@@ -95,8 +93,8 @@
     return (b, _location-path(a, op))
   }
   _bail(
-    op
-      + " takes a schema, then a location (a lens or a path array); got "
+    op,
+    "takes a schema, then a location (a lens or a path array); got "
       + _what(a)
       + " and "
       + _what(b)
@@ -185,7 +183,8 @@
     _require-object(parent, "add-field")
     if key in parent.shape {
       _bail(
-        "add-field key "
+        "add-field",
+        "key "
           + repr(key)
           + " already in object shape. "
           + "Use lens-put / lens-over to replace an existing field.",
@@ -221,7 +220,8 @@
       let unknown = keys.filter(k => closed and k not in parent.shape)
       if unknown.len() > 0 {
         _bail(
-          "set-required keys not in object shape: "
+          "set-required",
+          "keys not in object shape: "
             + unknown.join(", ")
             + ". Valid keys: "
             + parent.shape.keys().join(", ")
@@ -253,7 +253,8 @@
       let absent = keys.filter(k => k not in parent.required-keys)
       if absent.len() > 0 {
         _bail(
-          "unset-required keys not in required-keys: "
+          "unset-required",
+          "keys not in required-keys: "
             + absent.join(", ")
             + ". Current required: "
             + parent.required-keys.join(", ")
@@ -284,7 +285,8 @@
     _require-object(parent, "remove-field")
     if key not in parent.shape {
       _bail(
-        "remove-field key "
+        "remove-field",
+        "key "
           + repr(key)
           + " not in object shape. "
           + "Valid keys: "

@@ -12,6 +12,7 @@
 #import "kinds/structure.typ": any-of, _is-free-form, _object-with
 #import "json-schema/translate.typ": schema-from-json-schema
 #import "lens.typ": lens-get, lens-put
+#import "core/error.typ": _internal
 #import "kinds/traverse.typ": _map-children, _nodes
 
 /// The JSON Resume schema, translated from the upstream document as it stands.
@@ -85,10 +86,9 @@
 #let _override-fold(schema, paths, expected-source, replacement, list-name) = {
   paths.fold(schema, (s, p) => {
     let current = lens-get(s, p)
-    assert(
+    _internal(
       current == expected-source,
-      message: "gairm-import: "
-        + list-name
+      list-name
         + " must target "
         + repr(expected-source)
         + " leaves only — "
@@ -113,10 +113,9 @@
 // Run on the folded schema, no leaf may still be `_iso8601-source`.
 #let _assert-no-iso8601-leaves(schema, list-name) = {
   let left = _leaf-paths(schema, _iso8601-source)
-  assert(
+  _internal(
     left.len() == 0,
-    message: "gairm-import: "
-      + list-name
+    list-name
       + " is missing iso8601 leaves — "
       + left.map(repr).join(", ")
       + " still match the iso8601 pattern-string. Add the path(s) to "

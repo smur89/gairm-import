@@ -6,6 +6,7 @@
 #import "../core/input.typ": _decode-input
 #import "../core/pointer.typ": _read-pointer
 #import "../core/ctx.typ": _ctx
+#import "../core/error.typ": _json-type-name
 #import "../engine.typ": _walk
 #import "../kinds/leaf.typ": (
   number-type, integer-type, bool-type, null-type, any-type, enum-of,
@@ -275,16 +276,6 @@
   t,
 )
 
-// Typst type name → JSON Schema `type` name, for the types that map
-// one-to-one (numbers are classified separately).
-#let _json-type-names = (
-  string: "string",
-  boolean: "boolean",
-  "none": "null",
-  array: "array",
-  dictionary: "object",
-)
-
 // Folds the `type` and constraint keywords beside `enum` / `const` into
 // the value set: each value is checked against the schema the node
 // builds for its JSON type, and only survivors are kept. Type-specific
@@ -310,9 +301,7 @@
     .map(t => (t, _build(js, ctx, t, recur)))
     .to-dict()
   let survivors = values.filter(v => {
-    let kind = if type(v) in (int, float) { "number" } else {
-      _json-type-names.at(str(type(v)), default: "other")
-    }
+    let kind = _json-type-name(v)
     // `type` keeps a value whose JSON type it names; `integer` is a
     // number with no fractional part (`1.0` passes, per draft 7).
     let allowed = (

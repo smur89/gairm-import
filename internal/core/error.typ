@@ -18,12 +18,28 @@
   "not",
 )
 
+/// Panics with `msg` as `who` says it: the public function (or its
+/// argument) the problem concerns, or none for the package itself.
+#let _bail(who, msg) = panic(
+  "gairm-import: " + if who != none { who + " " } + msg,
+)
+
+/// Asserts a package invariant: a failure is a bug in gairm-import, not
+/// in the caller's input.
+#let _internal(ok, msg) = assert(
+  ok,
+  message: "gairm-import: internal — " + msg,
+)
+
+/// `"expected <expected>, got <got>."`, as every message that compares
+/// what a check wanted with what it found says it.
+#let _expected-got(expected, got) = (
+  "expected " + expected + ", got " + got + "."
+)
+
 /// One validation error, as a one-element array so results concatenate.
 #let _error(path, code, message, expected: none, got: none) = {
-  assert(
-    code in _codes,
-    message: "gairm-import: internal — unknown error code " + repr(code),
-  )
+  _internal(code in _codes, "unknown error code " + repr(code))
   ((path: path, code: code, message: message, expected: expected, got: got),)
 }
 
@@ -53,45 +69,50 @@
   dictionary: "object",
 )
 
-// A null reaches _type-error only in strict-null mode, where every kind
-// but null-type rejects it ("got null").
+// A null reaches a type check only in strict-null mode, where every
+// kind but null-type rejects it ("got null").
 #let _type-name-of(value) = {
   if value == none { return "null" }
   let raw = repr(type(value))
   _type-names.at(raw, default: raw)
 }
 
-/// The `type` error for a value whose JSON type the kind rejects.
-#let _type-error(path, expected, value) = {
-  let got = _type-name-of(value)
-  _error(
-    path,
-    "type",
-    "expected " + expected + ", got " + got + ".",
-    expected: expected,
-    got: got,
-  )
+/// A JSON type name per value, with int and float as the one number
+/// type JSON has.
+#let _json-type-name(value) = {
+  if type(value) in (int, float) { "number" } else { _type-name-of(value) }
 }
 
 /// A walk result for a value of the wrong JSON type: the `type` error,
-/// and no model, so coerce panics naming `noun` ("a string", …).
-#let _type-miss(path, expected, noun, value) = (
-  errors: _type-error(path, expected, value),
-  value: value,
-  fatal: (path: path, expected: noun, got: value),
-)
+/// and no model, so coerce panics naming the type with its article ("a
+/// string", "an array"; null takes none).
+#let _type-miss(path, expected, value) = {
+  let got = _type-name-of(value)
+  let noun = if expected == "null" { expected } else if (
+    expected.first() in "aeiou"
+  ) { "an " + expected } else { "a " + expected }
+  (
+    errors: _error(
+      path,
+      "type",
+      _expected-got(expected, got),
+      expected: expected,
+      got: got,
+    ),
+    value: value,
+    fatal: (path: path, expected: noun, got: value),
+  )
+}
 
 /// What `coerce` panics with where a value leaves no sound model, at
 /// data path `path`. `expected` is the noun phrase ("a string", "an
 /// array", …).
 #let _coerce-message(path, expected, value) = (
-  "gairm-import: coerce at "
+  "coerce at "
     + _format-path(path)
-    + ": expected "
-    + expected
-    + ", got "
-    + _type-name-of(value)
-    + ". Run validate(data) first."
+    + ": "
+    + _expected-got(expected, _type-name-of(value))
+    + " Run validate(data) first."
 )
 
 // A check on an argument returns a problem, or none, rather than
@@ -124,12 +145,9 @@
 }
 
 /// Panics with `p` as constructor `who` words it.
-#let _fail(who, p) = panic(
-  "gairm-import: "
-    + who
-    + " "
-    + _worded(p, p.at("arg", default: none))
-    + p.at("hint", default: none),
+#let _fail(who, p) = _bail(
+  who,
+  _worded(p, p.at("arg", default: none)) + p.at("hint", default: none),
 )
 
 /// A problem unless `value` is an array whose every item passes

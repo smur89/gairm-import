@@ -6,7 +6,9 @@
 // introspection all read this table, so adding a format is one row,
 // one constant below and one export in lib.typ.
 
-#import "../core/error.typ": _error, _type-miss, _type-name-of, _problem, _fail
+#import "../core/error.typ": (
+  _error, _expected-got, _type-miss, _type-name-of, _problem, _fail,
+)
 #import "leaf.typ": str-type, pattern-string, _pattern-errors
 #import "constraint.typ": _constrain
 
@@ -289,7 +291,7 @@
         errors: _error(
           ctx.path,
           "format",
-          "expected " + expected + ", got datetime.",
+          _expected-got(expected, "datetime"),
           expected: expected,
           got: value,
         ),
@@ -300,7 +302,7 @@
     converted
   } else { value }
   if type(value) != str {
-    return _type-miss(ctx.path, "string", "a string", value)
+    return _type-miss(ctx.path, "string", value)
   }
   if value.match(row.pattern) == none {
     let errors = _error(

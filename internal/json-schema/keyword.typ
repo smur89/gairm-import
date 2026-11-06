@@ -6,12 +6,12 @@
 // enum/const structural list all read this table, so a new keyword is one entry here plus the code
 // that consumes it.
 
-#import "../core/error.typ": _worded
+#import "../core/error.typ": _bail as _core-bail, _worded
 #import "../kinds/constraint.typ": _constraint-rows
 
 // One panic prefix so every diagnostic from the translator is grep-able
 // by "schema-from-json-schema —".
-#let _bail(msg) = panic("gairm-import: schema-from-json-schema — " + msg)
+#let _bail = _core-bail.with("schema-from-json-schema —")
 
 // Bails with a constructor's problem (error.typ), its argument named by
 // the JSON keyword `keywords` maps it to, or by itself.

@@ -4,6 +4,7 @@
 // for an object's additional schema, an int index for a union member,
 // "not" for a `not` member.
 
+#import "../core/error.typ": _bail
 #import "registry.typ": _descriptor
 
 #let _children(s) = (_descriptor(s).children)(s)
@@ -13,7 +14,7 @@
 #let _child(s, seg) = {
   let hit = _children(s).find(((k, _)) => type(k) == type(seg) and k == seg)
   if hit == none {
-    panic("gairm-import: " + (_descriptor(s).bad-segment)(s, seg))
+    _bail(none, (_descriptor(s).bad-segment)(s, seg))
   }
   hit.at(1)
 }
@@ -63,11 +64,8 @@
   if type(at) == array { return at }
   if _is-lens(at) { return at.lens }
   if _is-old-lens(at) { return at.path }
-  panic(
-    "gairm-import: "
-      + who
-      + " location must be a lens or a path array; got: "
-      + repr(at)
-      + ".",
+  _bail(
+    who,
+    "location must be a lens or a path array; got: " + repr(at) + ".",
   )
 }

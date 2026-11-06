@@ -40,6 +40,7 @@
   _number-check, _integer-check, _bool-check, _null-check, _any-check,
   _pattern-check, _enum-check,
 )
+#import "../core/error.typ": _internal
 #import "format.typ" as _format-mod
 #import "format.typ": string, _formats, _format-check
 #import "structure.typ" as _structure-mod
@@ -247,20 +248,17 @@
     for (name, v) in dictionary(mod) {
       if name.starts-with("_") { continue }
       if type(v) == dictionary {
-        assert(
+        _internal(
           v.at("kind", default: none) in kinds,
-          message: "gairm-import: internal — "
-            + name
+          name
             + " has kind "
             + repr(v.at("kind", default: none))
             + ", which has no descriptor.",
         )
       } else if type(v) == function {
-        assert(
+        _internal(
           kinds.values().any(d => v in d.constructors),
-          message: "gairm-import: internal — constructor "
-            + name
-            + " is in no descriptor's constructors.",
+          "constructor " + name + " is in no descriptor's constructors.",
         )
       }
     }
@@ -273,11 +271,9 @@
 // value: a `check` or a `walk`.
 #let _check-engine(kinds) = {
   for (name, d) in kinds {
-    assert(
+    _internal(
       d.check != none or d.walk != none,
-      message: "gairm-import: internal — kind "
-        + repr(name)
-        + " has neither a check nor a walk.",
+      "kind " + repr(name) + " has neither a check nor a walk.",
     )
   }
 }
@@ -287,9 +283,9 @@
 // The constructors' schema check (_require-schema) knows the kinds by
 // name, since it sits below this registry: the two lists must agree.
 #let _check-kind-names(kinds, names) = {
-  assert(
+  _internal(
     kinds.keys().sorted() == names.sorted(),
-    message: "gairm-import: internal — the registered kinds "
+    "the registered kinds "
       + repr(kinds.keys().sorted())
       + " differ from structure.typ's _schema-kinds "
       + repr(names.sorted())

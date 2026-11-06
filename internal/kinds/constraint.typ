@@ -7,7 +7,7 @@
 // engine, the translator's reader, its allow-list and its enum/const
 // fold all read these rows, so a new keyword is one row.
 
-#import "../core/error.typ": _error, _problem, _fail
+#import "../core/error.typ": _bail, _error, _expected-got, _problem, _fail
 
 // Which raw values a keyword takes, as checks run in order; the first
 // that fails names what the value must be. A count may be a float with
@@ -50,9 +50,7 @@
   // A schema bug, not a data error: the translator rejects it, but a
   // hand-built node can carry it.
   if mult <= 0 {
-    panic(
-      "gairm-import: multiple-of must be positive, got " + str(mult) + ".",
-    )
+    _bail(none, "multiple-of must be positive, got " + str(mult) + ".")
   }
   let off = if type(value) == int and type(mult) == int {
     calc.rem(value, mult) != 0
@@ -62,11 +60,7 @@
   }
   if off {
     (
-      message: "expected multiple of "
-        + str(mult)
-        + ", got "
-        + str(value)
-        + ".",
+      message: _expected-got("multiple of " + str(mult), str(value)),
       expected: (multiple-of: mult),
       got: value,
     )
@@ -273,14 +267,10 @@
   let n = (measure.of)(value)
   if not (_holds.at(row.op))(n, bound) {
     (
-      message: "expected "
-        + measure.label
-        + row.op
-        + " "
-        + str(bound)
-        + ", got "
-        + str(n)
-        + ".",
+      message: _expected-got(
+        measure.label + row.op + " " + str(bound),
+        str(n),
+      ),
       expected: ((row.field): bound),
       got: n,
     )

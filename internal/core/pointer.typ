@@ -35,6 +35,8 @@
 // trip wrong (e.g. `~01` should decode to `~1`, not `/0`). Encode
 // `~` first so subsequent `/` encodes don't see the new `~0` we
 // just introduced. Decode mirrors: `~1` before `~0`.
+#import "error.typ": _bail
+
 #let _escape-token(s) = s.replace("~", "~0").replace("/", "~1")
 
 // RFC 6901 only defines two escape sequences: `~0` and `~1`. A
@@ -78,8 +80,9 @@
       // rejects the minus sign), silently breaking the round-trip
       // property the README promises.
       if seg < 0 {
-        panic(
-          "gairm-import: path-to-pointer expected a non-negative integer "
+        _bail(
+          "path-to-pointer",
+          "expected a non-negative integer "
             + "(RFC 6901 array indices), got: "
             + str(seg)
             + ".",
@@ -87,8 +90,9 @@
       }
       str(seg)
     } else {
-      panic(
-        "gairm-import: path-to-pointer expected a str or int segment, got: "
+      _bail(
+        "path-to-pointer",
+        "expected a str or int segment, got: "
           + repr(seg)
           + " ("
           + repr(type(seg))
@@ -111,16 +115,18 @@
 #let pointer-to-path(pointer) = {
   if pointer == "" { return () }
   if not pointer.starts-with("/") {
-    panic(
-      "gairm-import: pointer-to-path expected \"\" or a pointer starting with \"/\", got: "
+    _bail(
+      "pointer-to-path",
+      "expected \"\" or a pointer starting with \"/\", got: "
         + repr(pointer)
         + ".",
     )
   }
   let read = _read-pointer(pointer)
   if read.bad != none {
-    panic(
-      "gairm-import: pointer-to-path got an invalid escape sequence in token: "
+    _bail(
+      "pointer-to-path",
+      "got an invalid escape sequence in token: "
         + repr(read.bad)
         + ". RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
     )

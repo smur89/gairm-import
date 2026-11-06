@@ -10,6 +10,7 @@
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
+#import "core/error.typ": _bail
 #import "kinds/registry.typ": _kinds, _descriptor
 #import "kinds/traverse.typ": _children, _get-at, _nodes, _location-path
 #import "kinds/constraint.typ": _constraint-rows
@@ -179,8 +180,9 @@
 #let paths-of-kind(schema, kind) = {
   let kind-name = _kind-name-of(kind)
   if kind-name not in _leaf-kinds {
-    panic(
-      "gairm-import: paths-of-kind kind "
+    _bail(
+      "paths-of-kind",
+      "kind "
         + repr(kind)
         + " is not a recognised leaf kind. Pass a leaf schema "
         + "(e.g. date-string), a constructor (e.g. pattern-string), "

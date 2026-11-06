@@ -5,7 +5,7 @@
 
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": (
-  _error, _type-miss, _type-name-of, _closest-match, _problem, _fail,
+  _bail, _error, _type-miss, _type-name-of, _closest-match, _problem, _fail,
   _key-names-problem,
 )
 #import "constraint.typ": _constraint-errors, _constrain
@@ -43,10 +43,9 @@
 // here, naming what took it, not later as an unknown kind mid-walk.
 #let _require-schema(node, who) = {
   if not _is-schema(node) {
-    panic(
-      "gairm-import: "
-        + who
-        + " must be a schema; got: "
+    _bail(
+      who,
+      "must be a schema; got: "
         + repr(node)
         + ". Build schemas with the constructors.",
     )
@@ -94,10 +93,9 @@
     type(members) == array and members.len() > 0 and members.all(_is-schema)
   )
   if not ok {
-    panic(
-      "gairm-import: "
-        + fn-name
-        + " members must be a non-empty array of schema dicts (each built with the constructors); got: "
+    _bail(
+      fn-name,
+      "members must be a non-empty array of schema dicts (each built with the constructors); got: "
         + repr(members)
         + ".",
     )
@@ -139,8 +137,9 @@
 /// -> dictionary
 #let nullable(member) = {
   if not _is-schema(member) {
-    panic(
-      "gairm-import: nullable member must be a schema dict (built with the constructors); got: "
+    _bail(
+      "nullable",
+      "member must be a schema dict (built with the constructors); got: "
         + repr(member)
         + ".",
     )
@@ -157,8 +156,9 @@
 /// -> dictionary
 #let not-of(member) = {
   if not _is-schema(member) {
-    panic(
-      "gairm-import: not-of member must be a schema dict (built with the constructors); got: "
+    _bail(
+      "not-of",
+      "member must be a schema dict (built with the constructors); got: "
         + repr(member)
         + ".",
     )
@@ -247,10 +247,9 @@
     ()
   }
   if unknown.len() > 0 {
-    panic(
-      "gairm-import: object() required-keys references keys not in shape: "
-        + unknown.join(", ")
-        + ".",
+    _bail(
+      "object()",
+      "required-keys references keys not in shape: " + unknown.join(", ") + ".",
     )
   }
   let unknown-dependent = if normalized == none {
@@ -263,8 +262,9 @@
     ()
   }
   if unknown-dependent.len() > 0 {
-    panic(
-      "gairm-import: object() dependent-required references keys not in shape: "
+    _bail(
+      "object()",
+      "dependent-required references keys not in shape: "
         + unknown-dependent.dedup().join(", ")
         + ".",
     )
@@ -349,7 +349,7 @@
 
 #let _array-walk(schema, value, ctx, recur) = {
   if type(value) != array {
-    return _type-miss(ctx.path, "array", "an array", value)
+    return _type-miss(ctx.path, "array", value)
   }
   let errors = ()
   let fatal = none
@@ -384,7 +384,7 @@
 // dictionary, since validate counts it as present.
 #let _object-walk(schema, value, ctx, recur) = {
   if type(value) != dictionary {
-    return _type-miss(ctx.path, "object", "an object", value)
+    return _type-miss(ctx.path, "object", value)
   }
   let additional = schema.at("additional", default: none)
   let errors = ()
