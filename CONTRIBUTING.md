@@ -29,8 +29,8 @@ Resume shape should be added by downstream callers via an extension schema
 
 ```text
 lib.typ                              # public entry — `parse`, `validate`, `coerce`, combinators, lenses
-internal/kinds/leaf.typ              # leaf kinds (str-type, content-type, pattern-string, enum-of, …)
-internal/kinds/format.typ            # string formats, one table row each (date-string, uri-string, …)
+internal/kinds/leaf.typ              # leaf kinds (str-type, content-type, enum-of, …)
+internal/kinds/format.typ            # string(), and the string formats, one table row each (date-string, uri-string, …)
 internal/kinds/structure.typ         # containers and combinators (object, map, array-of, any-of, not-of, …)
 internal/kinds/constraint.typ        # constraint rows (min-length, maximum, …)
 internal/kinds/registry.typ          # one descriptor per kind, checked for coverage at load
@@ -91,7 +91,7 @@ upstream document is the source of truth. To pull a newer upstream version:
    opt-in `resume-schema-strict` variant's opinions — `_content-paths` lifts
    free-text `string` fields to Typst `content` for inline rendering;
    `_iso8601-date-paths` lifts iso8601 `$ref` fields (which the translator
-   surfaces as pattern-strings) to `date-string`, and `_last-modified-paths`
+   surfaces as patterned strings) to `date-string`, and `_last-modified-paths`
    lifts the plain-string `meta.lastModified` to a datetime-or-date union.
    If a new free-text or iso8601-referenced field lands in the upstream
    document, add its path here. The drift guard in `_apply-overrides` will

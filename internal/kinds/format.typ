@@ -9,7 +9,7 @@
 #import "../core/error.typ": (
   _error, _expected-got, _type-miss, _type-name-of, _problem, _fail,
 )
-#import "leaf.typ": str-type, pattern-string, _pattern-errors
+#import "leaf.typ": str-type, _pattern-errors
 #import "constraint.typ": _constrain
 
 // IPv6 is spelled as the eight-group form plus each place a single `::`
@@ -152,32 +152,59 @@
 // format kinds.
 #let _formats = _format-rows.map(row => (row.kind, row)).to-dict()
 
+/// Deprecated: use `string(format: "date")` instead. Kept until
+/// 1.0.
+///
 /// A string in ISO 8601 date form: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`.
 /// Data written in Typst may give a `datetime` with a date and no time;
 /// it is checked and returned as the ISO string.
 #let date-string = (kind: "date-string")
+/// Deprecated: use `string(format: "date-time")` instead. Kept until
+/// 1.0.
+///
 /// A string in ISO 8601 date and time form, `YYYY-MM-DDTHH:MM:SS`, with
 /// an optional fraction and `Z` or `±HH:MM` offset; `T` and `Z` may be
 /// lowercase and a leap second (`:60`) is allowed. Data written in Typst
 /// may give a `datetime` with a date and a time; it is checked and
 /// returned as the ISO string.
 #let datetime-string = (kind: "datetime-string")
+/// Deprecated: use `string(format: "uri")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like a URI: a scheme, `:`, then no whitespace (a
 /// permissive check).
 #let uri-string = (kind: "uri-string")
+/// Deprecated: use `string(format: "email")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like an email address (a permissive check).
 #let email-string = (kind: "email-string")
+/// Deprecated: use `string(format: "uuid")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like a UUID: 8-4-4-4-12 hex digits (a permissive
 /// check; the version and variant are not inspected).
 #let uuid-string = (kind: "uuid-string")
+/// Deprecated: use `string(format: "hostname")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like a hostname: dot-separated labels of letters,
 /// digits and inner hyphens (a permissive check).
 #let hostname-string = (kind: "hostname-string")
+/// Deprecated: use `string(format: "ipv4")` instead. Kept until
+/// 1.0.
+///
 /// A string in dotted-quad IPv4 form, each octet 0-255.
 #let ipv4-string = (kind: "ipv4-string")
+/// Deprecated: use `string(format: "ipv6")` instead. Kept until
+/// 1.0.
+///
 /// A string that looks like an IPv6 address, including `::` compression
 /// (a permissive check; the embedded-IPv4 tail form is not accepted).
 #let ipv6-string = (kind: "ipv6-string")
+/// Deprecated: use `string(format: "time")` instead. Kept until
+/// 1.0.
+///
 /// A string in `HH:MM:SS` time form, with an optional fraction and `Z`
 /// or `±HH:MM` offset; `Z` may be lowercase and a leap second (`:60`) is
 /// allowed.
@@ -186,8 +213,10 @@
 // The string constructor lives here, beside the format table its
 // `format:` reads; its length parameters are the string rows' fields
 // (constraint.typ), checked by _constrain as number() checks its own.
-// `format:` and `pattern:` compose as the translator composes `format`
-// and `pattern`: the format kind with an extra pattern gate.
+// A pattern is a field on the node, with the hint its error shows, so
+// a patterned string is still the string kind. `format:` and
+// `pattern:` compose as the translator composes `format` and
+// `pattern`: the format kind with an extra pattern gate.
 
 /// The first problem (error.typ) with string()'s `format`, `pattern`
 /// and `expected` arguments, or none. The translator words it for the
@@ -213,9 +242,8 @@
 }
 
 /// A string, with an optional format, pattern and length bounds. An
-/// argument left at `none` sets nothing, so `string()` is `str-type`,
-/// `string(format: "email")` is `email-string` and
-/// `string(pattern: p, expected: e)` is `pattern-string(p, expected: e)`.
+/// argument left at `none` sets nothing, so `string()` is `str-type`
+/// and `string(format: "email")` is `email-string`.
 /// Panics on a value of the wrong type, an unknown format, an
 /// `expected` without a `pattern`, or length bounds no string
 /// satisfies.
@@ -247,11 +275,11 @@
     (kind: _format-rows.find(row => row.json-schema == format).kind)
   }
   if pattern != none {
-    let gate = if expected == none { pattern-string(pattern) } else {
-      pattern-string(pattern, expected: expected)
+    base.pattern = if type(pattern) == regex { pattern } else {
+      regex(pattern)
     }
-    base = if format == none { gate } else {
-      (..base, pattern: gate.pattern, expected: gate.expected)
+    base.expected = if expected == none { "matching pattern" } else {
+      expected
     }
   }
   _constrain("string()", base, "string", (
@@ -259,6 +287,21 @@
     max-length: max-length,
   ))
 }
+
+/// Deprecated: use `string(pattern: re, expected: …)` instead. Kept
+/// until 1.0.
+///
+/// A string that must match a regular expression. The same as
+/// `string(pattern: re, expected: expected)`.
+///
+/// - re (regex, str): The pattern.
+/// - expected (str): What the value should be, for the error message
+///   ("expected …").
+/// -> dictionary
+#let pattern-string(re, expected: "matching pattern") = string(
+  pattern: re,
+  expected: expected,
+)
 
 // Typst-native input for the date kinds (#134): a datetime of the
 // right shape converts to the ISO string the row's regex checks, so

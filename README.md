@@ -198,10 +198,12 @@ package, not your project, so `parse("/resume.json")` could never find your
 file. Pass `path("resume.json")`.
 
 The same input forms apply to `parse`, `validate`, `coerce` and
-`schema-from-json-schema`: a dictionary, `path(..)` or bytes. `parse` and
-`schema-from-json-schema` panic on a string path. `validate` and `coerce`
-take a string as the value itself, for a scalar schema such as
-`date-string`, so read a file there with `path(..)` or `json(..)`.
+`schema-from-json-schema`: a dictionary, `path(..)` or bytes. `parse`,
+`validate` and `coerce` also take any other root the schema accepts, such
+as an array, or a string for a scalar schema such as `date-string`; they
+panic on a string ending in `.json` that the schema's root does not take,
+as a path it could never find. `schema-from-json-schema` panics on any
+string.
 
 ### The returned model
 
@@ -478,6 +480,13 @@ equals `email-string`, and `string(pattern: p, expected: e)` equals
 keep working (in `paths-of-kind`, too). `content-type`, `bool-type`,
 `null-type` and `any-type` take no constraints and stay constants.
 
+**Deprecated, accepted until 1.0:** `str-type`, `number-type` and
+`integer-type` (use `string()`, `number()`, `integer()`), the nine format
+constants `date-string` … `time-string` (use `string(format: "date")`
+and so on), and `pattern-string(re, expected: …)` (use
+`string(pattern: re, expected: …)`). A hand-built node of the old kind
+names `"str"` and `"pattern-string"` is read as `"string"`.
+
 ### Format validation
 
 Fields the canonical schema annotates with `format: "uri"`, `format: "email"`,
@@ -523,15 +532,15 @@ Data written in Typst can give `date-string` a `datetime` with a date and no
 time, and `datetime-string` one with both; each is checked and returned as
 the ISO string (`"2024-01-05"`, `"2024-01-05T09:03:07"`). A `datetime` of
 the other shape is rejected rather than truncated. In `resume-schema` the
-resume's date fields are pattern-strings (see below), so a `datetime` there
+resume's date fields are patterned strings (see below), so a `datetime` there
 needs `resume-schema-strict`.
 
 Every date field in JSON Resume (`work[].startDate`, `awards[].date`,
 `certificates[].date`, …) uses `$ref: "#/definitions/iso8601"` rather than
 `format: "date"`. That definition is a string with a regex, so in
-`resume-schema` those fields are `pattern-string`s gated by upstream's regex
+`resume-schema` those fields are strings with a `pattern`, upstream's regex
 (`YYYY`, `YYYY-MM` or `YYYY-MM-DD`, month and day in range).
-`meta.lastModified` has no regex upstream and stays plain `str`. Switch to
+`meta.lastModified` has no regex upstream and stays a plain `string`. Switch to
 `resume-schema-strict` to type them all as `date-string` (and
 `meta.lastModified` as the upstream-described `YYYY-MM-DDThh:mm:ss`
 `datetime-string`, or a bare `date-string`), or build your own override list
@@ -687,7 +696,7 @@ too.
 | `lens-put(schema, at, value)` | `schema, at, sub → schema` | Replace the targeted node |
 | `lens-over(schema, at, fn)` | `schema, at, (sub → sub) → schema` | Apply a function to the targeted node |
 | `lens-then(a, b)` | `at, at → lens` | Compose two locations (path concatenation) |
-| `add-field(schema, at, key, sub)` | … → schema | Add a key to the object at `at` |
+| `add-field(schema, at, key, sub, required: false)` | … → schema | Add a key to the object at `at`, and require it with `required: true` |
 | `remove-field(schema, at, key)` | … → schema | Remove a key from the object at `at` |
 | `set-required(schema, at, keys)` | … → schema | Replace the object's `required-keys` list at `at` |
 | `unset-required(schema, at, keys)` | … → schema | Drop specific entries from the object's `required-keys` list at `at` |
@@ -695,7 +704,9 @@ too.
 **Deprecated, accepted until 1.0:** the lens-first order
 `lens-get(at, schema)`, `lens-put(at, schema, value)` and
 `lens-over(at, schema, fn)`, and the old lens shape
-`(kind: "lens", path: …)` wherever a location is taken. Arguments are
+`(kind: "lens", path: …)` wherever a location is taken; `lens(path)`
+(pass the path, or `(lens: path)`) and `lens-then(a, b)` (use `a + b` on
+the paths). Arguments are
 told apart by type, so an old call still works unchanged; a call that is
 neither a schema then a location nor the old order panics.
 
@@ -723,7 +734,7 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 #describe-schema(resume-schema-strict)
 // basics:
 //   email    email-string
-//   name     str
+//   name     string
 //   summary  content
 //   …
 // meta:
@@ -731,14 +742,14 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 //   lastModified  any of:
 //     [0]  datetime-string
 //     [1]  date-string
-//   version       str
+//   version       string
 // …
 // work[]:
 //   highlights[]  content
 //   location      one of:
-//     [0]  str
+//     [0]  string
 //     [1]:
-//       address      str
+//       address      string
 //       …
 //   startDate     date-string
 //   …
@@ -755,9 +766,10 @@ path?* — without `repr(schema)` or hand-walking `.shape`:
 <!-- x-release-please-end -->
 
 `describe-schema` marks what a node sets beyond its kind. A required field
-is suffixed `*` (`name*  str`), constraints follow the kind in brackets
-(`str (min-length 1, max-length 80)`, `integer (minimum 0)`,
-`tags[]  str (min-items 1, unique-items)`), a union lists its members as
+is suffixed `*` (`name*  string`), constraints follow the kind in brackets
+(`string (min-length 1, max-length 80)`, `integer (minimum 0)`,
+`tags[]  string (min-items 1, unique-items)`), a string with a pattern
+draws as `string + pattern`, a union lists its members as
 `[0]`, `[1]`, … under an `any of:` or `one of:` header (a `nullable(X)`
 draws as `X?`), a `not` member shows
 under its field as `not`, and an object's `dependent-required` entries close
@@ -769,6 +781,9 @@ fields or constraints, so they show none of these.
 `integer-type` integers), or a constructor such as `pattern-string`. The kind
 name as a string (`"date-string"`) still works but is deprecated, and will be
 removed in the next major version.
+
+**Deprecated, accepted until 1.0:** `kind-at(schema, at)`; use
+`lens-get(schema, at).kind`.
 
 `integer` is a kind of its own: `kind-at` returns `"integer"` for an integer
 field, `paths-of-kind(s, number-type)` no longer lists integers, and

@@ -8,7 +8,7 @@
 #import "../lib.typ": (
   lens-get, resume-schema, resume-schema-strict, schema-from-json-schema,
   validate, object, any-of, not-of, str-type, content-type, number-type,
-  date-string, datetime-string, uri-string, email-string,
+  date-string, datetime-string, uri-string, email-string, describe-schema,
 )
 
 // ---- the translated document ---------------------------------------------
@@ -59,12 +59,13 @@
 // ---- each schema's kind at a path ------------------------------------------
 //
 // Each row: a path, its node in resume-schema (the upstream document's
-// own typing), and in resume-schema-strict. A `str` row is a kind name,
-// for nodes compared by kind. Every path the strict overrides name is
-// here, so a stale one fails rather than silently losing a date check;
-// so is every upstream `format` field.
+// own typing), and in resume-schema-strict. A `str` row is how
+// describe-schema draws the node, for nodes compared by kind. Every
+// path the strict overrides name is here, so a stale one fails rather
+// than silently losing a date check; so is every upstream `format`
+// field.
 
-#let iso = "pattern-string" // an upstream `$ref` to iso8601's pattern
+#let iso = "string + pattern" // an upstream `$ref` to iso8601's pattern
 #for (path, faithful, strict) in (
   // Free-text fields: str upstream, content in strict.
   (("objective",), str-type, content-type),
@@ -126,7 +127,7 @@
     (resume-schema-strict, strict),
   ) {
     let node = lens-get(schema, path)
-    if type(want) == str { node = node.kind }
+    if type(want) == str { node = describe-schema(node) }
     assert.eq(node, want, message: repr(path))
   }
 }

@@ -26,17 +26,17 @@
 
 #import "leaf.typ" as _leaf-mod
 #import "leaf.typ": (
-  number, integer, pattern-string, enum-of, const-of, _leaf-walk, _string-check,
-  _number-check, _integer-check, _bool-check, _null-check, _any-check,
-  _pattern-check, _enum-check,
+  number, integer, enum-of, const-of, _leaf-walk, _string-check, _number-check,
+  _integer-check, _bool-check, _null-check, _any-check, _pattern-check,
+  _enum-check,
 )
 #import "../core/error.typ": _internal, _not-in
 #import "format.typ" as _format-mod
-#import "format.typ": string, _formats, _format-check
+#import "format.typ": string, pattern-string, _formats, _format-check
 #import "structure.typ" as _structure-mod
 #import "structure.typ": (
   array-of, object, map, any-of, one-of, not-of, nullable, _array-walk,
-  _object-walk, _union-walk, _not-walk, _object-with, _schema-kinds,
+  _object-walk, _union-walk, _not-walk, _object-with, _schema-kinds, _kind-name,
 )
 
 // A leaf passes its `check`, constraint `family` and `model` (leaf.typ)
@@ -74,18 +74,28 @@
   constructors: constructors,
 )
 
-// A format kind with an extra pattern gate (JSON Schema format +
-// pattern) says so.
+// A string or format kind with a pattern gate of its own (JSON Schema
+// format + pattern) says so.
+#let _patterned(name) = s => if "pattern" in s { name + " + pattern" } else {
+  name
+}
+
 #let _format-kind(row) = _kind(
   check: _format-check(row),
   family: "string",
-  suffix: s => if "pattern" in s { s.kind + " + pattern" } else { s.kind },
+  suffix: _patterned(row.kind),
 )
 
 #let _kinds = (
-  // string() also builds the format kinds and pattern-string, but a
-  // paths-of-kind search for it means the plain kind.
-  str: _kind(check: _string-check, family: "string", constructors: (string,)),
+  // string() also builds the format kinds, but a paths-of-kind search
+  // for it means this kind. The suffix names it, not the node, so a
+  // hand-built node of an old name (_kind-aliases) draws as "string".
+  string: _kind(
+    check: _pattern-check,
+    family: "string",
+    suffix: _patterned("string"),
+    constructors: (string, pattern-string),
+  ),
   // The model wraps the string so it splices into markup.
   content: _kind(check: _string-check, family: "string", model: v => [#v]),
   number: _kind(check: _number-check, family: "number", constructors: (
@@ -101,11 +111,6 @@
   null: _kind(check: _null-check),
   any: _kind(check: _any-check),
   .._formats.values().map(row => (row.kind, _format-kind(row))).to-dict(),
-  pattern-string: _kind(
-    check: _pattern-check,
-    family: "string",
-    constructors: (pattern-string,),
-  ),
   // The values inline, for at-a-glance debugging.
   enum: _kind(
     check: _enum-check,
@@ -257,5 +262,6 @@
 #_check-kind-names(_kinds, _schema-kinds)
 
 // A node of a kind the registry doesn't know (hand-built) behaves as a
-// leaf, as it did before the registry.
-#let _descriptor(s) = _kinds.at(s.kind, default: _kind())
+// leaf, as it did before the registry. An old kind name finds its
+// current descriptor.
+#let _descriptor(s) = _kinds.at(_kind-name(s.kind), default: _kind())

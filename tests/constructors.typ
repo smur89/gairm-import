@@ -9,20 +9,20 @@
   email-string, date-string, datetime-string, uri-string, uuid-string,
   hostname-string, ipv4-string, ipv6-string, time-string, pattern-string,
   schema-from-json-schema, validate, coerce, object, paths-of-kind,
-  content-type,
+  content-type, any-of,
 )
 
 // ---- the nodes ---------------------------------------------------------
 
-#assert.eq(str-type, (kind: "str"))
+#assert.eq(str-type, (kind: "string"))
 #assert.eq(content-type, (kind: "content"))
 #assert.eq(number-type, (kind: "number"))
-#assert.eq(array-of(str-type), (kind: "array", elem: (kind: "str")))
+#assert.eq(array-of(str-type), (kind: "array", elem: (kind: "string")))
 #assert.eq(
   object((name: str-type, age: number-type)),
   (
     kind: "object",
-    shape: (name: (kind: "str"), age: (kind: "number")),
+    shape: (name: (kind: "string"), age: (kind: "number")),
     required-keys: (),
   ),
 )
@@ -30,9 +30,41 @@
   object((a: str-type, b: str-type), required-keys: ("a", "b")),
   (
     kind: "object",
-    shape: (a: (kind: "str"), b: (kind: "str")),
+    shape: (a: (kind: "string"), b: (kind: "string")),
     required-keys: ("a", "b"),
   ),
+)
+
+// A patterned string is the string kind with a `pattern` and the hint
+// its error shows; pattern-string builds the same node.
+#assert.eq(
+  string(pattern: "^a", expected: "an a-word"),
+  (kind: "string", pattern: regex("^a"), expected: "an a-word"),
+)
+#assert.eq(
+  string(pattern: "^a"),
+  (kind: "string", pattern: regex("^a"), expected: "matching pattern"),
+)
+
+// A hand-built node of an old kind name, "str" or "pattern-string", is
+// still a schema and checks as the string kind (deprecated, until 1.0);
+// errors name it "string".
+#let old-str = (kind: "str", min-length: 2)
+#let old-pattern = (
+  kind: "pattern-string",
+  pattern: regex("^a"),
+  expected: "an a-word",
+)
+#assert.eq(validate("ab", schema: old-str), ())
+#assert.eq(validate("a", schema: old-str).map(e => e.code), ("length",))
+#assert.eq(validate(1, schema: old-str).map(e => e.expected), ("string",))
+#assert.eq(validate("b", schema: old-pattern).map(e => e.expected), (
+  "an a-word",
+))
+#assert.eq(coerce((a: "ab"), schema: object((a: old-str))), (a: "ab"))
+#assert.eq(
+  validate(true, schema: any-of((old-pattern, number-type))).at(0).expected,
+  "string | number",
 )
 
 // ---- the constants are the no-argument values -------------------------
@@ -104,7 +136,7 @@
   schema-from-json-schema((type: "string", maxLength: 3)),
 )
 // A whole-number float count reads as an int, as in the translator.
-#assert.eq(string(min-length: 2.0), (kind: "str", min-length: 2))
+#assert.eq(string(min-length: 2.0), (kind: "string", min-length: 2))
 #assert.eq(
   string(format: "date", max-length: 10),
   schema-from-json-schema((type: "string", format: "date", maxLength: 10)),

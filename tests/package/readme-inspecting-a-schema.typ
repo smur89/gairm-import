@@ -13,14 +13,14 @@
   lastModified  any of:
     [0]  datetime-string
     [1]  date-string
-  version       str\n",
+  version       string\n",
   "\nwork[]:\n",
   "\n  highlights[]  content
-  keywords[]    str
+  keywords[]    string
   location      one of:
-    [0]  str
+    [0]  string
     [1]:
-      address      str\n",
+      address      string\n",
   "\n  startDate     date-string\n",
 ) {
   assert(described.contains(row), message: row)
@@ -29,7 +29,7 @@
 // README's elided excerpt shows.
 #for (label, kind) in (
   ("email", "email-string"),
-  ("name", "str"),
+  ("name", "string"),
   ("summary", "content"),
 ) {
   assert(

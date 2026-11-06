@@ -17,11 +17,11 @@
 
 #import "core/ctx.typ": _absent
 #import "core/error.typ": _bail, _coerce-message, _format-report
-#import "kinds/registry.typ": _kinds
+#import "kinds/registry.typ": _kinds, _kind-name
 
 #let _walk(schema, value, ctx) = {
   if _absent(value, ctx) { return (errors: (), value: none, fatal: none) }
-  let d = _kinds.at(schema.kind, default: none)
+  let d = _kinds.at(_kind-name(schema.kind), default: none)
   if d == none {
     _bail(
       none,

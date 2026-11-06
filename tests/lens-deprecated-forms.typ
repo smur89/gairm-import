@@ -29,7 +29,7 @@
 // The old lens shape in the new order, and everywhere else a location
 // is taken.
 #assert.eq(lens-get(resume-schema, old), str-type)
-#assert.eq(kind-at(resume-schema, old), "str")
+#assert.eq(kind-at(resume-schema, old), "string")
 #assert.eq(
   lens-then((kind: "lens", path: ("basics",)), (kind: "lens", path: ("name",))),
   new,

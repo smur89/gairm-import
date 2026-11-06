@@ -180,5 +180,5 @@
 
 // ---- kind-at takes a lens as well as a path ----------------------------------
 
-#assert.eq(kind-at(resume-schema, ("basics", "name")), "str")
-#assert.eq(kind-at(resume-schema, name), "str")
+#assert.eq(kind-at(resume-schema, ("basics", "name")), "string")
+#assert.eq(kind-at(resume-schema, name), "string")

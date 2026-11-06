@@ -9,7 +9,7 @@
   resume-schema-strict, object, array-of, map, str-type, content-type,
   number-type, integer-type, bool-type, null-type, date-string, datetime-string,
   uri-string, email-string, enum-of, pattern-string, any-of, const-of, one-of,
-  not-of, nullable,
+  not-of, nullable, string,
 )
 
 // --- describe-schema -------------------------------------------------
@@ -32,12 +32,12 @@
 
 #let expected = "basics:
   email    email-string
-  name     str
+  name     string
   summary  content
   url      uri-string
 work[]:
-  highlights[]  str
-  name          str
+  highlights[]  string
+  name          string
   startDate     date-string"
 
 #assert.eq(describe-schema(toy), expected)
@@ -46,7 +46,7 @@ work[]:
 #assert.eq(describe-schema(object((:))), "")
 
 // Single leaf at the root (degenerate but supported).
-#assert.eq(describe-schema(str-type), "str")
+#assert.eq(describe-schema(str-type), "string")
 
 // Enum leaf carries its values inline so callers see the choices.
 #let with-enum = object((
@@ -60,7 +60,7 @@ work[]:
 // Array of object at the root.
 #assert.eq(
   describe-schema(array-of(object((name: str-type)))),
-  "[]:\n  name  str",
+  "[]:\n  name  string",
 )
 
 // Real schema sanity — must produce a non-empty multi-line string
@@ -169,7 +169,7 @@ work[]:
 ))
 #assert.eq(
   describe-schema(matrix-schema),
-  "grid[]:\n  [] str",
+  "grid[]:\n  [] string",
 )
 
 // Three levels deep with content-type at the leaf.
@@ -183,7 +183,7 @@ work[]:
 
 // --- kind-at ---------------------------------------------------------
 
-#assert.eq(kind-at(resume-schema, ("basics", "name")), "str")
+#assert.eq(kind-at(resume-schema, ("basics", "name")), "string")
 #assert.eq(kind-at(resume-schema, ("basics", "email")), "email-string")
 #assert.eq(kind-at(resume-schema-strict, ("basics", "summary")), "content")
 #assert.eq(kind-at(resume-schema, ("work", "items")), "object")
@@ -229,6 +229,41 @@ work[]:
 #assert.eq(paths-of-kind(flags, "bool"), (("flag",),))
 #assert.eq(paths-of-kind(flags, "null"), (("marker",),))
 
+// string() finds every plain or patterned string; a node with a
+// pattern, or pattern-string, only the patterned ones. A hand-built
+// node of an old kind name ("str", "pattern-string") is found and drawn
+// as the string kind it now is (deprecated, until 1.0).
+#let strings = object((
+  plain: string(),
+  coded: string(pattern: "^[A-Z]{3}$"),
+  old: (kind: "str"),
+  old-coded: (kind: "pattern-string", pattern: regex("^x")),
+  email: email-string,
+))
+#let every-string = (("coded",), ("old",), ("old-coded",), ("plain",))
+#let patterned = (("coded",), ("old-coded",))
+#for (kind, found) in (
+  (string(), every-string),
+  (string, every-string),
+  (str-type, every-string),
+  ("str", every-string),
+  ((kind: "str"), every-string),
+  (string(pattern: "y"), patterned),
+  (pattern-string, patterned),
+  ("pattern-string", patterned),
+  ((kind: "pattern-string"), patterned),
+) {
+  assert.eq(paths-of-kind(strings, kind), found, message: repr(kind))
+}
+#assert.eq(
+  describe-schema(strings),
+  "coded      string + pattern
+email      email-string
+old        string
+old-coded  string + pattern
+plain      string",
+)
+
 // --- unions and `not` --------------------------------------------------
 
 // meta.lastModified is any-of((datetime-string, date-string)) in the
@@ -261,7 +296,7 @@ work[]:
   other: not-of(array-of(number-type)),
 ))
 #assert.eq(kind-at(union-toy, ("other", "not", "items")), "number")
-#assert.eq(kind-at(union-toy, ("place", 1, "city")), "str")
+#assert.eq(kind-at(union-toy, ("place", 1, "city")), "string")
 #assert.eq(paths-of-kind(union-toy, str-type), (
   ("place", 0),
   ("place", 1, "city"),
@@ -302,23 +337,23 @@ work[]:
 #assert.eq(
   describe-schema(schema),
   "age     integer (minimum 0)
-code    pattern-string
+code    string + pattern
 email*  email-string
 extra:
-  *  str
+  *  string
 jobs[]:
   start   date-string
-  title*  str
-name*   str (min-length 1, max-length 80)
+  title*  string
+name*   string (min-length 1, max-length 80)
 other:
   not  number
-phone   str
+phone   string
 place   one of:
-  [0]  str
+  [0]  string
   [1]:
-    city  str
+    city  string
 role    enum (\"ic\", \"manager\")
-tags[]  str (min-items 1, unique-items)
+tags[]  string (min-items 1, unique-items)
 when    any of:
   [0]  datetime-string
   [1]  date-string
@@ -329,16 +364,16 @@ phone → email",
 // an array's constraints follow its element.
 #assert.eq(
   describe-schema(any-of((str-type, array-of(number-type)))),
-  "any of:\n  [0]    str\n  [1][]  number",
+  "any of:\n  [0]    string\n  [1][]  number",
 )
-#assert.eq(describe-schema(not-of(object((a: str-type)))), "not:\n  a  str")
+#assert.eq(describe-schema(not-of(object((a: str-type)))), "not:\n  a  string")
 #assert.eq(
   describe-schema((kind: "array", elem: str-type, min-items: 2)),
-  "[] str (min-items 2)",
+  "[] string (min-items 2)",
 )
 #assert.eq(
   describe-schema(array-of(one-of((str-type, number-type)))),
-  "[] one of:\n  [0]  str\n  [1]  number",
+  "[] one of:\n  [0]  string\n  [1]  number",
 )
 
 // A nullable node is marked `?` after a leaf's kind, a header, or the
@@ -346,7 +381,7 @@ phone → email",
 // array of nullables differ. Only the exact (X, null-type) any-of pair
 // draws as X?.
 #for (schema, drawn) in (
-  (nullable(str-type), "str?"),
+  (nullable(str-type), "string?"),
   (
     object((
       a: nullable((..str-type, min-length: 1)),
@@ -354,7 +389,7 @@ phone → email",
       d: nullable(array-of(str-type)),
       e: array-of(nullable(str-type)),
     )),
-    "a     str? (min-length 1)\nb?:\n  c  str\nd?[]  str\ne[]   str?",
+    "a     string? (min-length 1)\nb?:\n  c  string\nd?[]  string\ne[]   string?",
   ),
   (
     object((
@@ -362,12 +397,12 @@ phone → email",
       e: array-of(nullable(object((c: str-type)))),
       u: nullable(one-of((str-type, enum-of((1,))))),
     )),
-    "d?[]:\n  c  str\ne[]?:\n  c  str\nu  one of?:\n  [0]  str\n  [1]  enum (1)",
+    "d?[]:\n  c  string\ne[]?:\n  c  string\nu  one of?:\n  [0]  string\n  [1]  enum (1)",
   ),
-  (nullable(array-of(str-type)), "?[] str"),
-  (nullable(object((c: str-type))), "?:\n  c  str"),
-  (any-of((null-type, str-type)), "any of:\n  [0]  null\n  [1]  str"),
-  (one-of((str-type, null-type)), "one of:\n  [0]  str\n  [1]  null"),
+  (nullable(array-of(str-type)), "?[] string"),
+  (nullable(object((c: str-type))), "?:\n  c  string"),
+  (any-of((null-type, str-type)), "any of:\n  [0]  null\n  [1]  string"),
+  (one-of((str-type, null-type)), "one of:\n  [0]  string\n  [1]  null"),
 ) {
   assert.eq(describe-schema(schema), drawn)
 }

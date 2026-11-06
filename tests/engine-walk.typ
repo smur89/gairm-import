@@ -99,3 +99,23 @@
 #let either = one-of((str-type, str-type))
 #assert.eq(validate("x", schema: either).map(e => e.code), ("union",))
 #assert.eq(coerce("x", schema: either), "x")
+
+// ---- one input rule --------------------------------------------------------
+//
+// validate, coerce and parse take the same inputs: a path or bytes read
+// as JSON, or any other value as the document, whatever root the
+// schema takes. A string is a value unless it ends in `.json` and the
+// schema's root does not take it (then all three panic with the
+// path(..) hint; tests/panics/).
+#let numbers = array-of(number-type)
+#assert.eq(parse((1, 2), schema: numbers), (1, 2))
+#assert.eq(parse(bytes("[1, 2]"), schema: numbers), (1, 2))
+#assert.eq(parse("2024-01-15", schema: date-string), "2024-01-15")
+// A `.json` string the root takes is a value like any other.
+#assert.eq(validate("notes.json", schema: str-type), ())
+#assert.eq(parse("notes.json", schema: str-type), "notes.json")
+// A string the root rejects that names no file is a type error.
+#assert.eq(
+  validate("notes", schema: object((:))).map(e => e.code),
+  ("type",),
+)

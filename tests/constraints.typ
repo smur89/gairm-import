@@ -15,12 +15,12 @@
 
 #for (node, good, bad) in (
   (
-    (kind: "str", min-length: 3, max-length: 5),
+    (kind: "string", min-length: 3, max-length: 5),
     ("abc", "abcde"),
     (("ab", "≥ 3, got 2"), ("abcdef", "≤ 5, got 6")),
   ),
   // Length counts grapheme clusters, not bytes.
-  ((kind: "str", min-length: 1), ("🙂",), ()),
+  ((kind: "string", min-length: 1), ("🙂",), ()),
   (
     (kind: "number", minimum: 1, maximum: 10),
     (1, 10, 5.5),
@@ -77,7 +77,7 @@
   (
     (type: "string", minLength: 1, maxLength: 64),
     (
-      kind: "str",
+      kind: "string",
       min-length: 1,
       max-length: 64,
     ),
@@ -103,7 +103,7 @@
   (
     (type: "string", minLength: 2.0, maxLength: 4.0),
     (
-      kind: "str",
+      kind: "string",
       min-length: 2,
       max-length: 4,
     ),
@@ -156,7 +156,7 @@
 // Constraint errors carry the full path, beside other fields' errors.
 #let bad-person = validate((name: "", age: -1), schema: object(
   (
-    name: (kind: "str", min-length: 1),
+    name: (kind: "string", min-length: 1),
     age: (kind: "number", minimum: 0),
   ),
   required-keys: ("name",),

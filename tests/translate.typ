@@ -39,7 +39,7 @@
   ((type: "string", format: "ipv4"), ipv4-string),
   ((type: "string", format: "ipv6"), ipv6-string),
   ((type: "string", format: "time"), time-string),
-  // A pattern is a pattern-string with a hint naming it (regexes compare
+  // A pattern is a patterned string with a hint naming it (regexes compare
   // by source). With a format, the format kind carries it as an extra
   // gate.
   (

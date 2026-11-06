@@ -34,7 +34,7 @@
     any-of((str-type, number-type)),
     "type",
     (),
-    "str | number",
+    "string | number",
     "boolean",
   ),
   // required
@@ -107,8 +107,8 @@
     "a@b.com",
   ),
   // length
-  ("ab", (kind: "str", min-length: 3), "length", (), (min-length: 3), 2),
-  ("abcd", (kind: "str", max-length: 3), "length", (), (max-length: 3), 4),
+  ("ab", (kind: "string", min-length: 3), "length", (), (min-length: 3), 2),
+  ("abcd", (kind: "string", max-length: 3), "length", (), (max-length: 3), 4),
   // range: the record says which bound, not just the number.
   (0, (kind: "number", minimum: 1), "range", (), (minimum: 1), 0),
   (5, (kind: "number", maximum: 4), "range", (), (maximum: 4), 5),
