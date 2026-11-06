@@ -9,5 +9,5 @@ repository = "https://github.com/smur89/gairm-import"
 keywords = ["json", "json-resume", "resume", "cv", "loader", "schema"]
 categories = ["utility", "integration"]
 compiler = "0.15.0"
-# Ships for the README's link, but the package never reads it.
-exclude = ["/CONTRIBUTING.md"]
+# Ship for the README's links, but the package never reads them.
+exclude = ["/CONTRIBUTING.md", "/REFERENCE.md"]

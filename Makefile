@@ -23,7 +23,7 @@ PACKAGE_TESTS := $(wildcard tests/package/*.typ)
 PACKAGE_NAME  := gairm-import
 # Files that ship to typst/packages: shared by the release tarball and
 # the package-check stager so the two can't drift.
-PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md CONTRIBUTING.md
+PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md REFERENCE.md CONTRIBUTING.md
 
 # Where tests/package/ compiles against the package as @preview users
 # get it, at version 0.0.0 so its imports never need bumping. Gitignored.
