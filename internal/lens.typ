@@ -168,6 +168,8 @@
 
 // Collisions panic instead of overwriting silently — for the
 // overwrite-an-existing-key case, callers can reach for lens-put / lens-over.
+// `required: true` adds the key to required-keys in the same edit, so
+// the object is rebuilt, and checked, once.
 /// Returns a new schema with `key` added to the object at `at`. Panics
 /// if the target is not an object or already has that key; use
 /// `lens-put` to replace a field.
@@ -177,12 +179,16 @@
 ///   a path array.
 /// - key (str): The new field's name.
 /// - sub-schema (dictionary): The schema for the field.
+/// - required (bool): Whether the object also requires the field.
 /// -> dictionary
-#let add-field(schema, at, key, sub-schema) = _edit-object(
-  schema,
-  at,
-  "add-field",
-  parent => {
+#let add-field(schema, at, key, sub-schema, required: false) = {
+  if type(required) != bool {
+    _bail(
+      "add-field",
+      "required must be true or false, got: " + repr(required) + ".",
+    )
+  }
+  _edit-object(schema, at, "add-field", parent => {
     if key in parent.shape {
       _bail(
         "add-field",
@@ -192,9 +198,13 @@
           + "Use lens-put / lens-over to replace an existing field.",
       )
     }
-    (shape: (..parent.shape, (key): sub-schema))
-  },
-)
+    let edit = (shape: (..parent.shape, (key): sub-schema))
+    if required and key not in parent.required-keys {
+      edit.required-keys = parent.required-keys + (key,)
+    }
+    edit
+  })
+}
 
 // Replace, not merge — mirrors lens-put. On a closed object keys must
 // exist in shape so a typo fails at edit time, not as a phantom

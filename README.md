@@ -689,7 +689,7 @@ too.
 | `lens-put(schema, at, value)` | `schema, at, sub → schema` | Replace the targeted node |
 | `lens-over(schema, at, fn)` | `schema, at, (sub → sub) → schema` | Apply a function to the targeted node |
 | `lens-then(a, b)` | `at, at → lens` | Compose two locations (path concatenation) |
-| `add-field(schema, at, key, sub)` | … → schema | Add a key to the object at `at` |
+| `add-field(schema, at, key, sub, required: false)` | … → schema | Add a key to the object at `at`, and require it with `required: true` |
 | `remove-field(schema, at, key)` | … → schema | Remove a key from the object at `at` |
 | `set-required(schema, at, keys)` | … → schema | Replace the object's `required-keys` list at `at` |
 | `unset-required(schema, at, keys)` | … → schema | Drop specific entries from the object's `required-keys` list at `at` |

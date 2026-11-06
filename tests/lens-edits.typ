@@ -39,6 +39,27 @@
   ),
   (),
 )
+// required: true also requires the field, in the same edit: the same
+// node as add-field then set-required.
+#assert.eq(
+  add-field(s, (), "c", number-type, required: true),
+  object((a: str-type, b: str-type, c: number-type), required-keys: ("a", "c")),
+)
+#assert.eq(
+  add-field(s, (), "c", number-type, required: true),
+  set-required(add-field(s, (), "c", number-type), (), ("a", "c")),
+)
+#assert.eq(
+  add-field(s, (), "c", number-type, required: false),
+  add-field(s, (), "c", number-type),
+)
+// An open object may already require a key it does not declare; it is
+// listed once.
+#let open-s = map(str-type, required-keys: ("c",))
+#assert.eq(
+  add-field(open-s, (), "c", number-type, required: true).required-keys,
+  ("c",),
+)
 #let without-rating = remove-field(with-rating, language-items, "rating")
 #assert("rating" not in without-rating.shape.languages.elem.shape)
 #assert("rating" not in resume-schema.shape.languages.elem.shape)
