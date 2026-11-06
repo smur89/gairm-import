@@ -2,8 +2,8 @@
 // translator consumes it, and `types` which JSON types it applies to
 // (a keyword without `types` applies to every node). The allow-list,
 // the sibling rule beside a composition keyword or `$ref`, the
-// unsupported-keyword bails and the enum/const structural list all
-// read this table, so a new keyword is one entry here plus the code
+// unsupported-keyword bails, the keyword-for-another-type bail and the
+// enum/const structural list all read this table, so a new keyword is one entry here plus the code
 // that consumes it.
 
 #import "../kinds/constraint.typ": _constraint-rows
@@ -171,4 +171,34 @@
         and not _keywords.at(k).at("null-ok", default: false)
     ))
   if null-key != none { _bail(repr(null-key) + " must not be null.") }
+}
+
+// Bails on a keyword that applies to none of a typed node's `type`
+// names: every builder the node runs ignores it, so it would be
+// silently dropped. Draft 7's "a keyword ignores the other types" is
+// for an untyped node or a `type` array, where some member reads it;
+// `{type: "string", minItems: 2}` is a mistake. Keywords are grouped
+// by the types they apply to, in table order.
+#let _check-keywords-typed(js, names) = {
+  let types-of(k) = _keywords.at(k).at("types", default: ())
+  let stray = _keywords
+    .keys()
+    .filter(k => (
+      k in js and types-of(k) != () and not types-of(k).any(t => t in names)
+    ))
+  if stray == () { return }
+  let groups = stray.map(types-of).dedup()
+  let lines = groups.map(types => (
+    "keyword(s) "
+      + stray.filter(k => types-of(k) == types).map(repr).join(", ")
+      + " are only supported on "
+      + types.map(t => "`type: \"" + t + "\"`").join(" or ")
+      + " schemas"
+  ))
+  _bail(
+    lines.join("; ")
+      + ", but this node's `type` is "
+      + repr(js.at("type"))
+      + ": translating would silently drop them.",
+  )
 }

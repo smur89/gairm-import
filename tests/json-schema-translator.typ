@@ -2,7 +2,7 @@
   schema-from-json-schema, str-type, number-type, integer-type, array-of,
   object, date-string, datetime-string, uri-string, email-string, uuid-string,
   hostname-string, ipv4-string, ipv6-string, time-string, pattern-string,
-  enum-of, const-of, bool-type,
+  enum-of, const-of, bool-type, any-of, number,
 )
 
 #assert.eq(schema-from-json-schema((type: "string")), str-type)
@@ -289,9 +289,10 @@
   str-type,
 )
 
-// Another JSON type's keyword is ignored, as in draft 7 (a `type` array
-// builds each member from the whole node, so this must hold).
+// A `type` array builds each member from the whole node, and each
+// member ignores the other types' keywords, as in draft 7. A keyword
+// for none of the node's types bails instead (tests/panics/).
 #assert.eq(
-  schema-from-json-schema((type: "string", minimum: 1, items: (:))),
-  str-type,
+  schema-from-json-schema((type: ("string", "number"), minimum: 1)),
+  any-of((str-type, number(minimum: 1))),
 )

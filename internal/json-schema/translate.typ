@@ -16,8 +16,8 @@
   _constraints, _read-constraints, _clash-message,
 )
 #import "keyword.typ": (
-  _bail, _check-keywords, _constraint-family, _has-keyword-for,
-  _membership-structural, _role-of,
+  _bail, _check-keywords, _check-keywords-typed, _constraint-family,
+  _has-keyword-for, _membership-structural, _role-of,
 )
 #import "all-of.typ": _all-of
 
@@ -468,17 +468,7 @@
     return _applicators.at(applicator)(js, ctx, _translate)
   }
   let names = _type-names-of(js)
-  // Only an object (possibly nullable, or untyped) can carry it;
-  // elsewhere it would be silently dropped.
-  if (
-    _dependent-required(js).len() > 0
-      and names != none
-      and "object" not in names
-  ) {
-    _bail(
-      "\"dependencies\" / \"dependentRequired\" are only supported on `type: \"object\"` schemas.",
-    )
-  }
+  if names != none { _check-keywords-typed(js, names) }
   if "enum" in js or "const" in js {
     return enum-of(_fold-membership(js, ctx, names, _translate))
   }
