@@ -213,6 +213,9 @@
   )
 }
 
+/// Panics with the report of `errors`, as parse does on an invalid input.
+#let _panic-report(errors) = panic(_format-report(errors))
+
 // Classic two-row Levenshtein edit distance. We fold over the
 // characters of `a`, carrying the previous DP row and producing the
 // next. Each new row is itself built by folding over the characters

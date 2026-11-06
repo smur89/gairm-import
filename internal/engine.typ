@@ -16,7 +16,7 @@
 // a hand-built node can carry).
 
 #import "core/ctx.typ": _absent
-#import "core/error.typ": _bail, _coerce-message, _format-report
+#import "core/error.typ": _bail, _coerce-message, _panic-report
 #import "kinds/registry.typ": _kinds, _node
 
 #let _walk(schema, value, ctx) = {
@@ -49,6 +49,6 @@
 
 /// The model from a walk result, or a panic listing every error.
 #let _parse-result(r) = {
-  if r.errors != () { panic(_format-report(r.errors)) }
+  if r.errors != () { _panic-report(r.errors) }
   r.value
 }
