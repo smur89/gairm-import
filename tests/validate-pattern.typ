@@ -9,7 +9,8 @@
 //  - nested under array-of / object: paths stay correct
 
 #import "../lib.typ": validate
-#import "../internal/validate.typ": _validate
+#import "../internal/engine.typ": _validate
+#import "../internal/core/ctx.typ": _ctx
 #import "../lib.typ": pattern-string, object, array-of
 
 // ---- positive --------------------------------------------------------
@@ -18,13 +19,13 @@
   "^[A-Z]{2}$",
   expected: "an ISO 3166-1 alpha-2 code",
 )
-#assert.eq(_validate(country-code, "US", ("c",)), ())
-#assert.eq(_validate(country-code, "IE", ("c",)), ())
+#assert.eq(_validate(country-code, "US", _ctx(path: ("c",))), ())
+#assert.eq(_validate(country-code, "IE", _ctx(path: ("c",))), ())
 
 // ---- negative — error carries the caller-supplied hint --------------
 
 #let pat-fail(schema, value, path) = {
-  let errs = _validate(schema, value, path)
+  let errs = _validate(schema, value, _ctx(path: path))
   assert.eq(errs.len(), 1, message: "expected one error for " + repr(value))
   assert.eq(errs.at(0).path, path)
   errs.at(0).message
@@ -50,14 +51,14 @@
   "[0-9]",
   expected: "a string containing a digit",
 )
-#assert.eq(_validate(contains-digit, "abc123", ("x",)), ())
-#assert.eq(_validate(contains-digit, "1", ("x",)), ())
-#assert.eq(_validate(contains-digit, "v2-final", ("x",)), ())
+#assert.eq(_validate(contains-digit, "abc123", _ctx(path: ("x",))), ())
+#assert.eq(_validate(contains-digit, "1", _ctx(path: ("x",))), ())
+#assert.eq(_validate(contains-digit, "v2-final", _ctx(path: ("x",))), ())
 #assert(pat-fail(contains-digit, "no-digits-here", ("x",)).contains("digit"))
 
 // ---- wrong type yields a type-error, not a pattern-error ------------
 
-#let type-err = _validate(country-code, 42, ("c",))
+#let type-err = _validate(country-code, 42, _ctx(path: ("c",)))
 #assert.eq(type-err.len(), 1)
 #assert(type-err.at(0).message.contains("expected string"))
 #assert(type-err.at(0).message.contains("got integer"))
@@ -65,7 +66,7 @@
 // ---- default `expected` hint ----------------------------------------
 
 #let bare = pattern-string("^x$")
-#assert.eq(_validate(bare, "x", ("b",)), ())
+#assert.eq(_validate(bare, "x", _ctx(path: ("b",))), ())
 #assert(pat-fail(bare, "y", ("b",)).contains("matching pattern"))
 
 // ---- Nested under array-of / object: paths stay correct -------------

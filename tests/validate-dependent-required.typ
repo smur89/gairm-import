@@ -2,7 +2,8 @@
 // too. Null counts as absent for trigger and dependent alike.
 
 #import "../lib.typ": validate
-#import "../internal/validate.typ": _validate
+#import "../internal/engine.typ": _validate
+#import "../internal/core/ctx.typ": _ctx
 #import "../lib.typ": str-type, object
 #import "../lib.typ": schema-from-json-schema, remove-field, lens
 
@@ -18,7 +19,7 @@
 #assert.eq(validate((phone: "1", email: "a@x", name: "A"), schema: contact), ())
 
 // One error per missing dependent, at the object's path.
-#let errs = _validate(contact, (phone: "1", name: "A"), ("basics",))
+#let errs = _validate(contact, (phone: "1", name: "A"), _ctx(path: ("basics",)))
 #assert.eq(errs.len(), 1)
 #assert.eq(errs.at(0).path, ("basics",))
 #assert.eq(

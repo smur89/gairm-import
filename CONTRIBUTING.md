@@ -37,21 +37,22 @@ internal/kinds/registry.typ          # one descriptor per kind, checked for cove
 internal/kinds/traverse.typ          # the one schema traversal (children, get/set at a path, every node)
 internal/schema.typ                  # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
 internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.7.0
-internal/validate.typ                # validation engine (path-typed errors)
-internal/coerce.typ                  # coercion engine (content wrapping, null absorption)
+internal/engine.typ                  # the one walk over schema and value; validate, coerce and parse
 internal/json-schema.typ             # JSON Schema → Typst-schema translator
 internal/lens.typ                    # path-based functional editing of schemas
 internal/introspect.typ              # read-only schema inspection (describe-schema, paths-of-kind, kind-at)
 internal/core/pointer.typ            # RFC 6901 JSON Pointer <-> path tuple interop
 internal/core/error.typ              # error formatting (paths, type names, did-you-mean)
 internal/core/input.typ              # the input forms every entry point shares
+internal/core/ctx.typ                # the walk context, and the one definition of absence
 tests/                               # fixtures — CI compiles each as a regression guard
 tests/panics/                        # one file per panic; each must fail with its expected message
 ```
 
 `internal/core/` is the bottom layer and imports nothing else internal;
-`internal/kinds/` imports only `internal/core/` and its own siblings
-(`make check-layers` enforces both). `lib.typ` is the only public surface;
+`internal/kinds/` imports only `internal/core/` and its own siblings;
+`internal/engine.typ` imports only `internal/core/` and `internal/kinds/`
+(`make check-layers` enforces all three). `lib.typ` is the only public surface;
 it reaches internals through underscore module aliases, so a name that
 starts with an underscore is internal and never part of the API.
 
