@@ -37,14 +37,18 @@ make fmt           # format with typstyle
 make help          # every target, and the variables you can override
 ```
 
-`make check` is `test`, `fmt-check` and `check-layers`: exactly what CI's
+`make check` is `test`, `fmt-check`, `check-layers` and
+`check-conventions` (no `.kind` test outside the registry unless marked
+`// kind-check: <why>`, no `panic(` outside `core/error.typ`, panic cases
+named after an export): exactly what CI's
 `test` job runs, so a green `make check` means a green `test` check. Each
 test file is its own Make target (`check/fixture/…`, `check/panic/…`,
 `check/package/…`), so `-j` runs them in parallel and `-k` keeps going
 past a failure.
 
 **Panic cases** live in `tests/panics/`, one per place the package panics,
-named `<public-function>-<problem>.typ` (`string-min-length-negative.typ`).
+named `<public-function>-<problem>.typ` (`string-min-length-negative.typ`),
+or `import-<problem>.typ` for a check that runs when the package loads.
 A second case for the same place earns its file only by pinning other
 wording, or another check that reaches the same message. Line 1 is
 `// expect: <substring of the error>`, then the imports and the call that

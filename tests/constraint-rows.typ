@@ -3,6 +3,7 @@
 // sample, failing values and its constructors below).
 
 #import "../internal/kinds/constraint.typ": _constraint-rows, _value-problem
+#import "../internal/kinds/format.typ": _formats
 #import "../lib.typ": (
   validate, schema-from-json-schema, string, number, integer, array-of,
   str-type,
@@ -85,4 +86,25 @@
     )
     assert(row.field in built, message: row.field + " left unset")
   }
+}
+
+// ---- REFERENCE.md ----------------------------------------------------------
+//
+// Every row's constructor argument and JSON keyword, and every format,
+// is documented.
+
+#let reference = read("../REFERENCE.md")
+#for row in _constraint-rows {
+  for name in (row.field, row.json) {
+    assert(
+      reference.contains("`" + name),
+      message: name + " is not in REFERENCE.md",
+    )
+  }
+}
+#for format in _formats.keys() {
+  assert(
+    reference.contains("`" + format + "`"),
+    message: format + " is not in REFERENCE.md",
+  )
 }

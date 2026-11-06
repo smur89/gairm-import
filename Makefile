@@ -29,7 +29,7 @@ PACKAGE_FILES := typst.toml lib.typ internal LICENSE README.md REFERENCE.md CONT
 # get it, at version 0.0.0 so its imports never need bumping. Gitignored.
 PACKAGE_PATH  := .package-path
 
-.PHONY: all test test-fixtures test-panics test-package stage-test-package check fmt fmt-check check-layers clean help stage-package-dir package-tarball
+.PHONY: all test test-fixtures test-panics test-package stage-test-package check fmt fmt-check check-layers check-conventions clean help stage-package-dir package-tarball
 
 all: test
 
@@ -98,7 +98,7 @@ test-package: $(PACKAGE_CHECKS) ## compile tests/package/*.typ against the stage
 
 # Exactly what CI's `test` job runs, so a green `make check` locally
 # means a green required check.
-check: test fmt-check check-layers ## test + fmt-check + check-layers: what CI runs
+check: test fmt-check check-layers check-conventions ## test + fmt-check + check-layers + check-conventions: what CI runs
 
 # Layer rules, bottom up, one row per layer: the files, the imports
 # they may make (an extended regex), and how the error says so.
@@ -153,6 +153,39 @@ endef
 check-layers: ## fail if an internal/ module imports above its layer
 	@status=0; \
 	$(foreach layer,$(LAYERS),$(call check-layer,$(layer))) \
+	exit $$status
+
+# Conventions the layering rule doesn't cover. A kind's behaviour lives
+# in its registry descriptor, so the engine, lenses and introspection
+# test `.kind` only where that line, or the one above, carries
+# `// kind-check: <why>`. Panics go
+# through core/error.typ's helpers. Each panic case is named after the
+# public function that panics (tests/exports.typ lists them), or
+# `import-` for the checks that run when the package loads.
+CONVENTION_KIND_FILES := internal/engine.typ internal/lens.typ internal/introspect.typ
+PANIC_PREFIXES = import $(shell sed -nE 's/^  "([a-z0-9-]+)",$$/\1/p' tests/exports.typ)
+
+check-conventions: ## fail on a kind test outside the registry, a bare panic, or a misnamed panic case
+	@status=0; \
+	bad=$$(awk '/\.kind *[!=]=/ && !/kind-check:/ && prev !~ /kind-check:/ { print FILENAME ":" FNR ": " $$0 } { prev = $$0 }' $(CONVENTION_KIND_FILES)); \
+	if [ -n "$$bad" ]; then \
+	  printf 'check-conventions: a kind test outside the registry (give the descriptor a field, or mark it // kind-check: <why>):\n%s\n' "$$bad" >&2; \
+	  status=1; \
+	fi; \
+	bad=$$(grep -HnE '(^|[^a-z_-])panic\(' lib.typ $$(find internal -name '*.typ' ! -path internal/core/error.typ) \
+	  | grep -vE '^[^:]+:[0-9]+: *//' || true); \
+	if [ -n "$$bad" ]; then \
+	  printf 'check-conventions: panic outside internal/core/error.typ (use its helpers):\n%s\n' "$$bad" >&2; \
+	  status=1; \
+	fi; \
+	for f in tests/panics/*.typ; do \
+	  b=$${f##*/}; ok=; \
+	  for p in $(PANIC_PREFIXES); do case $$b in $$p-*) ok=1;; esac; done; \
+	  if [ -z "$$ok" ]; then \
+	    echo "check-conventions: $$f is not named <public-function>-<problem>.typ" >&2; \
+	    status=1; \
+	  fi; \
+	done; \
 	exit $$status
 
 fmt: ## typstyle-format lib.typ, internal/ and tests/ in place

@@ -44,7 +44,8 @@ A kind's behaviour lives in its descriptor in `kinds/registry.typ` (the
 header lists the fields): how it walks, its children and their labels,
 how a lens replaces a child, and how `describe-schema` draws it. The
 engine, lenses and introspection read the registry rather than keeping
-their own `kind ==` ladders.
+their own `kind ==` ladders; `make check-conventions` rejects a `.kind`
+test there unless it is marked `// kind-check: <why>`.
 
 ## The walk
 

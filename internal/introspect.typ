@@ -167,7 +167,7 @@
 #let _matches(query, node) = {
   let node = _node(node)
   (
-    node.kind == query.kind
+    node.kind == query.kind // kind-check: a query matches nodes of its kind
       and query
         .pairs()
         .all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
@@ -220,7 +220,7 @@
   }
   if _any-patterned(kind) {
     return _paths-where(schema, n => (
-      _node(n).kind == "string" and "pattern" in n
+      _node(n).kind == "string" and "pattern" in n // kind-check: deprecated, #186
     ))
   }
   _paths-where(schema, n => _matches(q, n))
