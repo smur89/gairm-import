@@ -24,6 +24,12 @@
 /// A number with no fractional part. `1.0` passes and `1.5` fails.
 #let integer-type = (kind: "number", integer: true)
 
+// JSON Schema `{}`: no constraint at all. A leaf, so nested values
+// pass through as given; in strict-null mode it takes null too.
+/// Any value, passed through to the model unchanged (nested values
+/// included). In `strict-null` mode it also accepts `null`.
+#let any-type = (kind: "any")
+
 // "Must be null or absent". By default a null is absent before any
 // kind sees it; in strict-null mode it reaches the check, which takes
 // it.
@@ -114,6 +120,8 @@
   }
   _pass(value)
 }
+
+#let _any-check(schema, value, ctx) = _pass(value)
 
 // An absent value never reaches a check, so a null arrives here only
 // in strict-null mode, where it is this kind's one value. Every other

@@ -4,7 +4,7 @@
 
 #import "internal/kinds/leaf.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
-  pattern-string, enum-of, const-of,
+  any-type, pattern-string, enum-of, const-of,
 )
 #import "internal/kinds/format.typ": (
   date-string, datetime-string, uri-string, email-string, uuid-string,
