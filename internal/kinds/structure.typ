@@ -495,7 +495,14 @@
     ))
   })
   if claimed.len() == 1 {
-    return (errors: claimed.first().errors, value: value, fatal: fatal)
+    // A claimant that can't be modelled says where itself (e.g. a nested
+    // field); one that only broke a constraint gets the union's message.
+    let own = claimed.first().fatal
+    return (
+      errors: claimed.first().errors,
+      value: value,
+      fatal: if own != none { own } else { fatal },
+    )
   }
   let alternatives = kinds.join(" | ")
   let quantifier = if schema.exclusive { "exactly one" } else { "one" }
