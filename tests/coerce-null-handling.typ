@@ -4,16 +4,17 @@
 // policy in tests/validate-null-handling.typ.
 
 #import "../lib.typ": coerce, parse, validate, resume-schema-strict
-#import "../internal/coerce.typ": _coerce
+#import "../internal/engine.typ": _coerce
+#import "../internal/core/ctx.typ": _ctx
 #import "../lib.typ": str-type, content-type, number-type, array-of, object
 
 // Null at a primitive value position coerces to `none` so the parent
 // filter can drop it.
-#assert.eq(_coerce(str-type, none), none)
-#assert.eq(_coerce(content-type, none), none)
-#assert.eq(_coerce(number-type, none), none)
-#assert.eq(_coerce(array-of(str-type), none), none)
-#assert.eq(_coerce(object((name: str-type)), none), none)
+#assert.eq(_coerce(str-type, none, _ctx()), none)
+#assert.eq(_coerce(content-type, none, _ctx()), none)
+#assert.eq(_coerce(number-type, none, _ctx()), none)
+#assert.eq(_coerce(array-of(str-type), none, _ctx()), none)
+#assert.eq(_coerce(object((name: str-type)), none, _ctx()), none)
 
 // Exception: a free-form bag (no fields, `additional: true`, like JSON
 // Resume's `custom`) passes through untouched — nulls and emptiness

@@ -6,21 +6,27 @@
 // because silently swallowing typos would defeat strict validation.
 
 #import "../lib.typ": validate
-#import "../internal/validate.typ": _validate
+#import "../internal/engine.typ": _validate
+#import "../internal/core/ctx.typ": _ctx
 #import "../lib.typ": str-type, content-type, number-type, array-of, object
 
 // Null at a primitive value position: no error.
-#assert.eq(_validate(str-type, none, ("basics", "summary")), ())
-#assert.eq(_validate(content-type, none, ("basics", "summary")), ())
-#assert.eq(_validate(number-type, none, ("rating",)), ())
+#assert.eq(_validate(str-type, none, _ctx(path: ("basics", "summary"))), ())
+#assert.eq(_validate(content-type, none, _ctx(path: ("basics", "summary"))), ())
+#assert.eq(_validate(number-type, none, _ctx(path: ("rating",))), ())
 
 // Null where an array is expected: treated as absent, no error.
-#assert.eq(_validate(array-of(str-type), none, ("keywords",)), ())
+#assert.eq(_validate(array-of(str-type), none, _ctx(path: ("keywords",))), ())
 
 // Null elements inside an array: silently dropped from the error walk.
-#assert.eq(_validate(array-of(str-type), ("a", none, "c"), ("keywords",)), ())
 #assert.eq(
-  _validate(array-of(content-type), (none, "one", none), ("highlights",)),
+  _validate(array-of(str-type), ("a", none, "c"), _ctx(path: ("keywords",))),
+  (),
+)
+#assert.eq(
+  _validate(array-of(content-type), (none, "one", none), _ctx(path: (
+    "highlights",
+  ))),
   (),
 )
 
@@ -37,14 +43,14 @@
       none,
       (name: "Globex", position: "Engineer"),
     ),
-    ("work",),
+    _ctx(path: ("work",)),
   ),
   (),
 )
 
 // Null where an object is expected: treated as absent.
 #let person = object((name: str-type, age: number-type))
-#assert.eq(_validate(person, none, ("basics",)), ())
+#assert.eq(_validate(person, none, _ctx(path: ("basics",))), ())
 
 // Per-key null inside an object: skipped, no error.
 #assert.eq(validate((name: "Alice", age: none), schema: person), ())
@@ -52,7 +58,7 @@
 
 // Unknown key with a null value still errors — typos must not slip
 // through just because the user wrote `null`.
-#let errs-unknown = _validate(person, (foo: none), ("basics",))
+#let errs-unknown = _validate(person, (foo: none), _ctx(path: ("basics",)))
 #assert.eq(errs-unknown.len(), 1)
 #assert.eq(errs-unknown.at(0).path, ("basics", "foo"))
 #assert(errs-unknown.at(0).message.contains("unknown key"))
@@ -98,8 +104,9 @@
 // Verified here at the engine level so the wrapper can layer its
 // own root-level guard on top without changing the leaf rule.
 #import "../lib.typ": resume-schema
-#import "../internal/validate.typ": _validate
-#assert.eq(_validate(resume-schema, none, ()), ())
+#import "../internal/engine.typ": _validate
+#import "../internal/core/ctx.typ": _ctx
+#assert.eq(_validate(resume-schema, none, _ctx()), ())
 
 // Public wrappers reject a null root explicitly so callers passing
 // the wrong thing get a friendly panic, not silent garbage. We can't

@@ -6,6 +6,8 @@
 // engine, the translator's reader, its allow-list and its enum/const
 // fold all read these rows, so a new keyword is one row.
 
+#import "../core/error.typ": _error
+
 // Which raw values a keyword takes, as checks run in order; the first
 // that fails names what the value must be.
 #let _count = (
@@ -17,8 +19,9 @@
 
 // What a bound measures in each family, and how a message names it.
 // Strings count clusters, not bytes — JSON Schema talks "length"
-// without pinning. Arrays skip `none`: coerce drops them, so raw counts
-// would validate inputs whose rendered model violates min-items.
+// without pinning. An array arrives as the walk leaves it, with `none`
+// where an item was absent; the model drops those, so counting them
+// would validate inputs whose model violates min-items.
 #let _measures = (
   string: (label: "string length ", of: v => v.clusters().len()),
   number: (label: "", of: v => v),
@@ -61,31 +64,16 @@
   }
 }
 
-// A value as coerce's null-as-absent rule leaves it: null keys and
-// null elements removed at every depth. Uniqueness compares these, or
-// items differing only by a null key would pass and then coerce to
-// duplicates.
-#let _strip-nulls(value) = {
-  if type(value) == dictionary {
-    value
-      .pairs()
-      .filter(((_, v)) => v != none)
-      .map(((k, v)) => (k, _strip-nulls(v)))
-      .to-dict()
-  } else if type(value) == array {
-    value.filter(v => v != none).map(_strip-nulls)
-  } else { value }
-}
-
-// The first duplicate only, cited by original positions (nulls
-// skipped) so callers can find it.
+// The first duplicate only, cited by original positions (absent items
+// skipped) so callers can find it. The items are the walked ones, so
+// they compare as the model holds them: null keys dropped, items
+// coerced, and free-form objects kept as given.
 #let _unique-test(on, value) = {
   if not on { return none }
   let present = value.enumerate().filter(((_, elem)) => elem != none)
-  let stripped = present.map(((_, elem)) => _strip-nulls(elem))
   for i in range(present.len()) {
     for j in range(i + 1, present.len()) {
-      if stripped.at(i) == stripped.at(j) {
+      if present.at(i).at(1) == present.at(j).at(1) {
         let orig-i = present.at(i).at(0)
         let orig-j = present.at(j).at(0)
         return (
@@ -240,4 +228,25 @@
       got: n,
     )
   }
+}
+
+/// Every constraint row of `family` that `schema` sets, checked against
+/// `value`, as error records at `path`, in row order.
+#let _constraint-errors(schema, family, value, path) = {
+  let errs = ()
+  for row in _constraint-rows {
+    let bound = schema.at(row.field, default: none)
+    if row.family != family or bound == none { continue }
+    let miss = _constraint-miss(row, bound, value)
+    if miss != none {
+      errs += _error(
+        path,
+        row.code,
+        miss.message,
+        expected: miss.expected,
+        got: miss.got,
+      )
+    }
+  }
+  errs
 }

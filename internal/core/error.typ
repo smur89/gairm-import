@@ -62,6 +62,36 @@
   _type-names.at(raw, default: raw)
 }
 
+/// The `type` error for a value whose JSON type the kind rejects.
+#let _type-error(path, expected, value) = {
+  let got = _type-name-of(value)
+  _error(
+    path,
+    "type",
+    "expected " + expected + ", got " + got + ".",
+    expected: expected,
+    got: got,
+  )
+}
+
+/// A walk result for a value of the wrong JSON type: the `type` error,
+/// and no model, so coerce panics naming `noun` ("a string", …).
+#let _type-miss(path, expected, noun, value) = (
+  errors: _type-error(path, expected, value),
+  value: value,
+  fatal: (expected: noun, got: value),
+)
+
+/// What `coerce` panics with where a value leaves no sound model.
+/// `expected` is the noun phrase ("a string", "an array", …).
+#let _coerce-message(expected, value) = (
+  "gairm-import: coerce expected "
+    + expected
+    + ", got "
+    + _type-name-of(value)
+    + ". Run validate(data) first."
+)
+
 #let _format-report(errors) = {
   let n = errors.len()
   let noun = if n == 1 { "problem" } else { "problems" }

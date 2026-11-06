@@ -3,7 +3,8 @@
 // preserved; extension schemas can opt in.
 
 #import "../lib.typ": validate
-#import "../internal/validate.typ": _validate
+#import "../internal/engine.typ": _validate
+#import "../internal/core/ctx.typ": _ctx
 #import "../lib.typ": str-type, object
 
 #let strict-person = object(
@@ -23,7 +24,7 @@
 #assert(errs.at(0).message.contains("\"name\""))
 
 // Both kinds of error collected — type mismatch on email AND missing required name.
-#let errs2 = _validate(strict-person, (email: 42), ("basics",))
+#let errs2 = _validate(strict-person, (email: 42), _ctx(path: ("basics",)))
 #assert.eq(errs2.len(), 2)
 #assert.eq(errs2.at(0).path, ("basics", "email"))
 #assert(errs2.at(0).message.contains("expected string"))

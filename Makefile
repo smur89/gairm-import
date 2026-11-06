@@ -104,10 +104,12 @@ check: test fmt-check check-layers ## test + fmt-check + check-layers: the local
 # itself: any import that is not a bare sibling filename (a path
 # leaving core/, or a package) is a violation. internal/kinds/ (L1)
 # may also import from core/ (`../core/<name>.typ`), and nothing else.
+# internal/engine.typ (L2) imports only from core/ and kinds/.
 SIBLING_IMPORT := \#import +"[a-z][a-z0-9-]*\.typ"
 CORE_IMPORT    := \#import +"\.\./core/[a-z][a-z0-9-]*\.typ"
+ENGINE_IMPORT  := \#import +"(core|kinds)/[a-z][a-z0-9-]*\.typ"
 
-check-layers: ## fail if internal/core/ or internal/kinds/ import above their layer
+check-layers: ## fail if internal/core/, internal/kinds/ or the engine import above their layer
 	@status=0; \
 	bad=$$(grep -HnE '#import +"' internal/core/*.typ \
 	  | grep -vE '$(SIBLING_IMPORT)' || true); \
@@ -119,6 +121,12 @@ check-layers: ## fail if internal/core/ or internal/kinds/ import above their la
 	  | grep -vE '$(SIBLING_IMPORT)|$(CORE_IMPORT)' || true); \
 	if [ -n "$$bad" ]; then \
 	  printf 'check-layers: internal/kinds/ may import only internal/core/ and its own siblings:\n%s\n' "$$bad" >&2; \
+	  status=1; \
+	fi; \
+	bad=$$(grep -HnE '#import +"' internal/engine.typ \
+	  | grep -vE '$(ENGINE_IMPORT)' || true); \
+	if [ -n "$$bad" ]; then \
+	  printf 'check-layers: internal/engine.typ may import only internal/core/ and internal/kinds/:\n%s\n' "$$bad" >&2; \
 	  status=1; \
 	fi; \
 	exit $$status

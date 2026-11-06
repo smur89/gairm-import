@@ -8,7 +8,8 @@
 //  - uuid-string, hostname-string, ipv4-string, ipv6-string, time-string
 
 #import "../lib.typ": validate
-#import "../internal/validate.typ": _validate
+#import "../internal/engine.typ": _validate
+#import "../internal/core/ctx.typ": _ctx
 #import "../lib.typ": (
   date-string, datetime-string, uri-string, email-string, uuid-string,
   hostname-string, ipv4-string, ipv6-string, time-string, object, array-of,
@@ -17,13 +18,13 @@
 // ---- date-string ----------------------------------------------------
 
 // All three iso8601 shapes the canonical schema accepts.
-#assert.eq(_validate(date-string, "2024", ("d",)), ())
-#assert.eq(_validate(date-string, "2024-01", ("d",)), ())
-#assert.eq(_validate(date-string, "2024-01-15", ("d",)), ())
-#assert.eq(_validate(date-string, "1999-12-31", ("d",)), ())
+#assert.eq(_validate(date-string, "2024", _ctx(path: ("d",))), ())
+#assert.eq(_validate(date-string, "2024-01", _ctx(path: ("d",))), ())
+#assert.eq(_validate(date-string, "2024-01-15", _ctx(path: ("d",))), ())
+#assert.eq(_validate(date-string, "1999-12-31", _ctx(path: ("d",))), ())
 
 #let date-fail(value, path) = {
-  let errs = _validate(date-string, value, path)
+  let errs = _validate(date-string, value, _ctx(path: path))
   assert.eq(errs.len(), 1, message: "expected one error for " + repr(value))
   assert.eq(errs.at(0).path, path)
   errs.at(0).message
@@ -53,7 +54,7 @@
 
 // Wrong type yields a type-error, not a format-error — the format gate
 // only fires once we know we have a string.
-#let date-type-err = _validate(date-string, 2024, ("d",))
+#let date-type-err = _validate(date-string, 2024, _ctx(path: ("d",)))
 #assert.eq(date-type-err.len(), 1)
 #assert(date-type-err.at(0).message.contains("expected string"))
 #assert(date-type-err.at(0).message.contains("got integer"))
@@ -62,19 +63,39 @@
 
 // Bare datetime (no fractional, no offset), with fractional, with `Z`,
 // with `±HH:MM` offset — all accepted.
-#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00", ("dt",)), ())
-#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00.123", ("dt",)), ())
-#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00Z", ("dt",)), ())
-#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00.5Z", ("dt",)), ())
-#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00+01:00", ("dt",)), ())
-#assert.eq(_validate(datetime-string, "2024-01-15T10:00:00-05:30", ("dt",)), ())
 #assert.eq(
-  _validate(datetime-string, "2024-01-15T23:59:59.999+14:00", ("dt",)),
+  _validate(datetime-string, "2024-01-15T10:00:00", _ctx(path: ("dt",))),
+  (),
+)
+#assert.eq(
+  _validate(datetime-string, "2024-01-15T10:00:00.123", _ctx(path: ("dt",))),
+  (),
+)
+#assert.eq(
+  _validate(datetime-string, "2024-01-15T10:00:00Z", _ctx(path: ("dt",))),
+  (),
+)
+#assert.eq(
+  _validate(datetime-string, "2024-01-15T10:00:00.5Z", _ctx(path: ("dt",))),
+  (),
+)
+#assert.eq(
+  _validate(datetime-string, "2024-01-15T10:00:00+01:00", _ctx(path: ("dt",))),
+  (),
+)
+#assert.eq(
+  _validate(datetime-string, "2024-01-15T10:00:00-05:30", _ctx(path: ("dt",))),
+  (),
+)
+#assert.eq(
+  _validate(datetime-string, "2024-01-15T23:59:59.999+14:00", _ctx(path: (
+    "dt",
+  ))),
   (),
 )
 
 #let datetime-fail(value, path) = {
-  let errs = _validate(datetime-string, value, path)
+  let errs = _validate(datetime-string, value, _ctx(path: path))
   assert.eq(errs.len(), 1, message: "expected one error for " + repr(value))
   assert.eq(errs.at(0).path, path)
   errs.at(0).message
@@ -145,7 +166,7 @@
 )  // second = 60
 
 // Wrong type yields a type-error, not a format-error.
-#let dt-type-err = _validate(datetime-string, 2024, ("dt",))
+#let dt-type-err = _validate(datetime-string, 2024, _ctx(path: ("dt",)))
 #assert.eq(dt-type-err.len(), 1)
 #assert(dt-type-err.at(0).message.contains("expected string"))
 #assert(dt-type-err.at(0).message.contains("got integer"))
@@ -156,17 +177,23 @@
 // `image` / `canonical` fields in JSON Resume are all http(s)-shaped,
 // so opaque schemes like `mailto:` and `urn:` fall outside the gate
 // by design. Promote later if a caller needs them.
-#assert.eq(_validate(uri-string, "https://example.com", ("u",)), ())
-#assert.eq(_validate(uri-string, "http://example.com/path", ("u",)), ())
-#assert.eq(_validate(uri-string, "git+ssh://host/repo.git", ("u",)), ())
+#assert.eq(_validate(uri-string, "https://example.com", _ctx(path: ("u",))), ())
+#assert.eq(
+  _validate(uri-string, "http://example.com/path", _ctx(path: ("u",))),
+  (),
+)
+#assert.eq(
+  _validate(uri-string, "git+ssh://host/repo.git", _ctx(path: ("u",))),
+  (),
+)
 
 // RFC 3986 declares schemes case-insensitive — uppercase and mixed-case
 // schemes must validate.
-#assert.eq(_validate(uri-string, "HTTP://example.com", ("u",)), ())
-#assert.eq(_validate(uri-string, "HTTPS://example.com", ("u",)), ())
+#assert.eq(_validate(uri-string, "HTTP://example.com", _ctx(path: ("u",))), ())
+#assert.eq(_validate(uri-string, "HTTPS://example.com", _ctx(path: ("u",))), ())
 
 #let uri-fail(value, path) = {
-  let errs = _validate(uri-string, value, path)
+  let errs = _validate(uri-string, value, _ctx(path: path))
   assert.eq(errs.len(), 1, message: "expected one error for " + repr(value))
   assert.eq(errs.at(0).path, path)
   errs.at(0).message
@@ -187,12 +214,18 @@
 
 // ---- email-string ---------------------------------------------------
 
-#assert.eq(_validate(email-string, "name@example.com", ("e",)), ())
-#assert.eq(_validate(email-string, "first.last@host.co.uk", ("e",)), ())
-#assert.eq(_validate(email-string, "user+tag@example.com", ("e",)), ())
+#assert.eq(_validate(email-string, "name@example.com", _ctx(path: ("e",))), ())
+#assert.eq(
+  _validate(email-string, "first.last@host.co.uk", _ctx(path: ("e",))),
+  (),
+)
+#assert.eq(
+  _validate(email-string, "user+tag@example.com", _ctx(path: ("e",))),
+  (),
+)
 
 #let email-fail(value, path) = {
-  let errs = _validate(email-string, value, path)
+  let errs = _validate(email-string, value, _ctx(path: path))
   assert.eq(errs.len(), 1, message: "expected one error for " + repr(value))
   assert.eq(errs.at(0).path, path)
   errs.at(0).message
@@ -242,13 +275,13 @@
 // ---- uuid / hostname / ipv4 / ipv6 / time ---------------------------
 
 #let fmt-fail(kind, value, hint) = {
-  let errs = _validate(kind, value, ("f",))
+  let errs = _validate(kind, value, _ctx(path: ("f",)))
   assert.eq(errs.len(), 1, message: "expected one error for " + repr(value))
   assert.eq(errs.at(0).path, ("f",))
   assert(errs.at(0).message.contains(hint), message: repr(value))
 }
 #let fmt-ok(kind, value) = assert.eq(
-  _validate(kind, value, ("f",)),
+  _validate(kind, value, _ctx(path: ("f",))),
   (),
   message: "expected valid: " + repr(value),
 )

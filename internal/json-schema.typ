@@ -3,7 +3,8 @@
 
 #import "core/input.typ": _decode-input
 #import "core/pointer.typ": _invalid-escape-re, pointer-to-path
-#import "validate.typ": _validate
+#import "engine.typ": _validate
+#import "core/ctx.typ": _ctx
 #import "kinds/leaf.typ": (
   str-type, number-type, integer-type, bool-type, null-type, pattern-string,
   enum-of,
@@ -406,7 +407,8 @@
     (
       allowed
         and (
-          kind not in by-type or _validate(by-type.at(kind), v, ()).len() == 0
+          kind not in by-type
+            or _validate(by-type.at(kind), v, _ctx()).len() == 0
         )
     )
   })

@@ -2,9 +2,12 @@
 // knows about a format: its kind, its JSON Schema `format` name, the
 // regex that gates it, the hint an error shows, and whether a Typst
 // `datetime` is accepted for it (none: no; false: a date with no time;
-// true: a date and a time). The engine, coerce, the translator and
+// true: a date and a time). The engine, the translator and
 // introspection all read this table, so adding a format is one row,
 // one constant below and one export in lib.typ.
+
+#import "../core/error.typ": _error, _type-miss
+#import "leaf.typ": _pattern-errors
 
 // IPv6 is spelled as the eight-group form plus each place a single `::`
 // can sit: `h` is one 1-4 digit hex group, and every alternative below
@@ -165,4 +168,44 @@
         + if row.datetime { "T[hour]:[minute]:[second]" } else { "" },
     )
   }
+}
+
+// The engine check for a row's kind: the datetime conversion, then the
+// row's regex, then the node's own extra pattern, each a gate. A
+// datetime of the wrong shape is a `format` miss that leaves no string
+// to model; a regex or pattern miss still leaves the string.
+#let _format-check(row) = (schema, value, ctx) => {
+  let value = if type(value) == datetime and row.datetime != none {
+    let converted = _from-datetime(row, value)
+    if converted == none {
+      let expected = _datetime-expected(row)
+      return (
+        errors: _error(
+          ctx.path,
+          "format",
+          "expected " + expected + ", got datetime.",
+          expected: expected,
+          got: value,
+        ),
+        value: value,
+        fatal: (expected: expected, got: value),
+      )
+    }
+    converted
+  } else { value }
+  if type(value) != str {
+    return _type-miss(ctx.path, "string", "a string", value)
+  }
+  if value.match(row.pattern) == none {
+    let errors = _error(
+      ctx.path,
+      "format",
+      "expected " + row.expected + ".",
+      expected: row.expected,
+      got: value,
+    )
+    return (errors: errors, value: value, fatal: none)
+  }
+  // Extra pattern gate (format + pattern), on the converted string.
+  (errors: _pattern-errors(schema, value, ctx.path), value: value, fatal: none)
 }

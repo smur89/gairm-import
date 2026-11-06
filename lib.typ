@@ -14,8 +14,8 @@
   array-of, object, map, any-of, one-of, not-of,
 )
 #import "internal/schema.typ": resume-schema, resume-schema-strict
-#import "internal/validate.typ" as _validate-mod
-#import "internal/coerce.typ" as _coerce-mod
+#import "internal/engine.typ" as _engine-mod
+#import "internal/core/ctx.typ" as _ctx-mod
 #import "internal/core/error.typ" as _error-mod
 #import "internal/json-schema.typ": schema-from-json-schema
 #import "internal/core/input.typ" as _input-mod
@@ -46,7 +46,7 @@
 /// -> array
 #let validate(data, schema: resume-schema) = {
   let value = _input-mod._decode-input("validate", data, str-is-data: true)
-  _validate-mod._validate(schema, value, ())
+  _engine-mod._walk(schema, value, _ctx-mod._ctx()).errors
 }
 
 // Unknown keys are dropped silently rather than panicking, so direct
@@ -65,7 +65,7 @@
 /// -> dictionary
 #let coerce(data, schema: resume-schema) = {
   let value = _input-mod._decode-input("coerce", data, str-is-data: true)
-  _coerce-mod._coerce(schema, value)
+  _engine-mod._coerce-result(_engine-mod._walk(schema, value, _ctx-mod._ctx()))
 }
 
 /// Validates `data` against `schema`, then coerces it into the typed
@@ -87,7 +87,9 @@
         + ".",
     )
   }
-  let errors = _validate-mod._validate(schema, dict-data, ())
-  if errors.len() > 0 { panic(format-errors(errors)) }
-  _coerce-mod._coerce(schema, dict-data)
+  _engine-mod._parse-result(_engine-mod._walk(
+    schema,
+    dict-data,
+    _ctx-mod._ctx(),
+  ))
 }
