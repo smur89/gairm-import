@@ -146,7 +146,9 @@
     _bail(
       "a subschema must be a schema object, got: "
         + repr(js)
-        + ". Boolean schemas (true / false) are out of scope.",
+        + if type(js) == bool {
+          ". Boolean schemas (true / false) are out of scope."
+        } else { "." },
     )
   }
   _check-keywords(js)
