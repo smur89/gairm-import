@@ -22,10 +22,8 @@ schema built by the caller (see
 
 ## Project layout
 
-[ARCHITECTURE.md](https://github.com/smur89/gairm-import/blob/main/ARCHITECTURE.md)
-has the codemap, the layering rule (`make check-layers`), how schemas,
-the kind registry, the walk and the translator fit together, and where
-to make each kind of change.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the codemap, the layering
+rule and where to make each kind of change.
 
 ## Development loop
 

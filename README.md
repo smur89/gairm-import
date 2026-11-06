@@ -314,7 +314,7 @@ names.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Releases are cut by
+See [CONTRIBUTING.md](https://github.com/smur89/gairm-import/blob/main/CONTRIBUTING.md). Releases are cut by
 [release-please](https://github.com/googleapis/release-please) from
 conventional-commit titles on `main`.
 
