@@ -2,11 +2,16 @@
 // or your own JSON Schema) into typed Typst values. This file is the
 // package's only public surface; underscore names are internal.
 
-#import "internal/kinds.typ": (
+#import "internal/kinds/leaf.typ": (
   str-type, content-type, number-type, integer-type, bool-type, null-type,
-  array-of, object, map, date-string, datetime-string, uri-string, email-string,
-  uuid-string, hostname-string, ipv4-string, ipv6-string, time-string,
-  pattern-string, enum-of, const-of, any-of, one-of, not-of,
+  pattern-string, enum-of, const-of,
+)
+#import "internal/kinds/format.typ": (
+  date-string, datetime-string, uri-string, email-string, uuid-string,
+  hostname-string, ipv4-string, ipv6-string, time-string,
+)
+#import "internal/kinds/structure.typ": (
+  array-of, object, map, any-of, one-of, not-of,
 )
 #import "internal/schema.typ": resume-schema, resume-schema-strict
 #import "internal/validate.typ" as _validate-mod

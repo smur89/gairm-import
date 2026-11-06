@@ -14,7 +14,7 @@
 // the schema it just passed (a missing required key, a short array).
 
 #import "core/error.typ": _type-name-of
-#import "kinds.typ": _is-free-form
+#import "kinds/structure.typ": _is-free-form
 #import "kinds/format.typ": _formats, _datetime-expected, _from-datetime
 // Union coercion must pick a member, and Typst has no try/catch to
 // probe with — so coerce leans on the validator's verdict. Acyclic:

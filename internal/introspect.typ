@@ -9,123 +9,71 @@
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
-#import "lens.typ": lens, lens-get
-#import "kinds.typ": _constructor-kinds
-#import "kinds/format.typ": _formats
+#import "kinds/registry.typ": _kinds, _descriptor
+#import "kinds/traverse.typ": _children, _get-at, _nodes
 
-// "union" and "not" are composite, but lens paths cannot descend into
-// them (no segment addresses a member), so walks terminate there —
-// they are findable via paths-of-kind("union") / ("not"), while their
-// members are not walked individually.
-#let _leaf-kinds = (
-  "str",
-  "content",
-  "number",
-  "bool",
-  "null",
-  .._formats.keys(),
-  "pattern-string",
-  "enum",
-  "union",
-  "not",
-)
+// The kinds paths-of-kind can look for. Unions and `not` are composite,
+// but lens paths cannot descend into them (no segment addresses a
+// member), so walks terminate there — they are findable via
+// paths-of-kind("union") / ("not"), while their members are not walked
+// individually.
+#let _leaf-kinds = _kinds.keys().filter(k => _kinds.at(k).leaf)
 
-// Alphabetical pair ordering — diff-stable output regardless of
-// dictionary insertion order in the source.
-#let _sorted-pairs(d) = d.pairs().sorted(key: p => p.at(0))
-
-// enum nodes carry their values inline for at-a-glance debugging, and
-// union / not name their member kinds (one level — nested members
-// show as their kind name only); every other kind speaks for itself.
-#let _leaf-suffix(sub) = if sub.kind == "enum" {
-  "enum (" + sub.values.map(repr).join(", ") + ")"
-} else if sub.kind == "union" {
-  let junction = if sub.exclusive { "one of" } else { "any of" }
-  junction + " (" + sub.members.map(m => m.kind).join(" | ") + ")"
-} else if sub.kind == "not" {
-  "not " + sub.member.kind
-} else if sub.kind in _formats and "pattern" in sub {
-  // A format kind with an extra pattern gate (JSON Schema format + pattern).
-  sub.kind + " + pattern"
-} else {
-  sub.kind
-}
+#let _leaf(s) = _descriptor(s).leaf
+#let _suffix(s) = (_descriptor(s).suffix)(s)
 
 #let _pad-right(s, width) = s + " " * (width - s.len())
 
-// Returns the column-key (with `[]` suffix for array-of-leaf) for an
-// inline-rendered child, or `none` for children that emit their own
-// header line and don't contribute to the kind-column width.
-#let _column-key(key, sub) = {
-  if sub.kind == "object" { none } else if (
-    sub.kind == "array" and sub.elem.kind in ("object", "array")
-  ) { none } else if sub.kind == "array" { key + "[]" } else { key }
-}
+// The tree layout is where arrays and objects differ: an array's
+// element extends its parent's row with `[]`, while each object field
+// gets a row of its own.
+#let _is-array(s) = s.kind == "array"
+#let _elem(s) = _children(s).first().at(1)
 
-// One line for (key, sub) when sub is a leaf or array-of-leaf;
-// `none` for object / array-of-object/array since those emit their
-// own header line. Pulled out so the additional-key `"*"` path can
-// share the same rendering.
-#let _render-leaf-line(key, sub, indent, col) = {
-  if sub.kind == "array" and sub.elem.kind not in ("object", "array") {
-    indent + _pad-right(key + "[]", col) + _leaf-suffix(sub.elem)
-  } else if sub.kind not in ("object", "array") {
-    indent + _pad-right(key, col) + _leaf-suffix(sub)
-  } else {
-    none
+// One object row. A leaf, or an array of leaves, is inline after its
+// label, padded to the kind column; a container gets a header line and
+// its own block below it.
+#let _row(label, sub) = {
+  let (label, sub) = if _is-array(sub) { (label + "[]", _elem(sub)) } else {
+    (label, sub)
+  }
+  if _leaf(sub) { (label: label, text: _suffix(sub)) } else {
+    (label: label, block: sub)
   }
 }
 
 // Recursive pretty-printer. `indent` prefixes every line at this
-// depth; nested children add two more spaces. `additional` is
-// rendered after the shape pairs, with key "*" (lens-compatible).
+// depth; nested blocks add two more spaces.
 #let _describe(schema, indent) = {
-  if schema.kind == "object" {
-    let pairs = _sorted-pairs(schema.shape)
-    let additional = schema.at("additional", default: none)
-    // `*` is the display-only key shown for the additional-schema row
-    // (lens-addressing uses "additionalProperties"). `(kind: "any")`
-    // is a display-only sentinel for `additional: true` — not a real
-    // engine kind, recognised by the leaf branch below and nowhere
-    // else.
-    let additional-pair = if additional == true {
-      ("*", (kind: "any"))
-    } else if type(additional) == dictionary {
-      ("*", additional)
-    } else {
-      none
+  if _leaf(schema) { return indent + _suffix(schema) }
+  if _is-array(schema) {
+    let elem = _elem(schema)
+    return if _leaf(elem) { indent + "[] " + _suffix(elem) } else {
+      indent + "[]:\n" + _describe(elem, indent + "  ")
     }
-    let all-pairs = if additional-pair != none {
-      pairs + (additional-pair,)
-    } else { pairs }
-    let column-keys = all-pairs
-      .map(((k, s)) => _column-key(k, s))
-      .filter(k => k != none)
-    let col = if column-keys.len() == 0 { 0 } else {
-      calc.max(..column-keys.map(k => k.len())) + 2
-    }
-    let lines = all-pairs.map(((key, sub)) => {
-      if sub.kind == "object" {
-        indent + key + ":\n" + _describe(sub, indent + "  ")
-      } else if sub.kind == "array" and sub.elem.kind in ("object", "array") {
-        indent + key + "[]:\n" + _describe(sub.elem, indent + "  ")
-      } else if sub.kind == "any" {
-        // `additional: true` — print as a synthetic "any" leaf.
-        indent + _pad-right(key, col) + "any"
-      } else {
-        _render-leaf-line(key, sub, indent, col)
-      }
-    })
-    if lines.len() == 0 { "" } else { lines.join("\n") }
-  } else if schema.kind == "array" {
-    if schema.elem.kind in ("object", "array") {
-      indent + "[]:\n" + _describe(schema.elem, indent + "  ")
-    } else {
-      indent + "[] " + _leaf-suffix(schema.elem)
-    }
-  } else {
-    indent + _leaf-suffix(schema)
   }
+  // An object: its fields, then its additional schema under `*`, the
+  // display-only key for "any other key" (lens paths say
+  // "additionalProperties"); `additional: true` shows as `any`.
+  let rows = _children(schema)
+    .enumerate()
+    .map(((i, (seg, sub))) => _row(
+      if i < schema.shape.len() { seg } else { "*" },
+      sub,
+    ))
+  if schema.at("additional", default: none) == true {
+    rows.push((label: "*", text: "any"))
+  }
+  let inline = rows.filter(r => "text" in r)
+  let col = if inline == () { 0 } else {
+    calc.max(..inline.map(r => r.label.len())) + 2
+  }
+  let lines = rows.map(r => if "text" in r {
+    indent + _pad-right(r.label, col) + r.text
+  } else {
+    indent + r.label + ":\n" + _describe(r.block, indent + "  ")
+  })
+  if lines == () { "" } else { lines.join("\n") }
 }
 
 /// Draws a schema as an indented tree, one line per field with its kind.
@@ -136,36 +84,14 @@
 /// -> str
 #let describe-schema(schema) = _describe(schema, "")
 
-// Collect every path whose terminal kind matches `kind-name`.
-// Walks `additional` when it's a schema dict (typed extras), using
-// the `"*"` segment so the path round-trips through lens.
-#let _walk-paths(schema, path, kind-name) = {
-  if schema.kind == "object" {
-    let shape-paths = _sorted-pairs(schema.shape)
-      .map(((key, sub)) => _walk-paths(sub, path + (key,), kind-name))
-      .fold((), (acc, ps) => acc + ps)
-    let additional = schema.at("additional", default: none)
-    let additional-paths = if type(additional) == dictionary {
-      _walk-paths(additional, path + ("additionalProperties",), kind-name)
-    } else { () }
-    shape-paths + additional-paths
-  } else if schema.kind == "array" {
-    _walk-paths(schema.elem, path + ("items",), kind-name)
-  } else if schema.kind == kind-name {
-    (path,)
-  } else {
-    ()
-  }
-}
-
 // A schema node matches by its kind (so integer-type finds every
 // number). A kind name string is deprecated, for removal in the next
 // major.
 #let _kind-name-of(kind) = {
   if type(kind) == dictionary and "kind" in kind { return kind.kind }
   if type(kind) == function {
-    let hit = _constructor-kinds.find(((f, _)) => f == kind)
-    if hit != none { return hit.at(1) }
+    let hit = _kinds.pairs().find(((_, d)) => d.constructors.contains(kind))
+    if hit != none { return hit.at(0) }
   }
   kind
 }
@@ -197,15 +123,15 @@
         + ".",
     )
   }
-  _walk-paths(schema, (), kind-name)
+  _nodes(schema).filter(((_, n)) => n.kind == kind-name).map(((p, _)) => p)
 }
 
-// Thin wrapper over `lens-get(lens(path), schema).kind` — keeps the
-// common "what kind is at X" debugging step a single call.
+// Same as `lens-get(lens(path), schema).kind` — keeps the common
+// "what kind is at X" debugging step a single call.
 /// The kind name of the schema node at `path`, such as `"str"` or
 /// `"object"`. Panics if the path does not exist.
 ///
 /// - schema (dictionary): The schema to look in.
 /// - path (array): The lens path to the node.
 /// -> str
-#let kind-at(schema, path) = lens-get(lens(path), schema).kind
+#let kind-at(schema, path) = _get-at(schema, path).kind

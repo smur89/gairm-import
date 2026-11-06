@@ -143,7 +143,7 @@
     if type(value) not in (int, float) {
       return _type-error(path, "number", value)
     }
-    // `integer: true` (kinds.typ's integer-type / JSON Schema `integer`):
+    // `integer: true` (kinds/leaf.typ's integer-type / JSON Schema `integer`):
     // draft-7 semantics, so a float with zero fractional part passes.
     let errs = if (
       schema.at("integer", default: false) and calc.fract(value) != 0

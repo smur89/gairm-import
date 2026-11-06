@@ -29,7 +29,12 @@ Resume shape should be added by downstream callers via an extension schema
 
 ```text
 lib.typ                              # public entry — `parse`, `validate`, `coerce`, combinators, lenses
-internal/kinds.typ                   # schema-kind primitives (str-type, content-type, object, array-of, …)
+internal/kinds/leaf.typ              # leaf kinds (str-type, content-type, pattern-string, enum-of, …)
+internal/kinds/format.typ            # string formats, one table row each (date-string, uri-string, …)
+internal/kinds/structure.typ         # containers and combinators (object, map, array-of, any-of, not-of, …)
+internal/kinds/constraint.typ        # constraint rows (min-length, maximum, …)
+internal/kinds/registry.typ          # one descriptor per kind, checked for coverage at load
+internal/kinds/traverse.typ          # the one schema traversal (children, get/set at a path, every node)
 internal/schema.typ                  # canonical resume-schema (faithful derivation) + resume-schema-strict (opt-in opinions)
 internal/assets/jsonresume-schema.json  # vendored upstream schema, pinned to v1.7.0
 internal/validate.typ                # validation engine (path-typed errors)
@@ -44,8 +49,9 @@ tests/                               # fixtures — CI compiles each as a regres
 tests/panics/                        # one file per panic; each must fail with its expected message
 ```
 
-`internal/core/` is the bottom layer and imports nothing else internal
-(`make check-layers` enforces it). `lib.typ` is the only public surface;
+`internal/core/` is the bottom layer and imports nothing else internal;
+`internal/kinds/` imports only `internal/core/` and its own siblings
+(`make check-layers` enforces both). `lib.typ` is the only public surface;
 it reaches internals through underscore module aliases, so a name that
 starts with an underscore is internal and never part of the API.
 
