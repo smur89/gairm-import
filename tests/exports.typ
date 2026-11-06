@@ -22,6 +22,7 @@
   "enum-of",
   "format-errors",
   "hostname-string",
+  "if-of",
   "integer",
   "integer-type",
   "ipv4-string",

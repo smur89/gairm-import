@@ -1,15 +1,16 @@
 // Schema introspection: `describe-schema` draws a schema, `paths-of-kind`
 // lists the lens path of every node of a kind, and `kind-at` names the
 // kind at a location. All three reach into union and `not` members
-// (#164): a union member's segment is its index, a `not` member's is
-// "not".
+// (#164) and conditionals (#109): a union member's segment is its
+// index, a `not` member's is "not", and a conditional's are "if",
+// "then" and "else".
 
 #import "../lib.typ": (
   describe-schema, paths-of-kind, kind-at, lens-get, resume-schema,
   resume-schema-strict, object, array-of, map, str-type, content-type,
   number-type, integer-type, bool-type, null-type, date-string, datetime-string,
   uri-string, email-string, enum-of, pattern-string, any-of, const-of, one-of,
-  not-of, nullable, string, number,
+  not-of, if-of, nullable, string, number,
 )
 
 // --- describe-schema -------------------------------------------------
@@ -221,6 +222,7 @@ work[]:
   either: any-of((str-type, number-type)),
   exactly: one-of((str-type, number-type)),
   other: not-of(str-type),
+  cond: if-of(bool-type, then: number-type),
 ))
 #assert.eq(paths-of-kind(kinds-toy, enum-of), (("fixed",), ("level",)))
 #assert.eq(paths-of-kind(kinds-toy, const-of), (("fixed",), ("level",)))
@@ -229,6 +231,8 @@ work[]:
 #assert.eq(paths-of-kind(kinds-toy, not-of), (("other",),))
 #assert.eq(paths-of-kind(kinds-toy, enum-of), paths-of-kind(kinds-toy, "enum"))
 #assert.eq(paths-of-kind(kinds-toy, not-of), paths-of-kind(kinds-toy, "not"))
+#assert.eq(paths-of-kind(kinds-toy, if-of), (("cond",),))
+#assert.eq(paths-of-kind(kinds-toy, if-of), paths-of-kind(kinds-toy, "if"))
 
 // bool-type and null-type are leaves like any other.
 #let flags = object((flag: bool-type, marker: null-type, name: str-type))
@@ -353,6 +357,28 @@ plain      string",
   ("when", 1),
 ))
 #assert.eq(paths-of-kind(union-toy, number-type), (("other", "not", "items"),))
+
+// A conditional's condition and every branch are searched.
+#let cond-toy = object((
+  a: if-of(
+    str-type,
+    then: object((when: date-string)),
+    otherwise: array-of(date-string),
+  ),
+))
+#assert.eq(paths-of-kind(cond-toy, date-string), (
+  ("a", "then", "when"),
+  ("a", "else", "items"),
+))
+#assert.eq(paths-of-kind(cond-toy, string()), (
+  ("a", "if"),
+  ("a", "then", "when"),
+  ("a", "else", "items"),
+))
+#assert.eq(kind-at(cond-toy, ("a", "else")), "array")
+#for p in paths-of-kind(cond-toy, date-string) {
+  assert.eq(lens-get(cond-toy, p), date-string)
+}
 // Every path paths-of-kind returns round-trips through a lens.
 #for p in paths-of-kind(union-toy, str-type) {
   assert.eq(lens-get(union-toy, p).kind, "string")
@@ -421,6 +447,19 @@ phone → email",
   "any of:\n  [0]    string\n  [1][]  number",
 )
 #assert.eq(describe-schema(not-of(object((a: str-type)))), "not:\n  a  string")
+// A conditional labels its condition and the branches it has.
+#assert.eq(
+  describe-schema(if-of(
+    (..str-type, min-length: 5),
+    then: pattern-string("^x"),
+    otherwise: number-type,
+  )),
+  "if    string (min-length 5)\nthen  string + pattern\nelse  number",
+)
+#assert.eq(
+  describe-schema(object((a: if-of(str-type, then: object((b: str-type)))))),
+  "a:\n  if  string\n  then:\n    b  string",
+)
 #assert.eq(
   describe-schema((kind: "array", elem: str-type, min-items: 2)),
   "[] string (min-items 2)",

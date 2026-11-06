@@ -1,4 +1,4 @@
-// expect: the schema form of "dependencies" (for "a"). Conditional schemas are out of scope.
+// expect: the schema form of "dependencies" (for "a"). dependentSchemas and the schema form of dependencies are out of scope.
 #import "../../lib.typ": schema-from-json-schema
 #schema-from-json-schema((
   type: "object",

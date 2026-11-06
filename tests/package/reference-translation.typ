@@ -56,6 +56,19 @@
 ))
 #assert.eq(validate(((a: 1, b: none), (a: 1)), schema: bags), ())
 
+// if / then / else beside other keywords: `then: {required: ["b"]}`
+// requires a property the node declares, and `if` is open, so it holds
+// for an object with more keys than it names.
+#let kinded = schema-from-json-schema((
+  type: "object",
+  properties: (a: (type: "string"), b: (type: "string")),
+  "if": (properties: (a: (const: "x"))),
+  then: (required: ("b",)),
+))
+#assert.eq(validate((a: "x", b: "y"), schema: kinded), ())
+#assert.eq(validate((a: "y"), schema: kinded), ())
+#assert.eq(validate((a: "x"), schema: kinded).map(e => e.code), ("required",))
+
 // integer accepts 1.0 and keeps it a float.
 #assert.eq(
   type(coerce(1.0, schema: schema-from-json-schema((type: "integer")))),

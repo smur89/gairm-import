@@ -5,7 +5,8 @@
 //
 // Path tuples use lens-compatible segments — `"items"` for array
 // descent, `"additionalProperties"` for the additional schema, an
-// index for a union member, `"not"` for a `not` member — so
+// index for a union member, `"not"` for a `not` member, `"if"`,
+// `"then"` and `"else"` for a conditional's condition and branches — so
 // `paths-of-kind` output round-trips through `lens` and `lens-get`.
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
@@ -17,8 +18,8 @@
 #import "kinds/format.typ": pattern-string
 
 // The kinds paths-of-kind can look for: every kind but the plain
-// containers. A union or `not` is found as a node, and its members
-// are searched too.
+// containers. A union, `not` or conditional is found as a node, and
+// its children are searched too.
 #let _searchable-kinds = _kinds.keys().filter(k => _kinds.at(k).searchable)
 
 #let _leaf(s) = _descriptor(s).with-child == none
@@ -103,7 +104,8 @@
   }
   // Each child under its label: a field name (`*` when required), `*`
   // for an object's additional schema, `[i]` for a union member, `not`
-  // for a `not` member. `additional: true` shows as `* any`.
+  // for a `not` member, `if`, `then` and `else` for a conditional's
+  // condition and branches. `additional: true` shows as `* any`.
   let rows = _children(schema).map(((_, sub, label)) => _row(label, sub))
   if schema.at("additional", default: none) == true {
     rows.push((label: "*", text: "any"))
@@ -134,8 +136,9 @@
 /// Draws a schema as an indented tree, one line per field with its kind
 /// and constraints. Keys are sorted, required fields are marked `*`,
 /// arrays are suffixed `[]`, `*` stands for any other key, union
-/// members are listed as `[0]`, `[1]`, … and a `not` member as `not`,
-/// and a dependent-required entry shows as `trigger → dependents`.
+/// members are listed as `[0]`, `[1]`, …, a `not` member as `not`, a
+/// conditional's condition and branches as `if`, `then` and `else`, and
+/// a dependent-required entry shows as `trigger → dependents`.
 ///
 /// - schema (dictionary): The schema to draw.
 /// -> str
@@ -185,16 +188,17 @@
 // walker descends through them, and a search for one is more likely a
 // typo for a leaf than a question.
 /// Lists the lens path of every node in `schema` that has the given
-/// kind, including inside union and `not` members. The paths work
-/// wherever a location does. Panics for `object` and `array`, which the
-/// search walks through, and for kinds it does not know.
+/// kind, including inside union and `not` members and a conditional's
+/// condition and branches. The paths work wherever a location does.
+/// Panics for `object` and `array`, which the search walks through, and
+/// for kinds it does not know.
 ///
 /// - schema (dictionary): The schema to search.
 /// - kind (dictionary, function, str): The kind to find: a schema node
 ///   such as `string(format: "date")`, or a constructor such as
-///   `string`, `enum-of`, `const-of`, `any-of`, `one-of` or `not-of`. A
-///   node finds the nodes of its kind that also have every field it
-///   sets, with the same value: `string()` finds every string,
+///   `string`, `enum-of`, `const-of`, `any-of`, `one-of`, `not-of` or
+///   `if-of`. A node finds the nodes of its kind that also have every
+///   field it sets, with the same value: `string()` finds every string,
 ///   `string(format: "date")` only the date strings, `number()` numbers
 ///   but not integers, and `number(minimum: 0)` only the numbers with
 ///   minimum 0. A constructor finds every node of the kind it builds. A

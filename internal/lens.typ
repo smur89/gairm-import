@@ -18,6 +18,8 @@
 //   - array    : literal "items" to enter `.elem`
 //   - union    : int index into `.members` (any-of and one-of alike)
 //   - not      : literal "not" to enter `.member`
+//   - if       : literal "if", "then" or "else" to enter `.cond`, `.then`
+//                or `.otherwise` (a branch only when it is set)
 //   - empty `()` : identity lens
 //
 // Shape-first precedence for objects: if `"additionalProperties"` is
@@ -55,9 +57,11 @@
 /// A lens: a path to one node in a schema, as `(lens: path)`. A path is
 /// an array of segments: a field name to enter an object, `"items"` to
 /// enter an array's elements, `"additionalProperties"` to enter an
-/// object's additional schema, an int index to enter a union member, or
-/// `"not"` to enter a `not` member. `()` is the identity lens. Every
-/// function that takes a location takes a lens or the bare path array.
+/// object's additional schema, an int index to enter a union member,
+/// `"not"` to enter a `not` member, or `"if"`, `"then"` or `"else"` to
+/// enter a conditional's condition or branch. `()` is the identity
+/// lens. Every function that takes a location takes a lens or the bare
+/// path array.
 ///
 /// - path (array): The segments.
 /// -> dictionary

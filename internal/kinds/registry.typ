@@ -34,10 +34,15 @@
 #import "format.typ": string, pattern-string, _string-kind-check
 #import "structure.typ" as _structure-mod
 #import "structure.typ": (
-  array-of, object, map, any-of, one-of, not-of, nullable, _array-walk,
-  _object-walk, _union-walk, _not-walk, _object-with, _schema-kinds, _node,
-  _kind-label,
+  array-of, object, map, any-of, one-of, not-of, if-of, nullable, _array-walk,
+  _object-walk, _union-walk, _not-walk, _if-walk, _object-with, _schema-kinds,
+  _node, _kind-label,
 )
+
+// A conditional's children, as (segment, field): the lens segments are
+// the JSON Schema keywords, the fields if-of()'s arguments (`else` is a
+// Typst keyword).
+#let _if-parts = (("if", "cond"), ("then", "then"), ("else", "otherwise"))
 
 // A leaf passes its `check`, constraint `family` and `model` (leaf.typ)
 // instead of a walk.
@@ -206,6 +211,29 @@
       "lens segment for a not schema must be \"not\", got " + repr(seg) + "."
     ),
     constructors: (not-of,),
+  ),
+  // The condition, then the branches it has. No header, as for `not`:
+  // the labels, the lens segments, say what each child is.
+  "if": _kind(
+    walk: _if-walk,
+    children: s => _if-parts
+      .filter(((_, field)) => field in s)
+      .map(((seg, field)) => (seg, s.at(field), seg)),
+    with-child: (s, seg, sub) => {
+      let (_, field) = _if-parts.find(((k, _)) => k == seg)
+      (..s, (field): sub)
+    },
+    bad-segment: (s, seg) => (
+      "lens segment for an if schema must be one of "
+        + _if-parts
+          .filter(((_, field)) => field in s)
+          .map(((k, _)) => repr(k))
+          .join(", ")
+        + ", got "
+        + repr(seg)
+        + "."
+    ),
+    constructors: (if-of,),
   ),
 )
 

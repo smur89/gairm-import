@@ -8,7 +8,7 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, str-type, content-type, number-type, null-type,
-  array-of, object, nullable, any-of, one-of, enum-of, resume-schema,
+  array-of, object, nullable, any-of, one-of, if-of, enum-of, resume-schema,
   resume-schema-strict,
 )
 
@@ -282,6 +282,42 @@
 #assert.eq(
   codes(validate(1, schema: any-of((null-type,)), strict-null: true)),
   (((), "type"),),
+)
+
+// ---- a conditional judges null in the walk's mode -------------------
+//
+// The condition and the branch see the same null: absent by default,
+// so no branch runs; a value with strict-null, so the condition picks
+// the branch for it.
+
+#let null-or-word = field(if-of(
+  null-type,
+  then: null-type,
+  otherwise: (..str-type, min-length: 2),
+))
+#let null-if-str = field(if-of(
+  str-type,
+  then: str-type,
+  otherwise: number-type,
+))
+#for schema in (null-or-word, null-if-str) {
+  assert.eq(validate((f: none), schema: schema), ())
+  assert.eq(coerce((f: none), schema: schema), (:))
+}
+#assert.eq(validate((f: none), schema: null-or-word, strict-null: true), ())
+#assert.eq(coerce((f: none), schema: null-or-word, strict-null: true), (
+  f: none,
+))
+#assert.eq(
+  codes(validate((f: "a"), schema: null-or-word, strict-null: true)),
+  ((("f",), "length"),),
+)
+#assert.eq(
+  validate((f: none), schema: null-if-str, strict-null: true).map(e => (
+    e.code,
+    e.message,
+  )),
+  (("type", "expected number, got null."),),
 )
 
 // ---- only `none` is absent ------------------------------------------

@@ -137,7 +137,7 @@ lists the keywords it supports and how it differs from draft 7.
 |---|---|
 | Run | `parse`, `validate`, `coerce`, `format-errors` |
 | Schemas | `resume-schema`, `resume-schema-strict`, `schema-from-json-schema` |
-| Constructors | `string`, `number`, `integer`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `nullable`, `enum-of`, `const-of` |
+| Constructors | `string`, `number`, `integer`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
 | Constants | `content-type`, `bool-type`, `null-type`, `any-type` |
 | Edit | `lens-get`, `lens-put`, `lens-over`, `add-field`, `remove-field`, `set-required`, `unset-required` |
 | Inspect | `describe-schema`, `paths-of-kind` |

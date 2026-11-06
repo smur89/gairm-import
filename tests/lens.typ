@@ -3,13 +3,14 @@
 // lens-over and joined with lens-then. Each takes the schema first, so
 // edits pipe through `.fold`. A segment enters an object field, an
 // array's "items", an object's "additionalProperties", a union member
-// by index, or a `not` member by "not".
+// by index, a `not` member by "not", or a conditional's condition and
+// branches by "if", "then" and "else".
 
 #import "../lib.typ": (
   lens, lens-get, lens-put, lens-over, lens-then, kind-at, paths-of-kind,
   validate, resume-schema, resume-schema-strict, object, array-of, str-type,
   content-type, number-type, uri-string, date-string, datetime-string, any-of,
-  one-of, not-of,
+  one-of, not-of, if-of, schema-from-json-schema,
 )
 
 // ---- the lens ----------------------------------------------------------
@@ -144,6 +145,60 @@
 #assert.eq(
   lens-over(toy, ("other", "not", "items"), _ => str-type).shape.other,
   not-of(array-of(str-type)),
+)
+
+// ---- a conditional's condition and branches (#109) -------------------------
+
+#let cond = object((
+  a: if-of(str-type, then: object((b: str-type)), otherwise: number-type),
+))
+#assert.eq(lens-get(cond, ("a", "if")), str-type)
+#assert.eq(lens-get(cond, ("a", "then", "b")), str-type)
+#assert.eq(lens-get(cond, ("a", "else")), number-type)
+#for (at, value, node) in (
+  (
+    ("a", "if"),
+    content-type,
+    if-of(content-type, then: object((b: str-type)), otherwise: number-type),
+  ),
+  (
+    ("a", "then"),
+    number-type,
+    if-of(str-type, then: number-type, otherwise: number-type),
+  ),
+  (
+    ("a", "then", "b"),
+    content-type,
+    if-of(str-type, then: object((b: content-type)), otherwise: number-type),
+  ),
+  (
+    ("a", "else"),
+    str-type,
+    if-of(str-type, then: object((b: str-type)), otherwise: str-type),
+  ),
+) {
+  assert.eq(lens-put(cond, at, value).shape.a, node, message: repr(at))
+}
+#assert.eq(
+  lens-over(cond, ("a", "then"), o => object((..o.shape, c: str-type)))
+    .shape
+    .a
+    .then,
+  object((b: str-type, c: str-type)),
+)
+// A translated `else` is reached by its JSON Schema name.
+#let translated = schema-from-json-schema((
+  "if": (type: "string"),
+  then: (type: "string", minLength: 1),
+  "else": (type: "number"),
+))
+#assert.eq(lens-get(translated, ("else",)), number-type)
+#assert.eq(
+  validate(-1, schema: lens-put(translated, ("else",), (
+    ..number-type,
+    minimum: 0,
+  ))).map(e => e.code),
+  ("range",),
 )
 
 // The strict schema's free-text location member can become content.
