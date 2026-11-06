@@ -15,6 +15,9 @@
 //   suffix        schema => what describe-schema prints on the node's own
 //                 row: by default a leaf's kind, and no header (none)
 //                 for a node with children
+//   inline        describe-schema draws the node's one child on its
+//                 parent's row, extended by the child's label (an
+//                 array's elements as `name[]`)
 //   shorthand     schema => none, or (of, mark): describe-schema draws
 //                 the node as `of` with `mark` (a nullable as `X?`)
 //   bad-segment   (schema, segment) => what a lens says when the segment
@@ -43,6 +46,7 @@
   children: s => (),
   with-child: none,
   suffix: auto,
+  inline: false,
   shorthand: s => none,
   bad-segment: (s, seg) => (
     "lens cannot descend into a leaf schema (kind="
@@ -64,6 +68,7 @@
   suffix: if suffix != auto { suffix } else if with-child == none {
     s => s.kind
   } else { s => none },
+  inline: inline,
   shorthand: shorthand,
   bad-segment: bad-segment,
   constructors: constructors,
@@ -113,6 +118,7 @@
   array: _kind(
     walk: _array-walk,
     searchable: false,
+    inline: true,
     children: s => (("items", s.elem, "[]"),),
     with-child: (s, _, sub) => (..s, elem: sub),
     bad-segment: (s, seg) => (

@@ -18,7 +18,7 @@
 // The kinds paths-of-kind can look for: every kind but the plain
 // containers. A union or `not` is found as a node, and its members
 // are searched too.
-#let _leaf-kinds = _kinds.keys().filter(k => _kinds.at(k).searchable)
+#let _searchable-kinds = _kinds.keys().filter(k => _kinds.at(k).searchable)
 
 #let _leaf(s) = _descriptor(s).with-child == none
 #let _suffix(s) = (_descriptor(s).suffix)(s)
@@ -56,11 +56,11 @@
 // A leaf's text: its kind, its mark, then what it sets beyond it.
 #let _text(s, mark) = _suffix(s) + mark + _paren(s)
 
-// The tree layout is where arrays differ from the rest: an array's
-// element extends its parent's row with `[]` (and the array's own
-// constraints), while every other child gets a row of its own.
-#let _is-array(s) = s.kind == "array"
-#let _elem(s) = _children(s).first().at(1)
+// The tree layout is where an inline kind (an array) differs from the
+// rest: its one child extends its parent's row with the child's label
+// (`[]`, then the array's own constraints), while every other child
+// gets a row of its own.
+#let _inline(s) = _descriptor(s).inline
 
 // One child row. A leaf, or an array of leaves, is inline after its
 // label, padded to the kind column; anything else gets a header line,
@@ -71,9 +71,10 @@
 // a node drawn by its label alone (an object, an array, a `not`).
 #let _row(label, sub) = {
   let (sub, mark) = _shown(sub)
-  let (label, sub, mark, after) = if _is-array(sub) {
-    let (elem, elem-mark) = _shown(_elem(sub))
-    (label + mark + "[]", elem, elem-mark, _paren(sub))
+  let (label, sub, mark, after) = if _inline(sub) {
+    let (_, elem, elem-label) = _children(sub).first()
+    let (elem, elem-mark) = _shown(elem)
+    (label + mark + elem-label, elem, elem-mark, _paren(sub))
   } else { (label, sub, mark, "") }
   if _leaf(sub) { return (label: label, text: _text(sub, mark) + after) }
   let head = _suffix(sub)
@@ -84,20 +85,20 @@
 
 // Recursive pretty-printer. `indent` prefixes every line at this
 // depth; nested blocks add two more spaces. A node's header text is
-// drawn by its parent's row, or by describe-schema at the root.
-#let _describe(schema, indent) = {
-  if _leaf(schema) { return indent + _text(schema, "") }
-  if _is-array(schema) {
+// drawn by its parent's row; a node `alone` (the root), a leaf or an
+// inline node draws its own, as a row with no label and no column.
+#let _describe(schema, indent, alone: false) = {
+  if alone or _leaf(schema) or _inline(schema) {
     let r = _row("", schema)
-    return if "text" in r { indent + r.label + " " + r.text } else {
-      (
-        indent
-          + r.label
-          + (if r.head != none { " " + r.head })
-          + ":\n"
-          + _describe(r.block, indent + "  ")
-      )
-    }
+    let line = (
+      r.label
+        + if "text" in r { " " + r.text } else if r.head != none {
+          " " + r.head
+        }
+    ).trim(at: start)
+    if "text" in r { return indent + line }
+    if line == "" { return _describe(r.block, indent) }
+    return indent + line + ":\n" + _describe(r.block, indent + "  ")
   }
   // Each child under its label: a field name (`*` when required), `*`
   // for an object's additional schema, `[i]` for a union member, `not`
@@ -137,15 +138,7 @@
 ///
 /// - schema (dictionary): The schema to draw.
 /// -> str
-#let describe-schema(schema) = {
-  // The root is a row with no label.
-  let r = _row("", schema)
-  if "text" in r { return (r.label + " " + r.text).trim(at: start) }
-  let head = (r.label + if r.head != none { " " + r.head }).trim(at: start)
-  if head == "" { _describe(r.block, "") } else {
-    head + ":\n" + _describe(r.block, "  ")
-  }
-}
+#let describe-schema(schema) = _describe(schema, "", alone: true)
 
 // A schema node matches by its kind (so number-type finds numbers,
 // not integers). A kind name string is deprecated, for removal in the
@@ -176,7 +169,7 @@
 /// -> array
 #let paths-of-kind(schema, kind) = {
   let kind-name = _kind-name-of(kind)
-  if kind-name not in _leaf-kinds {
+  if kind-name not in _searchable-kinds {
     _bail(
       "paths-of-kind",
       "kind "
@@ -184,7 +177,7 @@
         + " is not a recognised leaf kind. Pass a leaf schema "
         + "(e.g. date-string), a constructor (e.g. pattern-string), "
         + "or one of: "
-        + _leaf-kinds.join(", ")
+        + _searchable-kinds.join(", ")
         + ".",
     )
   }
