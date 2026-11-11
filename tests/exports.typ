@@ -65,3 +65,14 @@
     assert.eq(type(v), module, message: k + " leaks a private value")
   }
 }
+
+// Every export is documented: the README covers the run functions and
+// REFERENCE.md the rest, each as a whole name in backticks (`name`, or
+// a call such as `name(..)`).
+#let docs = read("../README.md") + read("../REFERENCE.md")
+#for k in public {
+  assert(
+    docs.contains(regex("`" + k + "[`(]")),
+    message: k + " is not in README.md or REFERENCE.md",
+  )
+}

@@ -220,7 +220,7 @@
   }
   if _any-patterned(kind) {
     return _paths-where(schema, n => (
-      _node(n).kind == "string" and "pattern" in n
+      _node(n).kind == "string" and "pattern" in n // kind-check: deprecated, #186
     ))
   }
   _paths-where(schema, n => _matches(q, n))

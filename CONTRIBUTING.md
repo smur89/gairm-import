@@ -22,25 +22,8 @@ schema built by the caller (see
 
 ## Project layout
 
-```text
-lib.typ                     # the only public surface
-internal/core/              # L0: input forms, errors, the walk context, JSON Pointer
-internal/kinds/             # L1: constructors, formats, constraint rows, the kind registry, traversal
-internal/engine.typ         # L2: the one walk over schema and value: validate, coerce, parse
-internal/json-schema/       # L3: the JSON Schema translator: keyword table, builders, allOf, $ref
-internal/lens.typ           # L3: lens-get / lens-put / lens-over and the field edits
-internal/introspect.typ     # L3: describe-schema, paths-of-kind
-internal/json-resume/       # L4: the vendored upstream schema.json, resume-schema and resume-schema-strict
-tests/*.typ                 # assertions, one file per public concept
-tests/panics/               # one case per place the package panics
-tests/package/              # compiled against the staged package; readme-* and reference-* mirror the docs
-```
-
-A module imports only from layers below it and its own siblings, and the
-two L3 modules outside `json-schema/` import only from core, kinds and the
-engine, never each other. `make check-layers` enforces this. `lib.typ`
-reaches internals through underscore aliases, so a name that starts with
-an underscore is never part of the API.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the codemap, the layering
+rule and where to make each kind of change.
 
 ## Development loop
 
@@ -54,14 +37,18 @@ make fmt           # format with typstyle
 make help          # every target, and the variables you can override
 ```
 
-`make check` is `test`, `fmt-check` and `check-layers`: exactly what CI's
+`make check` is `test`, `fmt-check`, `check-layers` and
+`check-conventions` (no test for a named kind outside `internal/kinds/`
+unless marked `// kind-check: <why>`, no `panic(` outside
+`core/error.typ`, panic cases named after an export): exactly what CI's
 `test` job runs, so a green `make check` means a green `test` check. Each
 test file is its own Make target (`check/fixture/…`, `check/panic/…`,
 `check/package/…`), so `-j` runs them in parallel and `-k` keeps going
 past a failure.
 
 **Panic cases** live in `tests/panics/`, one per place the package panics,
-named `<public-function>-<problem>.typ` (`string-min-length-negative.typ`).
+named `<public-function>-<problem>.typ` (`string-min-length-negative.typ`),
+or `import-<problem>.typ` for a check that runs when the package loads.
 A second case for the same place earns its file only by pinning other
 wording, or another check that reaches the same message. Line 1 is
 `// expect: <substring of the error>`, then the imports and the call that
