@@ -1,5 +1,6 @@
-// gairm-import: validate and coerce JSON data (JSON Resume by default,
-// or your own JSON Schema) into typed Typst values. This file is the
+// gairm-import: validate and coerce JSON data against a schema you
+// bring (a JSON Schema document, or one built in Typst) into typed
+// Typst values. This file is the
 // package's only public surface; underscore names are internal.
 
 #import "internal/kinds/leaf.typ": (
@@ -45,7 +46,8 @@
 ///   panics, and so does a string ending in `.json` that the schema's
 ///   root does not take, as a string path would resolve from the
 ///   package: use `path(..)` or `json(..)` to read a file.
-/// - schema (dictionary): The schema to check against.
+/// - schema (dictionary): The schema to check against. Pass it: the
+///   default, `resume-schema`, is deprecated, and 1.0 requires `schema:`.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> array
@@ -71,6 +73,8 @@
 ///
 /// - data (any): The document, or where to read it, as for `validate`.
 /// - schema (dictionary): The schema that says what each field becomes.
+///   Pass it: the default, `resume-schema`, is deprecated, and 1.0
+///   requires `schema:`.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> any
@@ -92,7 +96,8 @@
 /// - data (any): The document, or where to read it, as for `validate`:
 ///   the root may be anything the schema takes, an array or a scalar
 ///   included.
-/// - schema (dictionary): The schema to check against.
+/// - schema (dictionary): The schema to check against. Pass it: the
+///   default, `resume-schema`, is deprecated, and 1.0 requires `schema:`.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> any

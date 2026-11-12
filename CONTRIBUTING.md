@@ -12,8 +12,9 @@ against `main`. Report security issues privately, as
 
 ## Scope
 
-`gairm-import` is a JSON Schema (draft 7 subset) → Typst engine, with the
-[JSON Resume schema](https://jsonresume.org/schema) bundled. Engine work
+`gairm-import` is a JSON Schema (draft 7 subset) → Typst engine. The
+bundled [JSON Resume schema](https://jsonresume.org/schema) is deprecated
+and goes in 1.0 (#200); JSON Resume is a README use case. Engine work
 (validation, coercion, translator keywords, lenses, introspection) is in
 scope. Anything renderer-specific (colours, labels, decorations) belongs in
 the consuming template, and fields outside a schema belong in an extension
@@ -77,10 +78,12 @@ load time, so the upstream document is the source of truth.
 3. Audit `_content-paths`, `_iso8601-date-paths` and `_last-modified-paths`
    in `internal/json-resume/schema.typ`, the strict variant's opinions,
    for new free-text or iso8601 fields. A listed path whose kind changes
-   panics at load, so drift there surfaces on its own.
+   panics at load, so drift there surfaces on its own. The README's
+   "Validating a JSON Resume" rebuilds the strict variant by hand, and
+   `tests/package/readme-json-resume.typ` fails until it matches again.
 4. Update the recorded version: the header of
-   `internal/json-resume/schema.typ` and the "bundled schema is JSON
-   Resume **x.y.z**" sentence in the README.
+   `internal/json-resume/schema.typ` and the "bundled copy of JSON
+   Resume x.y.z" sentence in the README.
 
 Use `feat:` if the bump adds fields or behaviour, `chore(deps):` if not.
 
