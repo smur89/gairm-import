@@ -13,7 +13,7 @@
   <br>
   Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and
   get back a normalised Typst value ready to render. Bring your own schema,
-  <a href="https://jsonresume.org/schema">JSON Resume</a>'s included.
+  such as <a href="https://jsonresume.org/schema">JSON Resume</a>'s.
 </p>
 
 <p align="center">
@@ -182,8 +182,11 @@ only `path` and `message`:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": validate, coerce, format-errors
+#import "@preview/gairm-import:0.12.0": (
+  validate, coerce, format-errors, schema-from-json-schema,
+)
 
+#let resume-schema = schema-from-json-schema(json("resume.schema.json"))
 #let doc = json("resume.json")
 #let errors = validate(doc, schema: resume-schema)
 #if errors.len() > 0 {
@@ -232,8 +235,7 @@ value exactly as `X` does:
 <!-- x-release-please-end -->
 
 The JSON Resume schema declares no nullable fields, so with
-`strict-null: true` it rejects a `null` in any declared field, strict or
-not. The free-form `custom` objects check nothing, so a `null` there
+`strict-null: true` it rejects a `null` in any declared field. The free-form `custom` objects check nothing, so a `null` there
 is kept.
 
 ## Validating a JSON Resume
@@ -317,6 +319,7 @@ document before translating it and the schema after:
   parse, schema-from-json-schema, lens-put, content-type,
 )
 
+// Not for schemas with `not` or `if`: closing an object there loosens them.
 #let close(js) = if type(js) == dictionary {
   let js = js.pairs().map(((k, v)) => (k, close(v))).to-dict()
   if (
@@ -366,10 +369,8 @@ document before translating it and the schema after:
 For a different mix, or for a renderer's own fields, edit either schema
 with lenses; see [REFERENCE.md](REFERENCE.md#lenses-and-edits).
 
-The package still exports `resume-schema` and `resume-schema-strict`,
-built as above from a bundled copy of JSON Resume 1.7.0, but they are
-deprecated and go in 1.0, along with `schema:` defaulting to
-`resume-schema`.
+The deprecated exports `resume-schema` and `resume-schema-strict` are
+these two schemas, built from a bundled copy of JSON Resume 1.7.0.
 
 ## Reference
 

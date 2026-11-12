@@ -3,9 +3,8 @@
 // https://github.com/jsonresume/jsonresume.org/blob/master/packages/schema/CHANGELOG.md
 // `resume-schema` is a faithful derivation of the upstream document;
 // `resume-schema-strict` layers content + date opinions on it.
-// Both are deprecated until 1.0 (#200): the README's "Validating a JSON
-// Resume" builds each from the user's own copy of the schema, and
-// tests/package/readme-json-resume.typ pins the two as equal.
+// tests/package/readme-json-resume.typ pins both to the README's
+// recipes, which replace them in 1.0 (#200).
 
 // Only the kinds this module itself uses — the full combinator surface
 // is re-exported to callers by lib.typ directly from kinds/.

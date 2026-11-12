@@ -3,7 +3,8 @@
 // README reads the user's own `resume.schema.json`; here that is the
 // vendored copy behind the deprecated exports, so each recipe must
 // equal the export it replaces. resume.json (this directory) matches
-// the README; the asserts are ours.
+// the README; the asserts are ours. Other doc mirrors import the two
+// schemas from here.
 #import "@preview/gairm-import:0.0.0": (
   parse, schema-from-json-schema, lens-put, content-type,
 )
@@ -34,6 +35,7 @@
   assert.eq(type(value), str)
 }
 
+// Not for schemas with `not` or `if`: closing an object there loosens them.
 #let close(js) = if type(js) == dictionary {
   let js = js.pairs().map(((k, v)) => (k, close(v))).to-dict()
   if (
@@ -76,9 +78,7 @@
   (schema, at) => lens-put(schema, at, content-type),
 )
 
-#let strict = parse(path("resume.json"), schema: resume-schema-strict)
-#assert.eq(type(strict.basics.summary), content)
-#assert.eq(type(strict.basics.email), str)
+#let resume = parse(path("resume.json"), schema: resume-schema-strict)
 
 // The deprecated exports are these recipes, until 1.0 removes them.
 #{
