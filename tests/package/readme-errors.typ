@@ -1,10 +1,10 @@
 // Mirrors README.md, "Errors": the combined report, the note that the
-// default schema reports only its first line, and the record it gives
-// for that line. The document is ours; the report text must match the
+// plain resume schema reports only its first line, and the record it
+// gives for that line, with the schemas "Validating a JSON Resume"
+// builds. The document is ours; the report text must match the
 // README's block (after "panicked with: ").
-#import "@preview/gairm-import:0.0.0": (
-  validate, format-errors, resume-schema-strict,
-)
+#import "@preview/gairm-import:0.0.0": validate, format-errors
+#import "readme-json-resume.typ": resume-schema, resume-schema-strict
 
 #let doc = (
   basics: (name: "Ada", email: 1),
@@ -21,11 +21,11 @@
 )
 
 #assert.eq(
-  validate(doc).map(e => e.path),
+  validate(doc, schema: resume-schema).map(e => e.path),
   (("basics", "email"),),
 )
 
-#assert.eq(validate(doc).first(), (
+#assert.eq(validate(doc, schema: resume-schema).first(), (
   path: ("basics", "email"),
   code: "type",
   message: "expected string, got integer.",

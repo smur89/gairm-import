@@ -3,7 +3,8 @@
 // https://github.com/jsonresume/jsonresume.org/blob/master/packages/schema/CHANGELOG.md
 // `resume-schema` is a faithful derivation of the upstream document;
 // `resume-schema-strict` layers content + date opinions on it.
-// See README "The two resume schemas" for the trade-off.
+// tests/package/readme-json-resume.typ pins both to the README's
+// recipes, which replace them in 1.0 (#200).
 
 // Only the kinds this module itself uses — the full combinator surface
 // is re-exported to callers by lib.typ directly from kinds/.
@@ -14,8 +15,12 @@
 #import "../core/error.typ": _internal
 #import "../kinds/traverse.typ": _get-at, _set-at, _map-children, _paths-where
 
+/// Deprecated: translate your own copy of the JSON Resume schema with
+/// `schema-from-json-schema` instead, as the README's "Validating a JSON
+/// Resume" shows. Kept until 1.0.
+///
 /// The JSON Resume schema, translated from the upstream document as it stands.
-/// The default for `parse`, `validate` and `coerce`.
+/// The default for `parse`, `validate` and `coerce`, also until 1.0.
 #let resume-schema = schema-from-json-schema(json("schema.json"))
 
 // Free-text fields wrapped as Typst `content` in the strict variant.
@@ -186,6 +191,9 @@
   } else { s }
 }
 
+/// Deprecated: build it from your own copy of the JSON Resume schema, as
+/// the README's "Validating a JSON Resume" shows. Kept until 1.0.
+///
 /// `resume-schema` with four changes: free-text fields are Typst `content`,
 /// the iso8601 date fields are checked as dates, `meta.lastModified` is
 /// checked as a date or date-time, and undeclared keys are rejected

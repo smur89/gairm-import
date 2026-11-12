@@ -2,9 +2,8 @@
 // resume-schema-strict, and the datetime values it says a date format
 // takes. The documents are ours; the paths and messages must match the
 // block.
-#import "@preview/gairm-import:0.0.0": (
-  validate, coerce, resume-schema-strict, string,
-)
+#import "@preview/gairm-import:0.0.0": validate, coerce, string
+#import "readme-json-resume.typ": resume-schema-strict
 
 #assert.eq(
   validate(

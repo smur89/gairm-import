@@ -1,27 +1,36 @@
-// Mirrors README.md, "Quick start", and the types it says the result
-// holds. The import, the parse call and resume.json (this directory)
-// match the README; the asserts are ours.
-#import "@preview/gairm-import:0.0.0": parse
+// Mirrors README.md, "Quick start": both examples, which
+// must produce the same result. book.json and book-schema.json (this
+// directory) are fictional fixtures; the asserts are ours.
 
-#let resume = parse(path("resume.json"))
-// hand `resume` to any compatible Typst CV template
+// Translate an existing .json schema.
+#let from-json-schema = {
+  import "@preview/gairm-import:0.0.0": parse, schema-from-json-schema
 
-#assert.eq(resume.basics.name, "Seán Ó Murchú")
-#assert.eq(resume.basics.email, "sean@example.com")
-#assert.eq(resume.work.len(), 1)
-#assert.eq(resume.work.first().name, "Acme Corp")
-#assert.eq(
-  resume.work.first().highlights,
-  ("Led the event-sourcing platform migration.",),
-)
-
-// Every field the README names is a plain str, or an array of them.
-#for value in (
-  resume.basics.name,
-  resume.basics.summary,
-  resume.basics.email,
-  resume.work.first().position,
-  ..resume.work.first().highlights,
-) {
-  assert.eq(type(value), str)
+  let book-schema = schema-from-json-schema(json("book-schema.json"))
+  let book = parse(path("book.json"), schema: book-schema)
+  book
 }
+
+// Or build the schema directly in Typst.
+#let from-combinators = {
+  import "@preview/gairm-import:0.0.0": parse, object, array-of, string, number
+
+  let book-schema = object((
+    title: string(),
+    author: string(),
+    year: number(),
+    tags: array-of(string()),
+  ))
+
+  let book = parse(path("book.json"), schema: book-schema)
+  book
+}
+
+#let expected = (
+  title: "The Pocket Atlas of Imaginary Places",
+  author: "Aoife Brennan",
+  year: 1998,
+  tags: ("atlas", "fiction"),
+)
+#assert.eq(from-json-schema, expected)
+#assert.eq(from-combinators, expected)

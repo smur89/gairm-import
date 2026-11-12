@@ -12,8 +12,8 @@
   <strong>JSON Schema → Typst dict coercer.</strong>
   <br>
   Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and
-  get back a normalised Typst value ready to render. The
-  <a href="https://jsonresume.org/schema">JSON Resume</a> schema is built in.
+  get back a normalised Typst value ready to render. Bring your own schema,
+  such as <a href="https://jsonresume.org/schema">JSON Resume</a>'s.
 </p>
 
 <p align="center">
@@ -24,12 +24,11 @@
 
 - [What it is](#what-it-is)
 - [Quick start](#quick-start)
-- [Bring your own schema](#bring-your-own-schema)
 - [API at a glance](#api-at-a-glance)
 - [Input forms](#input-forms)
 - [Errors](#errors)
 - [Null handling](#null-handling)
-- [The two resume schemas](#the-two-resume-schemas)
+- [Validating a JSON Resume](#validating-a-json-resume)
 - [Reference](#reference)
 
 ## What it is
@@ -37,67 +36,12 @@
 gairm-import checks a JSON document against a schema and returns it as
 Typst values. Every problem in the document is reported at once, each with
 its path and, for a misspelt key, a "Did you mean …?" hint. The schema can
-be a JSON Schema document, one you build with Typst functions, or the
-bundled JSON Resume schema, and you can edit any of them with lenses
-before use. Requires Typst `0.15.0` or later.
+be a JSON Schema document or one you build with Typst functions, and you
+can edit either with lenses before use. Requires Typst `0.15.0` or later.
 
 ## Quick start
 
-<!-- x-release-please-start-version -->
-```typst
-#import "@preview/gairm-import:0.12.0": parse
-
-#let resume = parse(path("resume.json"))
-// hand `resume` to any compatible Typst CV template
-```
-<!-- x-release-please-end -->
-
-A minimal `resume.json`:
-
-```json
-{
-  "basics": {
-    "name": "Seán Ó Murchú",
-    "label": "Senior Software Engineer",
-    "email": "sean@example.com",
-    "summary": "Backend engineer with eight years of experience."
-  },
-  "work": [
-    {
-      "name": "Acme Corp",
-      "position": "Senior Software Engineer",
-      "startDate": "2022-01",
-      "highlights": ["Led the event-sourcing platform migration."]
-    }
-  ]
-}
-```
-
-The result mirrors the document: `resume.basics.name` and
-`resume.work.at(0).position` are strings, `resume.work.at(0).highlights` an
-array of strings. The bundled schema is JSON Resume **1.7.0**; see
-[jsonresume.org/schema](https://jsonresume.org/schema) for every field.
-Pass the result to any renderer that takes JSON Resume data, such as
-[`altacv`](https://typst.app/universe/package/altacv):
-
-<!-- Two fences (not one): a single fence would let release-please rewrite this altacv pin on every gairm release. Bump it by hand when altacv publishes a new version. See https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
-
-```typst
-#import "@preview/altacv:1.7.0": alta
-```
-
-<!-- x-release-please-start-version -->
-```typst
-#import "@preview/gairm-import:0.12.0": parse
-
-#alta(parse(path("resume.json")))
-```
-<!-- x-release-please-end -->
-
-## Bring your own schema
-
-Nothing in the engine is CV-specific. Translate a JSON Schema document you
-already have:
+Translate a JSON Schema document you already have:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -131,12 +75,26 @@ The translator takes a draft 7 subset and panics on anything it cannot
 honour rather than dropping it; [REFERENCE.md](REFERENCE.md#json-schema-translation)
 lists the keywords it supports and how it differs from draft 7.
 
+With this `book.json`:
+
+```json
+{
+  "title": "The Pocket Atlas of Imaginary Places",
+  "author": "Aoife Brennan",
+  "year": 1998,
+  "tags": ["atlas", "fiction"]
+}
+```
+
+the result mirrors the document: `book.title` is a string, `book.year` a
+number and `book.tags` an array of strings.
+
 ## API at a glance
 
 | Group | Names |
 |---|---|
 | Run | `parse`, `validate`, `coerce`, `format-errors` |
-| Schemas | `resume-schema`, `resume-schema-strict`, `schema-from-json-schema` |
+| Schemas | `schema-from-json-schema` |
 | Constructors | `string`, `number`, `integer`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
 | Constants | `content-type`, `bool-type`, `null-type`, `any-type` |
 | Edit | `lens-get`, `lens-put`, `lens-over`, `add-field`, `remove-field`, `set-required`, `unset-required` |
@@ -145,11 +103,15 @@ lists the keywords it supports and how it differs from draft 7.
 
 `parse` validates and coerces in one call and panics with every problem
 found. `validate` returns the problems as a list, and `coerce` builds the
-model without checking. All three take `schema:` (default `resume-schema`)
-and `strict-null:` (default `false`). [REFERENCE.md](REFERENCE.md) covers
+model without checking. All three take `schema:` and `strict-null:`
+(default `false`). [REFERENCE.md](REFERENCE.md) covers
 the rest, one section per group.
 
-**Deprecated, working until 1.0:** `str-type`, `number-type`,
+**Deprecated, working until 1.0:** `resume-schema` and
+`resume-schema-strict` (see
+[Validating a JSON Resume](#validating-a-json-resume)), leaving out
+`schema:` (it defaults to `resume-schema`, and is required in 1.0),
+`str-type`, `number-type`,
 `integer-type`, the nine format constants (`date-string` …
 `time-string`), `pattern-string`, `lens`, `lens-then`, `kind-at`, the
 lens-first argument order (`lens-get(at, schema)`), the
@@ -177,8 +139,9 @@ panics with a hint to use `path(..)`. A `null` document panics.
 ## Errors
 
 `parse` reports every problem in one panic. A document with a numeric
-`basics.email` and two stray keys, parsed with
-`schema: resume-schema-strict`:
+`basics.email` and two stray keys, parsed with the stricter
+`resume-schema-strict` from
+[Validating a JSON Resume](#validating-a-json-resume):
 
 ```text
 error: panicked with: gairm-import: found 3 problems in the input:
@@ -187,9 +150,8 @@ error: panicked with: gairm-import: found 3 problems in the input:
   - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
 ```
 
-The default `resume-schema` reports only the first line, since upstream
-lets undeclared keys through there (see
-[The two resume schemas](#the-two-resume-schemas)). To present problems
+The plain `resume-schema` reports only the first line, since upstream lets
+undeclared keys through. To present problems
 yourself, call `validate`, which returns them as records. The first line
 above is `(path: ("basics", "email"), code: "type", message: "expected
 string, got integer.", expected: "string", got: "integer")`.
@@ -220,15 +182,18 @@ only `path` and `message`:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": validate, coerce, format-errors
+#import "@preview/gairm-import:0.12.0": (
+  validate, coerce, format-errors, schema-from-json-schema,
+)
 
+#let resume-schema = schema-from-json-schema(json("resume.schema.json"))
 #let doc = json("resume.json")
-#let errors = validate(doc)
+#let errors = validate(doc, schema: resume-schema)
 #if errors.len() > 0 {
   [Resume has #errors.len() issue(s).]
   raw(format-errors(errors))
 } else {
-  let model = coerce(doc)
+  let model = coerce(doc, schema: resume-schema)
   // render model …
 }
 ```
@@ -270,40 +235,142 @@ value exactly as `X` does:
 <!-- x-release-please-end -->
 
 The JSON Resume schema declares no nullable fields, so with
-`strict-null: true` either resume schema rejects a `null` in any declared
-field. The free-form `custom` objects check nothing, so a `null` there
+`strict-null: true` it rejects a `null` in any declared field. The free-form `custom` objects check nothing, so a `null` there
 is kept.
 
-## The two resume schemas
+## Validating a JSON Resume
 
-**`resume-schema`**, the default, is a faithful translation of the
-vendored upstream document; nothing is rewritten. Upstream sets
-`additionalProperties: true` at the top level and on every section's
-items, so undeclared keys pass there. Its date fields (`startDate`,
-`endDate`, `date`, …) are strings checked by upstream's `iso8601` regex,
-and `meta.lastModified` is a plain string.
-
-**`resume-schema-strict`** adds three opinions:
-
-- free-text fields (`basics.summary`, `work[].highlights[]`, …) are Typst
-  `content`, so they splice into markup;
-- the date fields are `string(format: "date")`, which also takes a Typst
-  `datetime`, and `meta.lastModified` is a date-time or a date;
-- upstream's `additionalProperties: true` markers are removed, so an
-  undeclared key is an error. Typed extras (`additionalProperties` with a
-  schema) still pass if they match, and the free-form `custom` objects
-  stay open.
+[JSON Resume](https://jsonresume.org/schema) publishes its schema as a JSON
+Schema document. Save a copy beside your file, from
+[jsonresume.org/schema](https://jsonresume.org/schema) or the
+[`@jsonresume/schema`](https://www.npmjs.com/package/@jsonresume/schema)
+npm package, and translate it:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": parse, resume-schema-strict
+#import "@preview/gairm-import:0.12.0": parse, schema-from-json-schema
+
+#let resume-schema = schema-from-json-schema(json("resume.schema.json"))
+#let resume = parse(path("resume.json"), schema: resume-schema)
+// hand `resume` to any compatible Typst CV template
+```
+<!-- x-release-please-end -->
+
+A minimal `resume.json`:
+
+```json
+{
+  "basics": {
+    "name": "Seán Ó Murchú",
+    "label": "Senior Software Engineer",
+    "email": "sean@example.com",
+    "summary": "Backend engineer with eight years of experience."
+  },
+  "work": [
+    {
+      "name": "Acme Corp",
+      "position": "Senior Software Engineer",
+      "startDate": "2022-01",
+      "highlights": ["Led the event-sourcing platform migration."]
+    }
+  ]
+}
+```
+
+The result mirrors the document: `resume.basics.name` and
+`resume.work.at(0).position` are strings, `resume.work.at(0).highlights` an
+array of strings. Your copy of the schema decides the version, so a field
+upstream adds works as soon as you update the file. Pass the result to any
+renderer that takes JSON Resume data, such as
+[`altacv`](https://typst.app/universe/package/altacv):
+
+<!-- Two fences (not one): a single fence would let release-please rewrite this altacv pin on every gairm release. Bump it by hand when altacv publishes a new version. See https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
+
+```typst
+#import "@preview/altacv:1.7.0": alta
+```
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.12.0": parse, schema-from-json-schema
+
+#let resume-schema = schema-from-json-schema(json("resume.schema.json"))
+#alta(parse(path("resume.json"), schema: resume-schema))
+```
+<!-- x-release-please-end -->
+
+Upstream sets `additionalProperties: true` at the top level and on every
+section's items, so undeclared keys pass. Its date fields (`startDate`,
+`endDate`, `date`, …) are strings checked by its `iso8601` regex, and
+`meta.lastModified` is a plain string. For a stricter schema, edit the
+document before translating it and the schema after:
+
+- close every object that declares properties, so an undeclared key is an
+  error. Typed extras (`additionalProperties` with a schema) still pass if
+  they match, and the free-form `custom` objects, which declare none, stay
+  open;
+- check the date fields as `format: "date"`, which also takes a Typst
+  `datetime`, and `meta.lastModified` as a date-time or a date;
+- make the free-text fields Typst `content`, so they splice into markup.
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.12.0": (
+  parse, schema-from-json-schema, lens-put, content-type,
+)
+
+// Not for schemas with `not` or `if`: closing an object there loosens them.
+#let close(js) = if type(js) == dictionary {
+  let js = js.pairs().map(((k, v)) => (k, close(v))).to-dict()
+  if (
+    "properties" in js and js.at("additionalProperties", default: true) == true
+  ) {
+    js.additionalProperties = false
+  }
+  js
+} else if type(js) == array { js.map(close) } else { js }
+
+#let strict-json = {
+  let js = close(json("resume.schema.json"))
+  js.definitions.iso8601 = (type: "string", format: "date")
+  js.properties.meta.properties.lastModified = (
+    anyOf: (
+      (type: "string", format: "date-time"),
+      (type: "string", format: "date"),
+    ),
+  )
+  js
+}
+
+#let resume-schema-strict = (
+  ("objective",),
+  ("basics", "summary"),
+  ("work", "items", "summary"),
+  ("work", "items", "highlights", "items"),
+  ("volunteer", "items", "summary"),
+  ("volunteer", "items", "highlights", "items"),
+  ("education", "items", "summary"),
+  ("awards", "items", "summary"),
+  ("certificates", "items", "summary"),
+  ("publications", "items", "summary"),
+  ("references", "items", "reference"),
+  ("projects", "items", "summary"),
+  ("projects", "items", "description"),
+  ("projects", "items", "highlights", "items"),
+).fold(
+  schema-from-json-schema(strict-json),
+  (schema, at) => lens-put(schema, at, content-type),
+)
 
 #let resume = parse(path("resume.json"), schema: resume-schema-strict)
 ```
 <!-- x-release-please-end -->
 
-For a different mix, edit either one with lenses; see
-[REFERENCE.md](REFERENCE.md#lenses-and-edits).
+For a different mix, or for a renderer's own fields, edit either schema
+with lenses; see [REFERENCE.md](REFERENCE.md#lenses-and-edits).
+
+The deprecated exports `resume-schema` and `resume-schema-strict` are
+these two schemas, built from a bundled copy of JSON Resume 1.7.0.
 
 ## Reference
 

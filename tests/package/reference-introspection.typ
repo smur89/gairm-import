@@ -1,6 +1,7 @@
 // Mirrors REFERENCE.md, "Introspection": the output its blocks and
 // comments show. The calls match REFERENCE.md; the asserts are ours.
 #import "@preview/gairm-import:0.0.0": *
+#import "readme-json-resume.typ": resume-schema-strict
 
 // The `member` schema from "Constructors", drawn in full.
 #let member = object(

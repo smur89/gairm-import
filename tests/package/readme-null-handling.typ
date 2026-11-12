@@ -2,9 +2,9 @@
 // example with the result its comment shows. The schemas in the rows
 // are ours.
 #import "@preview/gairm-import:0.0.0": (
-  parse, validate, coerce, object, string, nullable, array-of, resume-schema,
-  resume-schema-strict,
+  parse, validate, coerce, object, string, nullable, array-of,
 )
+#import "readme-json-resume.typ": resume-schema, resume-schema-strict
 
 #let schema = object(
   (name: string(), nickname: nullable(string())),

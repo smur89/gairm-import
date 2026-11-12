@@ -1,8 +1,10 @@
 # gairm-import reference
 
 The [README](README.md) is the guide: quick start, input forms, errors,
-null handling and the two resume schemas. This file covers the rest, and
-says each thing once.
+null handling and validating a JSON Resume. This file covers the rest, and
+says each thing once. Examples on JSON Resume use the `resume-schema` and
+`resume-schema-strict` that the README's
+[Validating a JSON Resume](README.md#validating-a-json-resume) builds.
 
 - [Constructors](#constructors)
 - [Formats](#formats)
@@ -501,6 +503,9 @@ Each of these still works and will be removed in 1.0.
 
 | Deprecated | Use instead |
 |---|---|
+| `resume-schema` | `schema-from-json-schema(json("resume.schema.json"))` on your copy of the [JSON Resume schema](https://jsonresume.org/schema) |
+| `resume-schema-strict` | the stricter schema the README's [Validating a JSON Resume](README.md#validating-a-json-resume) builds |
+| `parse`, `validate` or `coerce` without `schema:`, which defaults to `resume-schema` | pass `schema:`; it is required in 1.0 |
 | `str-type`, `number-type`, `integer-type` | `string()`, `number()`, `integer()` |
 | `date-string`, `datetime-string`, `uri-string`, `email-string`, `uuid-string`, `hostname-string`, `ipv4-string`, `ipv6-string`, `time-string` | `string(format: "date")`, `"date-time"`, `"uri"`, `"email"`, `"uuid"`, `"hostname"`, `"ipv4"`, `"ipv6"`, `"time"` |
 | `pattern-string(re, expected: e)` | `string(pattern: re, expected: e)` |
