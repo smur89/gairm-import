@@ -45,7 +45,7 @@ Translate a JSON Schema document you already have:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": parse, schema-from-json-schema
+#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
 
 #let book-schema = schema-from-json-schema(json("book-schema.json"))
 #let book = parse(path("book.json"), schema: book-schema)
@@ -56,7 +56,7 @@ Or build the schema in Typst:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": (
+#import "@preview/gairm-import:0.13.0": (
   parse, object, array-of, string, number,
 )
 
@@ -182,7 +182,7 @@ only `path` and `message`:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": (
+#import "@preview/gairm-import:0.13.0": (
   validate, coerce, format-errors, schema-from-json-schema,
 )
 
@@ -223,7 +223,7 @@ value exactly as `X` does:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": parse, object, string, nullable
+#import "@preview/gairm-import:0.13.0": parse, object, string, nullable
 
 #let schema = object(
   (name: string(), nickname: nullable(string())),
@@ -248,7 +248,7 @@ npm package, and translate it:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": parse, schema-from-json-schema
+#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
 
 #let resume-schema = schema-from-json-schema(json("resume.schema.json"))
 #let resume = parse(path("resume.json"), schema: resume-schema)
@@ -292,7 +292,7 @@ renderer that takes JSON Resume data, such as
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": parse, schema-from-json-schema
+#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
 
 #let resume-schema = schema-from-json-schema(json("resume.schema.json"))
 #alta(parse(path("resume.json"), schema: resume-schema))
@@ -315,7 +315,7 @@ document before translating it and the schema after:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.12.0": (
+#import "@preview/gairm-import:0.13.0": (
   parse, schema-from-json-schema, lens-put, content-type,
 )
 

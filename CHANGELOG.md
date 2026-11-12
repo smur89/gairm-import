@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/smur89/gairm-import/compare/v0.12.0...v0.13.0) (2026-11-12)
+
+
+### Features
+
+* deprecate the bundled JSON Resume schemas and the schema: default ([#205](https://github.com/smur89/gairm-import/issues/205)) ([11a3dcf](https://github.com/smur89/gairm-import/commit/11a3dcfb6222e73031e3bc415e112a30f4207ec7))
+
 ## [0.12.0](https://github.com/smur89/gairm-import/compare/v0.11.0...v0.12.0) (2026-11-06)
 
 
