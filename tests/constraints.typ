@@ -3,7 +3,7 @@
 // kebab-case field on the node; validate checks it after the type.
 
 #import "../lib.typ": (
-  validate, schema-from-json-schema, str-type, array-of, object,
+  validate, schema-from-json-schema, array-of, object, string,
 )
 
 #let T = schema-from-json-schema
@@ -40,19 +40,19 @@
   // Float multiples tolerate rounding: calc.rem(0.3, 0.1) is not 0.
   ((kind: "number", multiple-of: 0.1), (0.3, 3), ((0.35, ""),)),
   (
-    (kind: "array", elem: str-type, min-items: 2, max-items: 3),
+    (kind: "array", elem: string(), min-items: 2, max-items: 3),
     (("a", "b"), ("a", "b", "c")),
     ((("a",), "≥ 2"), (("a", "b", "c", "d"), "≤ 3")),
   ),
   // uniqueItems reports the first duplicate, by index.
   (
-    (kind: "array", elem: str-type, unique-items: true),
+    (kind: "array", elem: string(), unique-items: true),
     (("a", "b", "c"),),
     ((("a", "b", "a"), "duplicate at indices 0 and 2"),),
   ),
   // Deep equality: dicts with the same content are duplicates.
   (
-    (kind: "array", elem: object((k: str-type)), unique-items: true),
+    (kind: "array", elem: object((k: string())), unique-items: true),
     (),
     ((((k: "x"), (k: "x")), ""),),
   ),
@@ -88,13 +88,13 @@
   ),
   (
     (type: "array", items: (type: "string"), minItems: 1, uniqueItems: true),
-    (kind: "array", elem: str-type, min-items: 1, unique-items: true),
+    (kind: "array", elem: string(), min-items: 1, unique-items: true),
   ),
   // `uniqueItems: false` is the default, so it is left out.
   (
     (type: "array", items: (type: "string"), uniqueItems: false),
     array-of(
-      str-type,
+      string(),
     ),
   ),
   // A count takes a whole-number float, as `integer` does (draft 7;
@@ -110,7 +110,7 @@
   ),
   (
     (type: "array", items: (type: "string"), minItems: 1.0, maxItems: 3.0),
-    (kind: "array", elem: str-type, min-items: 1, max-items: 3),
+    (kind: "array", elem: string(), min-items: 1, max-items: 3),
   ),
   // Constraints carry through a format.
   (
@@ -169,10 +169,10 @@
 // Null elements are dropped from the model, so min-items and
 // unique-items count what is left; the duplicate report cites the
 // original indices.
-#let min-two = (kind: "array", elem: str-type, min-items: 2)
+#let min-two = (kind: "array", elem: string(), min-items: 2)
 #assert.eq(validate(("a", none, "b"), schema: min-two), ())
 #assert(validate(("a", none), schema: min-two).at(0).message.contains("got 1"))
-#let unique = (kind: "array", elem: str-type, unique-items: true)
+#let unique = (kind: "array", elem: string(), unique-items: true)
 #assert.eq(validate(("a", none, "b", none), schema: unique), ())
 #let dup = validate(("a", none, "b", "a"), schema: unique)
 #assert.eq(dup.len(), 1)

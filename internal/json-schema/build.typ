@@ -5,7 +5,7 @@
 #import "../core/ctx.typ": _ctx
 #import "../core/error.typ": _json-type-name
 #import "../engine.typ": _walk
-#import "../kinds/leaf.typ": number-type, integer-type, bool-type, null-type
+#import "../kinds/leaf.typ": number, integer, bool-type, null-type
 #import "../kinds/structure.typ": array-of, object, _object-problem
 #import "../kinds/format.typ": string, _string-problem
 #import "../kinds/constraint.typ": _read-constraints
@@ -127,8 +127,8 @@
 // number, which would silently drop it.
 #let _builders = (
   string: (js, ctx, recur) => _string-base(js),
-  number: (..) => number-type,
-  integer: (..) => integer-type,
+  number: (..) => number(),
+  integer: (..) => integer(),
   array: _array-base,
   object: _object-base,
   boolean: (..) => bool-type,

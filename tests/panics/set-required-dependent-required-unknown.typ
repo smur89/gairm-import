@@ -1,9 +1,9 @@
 // expect: object() dependent-required references keys not in shape: x.
-#import "../../lib.typ": lens, set-required, str-type
+#import "../../lib.typ": set-required, string
 #let bad = (
   kind: "object",
-  shape: (a: str-type),
+  shape: (a: string()),
   required-keys: (),
   dependent-required: (x: ("a",)),
 )
-#set-required(bad, lens(()), ("a",))
+#set-required(bad, (lens: ()), ("a",))

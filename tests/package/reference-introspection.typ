@@ -73,7 +73,13 @@ phone → email",
 #assert.eq(paths-of-kind(member, number()), (("rating",),))
 #assert.eq(paths-of-kind(member, number(minimum: 0)), (("rating",),))
 #assert.eq(paths-of-kind(member, integer()), (("age",),))
-#assert.eq(paths-of-kind(member, pattern-string), (("code",),))
+#assert.eq(
+  paths-of-kind(
+    member,
+    string(pattern: "^[A-Z]{3}$", expected: "a three-letter code"),
+  ),
+  (("code",),),
+)
 #assert.eq(
   lens-get(resume-schema-strict, ("meta", "lastModified", 0)).kind,
   "string",

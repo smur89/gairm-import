@@ -1,3 +1,3 @@
 // expect: remove-field key "b" not in object shape.
-#import "../../lib.typ": lens, object, remove-field, str-type
-#remove-field(object((a: str-type)), lens(()), "b")
+#import "../../lib.typ": object, remove-field, string
+#remove-field(object((a: string())), (lens: ()), "b")

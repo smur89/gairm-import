@@ -1,5 +1,4 @@
-// Mirrors REFERENCE.md, "Constructors": the example schema, and the
-// replacements "Deprecated names" gives for the constants. The import
+// Mirrors REFERENCE.md, "Constructors": the example schema. The import
 // and the schema match REFERENCE.md; the asserts are ours.
 #import "@preview/gairm-import:0.0.0": *
 
@@ -17,16 +16,6 @@
   dependent-required: (phone: ("email",)),
 )
 
-#assert.eq(string(), str-type)
-#assert.eq(number(), number-type)
-#assert.eq(integer(), integer-type)
-#assert.eq(string(format: "email"), email-string)
-#assert.eq(string(format: "date"), date-string)
-#assert.eq(string(format: "date-time"), datetime-string)
-#assert.eq(
-  string(pattern: "^[A-Z]{3}$", expected: "a three-letter code"),
-  pattern-string("^[A-Z]{3}$", expected: "a three-letter code"),
-)
 #assert.eq(any-of(string(), number()), any-of((string(), number())))
 #assert.eq(const-of(1), enum-of((1,)))
 

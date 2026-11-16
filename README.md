@@ -110,15 +110,9 @@ the rest, one section per group.
 **Deprecated, working until 1.0:** `resume-schema` and
 `resume-schema-strict` (see
 [Validating a JSON Resume](#validating-a-json-resume)), leaving out
-`schema:` (it defaults to `resume-schema`, and is required in 1.0),
-`str-type`, `number-type`,
-`integer-type`, the nine format constants (`date-string` …
-`time-string`), `pattern-string`, `lens`, `lens-then`, `kind-at`, the
-lens-first argument order (`lens-get(at, schema)`), the
-`(kind: "lens", path: …)` shape, a kind name string in `paths-of-kind`, and
-hand-built nodes of the old kind names (`"str"`, `"pattern-string"`,
-`"date-string"` …). [REFERENCE.md](REFERENCE.md#deprecated-names) gives
-the replacement for each.
+`schema:` (it defaults to `resume-schema`, and is required in 1.0).
+[REFERENCE.md](REFERENCE.md#deprecated-names) gives the replacement for
+each.
 
 ## Input forms
 

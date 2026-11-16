@@ -1,3 +1,3 @@
 // expect: add-field key "a" already in object shape.
-#import "../../lib.typ": add-field, lens, object, str-type
-#add-field(object((a: str-type)), lens(()), "a", str-type)
+#import "../../lib.typ": add-field, object, string
+#add-field(object((a: string())), (lens: ()), "a", string())

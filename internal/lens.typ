@@ -35,10 +35,6 @@
 // shallowly: its children were checked when it was built), and an
 // edited object, the written node or any object above it, is rebuilt
 // through object(). Build replacements with the constructors.
-//
-// Deprecated until 1.0: the lens-first order of lens-get / lens-put /
-// lens-over, and the `(kind: "lens", path: …)` lens shape (accepted by
-// _location-path in traverse.typ).
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": (
@@ -53,43 +49,16 @@
   if _is-object(node) { _object-with(node) } else { node }
 }
 
-/// Deprecated: use the path array itself, or `(lens: path)`, instead;
-/// every function that takes a location takes either. Kept until 1.0.
-///
-/// A lens: a path to one node in a schema, as `(lens: path)`. A path is
-/// an array of segments: a field name to enter an object, `"items"` to
-/// enter an array's elements, `"additionalProperties"` to enter an
-/// object's additional schema, an int index to enter a union member,
-/// `"not"` to enter a `not` member, or `"if"`, `"then"` or `"else"` to
-/// enter a conditional's condition or branch. `()` is the identity
-/// lens. Every function that takes a location takes a lens or the bare
-/// path array.
-///
-/// - path (array): The segments.
-/// -> dictionary
-#let lens(path) = {
-  if type(path) != array {
-    _fail("lens", _problem("path", "an array of segments", repr(path)))
-  }
-  (lens: path)
-}
-
 // What an argument is, for the order panic below.
 #let _what(x) = if _is-schema(x) { "a schema" } else if _is-location(x) {
   "a location"
 } else { "a " + str(type(x)) }
 
 // The schema and the path of a lens-get / lens-put / lens-over call.
-// Schema first. The lens-first order of earlier releases is deprecated,
-// accepted until 1.0, and told apart by type: a schema is never a
-// location, so at most one order fits, and a call that fits neither
-// panics rather than guess.
+// Schema first: any other call panics naming what it got.
 #let _subject(a, b, op) = {
   if _is-schema(a) and _is-location(b) {
     return (a, _location-path(b, op))
-  }
-  if _is-location(a) and _is-schema(b) {
-    return (b, _location-path(a, op))
   }
   _bail(
     op,
@@ -102,8 +71,6 @@
 }
 
 /// Reads the schema node at `at`. Panics if the path does not exist.
-/// The lens-first order `lens-get(at, schema)` is deprecated, and
-/// accepted until 1.0.
 ///
 /// - schema (dictionary): The schema to read from.
 /// - at (dictionary, array): Where: a lens or a path array.
@@ -116,9 +83,7 @@
 // `put` because `set` is a Typst keyword.
 /// Returns a new schema with the node at `at` replaced by `value`. The
 /// input schema is not changed. Panics if `value` is not a schema, or
-/// if the edit breaks an object's invariants (as `object` would). The
-/// lens-first order `lens-put(at, schema, value)` is deprecated, and
-/// accepted until 1.0.
+/// if the edit breaks an object's invariants (as `object` would).
 ///
 /// - schema (dictionary): The schema to edit.
 /// - at (dictionary, array): Where: a lens or a path array.
@@ -131,9 +96,7 @@
 
 /// Returns a new schema with the node at `at` replaced by `fn` applied
 /// to it. Panics if `fn` returns anything but a schema, or if the edit
-/// breaks an object's invariants (as `object` would). The lens-first
-/// order `lens-over(at, schema, fn)` is deprecated, and accepted until
-/// 1.0.
+/// breaks an object's invariants (as `object` would).
 ///
 /// - schema (dictionary): The schema to edit.
 /// - at (dictionary, array): Where: a lens or a path array.
@@ -146,19 +109,6 @@
     "lens-over result",
   ))
 }
-
-// `lens-then(a, b)` applies a then b — paths concatenate in that order.
-/// Deprecated: use `a + b` on the path arrays instead. Kept until 1.0.
-///
-/// Joins two locations into one lens: follows `a`, then `b` from there.
-///
-/// - a (dictionary, array): The first lens or path.
-/// - b (dictionary, array): The lens or path to follow after `a`.
-/// -> dictionary
-#let lens-then(a, b) = lens(
-  _location-path(a, "lens-then") + _location-path(b, "lens-then"),
-)
-
 // The skeleton the object edits share: check the schema and the
 // location once, find the object at `at`, let `edit` check it and
 // return the fields to change (as object() names them), and write it

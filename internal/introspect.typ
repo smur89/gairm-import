@@ -7,15 +7,14 @@
 // descent, `"additionalProperties"` for the additional schema, an
 // index for a union member, `"not"` for a `not` member, `"if"`,
 // `"then"` and `"else"` for a conditional's condition and branches — so
-// `paths-of-kind` output round-trips through `lens` and `lens-get`.
+// `paths-of-kind` output round-trips through `lens-get`.
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "core/error.typ": _bail
-#import "kinds/registry.typ": _kinds, _descriptor, _node
-#import "kinds/traverse.typ": _children, _get-at, _paths-where, _location-path
+#import "kinds/registry.typ": _kinds, _descriptor
+#import "kinds/traverse.typ": _children, _paths-where
 #import "kinds/constraint.typ": _constraint-rows
-#import "kinds/format.typ": pattern-string
 
 // The kinds paths-of-kind can look for: every kind but the plain
 // containers. A union, `not` or conditional is found as a node, and
@@ -27,14 +26,12 @@
 
 #let _pad-right(s, width) = s + " " * (width - s.len())
 
-// What a node sets beyond its kind, in one shared list: the `integer`
-// flag a hand-built number node may still carry, then every constraint row it sets, in row order, by the row's
-// field name (as the node and the error's `expected` spell it). A
-// flag row shows by name alone.
+// What a node sets beyond its kind, in one shared list: every
+// constraint row it sets, in row order, by the row's field name (as the
+// node and the error's `expected` spell it). A flag row shows by name
+// alone.
 #let _extras(s) = {
-  let out = if s.at("integer", default: false) == true { ("integer",) } else {
-    ()
-  }
+  let out = ()
   for row in _constraint-rows {
     let v = s.at(row.field, default: none)
     if v == none or v == false { continue }
@@ -145,43 +142,24 @@
 #let describe-schema(schema) = _describe(schema, "", alone: true)
 
 // What paths-of-kind looks for, as a node: a schema node as given, a
-// constructor as the bare node of the kind it builds, a kind name as
-// the bare node it names. Each is read through _node, so an old kind
-// name (_kind-aliases) stands for its current node: "date-string" for
-// `(kind: "string", format: "date")`. A kind name string is
-// deprecated, for removal in the next major.
-#let _query(kind) = _node(
-  if type(kind) == dictionary and "kind" in kind { kind } else if (
-    type(kind) == function
-  ) {
-    let hit = _kinds.pairs().find(((_, d)) => d.constructors.contains(kind))
-    (kind: if hit != none { hit.at(0) } else { kind })
-  } else { (kind: kind) },
-)
+// constructor as the bare node of the kind it builds, and anything else
+// as a node of no kind, which no search takes.
+#let _query(kind) = if type(kind) == dictionary and "kind" in kind {
+  kind
+} else if type(kind) == function {
+  (kind: _kinds.keys().find(k => kind in _kinds.at(k).constructors))
+} else { (kind: none) }
 
 // A node matches a query when it is of the query's kind and has every
 // other field the query sets, with the same value. So `string()` finds
 // every string, `string(format: "date")` the date strings, with a
 // pattern or without, and `number(minimum: 0)` the numbers whose
 // minimum is 0.
-#let _matches(query, node) = {
-  let node = _node(node)
-  (
-    node.kind == query.kind
-      and query
-        .pairs()
-        .all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
-  )
-}
-
-// Deprecated, for removal at 1.0: pattern-string, the constructor or
-// its old kind name (as a string or a node's kind), finds every string
-// with a pattern, whatever the pattern.
-#let _any-patterned(kind) = (
-  kind == pattern-string
-    or kind == "pattern-string"
-    or type(kind) == dictionary
-      and kind.at("kind", default: none) == "pattern-string"
+#let _matches(query, node) = (
+  node.kind == query.kind
+    and query
+      .pairs()
+      .all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
 )
 
 // Container kinds (`object`, `array`) are deliberately rejected — the
@@ -194,15 +172,14 @@
 /// for kinds it does not know.
 ///
 /// - schema (dictionary): The schema to search.
-/// - kind (dictionary, function, str): The kind to find: a schema node
+/// - kind (dictionary, function): The kind to find: a schema node
 ///   such as `string(format: "date")`, or a constructor such as
 ///   `string`, `enum-of`, `const-of`, `any-of`, `one-of`, `not-of` or
 ///   `if-of`. A node finds the nodes of its kind that also have every
 ///   field it sets, with the same value: `string()` finds every string,
 ///   `string(format: "date")` only the date strings, `number()` numbers
 ///   but not integers, and `number(minimum: 0)` only the numbers with
-///   minimum 0. A constructor finds every node of the kind it builds. A
-///   kind name as a `str` still works but is deprecated.
+///   minimum 0. A constructor finds every node of the kind it builds.
 /// -> array
 #let paths-of-kind(schema, kind) = {
   let q = _query(kind)
@@ -212,33 +189,11 @@
       "kind "
         + repr(kind)
         + " is not a recognised leaf kind. Pass a leaf schema "
-        + "(e.g. string(format: \"date\")), a constructor (e.g. enum-of), "
-        + "or one of: "
+        + "(e.g. string(format: \"date\")) or a constructor (e.g. enum-of) "
+        + "of one of: "
         + _searchable-kinds.join(", ")
         + ".",
     )
   }
-  if _any-patterned(kind) {
-    return _paths-where(schema, n => (
-      _node(n).kind == "string" and "pattern" in n // kind-check: deprecated, #186
-    ))
-  }
   _paths-where(schema, n => _matches(q, n))
-}
-
-// Same as `lens-get(schema, at).kind` — keeps the common
-// "what kind is at X" debugging step a single call.
-/// Deprecated: use `lens-get(schema, at).kind` instead. Kept until 1.0.
-///
-/// The kind name of the schema node at `at`, such as `"string"` or
-/// `"object"`. Panics if the path does not exist.
-///
-/// - schema (dictionary): The schema to look in.
-/// - at (dictionary, array): Where: a lens or a path array.
-/// -> str
-#let kind-at(schema, at) = {
-  _get-at(
-    schema,
-    _location-path(at, "kind-at"),
-  ).kind
 }

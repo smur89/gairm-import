@@ -4,8 +4,8 @@
 // compares, and where coerce still panics or doesn't.
 
 #import "../lib.typ": (
-  validate, coerce, parse, str-type, number-type, date-string, array-of, object,
-  any-of, one-of, not-of,
+  validate, coerce, parse, array-of, object, any-of, one-of, not-of, string,
+  number,
 )
 
 // ---- depth ---------------------------------------------------------------
@@ -15,7 +15,7 @@
 // nest under 10; 30 is the floor this pins.
 
 #let nested-arrays(n) = {
-  let schema = str-type
+  let schema = string()
   let value = "x"
   for _ in range(n) {
     schema = array-of(schema)
@@ -24,7 +24,7 @@
   (schema, value)
 }
 #let nested-objects(n) = {
-  let schema = str-type
+  let schema = string()
   let value = "x"
   for _ in range(n) {
     schema = object((a: schema))
@@ -49,8 +49,8 @@
 // compiles in well under a second.
 
 #let overlapping = {
-  let s = str-type
-  for _ in range(17) { s = any-of((s, number-type, array-of(s))) }
+  let s = string()
+  for _ in range(17) { s = any-of((s, number(), array-of(s))) }
   s
 }
 #let deep-value = {
@@ -73,17 +73,17 @@
 #assert.eq(validate(((a: none), (:)), schema: unique-bags), ())
 #assert.eq(coerce(((a: none), (:)), schema: unique-bags), ((a: none), (:)))
 // Null keys in a declared shape are still dropped before comparing.
-#let unique-shaped = (..array-of(object((a: str-type))), unique-items: true)
+#let unique-shaped = (..array-of(object((a: string()))), unique-items: true)
 #assert.eq(
   validate(((a: none), (:)), schema: unique-shaped).map(e => e.code),
   ("unique",),
 )
 // A `not` passes its value through as given, nulls included, so these
 // two are distinct too.
-#let unique-not = (..array-of(not-of(number-type)), unique-items: true)
+#let unique-not = (..array-of(not-of(number())), unique-items: true)
 #assert.eq(validate(((a: 1, b: none), (a: 1)), schema: unique-not), ())
 // A datetime and the ISO string it coerces to are the same item.
-#let unique-dates = (..array-of(date-string), unique-items: true)
+#let unique-dates = (..array-of(string(format: "date")), unique-items: true)
 #assert.eq(
   validate(
     ("2024-01-02", datetime(year: 2024, month: 1, day: 2)),
@@ -96,7 +96,7 @@
 //
 // A one-of with several matching members is a validation error, but
 // the first match still models the value, so coerce returns it.
-#let either = one-of((str-type, str-type))
+#let either = one-of((string(), string()))
 #assert.eq(validate("x", schema: either).map(e => e.code), ("union",))
 #assert.eq(coerce("x", schema: either), "x")
 
@@ -107,13 +107,13 @@
 // schema takes. A string is a value unless it ends in `.json` and the
 // schema's root does not take it (then all three panic with the
 // path(..) hint; tests/panics/).
-#let numbers = array-of(number-type)
+#let numbers = array-of(number())
 #assert.eq(parse((1, 2), schema: numbers), (1, 2))
 #assert.eq(parse(bytes("[1, 2]"), schema: numbers), (1, 2))
-#assert.eq(parse("2024-01-15", schema: date-string), "2024-01-15")
+#assert.eq(parse("2024-01-15", schema: string(format: "date")), "2024-01-15")
 // A `.json` string the root takes is a value like any other.
-#assert.eq(validate("notes.json", schema: str-type), ())
-#assert.eq(parse("notes.json", schema: str-type), "notes.json")
+#assert.eq(validate("notes.json", schema: string()), ())
+#assert.eq(parse("notes.json", schema: string()), "notes.json")
 // A string the root rejects that names no file is a type error.
 #assert.eq(
   validate("notes", schema: object((:))).map(e => e.code),

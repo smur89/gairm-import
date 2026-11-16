@@ -2,10 +2,10 @@
 // The string member claims "ab" and reports only a length miss, which
 // coerce would ignore elsewhere; but no member matched, so there is no
 // member to build the model from.
-#import "../../lib.typ": any-of, bool-type, coerce, object, str-type
+#import "../../lib.typ": any-of, bool-type, coerce, object, string
 #coerce((a: "ab"), schema: object((
   a: any-of((
-    (..str-type, min-length: 5),
+    (..string(), min-length: 5),
     bool-type,
   )),
 )))

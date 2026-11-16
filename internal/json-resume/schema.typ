@@ -8,7 +8,7 @@
 
 // Only the kinds this module itself uses — the full combinator surface
 // is re-exported to callers by lib.typ directly from kinds/.
-#import "../kinds/leaf.typ": str-type, content-type
+#import "../kinds/leaf.typ": content-type
 #import "../kinds/format.typ": string
 #import "../kinds/structure.typ": any-of, _is-free-form, _object-with
 #import "../json-schema/translate.typ": schema-from-json-schema
@@ -64,7 +64,7 @@
 )
 
 // `meta.lastModified` carries only a description in upstream — no
-// machine-readable pattern — so it lands as plain `str-type` in the
+// machine-readable pattern — so it lands as a plain `string()` in the
 // faithful schema. Upstream describes it as `YYYY-MM-DDThh:mm:ss`, so
 // strict accepts that datetime, and still a bare date for documents
 // that only record the day.
@@ -92,7 +92,7 @@
   (
     name: "_content-paths",
     paths: _content-paths,
-    from: str-type,
+    from: string(),
     to: content-type,
   ),
   (
@@ -104,7 +104,7 @@
   (
     name: "_last-modified-paths",
     paths: _last-modified-paths,
-    from: str-type,
+    from: string(),
     to: _last-modified-kind,
   ),
 )

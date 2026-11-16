@@ -4,8 +4,8 @@
 // just resume-schema.
 
 #import "../lib.typ": (
-  validate, schema-from-json-schema, str-type, content-type, number-type,
-  integer-type, bool-type, null-type, array-of, object,
+  validate, schema-from-json-schema, content-type, bool-type, null-type,
+  array-of, object, string, number, integer,
 )
 
 // The errors for `value` under key `k`, so every path starts at ("k",).
@@ -17,33 +17,33 @@
 // ---- the type gate ---------------------------------------------------
 
 #for (schema, value) in (
-  (str-type, "hi"),
+  (string(), "hi"),
   (content-type, "summary text"),
-  (number-type, 42),
-  (number-type, 3.14),
-  // integer-type: draft 7 semantics, any number with a zero fractional
+  (number(), 42),
+  (number(), 3.14),
+  // integer(): draft 7 semantics, any number with a zero fractional
   // part, so float 2.0 passes.
-  (integer-type, 42),
-  (integer-type, 2.0),
+  (integer(), 42),
+  (integer(), 2.0),
   (bool-type, true),
   (bool-type, false),
   (null-type, none),
-  (array-of(str-type), ("a", "b", "c")),
+  (array-of(string()), ("a", "b", "c")),
 ) {
   assert.eq(at("f", schema, value), (), message: repr((schema, value)))
 }
 
 // A wrong type is one error at the value's path.
 #for (schema, value, message) in (
-  (str-type, 42, "expected string"),
-  (number-type, "nope", "expected number"),
-  (integer-type, 1.5, "expected an integer"),
+  (string(), 42, "expected string"),
+  (number(), "nope", "expected number"),
+  (integer(), 1.5, "expected an integer"),
   // A non-number fails the number gate before the integral one.
-  (integer-type, "nope", "expected integer, got string"),
+  (integer(), "nope", "expected integer, got string"),
   (bool-type, "yes", "expected boolean, got string"),
   (null-type, 1, "expected null"),
-  (array-of(str-type), "oops", "expected array"),
-  (object((a: str-type)), "oops", "expected object"),
+  (array-of(string()), "oops", "expected array"),
+  (object((a: string())), "oops", "expected object"),
 ) {
   let errs = at("f", schema, value)
   assert.eq(errs.len(), 1, message: repr((schema, value)))
@@ -53,20 +53,20 @@
 
 // ---- arrays: each element at its indexed path ------------------------
 
-#let errs = at("highlights", array-of(str-type), ("ok", 42, "fine"))
+#let errs = at("highlights", array-of(string()), ("ok", 42, "fine"))
 #assert.eq(errs.len(), 1)
 #assert.eq(errs.at(0).path, ("highlights", 1))
 #assert(errs.at(0).message.contains("expected string"))
 
 // Every bad element is reported.
 #assert.eq(
-  at("highlights", array-of(str-type), (1, "ok", 2)).map(e => e.path),
+  at("highlights", array-of(string()), (1, "ok", 2)).map(e => e.path),
   (("highlights", 0), ("highlights", 2)),
 )
 
 // ---- objects ---------------------------------------------------------
 
-#let person = object((name: str-type, age: number-type))
+#let person = object((name: string(), age: number()))
 
 // Every key is optional by default.
 #assert.eq(validate((name: "Alice", age: 30), schema: person), ())
@@ -100,9 +100,9 @@
 // of JSON Resume, validates like resume-schema does.
 #let extension-schema = object((
   greeting: content-type,
-  rating: number-type,
-  recipients: array-of(str-type),
-  details: object((title: str-type, bullets: array-of(content-type))),
+  rating: number(),
+  recipients: array-of(string()),
+  details: object((title: string(), bullets: array-of(content-type))),
 ))
 #assert.eq(
   validate(
@@ -126,13 +126,13 @@
 // ---- required keys ---------------------------------------------------
 
 #let strict-person = object(
-  (name: str-type, email: str-type),
+  (name: string(), email: string()),
   required-keys: ("name",),
 )
 #assert.eq(validate((name: "Alice", email: "a@x"), schema: strict-person), ())
 #assert.eq(validate((name: "Alice"), schema: strict-person), ())
 // Without required-keys, every key stays optional.
-#assert.eq(validate((:), schema: object((name: str-type))), ())
+#assert.eq(validate((:), schema: object((name: string()))), ())
 
 #let errs = validate((email: "a@x"), schema: strict-person)
 #assert.eq(errs.len(), 1)
@@ -152,7 +152,7 @@
 // absent for trigger and dependent alike.
 
 #let contact = object(
-  (phone: str-type, email: str-type, name: str-type),
+  (phone: string(), email: string(), name: string()),
   dependent-required: (phone: ("email", "name")),
 )
 
@@ -179,11 +179,11 @@
 )
 
 // Absent from the node unless set.
-#assert("dependent-required" not in object((a: str-type)))
+#assert("dependent-required" not in object((a: string())))
 
 // With `additional`, a dependent may be a key outside the shape.
 #let open = object(
-  (a: str-type),
+  (a: string()),
   dependent-required: (a: ("x",)),
   additional: true,
 )

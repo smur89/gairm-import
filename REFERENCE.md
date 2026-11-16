@@ -506,16 +506,4 @@ Each of these still works and will be removed in 1.0.
 | `resume-schema` | `schema-from-json-schema(json("resume.schema.json"))` on your copy of the [JSON Resume schema](https://jsonresume.org/schema) |
 | `resume-schema-strict` | the stricter schema the README's [Validating a JSON Resume](README.md#validating-a-json-resume) builds |
 | `parse`, `validate` or `coerce` without `schema:`, which defaults to `resume-schema` | pass `schema:`; it is required in 1.0 |
-| `str-type`, `number-type`, `integer-type` | `string()`, `number()`, `integer()` |
-| `date-string`, `datetime-string`, `uri-string`, `email-string`, `uuid-string`, `hostname-string`, `ipv4-string`, `ipv6-string`, `time-string` | `string(format: "date")`, `"date-time"`, `"uri"`, `"email"`, `"uuid"`, `"hostname"`, `"ipv4"`, `"ipv6"`, `"time"` |
-| `pattern-string(re, expected: e)` | `string(pattern: re, expected: e)` |
-| `lens(path)` | the path, or `(lens: path)` |
-| `lens-then(a, b)` | `a + b` on the paths |
-| `kind-at(schema, at)` | `lens-get(schema, at).kind` |
-| `lens-get(at, schema)`, `lens-put(at, schema, v)`, `lens-over(at, schema, fn)` | the schema first |
-| `(kind: "lens", path: p)` | `p` or `(lens: p)` |
-| a kind name string in `paths-of-kind` (`"date-string"`) | a node or constructor (`string(format: "date")`) |
-| hand-built `(kind: "str")`, `(kind: "pattern-string")`, `(kind: "date-string")` … | `(kind: "string")`, with a `pattern` or `format` field |
 
-Arguments are told apart by type, so an old call works unchanged. As a
-`paths-of-kind` query, `pattern-string` finds every string with a pattern.
