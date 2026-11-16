@@ -610,11 +610,10 @@
   // union's own path. When exactly one claims, its own errors say what
   // is wrong; the generic summary would read like a type error for a
   // right-typed value that merely broke a constraint.
-  let claimed = results.filter(r => {
-    not r.errors.any(e => (
-      e.code == "type" and e.path == ctx.path
-    ))
-  })
+  let type-misses(r) = r.errors.filter(e => (
+    e.code == "type" and e.path == ctx.path
+  ))
+  let claimed = results.filter(r => type-misses(r) == ())
   if claimed.len() == 1 {
     // A claimant that can't be modelled says where itself (e.g. a nested
     // field); one that only broke a constraint gets the union's message.
@@ -625,13 +624,12 @@
       fatal: if own != none { own } else { fatal },
     )
   }
-  let alternatives = kinds.join(" | ")
   let quantifier = if schema.exclusive { "exactly one" } else { "one" }
   let message = (
     "expected a value matching "
       + quantifier
       + " of: "
-      + alternatives
+      + kinds.join(" | ")
       + "; none matched."
   )
   // No member takes the value's type at all: a type error, so an
@@ -640,9 +638,7 @@
   // (an enum's or a nested union's already joined by " or ").
   let errors = if claimed.len() == 0 {
     let names = results
-      .map(r => r.errors.filter(e => e.code == "type" and e.path == ctx.path))
-      .flatten()
-      .map(e => e.expected.split(" or "))
+      .map(r => type-misses(r).map(e => e.expected.split(" or ")))
       .flatten()
       .dedup()
     _error(
