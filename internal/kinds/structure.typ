@@ -5,8 +5,8 @@
 
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": (
-  _bail, _error, _type-miss, _type-name-of, _closest-match, _problem, _fail,
-  _key-names-problem,
+  _bail, _error, _type-miss, _type-name-of, _json-type-name, _closest-match,
+  _problem, _fail, _key-names-problem,
 )
 #import "constraint.typ": _constraint-errors, _constrain
 #import "leaf.typ": null-type
@@ -129,15 +129,11 @@
   )
 }
 
-// A member's kind as union and `not` errors name it. An integer member
-// reads `number`, as it did before integer was a kind of its own, so
-// the messages and `expected` values validate returns stay as they were.
-// A conditional reads as its branches when both are set and agree (the
-// translated `{type: "object", if: …, then: …, else: …}` is an object
-// either way), and as `conditional` otherwise.
-#let _reported-kind(member) = if member.kind == "integer" { "number" } else if (
-  member.kind == "if"
-) {
+// A member's kind as union and `not` errors name it. A conditional
+// reads as its branches when both are set and agree (the translated
+// `{type: "object", if: …, then: …, else: …}` is an object either way),
+// and as `conditional` otherwise.
+#let _reported-kind(member) = if member.kind == "if" {
   let kinds = ("then", "otherwise").map(b => if b in member {
     _reported-kind(member.at(b))
   })
@@ -146,6 +142,27 @@
   }
 } else {
   _kind-label(member)
+}
+
+// The JSON type names a member takes, as a union's `type` error lists
+// them. Only reached when no member takes the value's type, so every
+// member has a type gate: a leaf, an enum, a nested union, or a
+// conditional, whose taken branch is set. A conditional takes what its
+// branches do.
+#let _taken-types(member) = {
+  let member = _node(member)
+  if member.kind == "union" {
+    member.members.map(_taken-types).flatten()
+  } else if member.kind == "if" {
+    ("then", "otherwise")
+      .filter(b => b in member)
+      .map(b => _taken-types(member.at(b)))
+      .flatten()
+  } else if member.kind == "enum" {
+    member.values.map(_json-type-name)
+  } else if member.kind == "bool" { ("boolean",) } else if (
+    member.kind == "content"
+  ) { ("string",) } else { (member.kind,) }
 }
 
 // Bad-shape members fail at construction, not as a phantom validation
@@ -645,7 +662,7 @@
       ctx.path,
       "type",
       message,
-      expected: alternatives,
+      expected: schema.members.map(_taken-types).flatten().dedup().join(" or "),
       got: _type-name-of(value),
     )
   } else {

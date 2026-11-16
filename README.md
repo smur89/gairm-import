@@ -161,7 +161,7 @@ behind the message, or `none` where a code has nothing to put there:
 
 | `code` | Meaning | `expected` | `got` |
 |---|---|---|---|
-| `type` | Wrong JSON type (also: an enum or union none of whose members takes that type) | The type name(s) | The value's type name |
+| `type` | Wrong JSON type (also: an enum or union none of whose members takes that type) | The type name, or for an enum or union the names it takes joined by "or" (`"string or number"`) | The value's type name |
 | `required` | A required key is missing | | |
 | `unknown-key` | A key the object does not declare | The valid keys | The key |
 | `dependent` | A key required by another key's presence is missing | The missing key | The key that requires it |

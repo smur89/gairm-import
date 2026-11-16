@@ -86,7 +86,7 @@
 #assert.eq(coerce((a: "ab"), schema: object((a: old-str))), (a: "ab"))
 #assert.eq(
   validate(true, schema: any-of((old-pattern, number-type))).at(0).expected,
-  "string | number",
+  "string or number",
 )
 
 // So is one of an old format kind name, as the string with that format,
@@ -118,8 +118,10 @@
     validate(1, schema: any-of((new, number-type))),
   )
   assert.eq(
-    validate(true, schema: any-of((old, number-type))).at(0).expected,
-    "string (" + format + ") | number",
+    validate(true, schema: any-of((old, number-type))).at(0).message,
+    "expected a value matching one of: string ("
+      + format
+      + ") | number; none matched.",
   )
 }
 

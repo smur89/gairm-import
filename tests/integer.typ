@@ -63,14 +63,13 @@
 #assert.eq(validate(1, schema: overlap), ())
 #assert.eq(validate(1.5, schema: overlap), ())
 
-// Union and `not` errors still name an integer member `number`, as
-// they did before it was a kind of its own.
+// Union and `not` errors name an integer member `integer`.
 #let int-or-str = any-of((integer-type, str-type))
 #assert.eq(
   validate((1, 2), schema: int-or-str).at(0).message,
-  "expected a value matching one of: number | string; none matched.",
+  "expected a value matching one of: integer | string; none matched.",
 )
 #assert.eq(
   validate(1, schema: not-of(integer-type)).at(0).message,
-  "expected a value not matching the negated number schema.",
+  "expected a value not matching the negated integer schema.",
 )
