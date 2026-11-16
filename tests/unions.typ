@@ -143,11 +143,26 @@
 #assert.eq(validate(true, schema: bool-or-cond), ())
 #assert.eq(validate(1, schema: bool-or-cond), ())
 #assert.eq(validate("a", schema: bool-or-cond).map(e => e.code), ("length",))
-// Neither branch takes an object: no member claims it. The member is
-// named `conditional` when its branches differ...
+// Neither branch takes an object: no member claims it. The `type`
+// error's `expected` lists what each member's own type error does, so
+// a conditional the branch its condition picked. The message names the
+// member `conditional` when its branches differ...
 #let unclaimed = validate((a: 1), schema: bool-or-cond)
 #assert.eq(unclaimed.map(e => e.code), ("type",))
-#assert.eq(unclaimed.at(0).expected, "bool | conditional")
+#assert.eq(unclaimed.at(0).expected, "boolean or number")
+// A branch the condition didn't pick names nothing, even one with no
+// type gate of its own.
+#assert.eq(
+  validate(
+    (a: 1),
+    schema: any-of(
+      bool-type,
+      if-of(str-type, then: not-of(number-type), otherwise: number-type),
+    ),
+  ).map(e => (e.code, e.expected)),
+  (("type", "boolean or number"),),
+)
+#assert(unclaimed.at(0).message.contains("bool | conditional"))
 // ...and by its branches' kind when they agree.
 #assert.eq(
   validate(
@@ -158,8 +173,8 @@
     ),
   )
     .at(0)
-    .expected,
-  "bool | string",
+    .message,
+  "expected a value matching one of: bool | string; none matched.",
 )
 #assert(
   validate("ab", schema: not-of(short-str))

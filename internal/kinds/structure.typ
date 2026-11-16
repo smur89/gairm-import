@@ -132,15 +132,11 @@
   )
 }
 
-// A member's kind as union and `not` errors name it. An integer member
-// reads `number`, as it did before integer was a kind of its own, so
-// the messages and `expected` values validate returns stay as they were.
-// A conditional reads as its branches when both are set and agree (the
-// translated `{type: "object", if: …, then: …, else: …}` is an object
-// either way), and as `conditional` otherwise.
-#let _reported-kind(member) = if member.kind == "integer" { "number" } else if (
-  member.kind == "if"
-) {
+// A member's kind as union and `not` errors name it. A conditional
+// reads as its branches when both are set and agree (the translated
+// `{type: "object", if: …, then: …, else: …}` is an object either way),
+// and as `conditional` otherwise.
+#let _reported-kind(member) = if member.kind == "if" {
   let kinds = ("then", "otherwise").map(b => if b in member {
     _reported-kind(member.at(b))
   })
@@ -603,11 +599,10 @@
   // union's own path. When exactly one claims, its own errors say what
   // is wrong; the generic summary would read like a type error for a
   // right-typed value that merely broke a constraint.
-  let claimed = results.filter(r => {
-    not r.errors.any(e => (
-      e.code == "type" and e.path == ctx.path
-    ))
-  })
+  let type-misses(r) = r.errors.filter(e => (
+    e.code == "type" and e.path == ctx.path
+  ))
+  let claimed = results.filter(r => type-misses(r) == ())
   if claimed.len() == 1 {
     // A claimant that can't be modelled says where itself (e.g. a nested
     // field); one that only broke a constraint gets the union's message.
@@ -618,23 +613,28 @@
       fatal: if own != none { own } else { fatal },
     )
   }
-  let alternatives = kinds.join(" | ")
   let quantifier = if schema.exclusive { "exactly one" } else { "one" }
   let message = (
     "expected a value matching "
       + quantifier
       + " of: "
-      + alternatives
+      + kinds.join(" | ")
       + "; none matched."
   )
   // No member takes the value's type at all: a type error, so an
-  // enclosing union doesn't count this one as claiming it either.
+  // enclosing union doesn't count this one as claiming it either. Its
+  // `expected` gathers the type names the members' own type errors give
+  // (an enum's or a nested union's already joined by " or ").
   let errors = if claimed.len() == 0 {
+    let names = results
+      .map(r => type-misses(r).map(e => e.expected.split(" or ")))
+      .flatten()
+      .dedup()
     _error(
       ctx.path,
       "type",
       message,
-      expected: alternatives,
+      expected: names.join(" or "),
       got: _type-name-of(value),
     )
   } else {

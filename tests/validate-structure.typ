@@ -39,7 +39,7 @@
   (number-type, "nope", "expected number"),
   (integer-type, 1.5, "expected an integer"),
   // A non-number fails the number gate before the integral one.
-  (integer-type, "nope", "expected number"),
+  (integer-type, "nope", "expected integer, got string"),
   (bool-type, "yes", "expected boolean, got string"),
   (null-type, 1, "expected null"),
   (array-of(str-type), "oops", "expected array"),

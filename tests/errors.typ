@@ -28,15 +28,26 @@
   // An enum none of whose values shares the value's type: the JSON
   // type names its values have.
   (true, enum-of(("a", "b")), "type", (), "string", "boolean"),
-  // A union none of whose members takes the value's type.
+  // A union none of whose members takes the value's type: the JSON
+  // type names their own type errors give. A null member judges no
+  // non-null value by default, so it names none.
   (
     true,
     any-of((str-type, number-type)),
     "type",
     (),
-    "string | number",
+    "string or number",
     "boolean",
   ),
+  (
+    true,
+    any-of((integer-type, enum-of((1, "a")), any-of((str-type, null-type)))),
+    "type",
+    (),
+    "integer or number or string",
+    "boolean",
+  ),
+  ("x", integer-type, "type", (), "integer", "string"),
   // required
   (
     (:),
