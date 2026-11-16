@@ -150,6 +150,18 @@
 #let unclaimed = validate((a: 1), schema: bool-or-cond)
 #assert.eq(unclaimed.map(e => e.code), ("type",))
 #assert.eq(unclaimed.at(0).expected, "boolean or number")
+// A branch the condition didn't pick names nothing, even one with no
+// type gate of its own.
+#assert.eq(
+  validate(
+    (a: 1),
+    schema: any-of(
+      bool-type,
+      if-of(str-type, then: not-of(number-type), otherwise: number-type),
+    ),
+  ).map(e => (e.code, e.expected)),
+  (("type", "boolean or number"),),
+)
 #assert(unclaimed.at(0).message.contains("bool | conditional"))
 // ...and by its branches' kind when they agree.
 #assert.eq(
