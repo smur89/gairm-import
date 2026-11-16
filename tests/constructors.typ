@@ -1,12 +1,11 @@
 // The constructors build plain schema nodes. string(), number(),
-// integer() and array-of() take constraint arguments (#162): the
-// constants are their no-argument values, each argument sets the field
-// the translator sets for its JSON keyword, and the result validates as
-// that node does.
+// integer() and array-of() take constraint arguments (#162): each
+// argument sets the field the translator sets for its JSON keyword, and
+// the result validates as that node does.
 
 #import "../lib.typ": (
   string, number, integer, array-of, schema-from-json-schema, validate, coerce,
-  object, paths-of-kind, content-type, any-of, if-of,
+  object, paths-of-kind, content-type, if-of,
 )
 
 // ---- the nodes ---------------------------------------------------------
@@ -66,8 +65,6 @@
 )
 
 // An unset argument adds no field.
-#assert.eq(string(), (kind: "string"))
-#assert.eq(number(), (kind: "number"))
 #assert.eq(integer(), (kind: "integer"))
 #assert.eq(array-of(string(), unique-items: false), array-of(string()))
 

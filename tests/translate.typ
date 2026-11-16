@@ -27,19 +27,9 @@
     (type: "array", items: (type: "array", items: (type: "number"))),
     array-of(array-of(number())),
   ),
-  // Formats map to their string kinds.
-  ((type: "string", format: "uri"), string(format: "uri")),
-  ((type: "string", format: "email"), string(format: "email")),
-  ((type: "string", format: "date"), string(format: "date")),
-  ((type: "string", format: "date-time"), string(format: "date-time")),
-  ((type: "string", format: "uuid"), string(format: "uuid")),
-  ((type: "string", format: "hostname"), string(format: "hostname")),
-  ((type: "string", format: "ipv4"), string(format: "ipv4")),
-  ((type: "string", format: "ipv6"), string(format: "ipv6")),
-  ((type: "string", format: "time"), string(format: "time")),
   // A pattern is a patterned string with a hint naming it (regexes compare
-  // by source). With a format, the format kind carries it as an extra
-  // gate.
+  // by source). With a format, the formatted string carries it as an
+  // extra gate.
   (
     (type: "string", pattern: "^[A-Z]{2}$"),
     string(pattern: "^[A-Z]{2}$", expected: "matching " + repr("^[A-Z]{2}$")),

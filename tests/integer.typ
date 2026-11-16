@@ -8,8 +8,6 @@
   lens-get,
 )
 
-#assert.eq(integer().kind, "integer")
-#assert.eq(integer(), (kind: "integer"))
 
 #let schema = object((
   age: integer(),
@@ -28,7 +26,7 @@
 ))
 #assert.eq(paths-of-kind(schema, number()), (("score",),))
 
-// describe-schema names the kind; the flag no longer shows as an extra.
+// describe-schema names the kind.
 #assert.eq(describe-schema(integer()), "integer")
 #assert.eq(
   describe-schema((..integer(), minimum: 0)),

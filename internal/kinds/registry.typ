@@ -36,7 +36,7 @@
 #import "structure.typ": (
   array-of, object, map, any-of, one-of, not-of, if-of, nullable, _array-walk,
   _object-walk, _union-walk, _not-walk, _if-walk, _object-with, _schema-kinds,
-  _node, _kind-label,
+  _kind-label,
 )
 
 // A conditional's children, as (segment, field): the lens segments are
@@ -281,4 +281,4 @@
 
 // A node of a kind the registry doesn't know (hand-built) behaves as a
 // leaf, as it did before the registry.
-#let _descriptor(s) = _kinds.at(_node(s).kind, default: _kind())
+#let _descriptor(s) = _kinds.at(s.kind, default: _kind())

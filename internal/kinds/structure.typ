@@ -31,35 +31,28 @@
   "if",
 )
 
-// `node`, checked: panics on a string node whose `format` the format
-// table doesn't know, which only a hand-built node can carry.
-#let _node(node) = {
-  if node.at("kind", default: none) == "string" {
+// A schema node: a dictionary whose `kind` is registered. Shallow, as
+// its children were checked when they were built. A string node whose
+// `format` the format table doesn't know, which only a hand-built node
+// can carry, panics here.
+#let _is-schema(node) = {
+  if type(node) != dictionary { return false }
+  let kind = node.at("kind", default: none)
+  if kind == "string" {
     let p = _string-problem(format: node.at("format", default: none))
     if p != none { _fail("string schema", p) }
   }
-  node
+  kind in _schema-kinds
 }
-
-// A schema node: a dictionary whose `kind` is registered. Shallow, as
-// its children were checked when they were built.
-#let _is-schema(node) = (
-  type(node) == dictionary
-    and _node(node).at("kind", default: none) in _schema-kinds
-)
 
 // A node's kind as messages and describe-schema name it: the kind, then
 // a string's format, if it has one, in parentheses (`string (date)`).
 #let _kind-label(node) = {
-  let node = _node(node)
   if node.kind == "string" and "format" in node {
     "string (" + node.format + ")"
   } else { node.kind }
 }
 
-// The one gate for a node entering from user code: a lens-put value, a
-// lens-over result, a constructor's sub-schema. A malformed node fails
-// here, naming what took it, not later as an unknown kind mid-walk.
 // Whether `node` is an object schema: for the operations only an
 // object supports (the field edits, the allOf merge).
 #let _is-object(node) = node.kind == "object"
@@ -67,6 +60,9 @@
 // What a schema check suggests to a caller who passed something else.
 #let _schema-hint = " Build schemas with the constructors."
 
+// The one gate for a node entering from user code: a lens-put value, a
+// lens-over result, a constructor's sub-schema. A malformed node fails
+// here, naming what took it, not later as an unknown kind mid-walk.
 #let _require-schema(node, who) = {
   if not _is-schema(node) {
     _fail(who, _problem(

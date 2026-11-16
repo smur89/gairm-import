@@ -7,12 +7,12 @@
 // descent, `"additionalProperties"` for the additional schema, an
 // index for a union member, `"not"` for a `not` member, `"if"`,
 // `"then"` and `"else"` for a conditional's condition and branches — so
-// `paths-of-kind` output round-trips through `lens` and `lens-get`.
+// `paths-of-kind` output round-trips through `lens-get`.
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "core/error.typ": _bail
-#import "kinds/registry.typ": _kinds, _descriptor, _node
+#import "kinds/registry.typ": _kinds, _descriptor
 #import "kinds/traverse.typ": _children, _paths-where
 #import "kinds/constraint.typ": _constraint-rows
 
@@ -144,29 +144,23 @@
 // What paths-of-kind looks for, as a node: a schema node as given, a
 // constructor as the bare node of the kind it builds, and anything else
 // as a node of no kind, which no search takes.
-#let _query(kind) = _node(
-  if type(kind) == dictionary and "kind" in kind { kind } else if (
-    type(kind) == function
-  ) {
-    let hit = _kinds.pairs().find(((_, d)) => d.constructors.contains(kind))
-    (kind: if hit != none { hit.at(0) })
-  } else { (kind: none) },
-)
+#let _query(kind) = if type(kind) == dictionary and "kind" in kind {
+  kind
+} else if type(kind) == function {
+  (kind: _kinds.keys().find(k => kind in _kinds.at(k).constructors))
+} else { (kind: none) }
 
 // A node matches a query when it is of the query's kind and has every
 // other field the query sets, with the same value. So `string()` finds
 // every string, `string(format: "date")` the date strings, with a
 // pattern or without, and `number(minimum: 0)` the numbers whose
 // minimum is 0.
-#let _matches(query, node) = {
-  let node = _node(node)
-  (
-    node.kind == query.kind
-      and query
-        .pairs()
-        .all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
-  )
-}
+#let _matches(query, node) = (
+  node.kind == query.kind
+    and query
+      .pairs()
+      .all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
+)
 
 // Container kinds (`object`, `array`) are deliberately rejected — the
 // walker descends through them, and a search for one is more likely a

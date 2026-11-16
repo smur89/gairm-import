@@ -17,12 +17,10 @@
 
 #import "core/ctx.typ": _absent
 #import "core/error.typ": _bail, _coerce-message, _panic-report
-#import "kinds/registry.typ": _kinds, _node
+#import "kinds/registry.typ": _kinds
 
 #let _walk(schema, value, ctx) = {
   if _absent(value, ctx) { return (errors: (), value: none, fatal: none) }
-  // A hand-built string with an unknown format panics here.
-  let schema = _node(schema)
   let d = _kinds.at(schema.kind, default: none)
   if d == none {
     _bail(

@@ -25,8 +25,8 @@
 
 /// A number (an integer or a float), with optional bounds. Each
 /// argument is the JSON Schema keyword of the same meaning; an argument
-/// left at `none` sets nothing. Panics
-/// on a value of the wrong type, or on bounds no number satisfies.
+/// left at `none` sets nothing. Panics on a value of the wrong type, or
+/// on bounds no number satisfies.
 ///
 /// - minimum (int, float, none): The smallest allowed value.
 /// - maximum (int, float, none): The largest allowed value.
@@ -159,6 +159,7 @@
 #let _string-check = _typed-check((str,), "string")
 #let _bool-check = _typed-check((bool,), "boolean")
 #let _number-check = _typed-check((int, float), "number")
+#let _integer-gate = _typed-check((int, float), "integer")
 
 // The number gate, then the integral one: draft-7 semantics, so a
 // float with zero fractional part passes. The integral miss is
@@ -166,9 +167,8 @@
 // counts it as claiming the value. Nor is it a gate: the number rows
 // still judge the value alongside it.
 #let _integer-check(schema, value, ctx) = {
-  if type(value) not in (int, float) {
-    return _type-miss(ctx.path, "integer", value)
-  }
+  let r = _integer-gate(schema, value, ctx)
+  if r.fatal != none { return r }
   if calc.fract(value) != 0 {
     let errors = _error(
       ctx.path,
@@ -186,7 +186,6 @@
   }
   _pass(value)
 }
-
 
 #let _any-check(schema, value, ctx) = _pass(value)
 

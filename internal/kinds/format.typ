@@ -280,11 +280,12 @@
 
 // The string kind's check: its format's, when it has one, which runs
 // the node's own pattern after the format; the type gate and the
-// pattern alone otherwise. The node comes normalised (structure.typ's
-// _node), so its format is a known one.
+// pattern alone otherwise. A hand-built node may carry a format the
+// table doesn't know, which panics here.
 #let _string-kind-check(schema, value, ctx) = {
   let format = schema.at("format", default: none)
-  if format == none { _pattern-check(schema, value, ctx) } else {
-    _format-check(_formats.at(format), schema, value, ctx)
-  }
+  if format == none { return _pattern-check(schema, value, ctx) }
+  let row = _formats.at(format, default: none)
+  if row == none { _fail("string schema", _string-problem(format: format)) }
+  _format-check(row, schema, value, ctx)
 }
