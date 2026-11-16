@@ -6,10 +6,11 @@
 // "then" and "else".
 
 #import "../lib.typ": (
-  describe-schema, paths-of-kind, lens-get, resume-schema, resume-schema-strict,
-  object, array-of, map, content-type, bool-type, null-type, enum-of, any-of,
-  const-of, one-of, not-of, if-of, nullable, string, number, integer,
+  describe-schema, paths-of-kind, lens-get, object, array-of, map, content-type,
+  bool-type, null-type, enum-of, any-of, const-of, one-of, not-of, if-of,
+  nullable, string, number, integer,
 )
+#import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
 // --- describe-schema -------------------------------------------------
 

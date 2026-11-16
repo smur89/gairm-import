@@ -11,7 +11,6 @@
 #import "internal/kinds/structure.typ": (
   array-of, object, map, any-of, one-of, not-of, if-of, nullable,
 )
-#import "internal/json-resume/schema.typ": resume-schema, resume-schema-strict
 #import "internal/engine.typ" as _engine-mod
 #import "internal/core/ctx.typ" as _ctx-mod
 #import "internal/core/error.typ" as _error-mod
@@ -42,12 +41,12 @@
 ///   panics, and so does a string ending in `.json` that the schema's
 ///   root does not take, as a string path would resolve from the
 ///   package: use `path(..)` or `json(..)` to read a file.
-/// - schema (dictionary): The schema to check against. Required in
-///   1.0; the `resume-schema` default is deprecated.
+/// - schema (dictionary): The schema to check against. Required.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> array
-#let validate(data, schema: resume-schema, strict-null: false) = {
+#let validate(data, schema: none, strict-null: false) = {
+  _input-mod._require-schema-arg("validate", schema)
   let value = _input-mod._decode-input("validate", data, str-is-data: true)
   let r = _engine-mod._walk(
     schema,
@@ -69,11 +68,12 @@
 ///
 /// - data (any): The document, or where to read it, as for `validate`.
 /// - schema (dictionary): The schema that says what each field becomes.
-///   Required in 1.0; the `resume-schema` default is deprecated.
+///   Required.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> any
-#let coerce(data, schema: resume-schema, strict-null: false) = {
+#let coerce(data, schema: none, strict-null: false) = {
+  _input-mod._require-schema-arg("coerce", schema)
   let value = _input-mod._decode-input("coerce", data, str-is-data: true)
   let r = _engine-mod._walk(
     schema,
@@ -91,12 +91,12 @@
 /// - data (any): The document, or where to read it, as for `validate`:
 ///   the root may be anything the schema takes, an array or a scalar
 ///   included.
-/// - schema (dictionary): The schema to check against. Required in
-///   1.0; the `resume-schema` default is deprecated.
+/// - schema (dictionary): The schema to check against. Required.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> any
-#let parse(data, schema: resume-schema, strict-null: false) = {
+#let parse(data, schema: none, strict-null: false) = {
+  _input-mod._require-schema-arg("parse", schema)
   let value = _input-mod._decode-input("parse", data, str-is-data: true)
   let r = _engine-mod._walk(
     schema,

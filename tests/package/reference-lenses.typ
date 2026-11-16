@@ -2,6 +2,7 @@
 // edits keep what they don't touch. The calls match REFERENCE.md; the
 // asserts are ours.
 #import "@preview/gairm-import:0.0.0": *
+#import "readme-json-resume.typ": resume-schema, resume-schema-strict
 
 // A renderer-specific top-level field.
 #let altacv-schema = add-field(

@@ -103,16 +103,9 @@ number and `book.tags` an array of strings.
 
 `parse` validates and coerces in one call and panics with every problem
 found. `validate` returns the problems as a list, and `coerce` builds the
-model without checking. All three take `schema:` and `strict-null:`
-(default `false`). [REFERENCE.md](REFERENCE.md) covers
+model without checking. All three take `schema:` (required) and
+`strict-null:` (default `false`). [REFERENCE.md](REFERENCE.md) covers
 the rest, one section per group.
-
-**Deprecated, working until 1.0:** `resume-schema` and
-`resume-schema-strict` (see
-[Validating a JSON Resume](#validating-a-json-resume)), leaving out
-`schema:` (it defaults to `resume-schema`, and is required in 1.0).
-[REFERENCE.md](REFERENCE.md#deprecated-names) gives the replacement for
-each.
 
 ## Input forms
 
@@ -363,15 +356,11 @@ document before translating it and the schema after:
 For a different mix, or for a renderer's own fields, edit either schema
 with lenses; see [REFERENCE.md](REFERENCE.md#lenses-and-edits).
 
-The deprecated exports `resume-schema` and `resume-schema-strict` are
-these two schemas, built from a bundled copy of JSON Resume 1.7.0.
-
 ## Reference
 
 [REFERENCE.md](REFERENCE.md) documents every constructor and argument,
 the formats, lenses and the edits, introspection, JSON Pointer, the JSON
-Schema translator and its deviations from draft 7, and the deprecated
-names.
+Schema translator and its deviations from draft 7.
 
 ## Contributing
 

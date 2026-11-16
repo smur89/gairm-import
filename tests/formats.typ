@@ -6,8 +6,9 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, schema-from-json-schema, describe-schema, object,
-  array-of, resume-schema-strict, string,
+  array-of, string,
 )
+#import "fixtures/resume.typ": resume-schema-strict
 
 // The errors for `value` at field `f`.
 #let at(kind, value) = validate((f: value), schema: object((f: kind)))

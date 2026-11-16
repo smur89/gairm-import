@@ -1,15 +1,14 @@
 // Mirrors README.md, "Validating a JSON Resume": the plain translation,
 // the types it says the result holds, and the stricter schema. The
 // README reads the user's own `resume.schema.json`; here that is the
-// vendored copy behind the deprecated exports, so each recipe must
-// equal the export it replaces. resume.json (this directory) matches
-// the README; the asserts are ours. Other doc mirrors import the two
-// schemas from here.
+// test fixture's copy. resume.json (this directory) matches the README;
+// the asserts are ours. Other doc mirrors import the two schemas from
+// here.
 #import "@preview/gairm-import:0.0.0": (
   parse, schema-from-json-schema, lens-put, content-type,
 )
 
-#let schema-file = "/internal/json-resume/schema.json"
+#let schema-file = "/tests/fixtures/jsonresume-schema.json"
 
 #let resume-schema = schema-from-json-schema(json(schema-file))
 #let resume = parse(path("resume.json"), schema: resume-schema)
@@ -79,10 +78,3 @@
 )
 
 #let resume = parse(path("resume.json"), schema: resume-schema-strict)
-
-// The deprecated exports are these recipes, until 1.0 removes them.
-#{
-  import "@preview/gairm-import:0.0.0" as gairm
-  assert.eq(resume-schema, gairm.resume-schema)
-  assert.eq(resume-schema-strict, gairm.resume-schema-strict)
-}

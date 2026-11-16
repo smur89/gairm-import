@@ -4,11 +4,11 @@
 //
 // A string path (#132) resolves from the package root inside a package,
 // so it could never find the caller's file. A string is still a value
-// (a scalar schema such as string(format: "date") takes one), so validate, coerce
-// and parse refuse it only when it looks like a path and the schema's
-// root does not take it: _refuse-path, after the walk. The translator,
-// whose input is never a string, refuses every one (`str-is-data`
-// false).
+// (a scalar schema such as string(format: "date") takes one), so
+// validate, coerce and parse refuse it only when it looks like a path
+// and the schema's root does not take it: _refuse-path, after the walk.
+// The translator, whose input is never a string, refuses every one
+// (`str-is-data` false).
 #import "error.typ": _bail
 
 #let _path-hint(fn-name, data) = _bail(
@@ -20,6 +20,16 @@
     + repr(data)
     + ") instead.",
 )
+
+// `schema:` is required, but Typst has no required named arguments: a
+// call that leaves it out arrives as none.
+#let _require-schema-arg(fn-name, schema) = if schema == none {
+  _bail(
+    fn-name,
+    "needs schema:, the schema to check the data against. Build one "
+      + "with the constructors or schema-from-json-schema.",
+  )
+}
 
 // `null-ok` leaves a null for the caller's own type check, for a caller
 // whose input is not a document root (a schema).
