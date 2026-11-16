@@ -8,9 +8,9 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, content-type, null-type, array-of, object, nullable,
-  any-of, one-of, if-of, enum-of, resume-schema, resume-schema-strict, string,
-  number,
+  any-of, one-of, if-of, enum-of, string, number,
 )
+#import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
 #let codes(errs) = errs.map(e => (e.path, e.code))
 
@@ -248,10 +248,10 @@
 )
 
 // A null section of a document is absent too.
-#assert.eq(validate((basics: none)), ())
+#assert.eq(validate((basics: none), schema: resume-schema), ())
 // An empty document is valid; only a null one panics
 // (tests/panics/).
-#assert.eq(validate((:)), ())
+#assert.eq(validate((:), schema: resume-schema), ())
 
 // ---- the union rule: null-type never competes for a non-null value ---
 
@@ -337,8 +337,11 @@
   ),
   (basics: (:)),
 )
-#assert.eq(parse(bytes("{}")), (:))
-#assert.eq(parse(bytes("{\"basics\":{\"name\":null}}")), (basics: (:)))
+#assert.eq(parse(bytes("{}"), schema: resume-schema), (:))
+#assert.eq(
+  parse(bytes("{\"basics\":{\"name\":null}}"), schema: resume-schema),
+  (basics: (:)),
+)
 
 // A required key holding `{}` validates, so it survives coercion.
 #let holder = object((cfg: object((x: string()))), required-keys: ("cfg",))
@@ -414,7 +417,7 @@
   meta: none,
   custom: (myTool: none),
 )
-#assert.eq(validate(raw), ())
+#assert.eq(validate(raw, schema: resume-schema), ())
 // resume-schema-strict, so highlights coerce to content.
 #let model = coerce(raw, schema: resume-schema-strict)
 #assert.eq(model.basics, (name: "Alice"))

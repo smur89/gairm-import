@@ -20,7 +20,6 @@ internal/engine.typ         # L2: the one walk over schema and value
 internal/json-schema/       # L3: the JSON Schema translator
 internal/lens.typ           # L3: lens-get / lens-put / lens-over and the field edits
 internal/introspect.typ     # L3: describe-schema, paths-of-kind
-internal/json-resume/       # L4: the bundled JSON Resume schemas (deprecated)
 tests/*.typ                 # assertions, one file per public concept
 tests/panics/               # one case per place the package panics
 tests/package/              # compiled against the staged package; readme-* and reference-* mirror the docs

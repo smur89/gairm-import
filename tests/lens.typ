@@ -7,10 +7,11 @@
 // branches by "if", "then" and "else".
 
 #import "../lib.typ": (
-  lens-get, lens-put, lens-over, paths-of-kind, validate, resume-schema,
-  resume-schema-strict, object, array-of, content-type, any-of, one-of, not-of,
-  if-of, schema-from-json-schema, string, number,
+  lens-get, lens-put, lens-over, paths-of-kind, validate, object, array-of,
+  content-type, any-of, one-of, not-of, if-of, schema-from-json-schema, string,
+  number,
 )
+#import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
 // ---- the lens ----------------------------------------------------------
 

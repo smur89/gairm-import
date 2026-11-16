@@ -5,8 +5,9 @@
 
 #import "../lib.typ": (
   lens-put, lens-over, add-field, remove-field, set-required, unset-required,
-  resume-schema, object, map, validate, string, number,
+  object, map, validate, string, number,
 )
+#import "fixtures/resume.typ": resume-schema
 
 // ---- a lens or a path ------------------------------------------------------
 

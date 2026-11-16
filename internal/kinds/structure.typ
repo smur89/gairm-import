@@ -379,8 +379,7 @@
 
 // An object that declares no fields and lets anything through is a
 // free-form bag (JSON Resume's `custom`): opaque data, not a section
-// with extras tacked on. Strict keeps it open, and coerce passes it
-// through unchanged.
+// with extras tacked on, so coerce passes it through unchanged.
 #let _is-free-form(schema) = (
   schema.kind == "object"
     and schema.shape.len() == 0

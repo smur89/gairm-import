@@ -108,12 +108,11 @@ check: test fmt-check check-layers check-conventions ## test + fmt-check + check
 # (`../core/<name>.typ`), and nothing else. internal/engine.typ (L2)
 # imports only from core/ and kinds/. internal/json-schema/ (L3)
 # imports from core/, kinds/, the engine and its own siblings: never
-# lens, introspect or json-resume. The other L3 modules,
-# internal/lens.typ and internal/introspect.typ, import only from
-# core/, kinds/ and the engine: never each other. internal/json-resume/
-# (L4) may import anything below it and its siblings.
+# lens or introspect. The other L3 modules, internal/lens.typ and
+# internal/introspect.typ, import only from core/, kinds/ and the
+# engine: never each other.
 SIBLING_IMPORT := \#import +"[a-z][a-z0-9-]*\.typ"
-LAYERS := core kinds engine json-schema lens-introspect json-resume
+LAYERS := core kinds engine json-schema lens-introspect
 
 core.files := internal/core/*.typ
 core.allow := $(SIBLING_IMPORT)
@@ -134,10 +133,6 @@ json-schema.says  := internal/json-schema/ may import only internal/core/, inter
 lens-introspect.files := internal/lens.typ internal/introspect.typ
 lens-introspect.allow := \#import +"((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
 lens-introspect.says  := internal/lens.typ and internal/introspect.typ may import only internal/core/, internal/kinds/ and internal/engine.typ
-
-json-resume.files := internal/json-resume/*.typ
-json-resume.allow := $(SIBLING_IMPORT)|\#import +"\.\./((core|kinds|json-schema)/[a-z][a-z0-9-]*|engine|lens|introspect)\.typ"
-json-resume.says  := internal/json-resume/ may import only the layers below it and its own siblings
 
 # Shell that sets `status=1` and prints `<check>: <message>:` and the
 # hits when the command lists any. The message and the command are

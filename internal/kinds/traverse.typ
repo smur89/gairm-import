@@ -1,9 +1,8 @@
-// One schema traversal, through the kind descriptors, shared by lens,
-// introspection and the strict-schema walkers. Paths are lens paths: a
-// field name, "items" for an array's elements, "additionalProperties"
-// for an object's additional schema, an int index for a union member,
-// "not" for a `not` member, "if", "then" and "else" for a conditional's
-// condition and branches.
+// One schema traversal, through the kind descriptors, shared by lens
+// and introspection. Paths are lens paths: a field name, "items" for an
+// array's elements, "additionalProperties" for an object's additional
+// schema, an int index for a union member, "not" for a `not` member,
+// "if", "then" and "else" for a conditional's condition and branches.
 
 #import "../core/error.typ": _bail, _fail, _problem
 #import "registry.typ": _descriptor
@@ -42,13 +41,6 @@
 #let _paths-where(s, keep) = (
   _nodes(s).filter(((_, n)) => keep(n)).map(((p, _)) => p)
 )
-
-// `s` with `f` applied to each child. As in lens paths, an object
-// field literally named "additionalProperties" shadows the additional
-// schema, so in that collision both writes land on the field.
-#let _map-children(s, f) = _children(s).fold(s, (acc, (seg, sub, _)) => (
-  (_descriptor(acc).with-child)(acc, seg, f(sub))
-))
 
 // A location: where lens and introspection functions point. A lens
 // `(lens: path)`, or a bare path array. Neither is a schema node: an

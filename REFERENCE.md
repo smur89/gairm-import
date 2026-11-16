@@ -15,7 +15,6 @@ says each thing once. Examples on JSON Resume use the `resume-schema` and
   - [Supported keywords](#supported-keywords)
   - [Out of scope](#out-of-scope)
   - [Deviations from draft 7](#deviations-from-draft-7)
-- [Deprecated names](#deprecated-names)
 
 The examples assume the whole package is imported:
 
@@ -496,14 +495,3 @@ Where a draft 7 validator and this package disagree on the same schema:
   except `additionalProperties: true` / `false`.
 - **`dependentRequired`**, from draft 2019-09, is accepted alongside draft
   7's array-form `dependencies`.
-
-## Deprecated names
-
-Each of these still works and will be removed in 1.0.
-
-| Deprecated | Use instead |
-|---|---|
-| `resume-schema` | `schema-from-json-schema(json("resume.schema.json"))` on your copy of the [JSON Resume schema](https://jsonresume.org/schema) |
-| `resume-schema-strict` | the stricter schema the README's [Validating a JSON Resume](README.md#validating-a-json-resume) builds |
-| `parse`, `validate` or `coerce` without `schema:`, which defaults to `resume-schema` | pass `schema:`; it is required in 1.0 |
-

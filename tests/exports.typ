@@ -35,8 +35,6 @@
   "paths-of-kind",
   "pointer-to-path",
   "remove-field",
-  "resume-schema",
-  "resume-schema-strict",
   "schema-from-json-schema",
   "set-required",
   "string",

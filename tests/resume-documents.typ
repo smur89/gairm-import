@@ -1,23 +1,22 @@
-// Real resumes end to end, through every entry form and both bundled
+// Real resumes end to end, through every entry form and both fixture
 // schemas: the minimal and full fixtures, one with nulls throughout,
 // and upstream's own sample (JSON Resume 1.7.0, `sample.resume.json`
 // from the `@jsonresume/schema` npm package, MIT).
 
-#import "../lib.typ": (
-  validate, coerce, parse, resume-schema, resume-schema-strict,
-)
+#import "../lib.typ": validate, coerce, parse
+#import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
 // ---- every entry form ------------------------------------------------------
 
 // A dict, a path (read from the caller's file) or bytes give the same
 // model, through validate, coerce and parse alike.
 #let minimal = "fixtures/resume-minimal.json"
-#let model = parse(path(minimal))
+#let model = parse(path(minimal), schema: resume-schema)
 #assert.eq(model.basics.name, "Seán Ó Murchú")
 #for data in (json(minimal), path(minimal), read(minimal, encoding: none)) {
-  assert.eq(validate(data), ())
-  assert.eq(coerce(data), model)
-  assert.eq(parse(data), model)
+  assert.eq(validate(data, schema: resume-schema), ())
+  assert.eq(coerce(data, schema: resume-schema), model)
+  assert.eq(parse(data, schema: resume-schema), model)
 }
 // Free text is str under the faithful schema, content under strict.
 #assert.eq(type(model.basics.summary), str)
@@ -29,9 +28,9 @@
 // ---- every section ---------------------------------------------------------
 
 #let full = json("fixtures/resume-full.json")
-#assert.eq(validate(full), ())
+#assert.eq(validate(full, schema: resume-schema), ())
 #assert.eq(validate(full, schema: resume-schema-strict), ())
-#let faithful = parse(full)
+#let faithful = parse(full, schema: resume-schema)
 #let strict = parse(full, schema: resume-schema-strict)
 
 #for model in (faithful, strict) {
@@ -97,9 +96,9 @@
 // model leaves those keys out.
 
 #let with-nulls = json("fixtures/resume-with-nulls.json")
-#assert.eq(validate(with-nulls), ())
+#assert.eq(validate(with-nulls, schema: resume-schema), ())
 #assert.eq(validate(with-nulls, schema: resume-schema-strict), ())
-#let faithful = parse(with-nulls)
+#let faithful = parse(with-nulls, schema: resume-schema)
 #let strict = parse(with-nulls, schema: resume-schema-strict)
 
 #for model in (faithful, strict) {

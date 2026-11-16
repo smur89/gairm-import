@@ -6,10 +6,11 @@
 // "then" and "else".
 
 #import "../lib.typ": (
-  describe-schema, paths-of-kind, lens-get, resume-schema, resume-schema-strict,
-  object, array-of, map, content-type, bool-type, null-type, enum-of, any-of,
-  const-of, one-of, not-of, if-of, nullable, string, number, integer,
+  describe-schema, paths-of-kind, lens-get, object, array-of, map, content-type,
+  bool-type, null-type, enum-of, any-of, const-of, one-of, not-of, if-of,
+  nullable, string, number, integer,
 )
+#import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
 // --- describe-schema -------------------------------------------------
 
@@ -72,7 +73,7 @@ work[]:
 
 // --- paths-of-kind ---------------------------------------------------
 
-// Spec acceptance: strict schema content leaves match _content-paths
+// The strict schema's content leaves are the fixture's content-paths
 // (14 entries). Alphabetical ordering means we can pin the exact list.
 #let content-paths = paths-of-kind(resume-schema-strict, content-type)
 #assert.eq(content-paths.len(), 14)
@@ -117,14 +118,14 @@ work[]:
   (("basics", "email"),),
 )
 
-// Date format: only the strict overlay lifts the iso8601 $ref fields.
+// Date format: only the strict schema lifts the iso8601 $ref fields.
 // Every upstream date is an iso8601 $ref now, so the faithful base
 // has none.
 #let date-paths-strict = paths-of-kind(
   resume-schema-strict,
   string(format: "date"),
 )
-// The 13 _iso8601-date-paths, and meta.lastModified's date member.
+// The 13 iso8601 $ref fields, and meta.lastModified's date member.
 #assert.eq(date-paths-strict.len(), 14)
 #assert(("meta", "lastModified", 1) in date-paths-strict)
 #assert(("work", "items", "startDate") in date-paths-strict)
@@ -133,7 +134,7 @@ work[]:
 
 // iso8601 $ref fields land as patterned strings in the faithful base
 // (translator picks up upstream's `definitions/iso8601` pattern). The
-// strict overlay rewrites them to date strings, so they vanish here.
+// strict schema rewrites them to date strings, so they vanish there.
 // The query is one of them, so it finds every string with that pattern.
 #let iso8601 = lens-get(resume-schema, ("work", "items", "startDate"))
 #let iso-paths-faithful = paths-of-kind(resume-schema, iso8601)
