@@ -12,11 +12,14 @@
 // The canonical document translates through either entry form, and the
 // result validates a full resume: the translator handles every keyword
 // the document uses, not just synthetic fragments.
-#let source = "fixtures/jsonresume-schema.json"
-#let canonical = schema-from-json-schema(json(source))
-#assert.eq(schema-from-json-schema(path(source)), canonical)
-#assert.eq(canonical, resume-schema)
-#assert.eq(validate(json("fixtures/resume-full.json"), schema: canonical), ())
+#assert.eq(
+  schema-from-json-schema(path("fixtures/jsonresume-schema.json")),
+  resume-schema,
+)
+#assert.eq(
+  validate(json("fixtures/resume-full.json"), schema: resume-schema),
+  (),
+)
 
 #assert.eq(resume-schema.shape.keys().sorted(), (
   "$schema",

@@ -1,6 +1,6 @@
-// One descriptor per schema kind, so the engine, lens, introspection
-// and the strict-schema walkers ask the registry instead of keeping
-// their own `kind ==` ladders. A descriptor holds:
+// One descriptor per schema kind, so the engine, lens and
+// introspection ask the registry instead of keeping their own `kind ==`
+// ladders. A descriptor holds:
 //
 //   walk          (schema, value, ctx, recur) => (errors, value, fatal):
 //                 what the engine runs (structure.typ; a leaf's is built

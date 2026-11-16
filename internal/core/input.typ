@@ -21,16 +21,6 @@
     + ") instead.",
 )
 
-// `schema:` is required, but Typst has no required named arguments: a
-// call that leaves it out arrives as none.
-#let _require-schema-arg(fn-name, schema) = if schema == none {
-  _bail(
-    fn-name,
-    "needs schema:, the schema to check the data against. Build one "
-      + "with the constructors or schema-from-json-schema.",
-  )
-}
-
 // `null-ok` leaves a null for the caller's own type check, for a caller
 // whose input is not a document root (a schema).
 #let _decode-input(fn-name, data, str-is-data: false, null-ok: false) = {

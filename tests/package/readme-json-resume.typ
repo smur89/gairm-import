@@ -78,3 +78,10 @@
 )
 
 #let resume = parse(path("resume.json"), schema: resume-schema-strict)
+
+// The fixture tests run against the same two schemas.
+#{
+  import "/tests/fixtures/resume.typ" as fixture
+  assert.eq(resume-schema, fixture.resume-schema)
+  assert.eq(resume-schema-strict, fixture.resume-schema-strict)
+}

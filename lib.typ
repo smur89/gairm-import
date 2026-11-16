@@ -8,6 +8,7 @@
   const-of,
 )
 #import "internal/kinds/format.typ": string
+#import "internal/kinds/structure.typ" as _structure-mod
 #import "internal/kinds/structure.typ": (
   array-of, object, map, any-of, one-of, not-of, if-of, nullable,
 )
@@ -46,7 +47,7 @@
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> array
 #let validate(data, schema: none, strict-null: false) = {
-  _input-mod._require-schema-arg("validate", schema)
+  _structure-mod._require-schema(schema, "validate schema:")
   let value = _input-mod._decode-input("validate", data, str-is-data: true)
   let r = _engine-mod._walk(
     schema,
@@ -73,7 +74,7 @@
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> any
 #let coerce(data, schema: none, strict-null: false) = {
-  _input-mod._require-schema-arg("coerce", schema)
+  _structure-mod._require-schema(schema, "coerce schema:")
   let value = _input-mod._decode-input("coerce", data, str-is-data: true)
   let r = _engine-mod._walk(
     schema,
@@ -96,7 +97,7 @@
 ///   `null` is a value: only `null-type` and `nullable(..)` accept it.
 /// -> any
 #let parse(data, schema: none, strict-null: false) = {
-  _input-mod._require-schema-arg("parse", schema)
+  _structure-mod._require-schema(schema, "parse schema:")
   let value = _input-mod._decode-input("parse", data, str-is-data: true)
   let r = _engine-mod._walk(
     schema,

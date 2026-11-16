@@ -1,4 +1,4 @@
-// Real resumes end to end, through every entry form and both bundled
+// Real resumes end to end, through every entry form and both fixture
 // schemas: the minimal and full fixtures, one with nulls throughout,
 // and upstream's own sample (JSON Resume 1.7.0, `sample.resume.json`
 // from the `@jsonresume/schema` npm package, MIT).
