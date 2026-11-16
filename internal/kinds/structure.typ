@@ -5,8 +5,8 @@
 
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": (
-  _bail, _error, _type-miss, _type-name-of, _json-type-name, _closest-match,
-  _problem, _fail, _key-names-problem,
+  _bail, _error, _type-miss, _type-name-of, _closest-match, _problem, _fail,
+  _key-names-problem,
 )
 #import "constraint.typ": _constraint-errors, _constrain
 #import "leaf.typ": null-type
@@ -142,27 +142,6 @@
   }
 } else {
   _kind-label(member)
-}
-
-// The JSON type names a member takes, as a union's `type` error lists
-// them. Only reached when no member takes the value's type, so every
-// member has a type gate: a leaf, an enum, a nested union, or a
-// conditional, whose taken branch is set. A conditional takes what its
-// branches do.
-#let _taken-types(member) = {
-  let member = _node(member)
-  if member.kind == "union" {
-    member.members.map(_taken-types).flatten()
-  } else if member.kind == "if" {
-    ("then", "otherwise")
-      .filter(b => b in member)
-      .map(b => _taken-types(member.at(b)))
-      .flatten()
-  } else if member.kind == "enum" {
-    member.values.map(_json-type-name)
-  } else if member.kind == "bool" { ("boolean",) } else if (
-    member.kind == "content"
-  ) { ("string",) } else { (member.kind,) }
 }
 
 // Bad-shape members fail at construction, not as a phantom validation
@@ -656,13 +635,21 @@
       + "; none matched."
   )
   // No member takes the value's type at all: a type error, so an
-  // enclosing union doesn't count this one as claiming it either.
+  // enclosing union doesn't count this one as claiming it either. Its
+  // `expected` gathers the type names the members' own type errors give
+  // (an enum's or a nested union's already joined by " or ").
   let errors = if claimed.len() == 0 {
+    let names = results
+      .map(r => r.errors.filter(e => e.code == "type" and e.path == ctx.path))
+      .flatten()
+      .map(e => e.expected.split(" or "))
+      .flatten()
+      .dedup()
     _error(
       ctx.path,
       "type",
       message,
-      expected: schema.members.map(_taken-types).flatten().dedup().join(" or "),
+      expected: names.join(" or "),
       got: _type-name-of(value),
     )
   } else {

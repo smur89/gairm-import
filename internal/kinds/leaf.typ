@@ -168,15 +168,15 @@
 #let _string-check = _typed-check((str,), "string")
 #let _bool-check = _typed-check((bool,), "boolean")
 
-// The number gate, whose miss names the type `name`, then, when
+// The number gate, whose miss names the node's kind, then, when
 // `integral`, the integral one: draft-7 semantics, so a float with zero
 // fractional part passes. The integral miss is `integer`, not `type`:
 // the member still takes numbers, so a union counts it as claiming the
 // value. Nor is it a gate: the number rows still judge the value
 // alongside it.
-#let _numeric-check(schema, value, ctx, integral, name) = {
+#let _numeric-check(schema, value, ctx, integral) = {
   if type(value) not in (int, float) {
-    return _type-miss(ctx.path, name, value)
+    return _type-miss(ctx.path, schema.kind, value)
   }
   if integral and calc.fract(value) != 0 {
     let errors = _error(
@@ -203,14 +203,12 @@
   value,
   ctx,
   schema.at("integer", default: false),
-  "number",
 )
 #let _integer-check(schema, value, ctx) = _numeric-check(
   schema,
   value,
   ctx,
   true,
-  "integer",
 )
 
 #let _any-check(schema, value, ctx) = _pass(value)
