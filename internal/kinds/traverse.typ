@@ -5,7 +5,7 @@
 // "not" for a `not` member, "if", "then" and "else" for a conditional's
 // condition and branches.
 
-#import "../core/error.typ": _bail
+#import "../core/error.typ": _bail, _fail, _problem
 #import "registry.typ": _descriptor
 
 #let _children(s) = (_descriptor(s).children)(s)
@@ -70,8 +70,5 @@
   if type(at) == array { return at }
   if _is-lens(at) { return at.lens }
   if _is-old-lens(at) { return at.path }
-  _bail(
-    who,
-    "location must be a lens or a path array; got: " + repr(at) + ".",
-  )
+  _fail(who, _problem("location", "a lens or a path array", repr(at)))
 }

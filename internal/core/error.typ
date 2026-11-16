@@ -145,13 +145,14 @@
   hint: hint,
 )
 
-/// `p` worded with `name` standing for its argument.
+/// `p` worded with `name` standing for its argument, or with no name
+/// when the caller's `who` already names it (`array-of() elem`).
 #let _worded(p, name) = {
   if "message" in p { return p.message }
   (
-    name
-      + if p.entry != none { " for " + repr(p.entry) }
-      + " must be "
+    (if name != none { name + " " })
+      + (if p.entry != none { "for " + repr(p.entry) + " " })
+      + "must be "
       + p.must
       + ", got: "
       + p.got

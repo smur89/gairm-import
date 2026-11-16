@@ -91,14 +91,17 @@
 // object supports (the field edits, the allOf merge).
 #let _is-object(node) = node.kind == "object"
 
+// What a schema check suggests to a caller who passed something else.
+#let _schema-hint = " Build schemas with the constructors."
+
 #let _require-schema(node, who) = {
   if not _is-schema(node) {
-    _bail(
-      who,
-      "must be a schema; got: "
-        + repr(node)
-        + ". Build schemas with the constructors.",
-    )
+    _fail(who, _problem(
+      none,
+      "a schema",
+      repr(node),
+      hint: _schema-hint,
+    ))
   }
 }
 
@@ -165,12 +168,12 @@
     pos.first()
   } else { pos }
   if members.len() == 0 or not members.all(_is-schema) {
-    _bail(
-      fn-name,
-      "members must be a non-empty array of schema dicts (each built with the constructors); got: "
-        + repr(members)
-        + ".",
-    )
+    _fail(fn-name, _problem(
+      "members",
+      "a non-empty array of schemas",
+      repr(members),
+      hint: _schema-hint,
+    ))
   }
   members
 }
@@ -215,14 +218,7 @@
 /// - member (dictionary): The schema for a non-null value.
 /// -> dictionary
 #let nullable(member) = {
-  if not _is-schema(member) {
-    _bail(
-      "nullable",
-      "member must be a schema dict (built with the constructors); got: "
-        + repr(member)
-        + ".",
-    )
-  }
+  _require-schema(member, "nullable member")
   any-of((member, null-type))
 }
 
@@ -234,14 +230,7 @@
 /// - member (dictionary): The schema the value must fail.
 /// -> dictionary
 #let not-of(member) = {
-  if not _is-schema(member) {
-    _bail(
-      "not-of",
-      "member must be a schema dict (built with the constructors); got: "
-        + repr(member)
-        + ".",
-    )
-  }
+  _require-schema(member, "not-of member")
   (kind: "not", member: member)
 }
 

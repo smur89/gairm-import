@@ -44,7 +44,7 @@
 #import "kinds/structure.typ": (
   _require-schema, _is-schema, _is-object, _object-with,
 )
-#import "core/error.typ": _bail, _not-in, _require-key-names
+#import "core/error.typ": _bail, _fail, _problem, _not-in, _require-key-names
 
 // A node entering from user code: a schema, and an object one rebuilt
 // through object() so it can't break the constructor's invariants.
@@ -69,7 +69,7 @@
 /// -> dictionary
 #let lens(path) = {
   if type(path) != array {
-    _bail("lens", "path must be an array of segments; got: " + repr(path) + ".")
+    _fail("lens", _problem("path", "an array of segments", repr(path)))
   }
   (lens: path)
 }
@@ -195,10 +195,7 @@
 /// -> dictionary
 #let add-field(schema, at, key, sub-schema, required: false) = {
   if type(required) != bool {
-    _bail(
-      "add-field",
-      "required must be true or false, got: " + repr(required) + ".",
-    )
+    _fail("add-field", _problem("required", "true or false", repr(required)))
   }
   _edit-object(schema, at, "add-field", parent => {
     if key in parent.shape {
