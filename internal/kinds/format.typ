@@ -9,7 +9,7 @@
 #import "../core/error.typ": (
   _error, _expected-got, _type-miss, _type-name-of, _problem, _fail,
 )
-#import "leaf.typ": str-type, _pattern-errors, _pattern-check
+#import "leaf.typ": _pattern-errors, _pattern-check
 #import "constraint.typ": _constrain
 
 // IPv6 is spelled as the eight-group form plus each place a single `::`
@@ -176,11 +176,10 @@
 }
 
 /// A string, with an optional format, pattern and length bounds. An
-/// argument left at `none` sets nothing, so `string()` is `str-type`
-/// and `string(format: "email")` is `email-string`.
-/// Panics on a value of the wrong type, an unknown format, an
-/// `expected` without a `pattern`, or length bounds no string
-/// satisfies.
+/// argument left at `none` sets nothing, so `string()` is
+/// `(kind: "string")`. Panics on a value of the wrong type, an unknown
+/// format, an `expected` without a `pattern`, or length bounds no
+/// string satisfies.
 ///
 /// - min-length (int, none): The fewest characters (grapheme clusters)
 ///   allowed.
@@ -205,7 +204,7 @@
 ) = {
   let p = _string-problem(format: format, pattern: pattern, expected: expected)
   if p != none { _fail("string()", p) }
-  let base = str-type
+  let base = (kind: "string")
   if format != none { base.format = format }
   if pattern != none {
     base.pattern = if type(pattern) == regex { pattern } else {
@@ -220,79 +219,6 @@
     max-length: max-length,
   ))
 }
-
-/// Deprecated: use `string(pattern: re, expected: …)` instead. Kept
-/// until 1.0.
-///
-/// A string that must match a regular expression. The same as
-/// `string(pattern: re, expected: expected)`.
-///
-/// - re (regex, str): The pattern.
-/// - expected (str): What the value should be, for the error message
-///   ("expected …").
-/// -> dictionary
-#let pattern-string(re, expected: "matching pattern") = string(
-  pattern: re,
-  expected: expected,
-)
-
-/// Deprecated: use `string(format: "date")` instead. Kept until
-/// 1.0.
-///
-/// A string in ISO 8601 date form: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`.
-/// Data written in Typst may give a `datetime` with a date and no time;
-/// it is checked and returned as the ISO string.
-#let date-string = string(format: "date")
-/// Deprecated: use `string(format: "date-time")` instead. Kept until
-/// 1.0.
-///
-/// A string in ISO 8601 date and time form, `YYYY-MM-DDTHH:MM:SS`, with
-/// an optional fraction and `Z` or `±HH:MM` offset; `T` and `Z` may be
-/// lowercase and a leap second (`:60`) is allowed. Data written in Typst
-/// may give a `datetime` with a date and a time; it is checked and
-/// returned as the ISO string.
-#let datetime-string = string(format: "date-time")
-/// Deprecated: use `string(format: "uri")` instead. Kept until
-/// 1.0.
-///
-/// A string that looks like a URI: a scheme, `:`, then no whitespace (a
-/// permissive check).
-#let uri-string = string(format: "uri")
-/// Deprecated: use `string(format: "email")` instead. Kept until
-/// 1.0.
-///
-/// A string that looks like an email address (a permissive check).
-#let email-string = string(format: "email")
-/// Deprecated: use `string(format: "uuid")` instead. Kept until
-/// 1.0.
-///
-/// A string that looks like a UUID: 8-4-4-4-12 hex digits (a permissive
-/// check; the version and variant are not inspected).
-#let uuid-string = string(format: "uuid")
-/// Deprecated: use `string(format: "hostname")` instead. Kept until
-/// 1.0.
-///
-/// A string that looks like a hostname: dot-separated labels of letters,
-/// digits and inner hyphens (a permissive check).
-#let hostname-string = string(format: "hostname")
-/// Deprecated: use `string(format: "ipv4")` instead. Kept until
-/// 1.0.
-///
-/// A string in dotted-quad IPv4 form, each octet 0-255.
-#let ipv4-string = string(format: "ipv4")
-/// Deprecated: use `string(format: "ipv6")` instead. Kept until
-/// 1.0.
-///
-/// A string that looks like an IPv6 address, including `::` compression
-/// (a permissive check; the embedded-IPv4 tail form is not accepted).
-#let ipv6-string = string(format: "ipv6")
-/// Deprecated: use `string(format: "time")` instead. Kept until
-/// 1.0.
-///
-/// A string in `HH:MM:SS` time form, with an optional fraction and `Z`
-/// or `±HH:MM` offset; `Z` may be lowercase and a leap second (`:60`) is
-/// allowed.
-#let time-string = string(format: "time")
 
 // Typst-native input for the date formats (#134): a datetime of the
 // right shape converts to the ISO string the row's regex checks, so

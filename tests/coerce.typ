@@ -4,20 +4,19 @@
 // builds what it can for any schema, missing required keys included.
 
 #import "../lib.typ": (
-  coerce, str-type, content-type, number-type, integer-type, bool-type,
-  array-of, object,
+  coerce, content-type, bool-type, array-of, object, string, number, integer,
 )
 
-// Leaves other than content pass through. integer-type shares the
+// Leaves other than content pass through. integer() shares the
 // number branch: validation owns the integral gate.
 #for (schema, value) in (
-  (str-type, "hi"),
-  (number-type, 42),
-  (number-type, 3.14),
-  (integer-type, 42),
+  (string(), "hi"),
+  (number(), 42),
+  (number(), 3.14),
+  (integer(), 42),
   (bool-type, true),
   (bool-type, false),
-  (array-of(str-type), ("a", "b")),
+  (array-of(string()), ("a", "b")),
 ) {
   assert.eq(coerce(value, schema: schema), value)
 }
@@ -31,7 +30,7 @@
 #assert.eq(type(cs.at(1)), content)
 
 // An object: content fields wrap, the rest pass through.
-#let person = object((name: str-type, summary: content-type, age: number-type))
+#let person = object((name: string(), summary: content-type, age: number()))
 #let coerced = coerce(
   (name: "Alice", summary: "Hello", age: 30),
   schema: person,
@@ -46,7 +45,7 @@
   coerce(
     (title: "hi"),
     schema: object(
-      (title: str-type, body: content-type),
+      (title: string(), body: content-type),
       required-keys: ("title", "body"),
     ),
   ),
@@ -63,9 +62,9 @@
   ),
   schema: object((
     greeting: content-type,
-    rating: number-type,
-    recipients: array-of(str-type),
-    details: object((title: str-type, bullets: array-of(content-type))),
+    rating: number(),
+    recipients: array-of(string()),
+    details: object((title: string(), bullets: array-of(content-type))),
   )),
 )
 #assert.eq(type(model.greeting), content)

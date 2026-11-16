@@ -5,17 +5,15 @@
 // coerced as the ISO string it converts to.
 
 #import "../lib.typ": (
-  validate, coerce, parse, schema-from-json-schema, describe-schema,
-  date-string, datetime-string, uri-string, email-string, uuid-string,
-  hostname-string, ipv4-string, ipv6-string, time-string, pattern-string,
-  object, array-of, resume-schema-strict,
+  validate, coerce, parse, schema-from-json-schema, describe-schema, object,
+  array-of, resume-schema-strict, string,
 )
 
 // The errors for `value` at field `f`.
 #let at(kind, value) = validate((f: value), schema: object((f: kind)))
 
-#let country-code = pattern-string(
-  "^[A-Z]{2}$",
+#let country-code = string(
+  pattern: "^[A-Z]{2}$",
   expected: "an ISO 3166-1 alpha-2 code",
 )
 
@@ -27,7 +25,7 @@
 
 #for (kind, hint, good, bad) in (
   (
-    date-string,
+    string(format: "date"),
     "ISO-8601",
     // The three iso8601 shapes the canonical schema accepts.
     ("2024", "2024-01", "2024-01-15", "1999-12-31"),
@@ -47,7 +45,7 @@
     ),
   ),
   (
-    datetime-string,
+    string(format: "date-time"),
     "ISO-8601 datetime",
     (
       "2024-01-15T10:00:00",
@@ -91,7 +89,7 @@
     ),
   ),
   (
-    uri-string,
+    string(format: "uri"),
     "URI",
     // Any scheme, hierarchical or opaque, case-insensitive (RFC 3986),
     // then no whitespace.
@@ -121,7 +119,7 @@
     ),
   ),
   (
-    email-string,
+    string(format: "email"),
     "email",
     // A single-label domain, a quoted local part and an IP-literal
     // domain are valid (RFC 5321).
@@ -151,7 +149,7 @@
     ),
   ),
   (
-    uuid-string,
+    string(format: "uuid"),
     "a UUID",
     (
       "123e4567-e89b-12d3-a456-426614174000",
@@ -167,7 +165,7 @@
     ),
   ),
   (
-    hostname-string,
+    string(format: "hostname"),
     "a hostname",
     (
       "example.com",
@@ -190,7 +188,7 @@
     ),
   ),
   (
-    ipv4-string,
+    string(format: "ipv4"),
     "an IPv4 address",
     ("192.0.2.1", "0.0.0.0", "255.255.255.255", "10.0.0.1"),
     (
@@ -205,7 +203,7 @@
     ),
   ),
   (
-    ipv6-string,
+    string(format: "ipv6"),
     "an IPv6 address",
     (
       "2001:db8:0:0:0:0:0:1",
@@ -235,7 +233,7 @@
     ),
   ),
   (
-    time-string,
+    string(format: "time"),
     "an ISO-8601 time",
     (
       "10:00:00",
@@ -243,7 +241,7 @@
       "00:00:00.5Z",
       "23:59:59.999+14:00",
       "10:00:00-05:30",
-      // Leap second and lowercase `z`, as for datetime-string.
+      // Leap second and lowercase `z`, as for string(format: "date-time").
       "23:59:60Z",
       "23:59:60",
       "15:59:60.5-08:00",
@@ -273,13 +271,13 @@
     ("USA", "us", "", "U1"),
   ),
   (
-    pattern-string("[0-9]", expected: "a string containing a digit"),
+    string(pattern: "[0-9]", expected: "a string containing a digit"),
     "digit",
     ("abc123", "1", "v2-final"),
     ("no-digits-here",),
   ),
   // Without `expected`, the message names the pattern.
-  (pattern-string("^x$"), "matching pattern", ("x",), ("y",)),
+  (string(pattern: "^x$"), "matching pattern", ("x",), ("y",)),
 ) {
   for v in good {
     assert.eq(at(kind, v), (), message: "expected valid: " + repr(v))
@@ -294,17 +292,21 @@
 
 // The message gives a canonical example.
 #for (kind, value, example) in (
-  (date-string, "2024/01/15", "2024-01-15"),
-  (datetime-string, "2024-01-15 10:00:00", "2024-01-15T10:00:00Z"),
-  (uri-string, "not-a-uri", "https://example.com"),
-  (email-string, "name@", "name@example.com"),
+  (string(format: "date"), "2024/01/15", "2024-01-15"),
+  (string(format: "date-time"), "2024-01-15 10:00:00", "2024-01-15T10:00:00Z"),
+  (string(format: "uri"), "not-a-uri", "https://example.com"),
+  (string(format: "email"), "name@", "name@example.com"),
 ) {
   assert(at(kind, value).at(0).message.contains("e.g. \"" + example + "\""))
 }
 
 // The wrong type is a type error, not a format or pattern one: those
 // gates fire only on a string.
-#for kind in (date-string, datetime-string, country-code) {
+#for kind in (
+  string(format: "date"),
+  string(format: "date-time"),
+  country-code,
+) {
   let errs = at(kind, 2024)
   assert.eq(errs.len(), 1)
   assert(errs.at(0).message.contains("expected string, got integer"))
@@ -321,8 +323,11 @@
     codes: ("US", "usa", "IE"),
   ),
   schema: object((
-    work: array-of(object((url: uri-string, startDate: date-string))),
-    email: email-string,
+    work: array-of(object((
+      url: string(format: "uri"),
+      startDate: string(format: "date"),
+    ))),
+    email: string(format: "email"),
     codes: array-of(country-code),
   )),
 )
@@ -334,17 +339,17 @@
 ))
 
 // A regex value works where a pattern string does (#135).
-#let by-regex = pattern-string(regex("^[A-Z]{3}$"))
+#let by-regex = string(pattern: regex("^[A-Z]{3}$"))
 #assert.eq(at(by-regex, "ABC"), ())
 #assert.eq(at(by-regex, "abc").len(), 1)
 
 // Formatted strings coerce as the string they are.
 #for (kind, value) in (
-  (date-string, "2024-01-15"),
-  (datetime-string, "2024-01-15T10:00:00Z"),
-  (uri-string, "https://example.com"),
-  (email-string, "name@example.com"),
-  (pattern-string("^[A-Z]{2}$"), "US"),
+  (string(format: "date"), "2024-01-15"),
+  (string(format: "date-time"), "2024-01-15T10:00:00Z"),
+  (string(format: "uri"), "https://example.com"),
+  (string(format: "email"), "name@example.com"),
+  (string(pattern: "^[A-Z]{2}$"), "US"),
 ) {
   assert.eq(coerce(value, schema: kind), value)
 }
@@ -370,7 +375,7 @@
 #assert(not errs.first().message.contains("matching"))
 
 // A hand-built node may carry `pattern` without `expected`.
-#let bare = (kind: "email-string", pattern: regex("@example\\.com$"))
+#let bare = (kind: "string", format: "email", pattern: regex("@example\\.com$"))
 #assert.eq(validate("a@example.com", schema: bare), ())
 #assert.eq(
   validate("a@other.org", schema: bare).first().message,
@@ -388,7 +393,10 @@
 //
 // Data written in Typst may give a date format a datetime (#134).
 
-#let schema = object((d: date-string, dt: datetime-string))
+#let schema = object((
+  d: string(format: "date"),
+  dt: string(format: "date-time"),
+))
 #let day = datetime(year: 2024, month: 1, day: 5)
 #let moment = datetime(
   year: 2024,
@@ -434,7 +442,7 @@
 )
 
 // Length keywords see the converted string.
-#assert.eq(at((..date-string, max-length: 4), day).len(), 1)
+#assert.eq(at((..string(format: "date"), max-length: 4), day).len(), 1)
 
 // So does a pattern, and coerce passes the node through unchanged.
 #let year = schema-from-json-schema((

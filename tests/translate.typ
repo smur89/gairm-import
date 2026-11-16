@@ -4,11 +4,9 @@
 // in tests/panics/.
 
 #import "../lib.typ": (
-  validate, coerce, schema-from-json-schema, str-type, number-type,
-  integer-type, bool-type, null-type, any-type, array-of, object, date-string,
-  datetime-string, uri-string, email-string, uuid-string, hostname-string,
-  ipv4-string, ipv6-string, time-string, pattern-string, enum-of, const-of,
-  any-of, one-of, not-of, if-of, nullable, number, string, describe-schema,
+  validate, coerce, schema-from-json-schema, bool-type, null-type, any-type,
+  array-of, object, enum-of, const-of, any-of, one-of, not-of, if-of, nullable,
+  number, string, describe-schema, integer,
 )
 
 #let T = schema-from-json-schema
@@ -19,51 +17,63 @@
 #for (js, node) in (
   // Types. `integer` keeps its integral gate rather than flattening to
   // number, which would silently drop the constraint.
-  ((type: "string"), str-type),
-  ((type: "number"), number-type),
-  ((type: "integer"), integer-type),
+  ((type: "string"), string()),
+  ((type: "number"), number()),
+  ((type: "integer"), integer()),
   ((type: "boolean"), bool-type),
   ((type: "null"), null-type),
-  ((type: "array", items: (type: "string")), array-of(str-type)),
+  ((type: "array", items: (type: "string")), array-of(string())),
   (
     (type: "array", items: (type: "array", items: (type: "number"))),
-    array-of(array-of(number-type)),
+    array-of(array-of(number())),
   ),
   // Formats map to their string kinds.
-  ((type: "string", format: "uri"), uri-string),
-  ((type: "string", format: "email"), email-string),
-  ((type: "string", format: "date"), date-string),
-  ((type: "string", format: "date-time"), datetime-string),
-  ((type: "string", format: "uuid"), uuid-string),
-  ((type: "string", format: "hostname"), hostname-string),
-  ((type: "string", format: "ipv4"), ipv4-string),
-  ((type: "string", format: "ipv6"), ipv6-string),
-  ((type: "string", format: "time"), time-string),
+  ((type: "string", format: "uri"), string(format: "uri")),
+  ((type: "string", format: "email"), string(format: "email")),
+  ((type: "string", format: "date"), string(format: "date")),
+  ((type: "string", format: "date-time"), string(format: "date-time")),
+  ((type: "string", format: "uuid"), string(format: "uuid")),
+  ((type: "string", format: "hostname"), string(format: "hostname")),
+  ((type: "string", format: "ipv4"), string(format: "ipv4")),
+  ((type: "string", format: "ipv6"), string(format: "ipv6")),
+  ((type: "string", format: "time"), string(format: "time")),
   // A pattern is a patterned string with a hint naming it (regexes compare
   // by source). With a format, the format kind carries it as an extra
   // gate.
   (
     (type: "string", pattern: "^[A-Z]{2}$"),
-    pattern-string("^[A-Z]{2}$", expected: "matching " + repr("^[A-Z]{2}$")),
+    string(pattern: "^[A-Z]{2}$", expected: "matching " + repr("^[A-Z]{2}$")),
   ),
-  ((type: "string", format: "email", pattern: "^x$"), email-string + x-gate),
-  ((type: "string", format: "uri", pattern: "^x$"), uri-string + x-gate),
-  ((type: "string", format: "date", pattern: "^x$"), date-string + x-gate),
+  (
+    (type: "string", format: "email", pattern: "^x$"),
+    string(format: "email") + x-gate,
+  ),
+  (
+    (type: "string", format: "uri", pattern: "^x$"),
+    string(format: "uri") + x-gate,
+  ),
+  (
+    (type: "string", format: "date", pattern: "^x$"),
+    string(format: "date") + x-gate,
+  ),
   (
     (type: "string", format: "date-time", pattern: "^x$"),
-    datetime-string + x-gate,
+    string(format: "date-time") + x-gate,
   ),
   // `[X, "null"]` is nullable(X), whichever comes first; X keeps its
   // own keywords. A repeated type is one.
-  ((type: ("string", "null")), nullable(str-type)),
-  ((type: ("null", "integer")), nullable(integer-type)),
-  ((type: ("string", "null"), format: "email"), nullable(email-string)),
-  ((type: ("string", "string", "null")), nullable(str-type)),
+  ((type: ("string", "null")), nullable(string())),
+  ((type: ("null", "integer")), nullable(integer())),
+  (
+    (type: ("string", "null"), format: "email"),
+    nullable(string(format: "email")),
+  ),
+  ((type: ("string", "string", "null")), nullable(string())),
   // A `type` array builds each member from the whole node, each ignoring
   // the other types' keywords, as in draft 7.
   (
     (type: ("string", "number"), minimum: 1),
-    any-of((str-type, number(minimum: 1))),
+    any-of((string(), number(minimum: 1))),
   ),
   // enum maps to enum-of whatever the `type`, values verbatim; const to
   // const-of, the singleton enum.
@@ -85,7 +95,7 @@
       default: none,
       examples: none,
     ),
-    str-type,
+    string(),
   ),
   // Keywords beside enum / const fold into the value set: only values
   // that satisfy them survive. A keyword for another type ignores the
@@ -106,13 +116,13 @@
   // anyOf / oneOf / not, nested too.
   (
     (anyOf: ((type: "string"), (type: "number"))),
-    any-of((str-type, number-type)),
+    any-of((string(), number())),
   ),
   (
     (oneOf: ((type: "string"), (type: "boolean"))),
-    one-of((str-type, bool-type)),
+    one-of((string(), bool-type)),
   ),
-  (("not": (type: "string")), not-of(str-type)),
+  (("not": (type: "string")), not-of(string())),
   // if / then / else with no siblings: the branches as written, of any
   // kind; `if` with neither branch is dropped (draft 7 checks nothing).
   (
@@ -126,15 +136,15 @@
   (
     ("if": (type: "string"), "else": (type: "number")),
     if-of(
-      str-type,
-      otherwise: number-type,
+      string(),
+      otherwise: number(),
     ),
   ),
   (("if": (type: "string")), any-type),
   ((type: "string", minLength: 2, "if": (minLength: 5)), string(min-length: 2)),
   (
     (anyOf: ((type: "string"), (oneOf: ((type: "number"), (type: "boolean"))))),
-    any-of((str-type, one-of((number-type, bool-type)))),
+    any-of((string(), one-of((number(), bool-type)))),
   ),
   // No `type`: `{}` and annotations alone take any value; a keyword
   // narrows only its own type's member.
@@ -148,13 +158,13 @@
       bool-type,
       object((:), additional: true),
       array-of(any-type),
-      number-type,
-      (..str-type, min-length: 2),
+      number(),
+      (..string(), min-length: 2),
       null-type,
     )),
   ),
   // Every entry form: a dict, or bytes as Typst's decoders take.
-  (bytes("{\"type\": \"string\"}"), str-type),
+  (bytes("{\"type\": \"string\"}"), string()),
 ) {
   assert.eq(T(js), node, message: repr(js))
 }
@@ -167,7 +177,7 @@
   required: ("name",),
 ))
 #assert.eq(person, object(
-  (name: str-type, age: integer-type),
+  (name: string(), age: integer()),
   required-keys: ("name",),
 ))
 #assert.eq(
@@ -198,9 +208,9 @@
   ),
 ))
 #assert.eq(resolved.shape, (
-  startDate: str-type,
-  viaAlias: str-type,
-  summary: str-type,
+  startDate: string(),
+  viaAlias: string(),
+  summary: string(),
 ))
 #assert.eq(
   T((
@@ -208,7 +218,7 @@
     type: "array",
     items: ("$ref": "#/$defs/item"),
   )),
-  array-of(str-type),
+  array-of(string()),
 )
 
 // $ref is an RFC 6901 pointer: `~1` is `/`, `~0` is `~`, and a numeric
@@ -240,14 +250,14 @@
   ),
 ))
 #assert.eq(refs.shape, (
-  slash: str-type,
-  tilde: number-type,
-  indexed: integer-type,
-  utf8: str-type,
-  percent: str-type,
-  quote: number-type,
+  slash: string(),
+  tilde: number(),
+  indexed: integer(),
+  utf8: string(),
+  percent: string(),
+  quote: number(),
   tilde-space: bool-type,
-  plain: integer-type,
+  plain: integer(),
 ))
 
 // The edges of the lead bytes whose second byte is narrowed (RFC 3629
@@ -263,7 +273,7 @@
       definitions: ((key): (type: "string")),
       "$ref": "#/definitions/" + escaped,
     )),
-    str-type,
+    string(),
   )
 }
 
@@ -280,26 +290,26 @@
       obj((age: (type: "integer")), required: ("age",)),
     ),
     (:),
-    object((name: str-type, age: integer-type), required-keys: ("name", "age")),
+    object((name: string(), age: integer()), required-keys: ("name", "age")),
   ),
-  ((obj((a: (type: "string"))),), (:), object((a: str-type))),
+  ((obj((a: (type: "string"))),), (:), object((a: string()))),
   (
     (
       obj((a: (type: "string"))),
       obj((a: (type: "string"), b: (type: "number"))),
     ),
     (:),
-    object((a: str-type, b: number-type)),
+    object((a: string(), b: number())),
   ),
   (
     (("$ref": "#/definitions/base"), obj((extra: (type: "number")))),
     (definitions: (base: obj((id: (type: "string"))))),
-    object((id: str-type, extra: number-type)),
+    object((id: string(), extra: number())),
   ),
   (
     (obj((a: (type: "string"))),),
     (title: "combined", description: "docs only"),
-    object((a: str-type)),
+    object((a: string())),
   ),
   // additionalProperties must agree across every member (an undeclared
   // one counts as closed): open members merge open.
@@ -309,7 +319,7 @@
       obj((b: (type: "number")), additionalProperties: true),
     ),
     (:),
-    object((a: str-type, b: number-type), additional: true),
+    object((a: string(), b: number()), additional: true),
   ),
   // Closed or typed members merge when they declare the same
   // properties, so each one's additionalProperties sees the same extras.
@@ -319,7 +329,7 @@
       obj((a: (type: "string")), required: ("a",), additionalProperties: false),
     ),
     (:),
-    object((a: str-type), required-keys: ("a",)),
+    object((a: string()), required-keys: ("a",)),
   ),
   (
     (
@@ -327,7 +337,7 @@
       obj((a: (type: "string")), additionalProperties: (type: "number")),
     ),
     (:),
-    object((a: str-type), additional: number-type),
+    object((a: string()), additional: number()),
   ),
 ) {
   assert.eq(T((allOf: members, ..extra)), node, message: repr(members))
@@ -565,9 +575,9 @@
 ))
 #assert.eq(
   kinded.then,
-  object((kind: str-type, extra: str-type), required-keys: ("extra",)),
+  object((kind: string(), extra: string()), required-keys: ("extra",)),
 )
-#assert.eq(kinded.otherwise, object((kind: str-type, extra: str-type)))
+#assert.eq(kinded.otherwise, object((kind: string(), extra: string())))
 #assert.eq(codes(validate((kind: "x"), schema: kinded)), (
   (("extra",), "required"),
 ))
@@ -581,5 +591,5 @@
     "if": (required: ("a",)),
     then: (properties: (b: (type: "number"))),
   )).then,
-  object((a: str-type, b: number-type), additional: true),
+  object((a: string(), b: number()), additional: true),
 )

@@ -2,10 +2,10 @@
 #import "../../internal/json-resume/schema.typ": (
   _assert-no-iso8601-leaves, _iso8601-source,
 )
-#import "../../lib.typ": any-of, array-of, object, str-type
+#import "../../lib.typ": any-of, array-of, object, string
 // An iso8601 leaf nested in a union inside an array, as an unlisted
 // upstream field would be.
 #_assert-no-iso8601-leaves(
-  object((a: array-of(any-of((str-type, _iso8601-source))))),
+  object((a: array-of(any-of((string(), _iso8601-source))))),
   "_iso8601-date-paths",
 )

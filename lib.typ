@@ -4,14 +4,10 @@
 // package's only public surface; underscore names are internal.
 
 #import "internal/kinds/leaf.typ": (
-  number, integer, str-type, content-type, number-type, integer-type, bool-type,
-  null-type, any-type, enum-of, const-of,
+  number, integer, content-type, bool-type, null-type, any-type, enum-of,
+  const-of,
 )
-#import "internal/kinds/format.typ": (
-  string, pattern-string, date-string, datetime-string, uri-string,
-  email-string, uuid-string, hostname-string, ipv4-string, ipv6-string,
-  time-string,
-)
+#import "internal/kinds/format.typ": string
 #import "internal/kinds/structure.typ": (
   array-of, object, map, any-of, one-of, not-of, if-of, nullable,
 )
@@ -22,10 +18,10 @@
 #import "internal/json-schema/translate.typ": schema-from-json-schema
 #import "internal/core/input.typ" as _input-mod
 #import "internal/lens.typ": (
-  lens, lens-get, lens-put, lens-over, lens-then, add-field, remove-field,
-  set-required, unset-required,
+  lens-get, lens-put, lens-over, add-field, remove-field, set-required,
+  unset-required,
 )
-#import "internal/introspect.typ": describe-schema, paths-of-kind, kind-at
+#import "internal/introspect.typ": describe-schema, paths-of-kind
 #import "internal/core/pointer.typ": path-to-pointer, pointer-to-path
 
 /// Turns a list of validation errors, as `validate` returns them, into

@@ -4,7 +4,7 @@
 //
 // A string path (#132) resolves from the package root inside a package,
 // so it could never find the caller's file. A string is still a value
-// (a scalar schema such as date-string takes one), so validate, coerce
+// (a scalar schema such as string(format: "date") takes one), so validate, coerce
 // and parse refuse it only when it looks like a path and the schema's
 // root does not take it: _refuse-path, after the walk. The translator,
 // whose input is never a string, refuses every one (`str-is-data`

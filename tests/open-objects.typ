@@ -2,16 +2,16 @@
 // combinator — #77.
 
 #import "../lib.typ": (
-  validate, coerce, schema-from-json-schema, object, map, str-type, number-type,
-  email-string, array-of, lens-get, lens-put, paths-of-kind, describe-schema,
+  validate, coerce, schema-from-json-schema, object, map, array-of, lens-get,
+  lens-put, paths-of-kind, describe-schema, string, number,
 )
 
 // --- map() convenience ----------------------------------------------
 
-#let str-map = map(str-type)
+#let str-map = map(string())
 #assert.eq(str-map.kind, "object")
 #assert.eq(str-map.shape, (:))
-#assert.eq(str-map.additional, str-type)
+#assert.eq(str-map.additional, string())
 
 // All-strings map: arbitrary keys, every value validated.
 #assert.eq(validate((en: "English", fr: "Français"), schema: str-map), ())
@@ -30,9 +30,9 @@
 // --- object with both properties and additional ---------------------
 
 #let mixed = object(
-  (name: str-type),
+  (name: string()),
   required-keys: ("name",),
-  additional: number-type,
+  additional: number(),
 )
 
 // Declared key validated per properties; extras per `additional`.
@@ -51,7 +51,7 @@
 
 // --- additional: true (pass-through) --------------------------------
 
-#let permissive = object((name: str-type), additional: true)
+#let permissive = object((name: string()), additional: true)
 // Any extra accepted without validation.
 #assert.eq(
   validate(
@@ -69,7 +69,7 @@
 
 // --- strict path unchanged (no `additional`) ------------------------
 
-#let strict = object((name: str-type))
+#let strict = object((name: string()))
 #let strict-err = validate((name: "Ada", year: 1815), schema: strict)
 #assert.eq(strict-err.len(), 1)
 #assert(strict-err.at(0).message.contains("unknown key"))
@@ -106,14 +106,14 @@
   properties: (name: (type: "string")),
   additionalProperties: (type: "number"),
 ))
-#assert.eq(t-ap-schema.additional, number-type)
+#assert.eq(t-ap-schema.additional, number())
 
 // (e) no properties + additionalProperties: <schema> → pure map
 #let t-pure-map = schema-from-json-schema((
   type: "object",
   additionalProperties: (type: "string"),
 ))
-#assert.eq(t-pure-map, map(str-type))
+#assert.eq(t-pure-map, map(string()))
 
 // (f) no properties, no additionalProperties → still bails; see
 // tests/panics/schema-from-json-schema-object-open.typ.
@@ -124,7 +124,7 @@
 #let open-required = object(
   (:),
   required-keys: ("id",),
-  additional: str-type,
+  additional: string(),
 )
 #assert.eq(open-required.required-keys, ("id",))
 // And the runtime still flags it missing if absent…
@@ -140,7 +140,7 @@
 // --- error path uses the actual key, not "items" --------------------
 //
 // A pure map of objects: error inside one entry surfaces the real key.
-#let book-map = map(object((title: str-type), required-keys: ("title",)))
+#let book-map = map(object((title: string()), required-keys: ("title",)))
 #let bad-books = validate(
   (
     one: (title: "Ulysses"),
@@ -156,15 +156,15 @@
 // JSON Schema's `additionalProperties: false` and our `additional: none`
 // are semantically identical. The constructor accepts both so callers
 // fluent in JSON Schema vocabulary don't trip on the assert.
-#let strict-via-false = object((name: str-type), additional: false)
+#let strict-via-false = object((name: string()), additional: false)
 #assert("additional" not in strict-via-false)
-#let strict-via-none = object((name: str-type))
+#let strict-via-none = object((name: string()))
 #assert.eq(strict-via-false, strict-via-none)
 
 // --- map(v, required-keys: …) symmetry with object ------------------
-#let required-map = map(str-type, required-keys: ("id",))
+#let required-map = map(string(), required-keys: ("id",))
 #assert.eq(required-map.required-keys, ("id",))
-#assert.eq(required-map.additional, str-type)
+#assert.eq(required-map.additional, string())
 #assert.eq(validate((id: "abc", other: "ok"), schema: required-map), ())
 #let missing-id = validate((other: "ok"), schema: required-map)
 #assert.eq(missing-id.len(), 1)
@@ -174,9 +174,9 @@
 //
 // Null extras are dropped like declared null keys, but the object
 // itself is present, so it stays a (possibly empty) dict.
-#assert.eq(coerce((a: none, b: none), schema: map(str-type)), (:))
+#assert.eq(coerce((a: none, b: none), schema: map(string())), (:))
 #assert.eq(
-  coerce((id: "x", a: none, b: none), schema: map(str-type, required-keys: (
+  coerce((id: "x", a: none, b: none), schema: map(string(), required-keys: (
     "id",
   ))),
   (id: "x"),
@@ -188,20 +188,20 @@
 // keyword name, same convention as `"items"` for arrays). The
 // emitted path round-trips through `lens-get`.
 #let tags-schema = object(
-  (name: str-type, tags: map(str-type)),
+  (name: string(), tags: map(string())),
   required-keys: ("name",),
 )
 #assert.eq(
-  paths-of-kind(tags-schema, "str"),
+  paths-of-kind(tags-schema, string()),
   (("name",), ("tags", "additionalProperties")),
 )
 // Round-trip: the segment is a real lens path.
-#assert.eq(lens-get(tags-schema, ("tags", "additionalProperties")), str-type)
+#assert.eq(lens-get(tags-schema, ("tags", "additionalProperties")), string())
 
 // Nested `additional` inside `additional` works too.
-#let nested-maps = map(map(number-type))
+#let nested-maps = map(map(number()))
 #assert.eq(
-  paths-of-kind(nested-maps, "number"),
+  paths-of-kind(nested-maps, number()),
   (("additionalProperties", "additionalProperties"),),
 )
 
@@ -209,18 +209,18 @@
 #let updated = lens-put(
   tags-schema,
   ("tags", "additionalProperties"),
-  number-type,
+  number(),
 )
-#assert.eq(updated.shape.tags.additional, number-type)
+#assert.eq(updated.shape.tags.additional, number())
 // Shape outside the lensed path is untouched.
-#assert.eq(updated.shape.name, str-type)
+#assert.eq(updated.shape.name, string())
 
 // --- describe-schema renders `additional` --------------------------
-#let described = describe-schema(map(str-type))
+#let described = describe-schema(map(string()))
 #assert(described.contains("*"))
 #assert(described.contains("string"))
 #let described-true = describe-schema(object(
-  (name: str-type),
+  (name: string()),
   additional: true,
 ))
 #assert(described-true.contains("*"))
@@ -233,7 +233,7 @@
 //
 // Recursive `additional` (map(map(...))) prints the inner "*" too,
 // confirming `_describe` recurses through the additional pair.
-#let nested-described = describe-schema(map(map(str-type)))
+#let nested-described = describe-schema(map(map(string())))
 #assert(nested-described.contains("*"))
 
 // --- lens collision: literal "additionalProperties" shape key wins -
@@ -245,15 +245,15 @@
 // Distinct baseline + replacement so the "untouched" assertion below
 // can't pass accidentally if lens-put rewrote both.
 #let meta-shaped = object(
-  (additionalProperties: number-type),
-  additional: email-string,
+  (additionalProperties: number()),
+  additional: string(format: "email"),
 )
 // Literal property wins: lens-get returns the shape entry, not `additional`.
-#assert.eq(lens-get(meta-shaped, ("additionalProperties",)), number-type)
+#assert.eq(lens-get(meta-shaped, ("additionalProperties",)), number())
 // And lens-put rewrites the shape entry, not `additional`.
-#let after-put = lens-put(meta-shaped, ("additionalProperties",), str-type)
-#assert.eq(after-put.shape.additionalProperties, str-type)
-#assert.eq(after-put.additional, email-string)  // untouched, distinct from the replacement
+#let after-put = lens-put(meta-shaped, ("additionalProperties",), string())
+#assert.eq(after-put.shape.additionalProperties, string())
+#assert.eq(after-put.additional, string(format: "email"))  // untouched, distinct from the replacement
 
 // --- lens "items" doesn't collide: per-kind dispatch ----------------
 //
@@ -261,7 +261,7 @@
 // it enters `.elem`. The two interpretations live in different
 // _descend branches, so a property literally named "items" stays
 // addressable on objects.
-#let obj-with-items-key = object((items: str-type))
-#assert.eq(lens-get(obj-with-items-key, ("items",)), str-type)
-#let arr = array-of(number-type)
-#assert.eq(lens-get(arr, ("items",)), number-type)
+#let obj-with-items-key = object((items: string()))
+#assert.eq(lens-get(obj-with-items-key, ("items",)), string())
+#let arr = array-of(number())
+#assert.eq(lens-get(arr, ("items",)), number())

@@ -6,7 +6,6 @@
 #import "../internal/kinds/format.typ": _formats
 #import "../lib.typ": (
   validate, schema-from-json-schema, string, number, integer, array-of,
-  str-type,
 )
 
 // ---- the translator and validate -------------------------------------------
@@ -67,7 +66,7 @@
   ),
   array: (
     (
-      build: args => array-of(str-type, ..args),
+      build: args => array-of(string(), ..args),
       js: (type: "array", items: (type: "string")),
     ),
   ),

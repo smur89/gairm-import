@@ -7,8 +7,8 @@
 #import "../internal/json-resume/schema.typ": _strip-permissive-additional
 #import "../lib.typ": (
   lens-get, resume-schema, resume-schema-strict, schema-from-json-schema,
-  validate, object, any-of, not-of, if-of, str-type, content-type, number-type,
-  date-string, datetime-string, uri-string, email-string, describe-schema,
+  validate, object, any-of, not-of, if-of, content-type, describe-schema,
+  string, number,
 )
 
 // ---- the translated document ---------------------------------------------
@@ -46,8 +46,8 @@
 // covered without editing this file. `$schema` is a URI, `objective` a
 // string, and `custom` a free-form bag.
 #assert.eq(resume-schema.kind, "object")
-#assert.eq(resume-schema.shape.at("$schema"), uri-string)
-#assert.eq(resume-schema.shape.objective, str-type)
+#assert.eq(resume-schema.shape.at("$schema"), string(format: "uri"))
+#assert.eq(resume-schema.shape.objective, string())
 #assert.eq(resume-schema.shape.custom, object((:), additional: true))
 #for (key, sub) in resume-schema.shape.pairs() {
   if key in ("$schema", "objective", "custom") { continue }
@@ -68,59 +68,71 @@
 #let iso = "string + pattern" // an upstream `$ref` to iso8601's pattern
 #for (path, faithful, strict) in (
   // Free-text fields: str upstream, content in strict.
-  (("objective",), str-type, content-type),
-  (("basics", "summary"), str-type, content-type),
-  (("work", "items", "summary"), str-type, content-type),
-  (("work", "items", "highlights", "items"), str-type, content-type),
-  (("volunteer", "items", "summary"), str-type, content-type),
-  (("volunteer", "items", "highlights", "items"), str-type, content-type),
-  (("education", "items", "summary"), str-type, content-type),
-  (("awards", "items", "summary"), str-type, content-type),
-  (("certificates", "items", "summary"), str-type, content-type),
-  (("publications", "items", "summary"), str-type, content-type),
-  (("references", "items", "reference"), str-type, content-type),
-  (("projects", "items", "summary"), str-type, content-type),
-  (("projects", "items", "description"), str-type, content-type),
-  (("projects", "items", "highlights", "items"), str-type, content-type),
-  // iso8601 fields: the upstream pattern, date-string in strict.
-  (("work", "items", "startDate"), iso, date-string),
-  (("work", "items", "endDate"), iso, date-string),
-  (("volunteer", "items", "startDate"), iso, date-string),
-  (("volunteer", "items", "endDate"), iso, date-string),
-  (("education", "items", "startDate"), iso, date-string),
-  (("education", "items", "endDate"), iso, date-string),
-  (("awards", "items", "date"), iso, date-string),
-  (("certificates", "items", "date"), iso, date-string),
-  (("certificates", "items", "expiryDate"), iso, date-string),
-  (("publications", "items", "releaseDate"), iso, date-string),
-  (("projects", "items", "startDate"), iso, date-string),
-  (("projects", "items", "endDate"), iso, date-string),
-  (("references", "items", "date"), iso, date-string),
+  (("objective",), string(), content-type),
+  (("basics", "summary"), string(), content-type),
+  (("work", "items", "summary"), string(), content-type),
+  (("work", "items", "highlights", "items"), string(), content-type),
+  (("volunteer", "items", "summary"), string(), content-type),
+  (("volunteer", "items", "highlights", "items"), string(), content-type),
+  (("education", "items", "summary"), string(), content-type),
+  (("awards", "items", "summary"), string(), content-type),
+  (("certificates", "items", "summary"), string(), content-type),
+  (("publications", "items", "summary"), string(), content-type),
+  (("references", "items", "reference"), string(), content-type),
+  (("projects", "items", "summary"), string(), content-type),
+  (("projects", "items", "description"), string(), content-type),
+  (("projects", "items", "highlights", "items"), string(), content-type),
+  // iso8601 fields: the upstream pattern, string(format: "date") in strict.
+  (("work", "items", "startDate"), iso, string(format: "date")),
+  (("work", "items", "endDate"), iso, string(format: "date")),
+  (("volunteer", "items", "startDate"), iso, string(format: "date")),
+  (("volunteer", "items", "endDate"), iso, string(format: "date")),
+  (("education", "items", "startDate"), iso, string(format: "date")),
+  (("education", "items", "endDate"), iso, string(format: "date")),
+  (("awards", "items", "date"), iso, string(format: "date")),
+  (("certificates", "items", "date"), iso, string(format: "date")),
+  (("certificates", "items", "expiryDate"), iso, string(format: "date")),
+  (("publications", "items", "releaseDate"), iso, string(format: "date")),
+  (("projects", "items", "startDate"), iso, string(format: "date")),
+  (("projects", "items", "endDate"), iso, string(format: "date")),
+  (("references", "items", "date"), iso, string(format: "date")),
   // meta.lastModified has no upstream pattern, only a description.
-  (("meta", "lastModified"), str-type, any-of((datetime-string, date-string))),
+  (
+    ("meta", "lastModified"),
+    string(),
+    any-of((string(format: "date-time"), string(format: "date"))),
+  ),
   // Format fields carry their kind in both.
-  (("basics", "email"), email-string, email-string),
-  (("basics", "url"), uri-string, uri-string),
-  (("work", "items", "url"), uri-string, uri-string),
-  (("volunteer", "items", "url"), uri-string, uri-string),
-  (("education", "items", "url"), uri-string, uri-string),
-  (("certificates", "items", "url"), uri-string, uri-string),
-  (("publications", "items", "url"), uri-string, uri-string),
-  (("projects", "items", "url"), uri-string, uri-string),
-  (("meta", "canonical"), uri-string, uri-string),
+  (("basics", "email"), string(format: "email"), string(format: "email")),
+  (("basics", "url"), string(format: "uri"), string(format: "uri")),
+  (("work", "items", "url"), string(format: "uri"), string(format: "uri")),
+  (("volunteer", "items", "url"), string(format: "uri"), string(format: "uri")),
+  (("education", "items", "url"), string(format: "uri"), string(format: "uri")),
+  (
+    ("certificates", "items", "url"),
+    string(format: "uri"),
+    string(format: "uri"),
+  ),
+  (
+    ("publications", "items", "url"),
+    string(format: "uri"),
+    string(format: "uri"),
+  ),
+  (("projects", "items", "url"), string(format: "uri"), string(format: "uri")),
+  (("meta", "canonical"), string(format: "uri"), string(format: "uri")),
   // basics.image is described as a URL but not annotated as one.
-  (("basics", "image"), str-type, str-type),
+  (("basics", "image"), string(), string()),
   // Identifiers and tag lists stay strings in both.
-  (("basics", "name"), str-type, str-type),
+  (("basics", "name"), string(), string()),
   (
     ("skills", "items", "keywords"),
-    (kind: "array", elem: str-type),
+    (kind: "array", elem: string()),
     (
       kind: "array",
-      elem: str-type,
+      elem: string(),
     ),
   ),
-  (("education", "items", "courses", "items"), str-type, str-type),
+  (("education", "items", "courses", "items"), string(), string()),
 ) {
   for (schema, want) in (
     (resume-schema, faithful),
@@ -149,26 +161,26 @@
 // The strip recurses into union members: a member is a positive matcher
 // for the document, so closing it tightens. A typed `additional` is kept.
 #let stripped = _strip-permissive-additional(any-of((
-  object((x: str-type), additional: true),
-  str-type,
+  object((x: string()), additional: true),
+  string(),
 )))
 #assert("additional" not in stripped.members.at(0))
-#assert.eq(stripped.members.at(1), str-type)
+#assert.eq(stripped.members.at(1), string())
 #assert.eq(
-  _strip-permissive-additional(any-of((object((:), additional: number-type),)))
+  _strip-permissive-additional(any-of((object((:), additional: number()),)))
     .members
     .at(0)
     .additional,
-  number-type,
+  number(),
 )
 // A `not` member stays as authored: closing a negated matcher would
 // make it reject less.
-#let negated = not-of(object((x: str-type), additional: true))
+#let negated = not-of(object((x: string()), additional: true))
 #assert.eq(_strip-permissive-additional(negated), negated)
 // So does a conditional's condition, which only picks the branch; the
 // branches close.
-#let open-x = object((x: str-type), additional: true)
+#let open-x = object((x: string()), additional: true)
 #assert.eq(
   _strip-permissive-additional(if-of(open-x, then: open-x, otherwise: open-x)),
-  if-of(open-x, then: object((x: str-type)), otherwise: object((x: str-type))),
+  if-of(open-x, then: object((x: string())), otherwise: object((x: string()))),
 )

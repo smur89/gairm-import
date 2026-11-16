@@ -31,36 +31,9 @@
   "if",
 )
 
-// Kind names a hand-built node may still carry, deprecated, until 1.0,
-// each with the node it stands for: the plain string was "str", a
-// patterned one "pattern-string" before it was a string with a
-// `pattern`, and each format a kind of its own before it was a
-// string's `format`. Every lookup by kind reads the node through
-// _node, so an old node reaches the string descriptor and is reported
-// as the string it is.
-#let _kind-aliases = (
-  str: (kind: "string"),
-  pattern-string: (kind: "string"),
-  date-string: (kind: "string", format: "date"),
-  datetime-string: (kind: "string", format: "date-time"),
-  uri-string: (kind: "string", format: "uri"),
-  email-string: (kind: "string", format: "email"),
-  uuid-string: (kind: "string", format: "uuid"),
-  hostname-string: (kind: "string", format: "hostname"),
-  ipv4-string: (kind: "string", format: "ipv4"),
-  ipv6-string: (kind: "string", format: "ipv6"),
-  time-string: (kind: "string", format: "time"),
-)
-
-// `node` with an old kind name (_kind-aliases) read as the node it
-// stands for, its other fields kept. Panics on a string node whose
-// `format` the format table doesn't know, which only a hand-built node
-// can carry.
+// `node`, checked: panics on a string node whose `format` the format
+// table doesn't know, which only a hand-built node can carry.
 #let _node(node) = {
-  let kind = node.at("kind", default: none)
-  let node = if type(kind) == str and kind in _kind-aliases {
-    (:..node, .._kind-aliases.at(kind))
-  } else { node }
   if node.at("kind", default: none) == "string" {
     let p = _string-problem(format: node.at("format", default: none))
     if p != none { _fail("string schema", p) }

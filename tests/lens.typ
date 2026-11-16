@@ -1,36 +1,31 @@
 // Lenses: a location in a schema, as `(lens: path)` or the bare path
 // array, read with lens-get, replaced with lens-put, mapped with
-// lens-over and joined with lens-then. Each takes the schema first, so
+// lens-over. Each takes the schema first, so
 // edits pipe through `.fold`. A segment enters an object field, an
 // array's "items", an object's "additionalProperties", a union member
 // by index, a `not` member by "not", or a conditional's condition and
 // branches by "if", "then" and "else".
 
 #import "../lib.typ": (
-  lens, lens-get, lens-put, lens-over, lens-then, kind-at, paths-of-kind,
-  validate, resume-schema, resume-schema-strict, object, array-of, str-type,
-  content-type, number-type, uri-string, date-string, datetime-string, any-of,
-  one-of, not-of, if-of, schema-from-json-schema,
+  lens-get, lens-put, lens-over, paths-of-kind, validate, resume-schema,
+  resume-schema-strict, object, array-of, content-type, any-of, one-of, not-of,
+  if-of, schema-from-json-schema, string, number,
 )
 
 // ---- the lens ----------------------------------------------------------
 
-// A lens is its own shape, with no `kind` key.
-#let name = lens(("basics", "name"))
-#assert.eq(name, (lens: ("basics", "name")))
-#assert("kind" not in name)
-#assert.eq(lens(()), (lens: ()))
+#let name = (lens: ("basics", "name"))
 
 // ---- lens-get --------------------------------------------------------------
 
-#assert.eq(lens-get(resume-schema, name), str-type)
-#assert.eq(lens-get(resume-schema, ("basics", "name")), str-type)
+#assert.eq(lens-get(resume-schema, name), string())
+#assert.eq(lens-get(resume-schema, ("basics", "name")), string())
 #let basics = lens-get(resume-schema, ("basics",))
 #assert.eq(basics.kind, "object")
 #assert("name" in basics.shape)
 // The empty path is the identity.
 #assert.eq(lens-get(resume-schema, ()), resume-schema)
-#assert.eq(lens-get(resume-schema, lens(())), resume-schema)
+#assert.eq(lens-get(resume-schema, (lens: ())), resume-schema)
 
 // "items" enters an array's elements: ("work", "items", "highlights")
 // is the highlights field of each work entry.
@@ -43,7 +38,7 @@
 // is what makes them content. The lens just walks.
 #assert.eq(
   lens-get(resume-schema, ("work", "items", "highlights")),
-  array-of(str-type),
+  array-of(string()),
 )
 
 // ---- lens-put and lens-over ------------------------------------------------
@@ -58,13 +53,13 @@
 )
 // Siblings survive untouched, and the original is unchanged.
 #assert.eq(widened.shape.work, resume-schema.shape.work)
-#assert.eq(widened.shape.basics.shape.label, str-type)
-#assert.eq(lens-get(resume-schema, name), str-type)
+#assert.eq(widened.shape.basics.shape.label, string())
+#assert.eq(lens-get(resume-schema, name), string())
 
 // The identity lens replaces the whole schema, for call sites that take
 // a lens generically but sometimes mean "the whole schema".
-#assert.eq(lens-put(resume-schema, (), str-type), str-type)
-#assert.eq(lens-over(resume-schema, lens(()), _ => str-type), str-type)
+#assert.eq(lens-put(resume-schema, (), string()), string())
+#assert.eq(lens-over(resume-schema, (lens: ()), _ => string()), string())
 
 // A put through an array replaces the element's field and keeps the
 // array and object wrappers.
@@ -79,11 +74,11 @@
 
 // The extension use case from #26: add `rating` to every language entry,
 // a deep edit into languages' items. Only the lensed node changes.
-#let language-items = lens(("languages", "items"))
+#let language-items = (lens: ("languages", "items"))
 #let with-rating = lens-over(
   resume-schema,
   language-items,
-  lang => object((..lang.shape, rating: number-type)),
+  lang => object((..lang.shape, rating: number())),
 )
 #assert.eq(
   validate(
@@ -92,29 +87,29 @@
   ),
   (),
 )
-#assert.eq(lens-get(with-rating, language-items).shape.rating, number-type)
+#assert.eq(lens-get(with-rating, language-items).shape.rating, number())
 #assert("rating" not in lens-get(resume-schema, language-items).shape)
 
 // The schema-first order pipes through `.fold`, and paths-of-kind
 // output plugs straight in.
-#let plain = paths-of-kind(resume-schema, uri-string).fold(
+#let plain = paths-of-kind(resume-schema, string(format: "uri")).fold(
   resume-schema,
-  (acc, p) => lens-put(acc, p, str-type),
+  (acc, p) => lens-put(acc, p, string()),
 )
-#assert.eq(paths-of-kind(plain, uri-string), ())
+#assert.eq(paths-of-kind(plain, string(format: "uri")), ())
 
 // ---- union, `not` and conditional members (#164, #109) --------------------
 
 #let toy = object((
-  when: any-of((datetime-string, date-string)),
-  place: one-of((str-type, object((city: str-type)))),
-  other: not-of(array-of(number-type)),
-  cond: if-of(str-type, then: object((b: str-type)), otherwise: number-type),
+  when: any-of((string(format: "date-time"), string(format: "date"))),
+  place: one-of((string(), object((city: string())))),
+  other: not-of(array-of(number())),
+  cond: if-of(string(), then: object((b: string())), otherwise: number()),
 ))
-#assert.eq(lens-get(toy, ("other", "not")), array-of(number-type))
-#assert.eq(lens-get(toy, ("cond", "if")), str-type)
-#assert.eq(lens-get(toy, ("cond", "then", "b")), str-type)
-#assert.eq(lens-get(toy, ("cond", "else")), number-type)
+#assert.eq(lens-get(toy, ("other", "not")), array-of(number()))
+#assert.eq(lens-get(toy, ("cond", "if")), string())
+#assert.eq(lens-get(toy, ("cond", "then", "b")), string())
+#assert.eq(lens-get(toy, ("cond", "else")), number())
 
 // Only the addressed member changes; the rest of the node (exclusive,
 // the other members) and of the schema is kept.
@@ -125,43 +120,48 @@
     "place",
     one-of((
       content-type,
-      object((city: str-type)),
+      object((city: string())),
     )),
   ),
-  (("when", 1), str-type, "when", any-of((datetime-string, str-type))),
+  (
+    ("when", 1),
+    string(),
+    "when",
+    any-of((string(format: "date-time"), string())),
+  ),
   (
     ("place", 1, "city"),
     content-type,
     "place",
     one-of((
-      str-type,
+      string(),
       object((city: content-type)),
     )),
   ),
-  (("other", "not"), str-type, "other", not-of(str-type)),
+  (("other", "not"), string(), "other", not-of(string())),
   (
     ("cond", "if"),
     content-type,
     "cond",
-    if-of(content-type, then: object((b: str-type)), otherwise: number-type),
+    if-of(content-type, then: object((b: string())), otherwise: number()),
   ),
   (
     ("cond", "then"),
-    number-type,
+    number(),
     "cond",
-    if-of(str-type, then: number-type, otherwise: number-type),
+    if-of(string(), then: number(), otherwise: number()),
   ),
   (
     ("cond", "then", "b"),
     content-type,
     "cond",
-    if-of(str-type, then: object((b: content-type)), otherwise: number-type),
+    if-of(string(), then: object((b: content-type)), otherwise: number()),
   ),
   (
     ("cond", "else"),
-    str-type,
+    string(),
     "cond",
-    if-of(str-type, then: object((b: str-type)), otherwise: str-type),
+    if-of(string(), then: object((b: string())), otherwise: string()),
   ),
 ) {
   let edited = lens-put(toy, at, value)
@@ -171,16 +171,16 @@
   }
 }
 #assert.eq(
-  lens-over(toy, ("other", "not", "items"), _ => str-type).shape.other,
-  not-of(array-of(str-type)),
+  lens-over(toy, ("other", "not", "items"), _ => string()).shape.other,
+  not-of(array-of(string())),
 )
 
 #assert.eq(
-  lens-over(toy, ("cond", "then"), o => object((..o.shape, c: str-type)))
+  lens-over(toy, ("cond", "then"), o => object((..o.shape, c: string())))
     .shape
     .cond
     .then,
-  object((b: str-type, c: str-type)),
+  object((b: string(), c: string())),
 )
 // A translated `else` is reached by its JSON Schema name.
 #let translated = schema-from-json-schema((
@@ -188,10 +188,10 @@
   then: (type: "string", minLength: 1),
   "else": (type: "number"),
 ))
-#assert.eq(lens-get(translated, ("else",)), number-type)
+#assert.eq(lens-get(translated, ("else",)), number())
 #assert.eq(
   validate(-1, schema: lens-put(translated, ("else",), (
-    ..number-type,
+    ..number(),
     minimum: 0,
   ))).map(e => e.code),
   ("range",),
@@ -199,37 +199,13 @@
 
 // The strict schema's free-text location member can become content.
 #assert.eq(
-  kind-at(
+  lens-get(
     lens-put(
       resume-schema-strict,
       ("work", "items", "location", 0),
       content-type,
     ),
     ("work", "items", "location", 0),
-  ),
+  ).kind,
   "content",
 )
-
-// ---- lens-then -------------------------------------------------------------
-
-// Takes either form and returns a lens; composed and direct lenses are
-// the same lens, so they read and write alike.
-#assert.eq(lens-then(lens(("basics",)), lens(("name",))), name)
-#assert.eq(lens-then(("basics",), ("name",)), name)
-#assert.eq(lens-then(lens(("basics",)), ("name",)), name)
-#assert.eq(lens-then(("basics",), lens(("name",))), name)
-#assert.eq(lens-then((), ()), lens(()))
-// The identity lens is a unit on either side.
-#assert.eq(lens-then(lens(()), name), name)
-#assert.eq(lens-then(name, lens(())), name)
-// Across an object → array → object boundary.
-#let work-highlights = lens-then(lens-then(("work",), ("items",)), (
-  "highlights",
-))
-#assert.eq(work-highlights.lens, ("work", "items", "highlights"))
-#assert.eq(lens-get(resume-schema, work-highlights).kind, "array")
-
-// ---- kind-at takes a lens as well as a path ----------------------------------
-
-#assert.eq(kind-at(resume-schema, ("basics", "name")), "string")
-#assert.eq(kind-at(resume-schema, name), "string")

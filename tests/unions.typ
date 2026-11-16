@@ -5,26 +5,26 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, schema-from-json-schema, describe-schema,
-  paths-of-kind, kind-at, lens, lens-get, lens-put, str-type, content-type,
-  number-type, integer-type, null-type, date-string, array-of, object, enum-of,
-  any-of, one-of, not-of, if-of, nullable, pattern-string, string, bool-type,
+  paths-of-kind, lens-get, lens-put, content-type, null-type, array-of, object,
+  enum-of, any-of, one-of, not-of, if-of, nullable, string, bool-type, number,
+  integer,
 )
 
 #let T = schema-from-json-schema
 
 // ---- any-of ------------------------------------------------------------
 
-#let str-or-num = any-of((str-type, number-type))
+#let str-or-num = any-of((string(), number()))
 #assert.eq(validate("hi", schema: str-or-num), ())
 #assert.eq(validate(42, schema: str-or-num), ())
 
 // The members as separate arguments build the same node as the array
 // form. A lone schema is one member, not an array to unpack.
-#assert.eq(any-of(str-type, number-type), str-or-num)
-#assert.eq(one-of(str-type, number-type), one-of((str-type, number-type)))
-#assert.eq(any-of(str-type), any-of((str-type,)))
-#assert.eq(one-of(str-type).members, (str-type,))
-#let obj = object((a: str-type))
+#assert.eq(any-of(string(), number()), str-or-num)
+#assert.eq(one-of(string(), number()), one-of((string(), number())))
+#assert.eq(any-of(string()), any-of((string(),)))
+#assert.eq(one-of(string()).members, (string(),))
+#let obj = object((a: string()))
 #assert.eq(any-of(obj), any-of((obj,)))
 #assert.eq(any-of(obj, array-of(obj)).members, (obj, array-of(obj)))
 
@@ -37,7 +37,7 @@
 // A member claims a value when it has no `type` error at the union's
 // own path, read from its schema, not its error text. When one member
 // claims, its own error is reported instead of the summary.
-#let letter-or-num = any-of((enum-of(("a", "b")), number-type))
+#let letter-or-num = any-of((enum-of(("a", "b")), number()))
 // The enum takes strings, not bools: no member claims `true`.
 #let bool-err = validate(true, schema: letter-or-num)
 #assert.eq(bool-err.map(e => e.code), ("type",))
@@ -50,7 +50,7 @@
 #assert(
   validate(-1, schema: any-of((
     enum-of(("a", "b")),
-    (..number-type, minimum: 0),
+    (..number(), minimum: 0),
   )))
     .at(0)
     .message
@@ -58,22 +58,22 @@
 )
 // A float on an integer member is still claimed: `integer`, not `type`.
 #let int-or-str = validate(1.5, schema: any-of((
-  integer-type,
-  pattern-string("^a"),
+  integer(),
+  string(pattern: "^a"),
 )))
 #assert.eq(int-or-str.map(e => (e.path, e.code, e.expected, e.got)), (
   ((), "integer", none, 1.5),
 ))
 // A type error below the union's own path doesn't stop a member claiming.
 #assert.eq(
-  validate((a: 1), schema: any-of((object((a: str-type)), number-type))).map(
+  validate((a: 1), schema: any-of((object((a: string())), number()))).map(
     e => (e.path, e.code, e.expected, e.got),
   ),
   ((("a",), "type", "string", "integer"),),
 )
 
 // Inside an object, a union reports at its own path; null is absent.
-#let holder = object((value: any-of((str-type, array-of(number-type)))))
+#let holder = object((value: any-of((string(), array-of(number())))))
 #assert.eq(validate((value: (1, 2)), schema: holder), ())
 #assert.eq(validate((value: "text"), schema: holder), ())
 #assert.eq(validate((value: true), schema: holder).map(e => e.path), (
@@ -84,18 +84,18 @@
 // Nesting stays affordable: each level validates every member once.
 // Twelve levels of a member that recurses through an array, failing at
 // the bottom so every branch is walked.
-#let deep = str-type
+#let deep = string()
 #let deep-value = true
 #for _ in range(12) {
-  deep = any-of((deep, number-type, array-of(deep)))
+  deep = any-of((deep, number(), array-of(deep)))
   deep-value = (deep-value,)
 }
 #assert.eq(validate(deep-value, schema: deep).len(), 1)
 
 // ---- one-of: exactly one -------------------------------------------------
 
-#let exclusive = one-of((number-type, enum-of((1, 2))))
-// 3 matches only number-type.
+#let exclusive = one-of((number(), enum-of((1, 2))))
+// 3 matches only number().
 #assert.eq(validate(3, schema: exclusive), ())
 // 1 matches both.
 #let multi = validate(1, schema: exclusive)
@@ -105,7 +105,7 @@
 
 // ---- not-of ------------------------------------------------------------
 
-#let not-str = not-of(str-type)
+#let not-str = not-of(string())
 #assert.eq(validate(42, schema: not-str), ())
 #assert.eq(validate((a: 1), schema: not-str), ())
 #let negated = validate("nope", schema: not-str)
@@ -126,7 +126,7 @@
   "expected starting with x.",
 ))
 // Coerce follows the branch validate judged by.
-#let rich-if-str = if-of(str-type, then: content-type, otherwise: number-type)
+#let rich-if-str = if-of(string(), then: content-type, otherwise: number())
 #assert.eq(type(coerce("hi", schema: rich-if-str)), content)
 #assert.eq(coerce(3, schema: rich-if-str), 3)
 #assert.eq(validate(true, schema: rich-if-str).map(e => e.code), ("type",))
@@ -135,9 +135,9 @@
 // does: here a string, whose branch only breaks a constraint, so its
 // own error is reported.
 #let short-str = if-of(
-  str-type,
+  string(),
   then: string(min-length: 2),
-  otherwise: number-type,
+  otherwise: number(),
 )
 #let bool-or-cond = any-of(bool-type, short-str)
 #assert.eq(validate(true, schema: bool-or-cond), ())
@@ -157,7 +157,7 @@
     (a: 1),
     schema: any-of(
       bool-type,
-      if-of(str-type, then: not-of(number-type), otherwise: number-type),
+      if-of(string(), then: not-of(number()), otherwise: number()),
     ),
   ).map(e => (e.code, e.expected)),
   (("type", "boolean or number"),),
@@ -169,7 +169,7 @@
     1,
     schema: any-of(
       bool-type,
-      if-of(str-type, then: string(min-length: 2), otherwise: x-word),
+      if-of(string(), then: string(min-length: 2), otherwise: x-word),
     ),
   )
     .at(0)
@@ -184,7 +184,7 @@
 )
 // A missing branch matches every value that takes it, so a one-of
 // counts the conditional for a number here.
-#let num-or-cond = one-of(number-type, if-of(str-type, then: x-word))
+#let num-or-cond = one-of(number(), if-of(string(), then: x-word))
 #assert.eq(validate("xy", schema: num-or-cond), ())
 #assert(
   validate(1, schema: num-or-cond).at(0).message.contains("2 matched"),
@@ -194,26 +194,26 @@
 
 // A union models the value with the first matching member: content
 // wraps, the rest pass through, inside a document too.
-#let rich-or-num = any-of((content-type, number-type))
+#let rich-or-num = any-of((content-type, number()))
 #assert.eq(type(coerce("hello", schema: rich-or-num)), content)
 #assert.eq(coerce(7, schema: rich-or-num), 7)
-#let doc-schema = object((x: any-of((str-type, number-type))))
+#let doc-schema = object((x: any-of((string(), number()))))
 #assert.eq(coerce((x: 5), schema: doc-schema).x, 5)
 #assert.eq(coerce((x: "s"), schema: doc-schema).x, "s")
 
 // `not` has no shape to coerce toward: the value passes through.
-#assert.eq(coerce(42, schema: not-of(str-type)), 42)
-#assert.eq(coerce((a: 1), schema: not-of(str-type)), (a: 1))
+#assert.eq(coerce(42, schema: not-of(string())), 42)
+#assert.eq(coerce((a: 1), schema: not-of(string())), (a: 1))
 
 // ---- a `type` array ------------------------------------------------------
 //
 // One member per type, a null member last; duplicates build one member.
 
 #let su = T((type: ("string", "number")))
-#assert.eq(su, any-of((str-type, number-type)))
-#assert.eq(T((type: ("string", "string"))), str-type)
+#assert.eq(su, any-of((string(), number())))
+#assert.eq(T((type: ("string", "string"))), string())
 #let with-null = T((type: ("string", "number", "null")))
-#assert.eq(with-null, any-of((str-type, number-type, null-type)))
+#assert.eq(with-null, any-of((string(), number(), null-type)))
 #assert.eq(T((type: ("null", "null"))), T((type: "null")))
 
 #let v(s) = T((type: "object", properties: (v: s)))
@@ -261,7 +261,7 @@
 // translates to it. By default it validates and coerces exactly as X
 // does; with strict-null it accepts the null that plain X rejects.
 
-#assert.eq(nullable(str-type), any-of((str-type, null-type)))
+#assert.eq(nullable(string()), any-of((string(), null-type)))
 
 // Each case: the nullable JSON Schema, the same without "null", and
 // values to judge.
@@ -344,7 +344,7 @@
   (),
 )
 
-// Lenses, kind-at and paths-of-kind reach X as member 0.
+// Lenses and paths-of-kind reach X as member 0.
 #let doc = T((
   type: "object",
   properties: (
@@ -352,14 +352,14 @@
     name: (type: ("string", "null")),
   ),
 ))
-#assert.eq(paths-of-kind(doc, date-string), (("when", 0),))
-#assert.eq(kind-at(doc, ("when",)), "union")
-#assert.eq(kind-at(doc, ("when", 0)), "string")
+#assert.eq(paths-of-kind(doc, string(format: "date")), (("when", 0),))
+#assert.eq(lens-get(doc, ("when",)).kind, "union")
+#assert.eq(lens-get(doc, ("when", 0)).kind, "string")
 #assert.eq(lens-get(doc, ("when", 0)).format, "date")
-#assert.eq(lens-get(doc, ("name", 0)), str-type)
+#assert.eq(lens-get(doc, ("name", 0)), string())
 #assert.eq(
-  lens-put(doc, ("name", 0), (..str-type, min-length: 1)).shape.name,
-  nullable((..str-type, min-length: 1)),
+  lens-put(doc, ("name", 0), (..string(), min-length: 1)).shape.name,
+  nullable((..string(), min-length: 1)),
 )
 #assert.eq(describe-schema(doc), "name  string?\nwhen  string (date)?")
 

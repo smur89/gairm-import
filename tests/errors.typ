@@ -4,9 +4,8 @@
 // the list into parse's report.
 
 #import "../lib.typ": (
-  validate, format-errors, str-type, number-type, integer-type, bool-type,
-  null-type, array-of, object, enum-of, any-of, one-of, not-of, date-string,
-  email-string, pattern-string,
+  validate, format-errors, bool-type, null-type, array-of, object, enum-of,
+  any-of, one-of, not-of, string, number, integer,
 )
 
 // ---- one record per code ---------------------------------------------
@@ -15,16 +14,16 @@
 // expected and got.
 
 #let clock = datetime(hour: 10, minute: 0, second: 0)
-#let numbers = array-of(number-type)
+#let numbers = array-of(number())
 #for (value, schema, code, path, expected, got) in (
   // type
-  ((a: 1), object((a: str-type)), "type", ("a",), "string", "integer"),
-  ("x", number-type, "type", (), "number", "string"),
+  ((a: 1), object((a: string())), "type", ("a",), "string", "integer"),
+  ("x", number(), "type", (), "number", "string"),
   (1, bool-type, "type", (), "boolean", "integer"),
   (1, null-type, "type", (), "null", "integer"),
-  (1, array-of(str-type), "type", (), "array", "integer"),
+  (1, array-of(string()), "type", (), "array", "integer"),
   (1, object((:)), "type", (), "object", "integer"),
-  (1, email-string, "type", (), "string", "integer"),
+  (1, string(format: "email"), "type", (), "string", "integer"),
   // An enum none of whose values shares the value's type: the JSON
   // type names its values have.
   (true, enum-of(("a", "b")), "type", (), "string", "boolean"),
@@ -33,7 +32,7 @@
   // non-null value by default, so it names none.
   (
     true,
-    any-of((str-type, number-type)),
+    any-of((string(), number())),
     "type",
     (),
     "string or number",
@@ -41,17 +40,17 @@
   ),
   (
     true,
-    any-of((integer-type, enum-of((1, "a")), any-of((str-type, null-type)))),
+    any-of((integer(), enum-of((1, "a")), any-of((string(), null-type)))),
     "type",
     (),
     "integer or number or string",
     "boolean",
   ),
-  ("x", integer-type, "type", (), "integer", "string"),
+  ("x", integer(), "type", (), "integer", "string"),
   // required
   (
     (:),
-    object((a: str-type), required-keys: ("a",)),
+    object((a: string()), required-keys: ("a",)),
     "required",
     ("a",),
     none,
@@ -60,7 +59,7 @@
   // unknown-key
   (
     (b: 1),
-    object((a: str-type, c: str-type)),
+    object((a: string(), c: string())),
     "unknown-key",
     ("b",),
     (
@@ -72,7 +71,7 @@
   // dependent
   (
     (a: "x"),
-    object((a: str-type, b: str-type), dependent-required: (a: ("b",))),
+    object((a: string(), b: string()), dependent-required: (a: ("b",))),
     "dependent",
     (),
     "b",
@@ -84,7 +83,7 @@
   // format
   (
     "nope",
-    email-string,
+    string(format: "email"),
     "format",
     (),
     "an email (e.g. \"name@example.com\")",
@@ -94,7 +93,7 @@
   // not a type one: the kind takes datetimes.
   (
     clock,
-    date-string,
+    string(format: "date"),
     "format",
     (),
     "a string or a datetime with a date and no time",
@@ -103,7 +102,7 @@
   // pattern
   (
     "abc",
-    pattern-string("^[0-9]+$", expected: "digits"),
+    string(pattern: "^[0-9]+$", expected: "digits"),
     "pattern",
     (),
     "digits",
@@ -111,7 +110,7 @@
   ),
   (
     "a@b.com",
-    (..email-string, pattern: regex("^z"), expected: "a z-address"),
+    (..string(format: "email"), pattern: regex("^z"), expected: "a z-address"),
     "pattern",
     (),
     "a z-address",
@@ -146,7 +145,7 @@
   // multiple
   (7, (kind: "number", multiple-of: 3), "multiple", (), (multiple-of: 3), 7),
   // integer
-  ((n: 1.5), object((n: integer-type)), "integer", ("n",), none, 1.5),
+  ((n: 1.5), object((n: integer())), "integer", ("n",), none, 1.5),
   // items
   ((1,), (..numbers, min-items: 2), "items", (), (min-items: 2), 1),
   ((1, 2, 3), (..numbers, max-items: 2), "items", (), (max-items: 2), 3),
@@ -156,7 +155,7 @@
   // with more than one match.
   (
     "x",
-    any-of((enum-of(("a",)), email-string)),
+    any-of((enum-of(("a",)), string(format: "email"))),
     "union",
     (),
     (
@@ -167,7 +166,7 @@
   ),
   (
     1,
-    one-of((number-type, enum-of((1, 2)))),
+    one-of((number(), enum-of((1, 2)))),
     "union",
     (),
     (
@@ -177,7 +176,7 @@
     none,
   ),
   // not
-  ("x", not-of(str-type), "not", (), none, none),
+  ("x", not-of(string()), "not", (), none, none),
 ) {
   let errs = validate(value, schema: schema)
   assert.eq(errs.len(), 1, message: repr(errs))
@@ -197,14 +196,14 @@
 // and runtime output stay in lockstep.
 
 #for (schema, value, message) in (
-  (str-type, 42, "expected string, got integer."),
-  (str-type, 3.14, "expected string, got number."),
-  (str-type, true, "expected string, got boolean."),
-  (str-type, (1,), "expected string, got array."),
-  (str-type, (a: 1), "expected string, got object."),
-  (number-type, "nope", "expected number, got string."),
-  (array-of(str-type), "x", "expected array, got string."),
-  (object((name: str-type)), "x", "expected object, got string."),
+  (string(), 42, "expected string, got integer."),
+  (string(), 3.14, "expected string, got number."),
+  (string(), true, "expected string, got boolean."),
+  (string(), (1,), "expected string, got array."),
+  (string(), (a: 1), "expected string, got object."),
+  (number(), "nope", "expected number, got string."),
+  (array-of(string()), "x", "expected array, got string."),
+  (object((name: string())), "x", "expected object, got string."),
 ) {
   assert.eq(
     validate((f: value), schema: object((f: schema))).map(e => e.message),
@@ -212,9 +211,9 @@
   )
 }
 // Null is absent by default; strict-null judges it and names it.
-#assert.eq(validate((f: none), schema: object((f: str-type))), ())
+#assert.eq(validate((f: none), schema: object((f: string()))), ())
 #assert.eq(
-  validate((f: none), schema: object((f: str-type)), strict-null: true)
+  validate((f: none), schema: object((f: string())), strict-null: true)
     .first()
     .message,
   "expected string, got null.",
@@ -226,7 +225,7 @@
 // two edits inclusive, the first declared winning a tie.
 
 #let suggestion(key, keys) = {
-  let shape = keys.map(k => (k, str-type)).to-dict()
+  let shape = keys.map(k => (k, string())).to-dict()
   let message = validate(((key): 1), schema: object(shape)).first().message
   let hint = message.find(regex("Did you mean \"[^\"]*\"\\?"))
   if hint == none { none } else { hint.slice(14, -2) }

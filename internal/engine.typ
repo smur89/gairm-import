@@ -21,7 +21,7 @@
 
 #let _walk(schema, value, ctx) = {
   if _absent(value, ctx) { return (errors: (), value: none, fatal: none) }
-  // An old kind name reaches its walk as the node it stands for.
+  // A hand-built string with an unknown format panics here.
   let schema = _node(schema)
   let d = _kinds.at(schema.kind, default: none)
   if d == none {

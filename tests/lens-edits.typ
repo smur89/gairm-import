@@ -4,23 +4,23 @@
 // constructor's invariants, and leaves its input unchanged.
 
 #import "../lib.typ": (
-  lens, lens-put, lens-over, add-field, remove-field, set-required,
-  unset-required, resume-schema, object, map, validate, str-type, number-type,
+  lens-put, lens-over, add-field, remove-field, set-required, unset-required,
+  resume-schema, object, map, validate, string, number,
 )
 
 // ---- a lens or a path ------------------------------------------------------
 
-#let s = object((a: str-type, b: str-type), required-keys: ("a",))
+#let s = object((a: string(), b: string()), required-keys: ("a",))
 #assert.eq(
-  add-field(s, (), "c", number-type),
-  add-field(s, lens(()), "c", number-type),
+  add-field(s, (), "c", number()),
+  add-field(s, (lens: ()), "c", number()),
 )
-#assert.eq(remove-field(s, (), "b"), remove-field(s, lens(()), "b"))
+#assert.eq(remove-field(s, (), "b"), remove-field(s, (lens: ()), "b"))
 #assert.eq(
   set-required(s, (), ("a", "b")),
-  set-required(s, lens(()), ("a", "b")),
+  set-required(s, (lens: ()), ("a", "b")),
 )
-#assert.eq(unset-required(s, (), ("a",)), unset-required(s, lens(()), ("a",)))
+#assert.eq(unset-required(s, (), ("a",)), unset-required(s, (lens: ()), ("a",)))
 
 // ---- add-field and remove-field --------------------------------------------
 
@@ -29,9 +29,9 @@
   resume-schema,
   language-items,
   "rating",
-  number-type,
+  number(),
 )
-#assert.eq(with-rating.shape.languages.elem.shape.rating, number-type)
+#assert.eq(with-rating.shape.languages.elem.shape.rating, number())
 #assert.eq(
   validate(
     (languages: ((language: "English", rating: 5),)),
@@ -42,22 +42,22 @@
 // required: true also requires the field, in the same edit: the same
 // node as add-field then set-required.
 #assert.eq(
-  add-field(s, (), "c", number-type, required: true),
-  object((a: str-type, b: str-type, c: number-type), required-keys: ("a", "c")),
+  add-field(s, (), "c", number(), required: true),
+  object((a: string(), b: string(), c: number()), required-keys: ("a", "c")),
 )
 #assert.eq(
-  add-field(s, (), "c", number-type, required: true),
-  set-required(add-field(s, (), "c", number-type), (), ("a", "c")),
+  add-field(s, (), "c", number(), required: true),
+  set-required(add-field(s, (), "c", number()), (), ("a", "c")),
 )
 #assert.eq(
-  add-field(s, (), "c", number-type, required: false),
-  add-field(s, (), "c", number-type),
+  add-field(s, (), "c", number(), required: false),
+  add-field(s, (), "c", number()),
 )
 // An open object may already require a key it does not declare; it is
 // listed once.
-#let open-s = map(str-type, required-keys: ("c",))
+#let open-s = map(string(), required-keys: ("c",))
 #assert.eq(
-  add-field(open-s, (), "c", number-type, required: true).required-keys,
+  add-field(open-s, (), "c", number(), required: true).required-keys,
   ("c",),
 )
 #let without-rating = remove-field(with-rating, language-items, "rating")
@@ -67,13 +67,13 @@
 // remove-field prunes the key from required-keys and from every
 // dependency, so an extension can roll back either cleanly.
 #let loosened = remove-field(
-  object((title: str-type, body: str-type), required-keys: ("title", "body")),
+  object((title: string(), body: string()), required-keys: ("title", "body")),
   (),
   "body",
 )
-#assert.eq(loosened, object((title: str-type), required-keys: ("title",)))
+#assert.eq(loosened, object((title: string()), required-keys: ("title",)))
 #let multi = object(
-  (a: str-type, b: str-type, c: str-type),
+  (a: string(), b: string(), c: string()),
   dependent-required: (a: ("b", "c"), b: ("c",)),
 )
 #assert.eq(remove-field(multi, (), "c").dependent-required, (a: ("b",)))
@@ -81,7 +81,7 @@
 #assert(
   "dependent-required"
     not in remove-field(
-      object((a: str-type, b: str-type), dependent-required: (a: ("b",))),
+      object((a: string(), b: string()), dependent-required: (a: ("b",))),
       (),
       "b",
     ),
@@ -91,7 +91,7 @@
 
 #let basics = ("basics",)
 #let schema = object((
-  basics: object((name: str-type, email: str-type, summary: str-type)),
+  basics: object((name: string(), email: string(), summary: string())),
 ))
 #assert.eq(schema.shape.basics.required-keys, ())
 
@@ -148,27 +148,27 @@
 
 // On an open object, required-keys may name keys outside the shape, as
 // object() allows.
-#let open = object((a: str-type), additional: true)
+#let open = object((a: string()), additional: true)
 #let req = set-required(open, (), ("a", "extra"))
 #assert.eq(req, object(
-  (a: str-type),
+  (a: string()),
   required-keys: ("a", "extra"),
   additional: true,
 ))
 #assert.eq(validate((a: "x"), schema: req).map(e => e.path), (("extra",),))
 #assert.eq(
-  set-required(map(number-type), (), ("n",)),
-  map(number-type, required-keys: ("n",)),
+  set-required(map(number()), (), ("n",)),
+  map(number(), required-keys: ("n",)),
 )
 
 // Edits keep dependent-required on an open object.
 #let dep = object(
-  (a: str-type),
+  (a: string()),
   dependent-required: (a: ("x",)),
   additional: true,
 )
-#assert.eq(add-field(dep, (), "b", number-type), object(
-  (a: str-type, b: number-type),
+#assert.eq(add-field(dep, (), "b", number()), object(
+  (a: string(), b: number()),
   dependent-required: (a: ("x",)),
   additional: true,
 ))
@@ -176,20 +176,20 @@
 
 // A write into a field rebuilds the parent unchanged.
 #let parent = object(
-  (a: str-type, b: str-type),
+  (a: string(), b: string()),
   required-keys: ("a",),
   dependent-required: (a: ("b",)),
 )
 #assert.eq(
-  lens-put(parent, ("b",), number-type),
+  lens-put(parent, ("b",), number()),
   object(
-    (a: str-type, b: number-type),
+    (a: string(), b: number()),
     required-keys: ("a",),
     dependent-required: (a: ("b",)),
   ),
 )
 #assert.eq(lens-over(parent, (), p => p), parent)
 #assert.eq(remove-field(parent, (), "b"), object(
-  (a: str-type),
+  (a: string()),
   required-keys: ("a",),
 ))

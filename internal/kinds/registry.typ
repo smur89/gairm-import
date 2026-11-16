@@ -31,7 +31,7 @@
 )
 #import "../core/error.typ": _internal, _not-in
 #import "format.typ" as _format-mod
-#import "format.typ": string, pattern-string, _string-kind-check
+#import "format.typ": string, _string-kind-check
 #import "structure.typ" as _structure-mod
 #import "structure.typ": (
   array-of, object, map, any-of, one-of, not-of, if-of, nullable, _array-walk,
@@ -83,16 +83,15 @@
 
 #let _kinds = (
   // A format and a pattern are fields on the node. The suffix names
-  // the node as messages do (_kind-label), so a hand-built node of an
-  // old name (_kind-aliases) draws as the string it is, and a pattern
-  // gate of its own (JSON Schema format + pattern) says so.
+  // the node as messages do (_kind-label), and a pattern gate of its
+  // own (JSON Schema format + pattern) says so.
   string: _kind(
     check: _string-kind-check,
     family: "string",
     suffix: s => (
       _kind-label(s) + if "pattern" in s { " + pattern" } else { "" }
     ),
-    constructors: (string, pattern-string),
+    constructors: (string,),
   ),
   // The model wraps the string so it splices into markup.
   content: _kind(check: _string-check, family: "string", model: v => [#v]),
@@ -281,6 +280,5 @@
 #_check-kind-names(_kinds, _schema-kinds)
 
 // A node of a kind the registry doesn't know (hand-built) behaves as a
-// leaf, as it did before the registry. An old kind name finds its
-// current descriptor.
+// leaf, as it did before the registry.
 #let _descriptor(s) = _kinds.at(_node(s).kind, default: _kind())
