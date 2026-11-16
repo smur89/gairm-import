@@ -195,10 +195,7 @@
 /// -> dictionary
 #let add-field(schema, at, key, sub-schema, required: false) = {
   if type(required) != bool {
-    _bail(
-      "add-field",
-      "required must be true or false, got: " + repr(required) + ".",
-    )
+    _fail("add-field", _problem("required", "true or false", repr(required)))
   }
   _edit-object(schema, at, "add-field", parent => {
     if key in parent.shape {

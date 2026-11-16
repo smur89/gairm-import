@@ -91,13 +91,16 @@
 // object supports (the field edits, the allOf merge).
 #let _is-object(node) = node.kind == "object"
 
+// What a schema check suggests to a caller who passed something else.
+#let _schema-hint = " Build schemas with the constructors."
+
 #let _require-schema(node, who) = {
   if not _is-schema(node) {
     _fail(who, _problem(
       none,
       "a schema",
       repr(node),
-      hint: " Build schemas with the constructors.",
+      hint: _schema-hint,
     ))
   }
 }
@@ -169,7 +172,7 @@
       "members",
       "a non-empty array of schemas",
       repr(members),
-      hint: " Build schemas with the constructors.",
+      hint: _schema-hint,
     ))
   }
   members
