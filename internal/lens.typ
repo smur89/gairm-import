@@ -38,7 +38,7 @@
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": (
-  _require-schema, _is-schema, _is-object, _object-with,
+  _require-schema, _is-schema, _is-object, _object-with, _rebuilt,
 )
 #import "kinds/walk.typ": _kind-label
 #import "core/error.typ": (
@@ -49,7 +49,7 @@
 // through object() so it can't break the constructor's invariants.
 #let _checked(node, who) = {
   _require-schema(node, who)
-  if _is-object(node) { _object-with(node, who: who) } else { node }
+  _rebuilt(node, who)
 }
 
 // A field name an edit takes: panics, naming `op`, unless `key` is a

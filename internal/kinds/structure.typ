@@ -11,18 +11,24 @@
 #import "format.typ": _string-problem
 #import "registry.typ": _kinds
 
+// Whether `node` is a dictionary of a registered kind. Never panics, so
+// a search can ask it of any node it meets.
+#let _has-kind(node) = (
+  type(node) == dictionary
+    and type(node.at("kind", default: none)) == str
+    and node.kind in _kinds
+)
+
 // A schema node: a dictionary whose `kind` is registered. Shallow, as
 // its children were checked when they were built. A string node whose
 // `format` the format table doesn't know, which only a hand-built node
 // can carry, panics here.
 #let _is-schema(node) = {
-  if type(node) != dictionary { return false }
-  let kind = node.at("kind", default: none)
-  if kind == "string" {
+  if type(node) == dictionary and node.at("kind", default: none) == "string" {
     let p = _string-problem(format: node.at("format", default: none))
     if p != none { _fail("string schema", p) }
   }
-  type(kind) == str and kind in _kinds
+  _has-kind(node)
 }
 
 // Whether `node` is an object schema: for the operations only an
@@ -355,6 +361,13 @@
   }
   out
 }
+
+// `node` as a write leaves it: an object rebuilt through object(), so
+// it keeps the constructor's invariants (a panic naming `who`), and any
+// other node as it is.
+#let _rebuilt(node, who) = if _is-object(node) {
+  _object-with(node, who: who)
+} else { node }
 
 // `required-keys` kwarg for symmetry with `object` — required keys
 // on a pure map are still meaningful ("the document must contain

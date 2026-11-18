@@ -221,5 +221,7 @@
   // A node query is a schema like any other: a malformed field (a
   // string's format) fails here, in the package's words.
   if type(kind) == dictionary { _require-schema(kind, "paths-of-kind kind") }
-  _paths-where(schema, n => n.kind == q.kind and (q.test)(n))
+  _paths-where(schema, n => (
+    n.at("kind", default: none) == q.kind and (q.test)(n)
+  ))
 }

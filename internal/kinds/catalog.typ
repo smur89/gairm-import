@@ -17,10 +17,8 @@
 #import "format.typ": string
 #import "structure.typ" as _structure-mod
 #import "structure.typ": (
-  array-of, object, map, any-of, one-of, not-of, if-of, nullable,
+  array-of, object, map, any-of, one-of, not-of, if-of, nullable, _has-kind,
 )
-
-#let _always(_) = true
 
 #let _constructors = {
   let listed = (
@@ -33,16 +31,9 @@
     union: (
       (any-of, s => not s.exclusive),
       (one-of, s => s.exclusive),
-      // A nullable's first member must be a schema nullable() could take;
-      // checked by kind, so a hand-built member is passed over quietly.
-      (
-        nullable,
-        s => (
-          _is-nullable(s)
-            and type(s.members.first()) == dictionary
-            and s.members.first().at("kind", default: none) in _kinds
-        ),
-      ),
+      // A nullable's first member must be a schema nullable() could
+      // take; checked by kind, so a hand-built member is passed over.
+      (nullable, s => _is-nullable(s) and _has-kind(s.members.first())),
     ),
     "not": (not-of,),
     "if": (if-of,),
@@ -51,15 +42,15 @@
     .pairs()
     .map(((kind, cs)) => (
       kind,
-      cs.map(c => if type(c) == array { c } else { (c, _always) }),
+      cs.map(c => if type(c) == array { c } else { (c, _ => true) }),
     ))
     .to-dict()
 }
 
 // The kind `fn` builds and its test, or none for a function that is no
-// constructor.
-#let _constructor(fn) = {
-  for (kind, cs) in _constructors {
+// constructor. The load-time check passes its own `constructors`.
+#let _constructor(fn, constructors: _constructors) = {
+  for (kind, cs) in constructors {
     let hit = cs.find(((f, _)) => f == fn)
     if hit != none { return (kind: kind, test: hit.at(1)) }
   }
@@ -91,7 +82,7 @@
         )
       } else if type(v) == function {
         _internal(
-          constructors.values().any(cs => cs.any(((f, _)) => f == v)),
+          _constructor(v, constructors: constructors) != none,
           "constructor " + name + " is listed for no kind.",
         )
       }

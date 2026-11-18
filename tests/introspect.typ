@@ -485,7 +485,11 @@ phone → email",
 // The nullable query reads a union's shape, so a hand-built member is
 // searched past, not rebuilt, and a first member of no registered kind
 // is not a nullable.
-#for members in (((kind: "money"),), ((kind: "money"), null-type)) {
+#for members in (
+  ((kind: "money"),),
+  ((kind: "money"), null-type),
+  ((a: 1), null-type),
+) {
   assert.eq(
     paths-of-kind(
       object((a: (kind: "union", members: members, exclusive: false))),

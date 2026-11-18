@@ -6,7 +6,7 @@
 
 #import "../core/error.typ": _fail, _problem
 #import "registry.typ": _descriptor
-#import "structure.typ": _is-object, _object-with
+#import "structure.typ": _rebuilt
 
 #let _children(s) = (_descriptor(s).children)(s)
 
@@ -33,8 +33,10 @@
 #let _set-at(s, path, sub, who) = if path == () { sub } else {
   let (head, ..rest) = path
   let child = _child(s, head, who)
-  let out = (_descriptor(s).with-child)(s, head, _set-at(child, rest, sub, who))
-  if _is-object(out) { _object-with(out, who: who) } else { out }
+  _rebuilt(
+    (_descriptor(s).with-child)(s, head, _set-at(child, rest, sub, who)),
+    who,
+  )
 }
 
 // Every (path, node) pair, pre-order, of the nodes a path reaches: a

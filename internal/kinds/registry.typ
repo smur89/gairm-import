@@ -240,6 +240,9 @@
   ),
 )
 
-// A node of a kind the registry doesn't know (hand-built) behaves as a
-// leaf, as it did before the registry.
-#let _descriptor(s) = _kinds.at(s.kind, default: _kind())
+// A node of a kind the registry doesn't know, or of no kind at all (both
+// hand-built), behaves as a leaf, as it did before the registry.
+#let _descriptor(s) = {
+  let kind = s.at("kind", default: none)
+  if type(kind) == str { _kinds.at(kind, default: _kind()) } else { _kind() }
+}
