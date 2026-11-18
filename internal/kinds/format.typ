@@ -156,7 +156,7 @@
 /// and `expected` arguments, or none. The translator words it for the
 /// JSON keywords of the same names.
 #let _string-problem(format: none, pattern: none, expected: none) = {
-  if format != none and format not in _formats {
+  if format != none and (type(format) != str or format not in _formats) {
     let names = _formats.keys().map(repr)
     return _problem("format", "one of " + names.join(", "), repr(format))
   }

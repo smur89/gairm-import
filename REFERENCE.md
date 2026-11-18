@@ -46,8 +46,9 @@ An error record is `(path, code, message, expected, got)`:
 - `path` is where in the document the problem is, as keys and array
   indices (`("work", 0, "url")`); for a missing key (`required`,
   `dependent`) it is the key that is missing, and `()` is the root. A
-  missing key is reported once: `required` when the object requires it,
-  `dependent` otherwise;
+  missing key the object requires is reported once, as `required`, and
+  never also as `dependent`; one it doesn't require gets a `dependent`
+  record for each present key that requires it;
 - `code` says what kind of problem it is;
   [Errors](README.md#errors) lists the codes and what `expected` and `got`
   hold for each;

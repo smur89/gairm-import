@@ -54,9 +54,10 @@ for a named kind outside `internal/kinds/` unless it is marked
 the only walk; `validate`, `coerce` and `parse` (`run.typ`) share it and
 its rules, so they can't disagree about what is valid. They differ in
 what they make of the result: `validate` returns the errors, `parse`
-panics on any, and `coerce` returns the model, panicking only where the
-data leaves none (an undeclared key in a closed object is an error to
-`validate` and `parse`, and dropped by `coerce`). Its header explains the three parts, and
+panics on any, and `coerce` returns the model unless the walk reports a
+fatal error, a place the data leaves no model (an undeclared key in a
+closed object is an error to `validate` and `parse`, and dropped by
+`coerce`). All three panic before the walk on a bad argument or input. Its header explains the three parts, and
 `core/ctx.typ`'s explains the context and how null counts as absent.
 Composite kinds recurse through the `recur` argument their `walk`
 receives.

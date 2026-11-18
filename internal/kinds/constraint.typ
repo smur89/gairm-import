@@ -83,13 +83,27 @@
 // items coerced, and free-form objects kept as given.
 #let _unique-test(on, kept) = {
   if not on { return none }
-  // `contains` and `position` run natively and compare with `==` (`1`
-  // equals `1.0`), so only the scan for the first duplicated item is
-  // interpreted.
+  // The pair cited is the first item with a later duplicate, and that
+  // duplicate's nearest copy. Strings key a dictionary, so one
+  // right-to-left pass holding each string's nearest later index finds
+  // it. Other values compare with `==` (`1` equals `1.0`), natively in
+  // `contains` and `position`, over a copied suffix per item.
   let vals = kept.map(((_, v)) => v)
-  let i = range(vals.len()).find(i => vals.slice(i + 1).contains(vals.at(i)))
+  let (i, j) = if vals.all(v => type(v) == str) {
+    let later = (:)
+    let pair = (none, none)
+    for k in range(vals.len() - 1, -1, step: -1) {
+      if vals.at(k) in later { pair = (k, later.at(vals.at(k))) }
+      later.insert(vals.at(k), k)
+    }
+    pair
+  } else {
+    let i = range(vals.len()).find(i => vals.slice(i + 1).contains(vals.at(i)))
+    if i == none { (none, none) } else {
+      (i, i + 1 + vals.slice(i + 1).position(v => v == vals.at(i)))
+    }
+  }
   if i == none { return none }
-  let j = i + 1 + vals.slice(i + 1).position(v => v == vals.at(i))
   let (orig-i, orig-j) = (kept.at(i).at(0), kept.at(j).at(0))
   (
     message: "expected unique items, duplicate at indices "
@@ -225,11 +239,15 @@
 #let _ceil(v) = _trunc(v) + if calc.fract(v) > 0 { 1 } else { 0 }
 #let _floor(v) = _trunc(v) - if calc.fract(v) < 0 { 1 } else { 0 }
 
-// `v + d` for a step of one, in float where an int step could pass the
-// int range: an exclusive bound at the largest or smallest int.
-#let _step(v, d) = if type(v) == int and calc.abs(float(v)) >= 9e18 {
-  float(v) + d
-} else { v + d }
+// `v + d` for a step of one: exact in int, and in float only where the
+// int step would overflow, at the largest or smallest int. (A float
+// step anywhere near the limit rounds to a multiple of 1024, and could
+// land past the other bound.)
+#let _int-max = 9223372036854775807
+#let _int-min = -_int-max - 1
+#let _step(v, d) = if (
+  type(v) == int and ((d > 0 and v == _int-max) or (d < 0 and v == _int-min))
+) { float(v) + d } else { v + d }
 
 // The nearest whole number a bound of each `op` lets through.
 #let _whole-bound = (
@@ -239,29 +257,35 @@
   "<": v => _step(_ceil(v), -1),
 )
 
-/// The tightest lower and upper bound on an integer node, as
-/// `(lower, upper)` field names, when they leave no whole number
-/// between them (`minimum: 1.5, maximum: 1.7`); none otherwise. An
-/// infinite bound restricts nothing, so it is never the tightest.
+/// The fields of an integer node's bounds that leave no whole number:
+/// a lower bound of +∞ or an upper bound of -∞ on its own, or the
+/// tightest lower and upper bound when no whole number lies between
+/// them (`minimum: 1.5, maximum: 1.7`); none otherwise. A lower bound of
+/// -∞ or an upper bound of +∞ restricts nothing.
 #let _integer-gap(node) = {
   if node.at("kind", default: none) != "integer" { return none }
-  let tightest(ops, pick) = {
-    let found = _constraint-rows
-      .filter(row => (
-        row.at("op", default: none) in ops
-          and row.field in node
-          and not (
-            type(node.at(row.field)) == float
-              and node.at(row.field).is-infinite()
-          )
-      ))
+  let bounds(ops) = _constraint-rows.filter(row => (
+    row.at("op", default: none) in ops and row.field in node
+  ))
+  let infinite(row) = (
+    type(node.at(row.field)) == float and node.at(row.field).is-infinite()
+  )
+  let (lows, highs) = (bounds(("≥", ">")), bounds(("≤", "<")))
+  let blocking = (
+    lows.filter(r => infinite(r) and node.at(r.field) > 0)
+      + highs.filter(r => infinite(r) and node.at(r.field) < 0)
+  )
+  if blocking != () { return (blocking.first().field,) }
+  let tightest(rows, pick) = {
+    let found = rows
+      .filter(row => not infinite(row))
       .map(row => (row.field, _whole-bound.at(row.op)(node.at(row.field))))
     if found != () { found.sorted(key: p => p.at(1)).at(pick) }
   }
-  let lower = tightest(("≥", ">"), -1)
-  let upper = tightest(("≤", "<"), 0)
+  let lower = tightest(lows, -1)
+  let upper = tightest(highs, 0)
   if lower != none and upper != none and lower.at(1) > upper.at(1) {
-    (lower: lower.at(0), upper: upper.at(0))
+    (lower.at(0), upper.at(0))
   }
 }
 
@@ -325,10 +349,9 @@
     problem: if message != none { (message: message) },
     gap: if gap != none {
       (
-        message: named(gap.lower)
-          + " and "
-          + named(gap.upper)
-          + " leave no integer.",
+        message: gap.map(named).join(" and ")
+          + if gap.len() == 1 { " leaves" } else { " leave" }
+          + " no integer.",
       )
     },
   )

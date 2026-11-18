@@ -168,7 +168,11 @@
     test: n => _matches(kind, n),
     // A kind the registry doesn't know may not even be a string, so it
     // is named as given.
-    name: if type(kind.kind) == str and kind.kind in _kinds {
+    name: if (
+      type(kind.kind) == str
+        and kind.kind in _kinds
+        and type(kind.at("format", default: "")) == str
+    ) {
       _a(_kind-label(kind)) + " schema"
     } else { "a node of kind " + repr(kind.kind) },
   )
@@ -213,5 +217,8 @@
       q.name,
     ))
   }
+  // A node query is a schema like any other: a malformed field (a
+  // string's format) fails here, in the package's words.
+  if type(kind) == dictionary { _require-schema(kind, "paths-of-kind kind") }
   _paths-where(schema, n => n.kind == q.kind and (q.test)(n))
 }

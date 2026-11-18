@@ -483,16 +483,18 @@ phone → email",
 )
 
 // The nullable query reads a union's shape, so a hand-built member is
-// searched past, not rebuilt.
-#assert.eq(
-  paths-of-kind(
-    object((
-      a: (kind: "union", members: ((kind: "money"),), exclusive: false),
-    )),
-    nullable,
-  ),
-  (),
-)
+// searched past, not rebuilt, and a first member of no registered kind
+// is not a nullable.
+#for members in (((kind: "money"),), ((kind: "money"), null-type)) {
+  assert.eq(
+    paths-of-kind(
+      object((a: (kind: "union", members: members, exclusive: false))),
+      nullable,
+    ),
+    (),
+  )
+}
+#assert.eq(paths-of-kind(object((a: nullable(string()))), nullable), (("a",),))
 // An additional schema shadowed by a literal "additionalProperties"
 // field has no path, so none is returned for it.
 #let shadowed = object(

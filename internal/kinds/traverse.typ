@@ -13,7 +13,11 @@
 // union member. A bad segment panics naming `who`, the public function
 // that followed the path.
 #let _child(s, seg, who) = {
-  let hit = _children(s).find(((k, ..)) => type(k) == type(seg) and k == seg)
+  // A child with no segment (a shadowed additional schema) is never hit,
+  // not even by a `none` segment.
+  let hit = _children(s).find(((k, ..)) => (
+    k != none and type(k) == type(seg) and k == seg
+  ))
   if hit == none { _fail(who, (_descriptor(s).bad-segment)(s, seg)) }
   hit.at(1)
 }

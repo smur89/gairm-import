@@ -100,3 +100,14 @@
   schema-from-json-schema((type: "array", maxItems: 9.21e18)).max-items,
   9210000000000000000,
 )
+
+// Exclusive steps stay exact near the int limit: a float step would
+// round 9100000000000000100 to a multiple of 1024 and see a gap that
+// isn't there (9100000000000000101 is between the bounds).
+#assert.eq(
+  integer(
+    exclusive-minimum: 9100000000000000100,
+    exclusive-maximum: 9100000000000000102,
+  ).exclusive-minimum,
+  9100000000000000100,
+)

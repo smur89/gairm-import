@@ -44,9 +44,10 @@
 ///   root does not take, as a string path would resolve from the
 ///   package: use `path(..)` or `json(..)` to read a file.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
-///   `null` is a value its schema judges: `null-type`, `nullable(..)`
-///   and `any-type` accept it, and the rest reject it. A `null`
-///   document panics either way.
+///   `null` is a value its schema judges: `null-type`, `nullable(..)`,
+///   `any-type` and an `enum-of(..)` or `const-of(..)` that lists
+///   `none` accept it, and the rest reject it. A `null` document panics
+///   either way.
 /// -> array
 #let validate(schema, data, strict-null: false) = {
   let (value, ctx) = _prepare("validate", schema, data, strict-null)
@@ -64,9 +65,10 @@
 /// - schema (dictionary): The schema that says what each field becomes.
 /// - data (any): The document, or where to read it, as for `validate`.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
-///   `null` is a value its schema judges: `null-type`, `nullable(..)`
-///   and `any-type` accept it, and the rest reject it. A `null`
-///   document panics either way.
+///   `null` is a value its schema judges: `null-type`, `nullable(..)`,
+///   `any-type` and an `enum-of(..)` or `const-of(..)` that lists
+///   `none` accept it, and the rest reject it. A `null` document panics
+///   either way.
 /// -> any
 #let coerce(schema, data, strict-null: false) = {
   let (value, ctx) = _prepare("coerce", schema, data, strict-null)
@@ -84,9 +86,10 @@
 ///   the root may be anything the schema takes, an array or a scalar
 ///   included.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
-///   `null` is a value its schema judges: `null-type`, `nullable(..)`
-///   and `any-type` accept it, and the rest reject it. A `null`
-///   document panics either way.
+///   `null` is a value its schema judges: `null-type`, `nullable(..)`,
+///   `any-type` and an `enum-of(..)` or `const-of(..)` that lists
+///   `none` accept it, and the rest reject it. A `null` document panics
+///   either way.
 /// -> any
 #let parse(schema, data, strict-null: false) = {
   let (value, ctx) = _prepare("parse", schema, data, strict-null)

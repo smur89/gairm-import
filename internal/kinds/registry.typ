@@ -49,7 +49,11 @@
 // shape rather than by rebuilding nullable(X), which would panic on a
 // hand-built member mid-search.
 #let _is-nullable(s) = (
-  not s.exclusive and s.members.len() == 2 and s.members.last() == null-type
+  not s.exclusive
+    and s.members.len() == 2
+    and s.members.last() == null-type
+    and type(s.members.first()) == dictionary
+    and s.members.first().at("kind", default: none) in _schema-kinds
 )
 
 // A conditional's children, as (segment, field): the lens segments are

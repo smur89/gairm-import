@@ -3,7 +3,7 @@
 // kebab-case field on the node; validate checks it after the type.
 
 #import "../lib.typ": (
-  validate, schema-from-json-schema, array-of, object, string, number,
+  validate, schema-from-json-schema, array-of, object, string, number, any-type,
 )
 
 #let T = schema-from-json-schema
@@ -200,3 +200,15 @@
 )
 // With several duplicate pairs, the one cited is the first item's.
 #assert.eq(validate(uniq, (1, 2, 2, 1)).map(e => e.got), ((0, 3),))
+
+// Strings take the one-pass path; it cites the same pair as the
+// equality scan, and mixed arrays still go through that scan.
+#let uniq-str = array-of(string(), unique-items: true)
+#assert.eq(validate(uniq-str, ("a", "b", "b", "a")).map(e => e.got), ((0, 3),))
+#assert.eq(validate(uniq-str, range(500).map(str)), ())
+#assert.eq(
+  validate(array-of(any-type, unique-items: true), ("1", 1, 1.0)).map(e => (
+    e.got
+  )),
+  ((1, 2),),
+)
