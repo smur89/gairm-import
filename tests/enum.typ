@@ -37,11 +37,11 @@
 ) {
   let schema = object((f: enum))
   for v in members {
-    assert.eq(validate((f: v), schema: schema), (), message: repr(v))
-    if v != none { assert.eq(coerce((f: v), schema: schema), (f: v)) }
+    assert.eq(validate(schema, (f: v)), (), message: repr(v))
+    if v != none { assert.eq(coerce(schema, (f: v)), (f: v)) }
   }
   for (v, texts) in misses {
-    let errs = validate((f: v), schema: schema)
+    let errs = validate(schema, (f: v))
     assert.eq(errs.len(), 1, message: repr(v))
     assert.eq(errs.at(0).path, ("f",))
     for t in texts { assert(errs.at(0).message.contains(t), message: t) }

@@ -15,8 +15,8 @@
 // ---- any-of ------------------------------------------------------------
 
 #let str-or-num = any-of((string(), number()))
-#assert.eq(validate("hi", schema: str-or-num), ())
-#assert.eq(validate(42, schema: str-or-num), ())
+#assert.eq(validate(str-or-num, "hi"), ())
+#assert.eq(validate(str-or-num, 42), ())
 
 // The members as separate arguments build the same node as the array
 // form. A lone schema is one member, not an array to unpack.
@@ -28,7 +28,7 @@
 #assert.eq(any-of(obj), any-of((obj,)))
 #assert.eq(any-of(obj, array-of(obj)).members, (obj, array-of(obj)))
 
-#let no-match = validate(true, schema: str-or-num)
+#let no-match = validate(str-or-num, true)
 #assert.eq(no-match.len(), 1)
 #assert.eq(no-match.at(0).path, ())
 #assert(no-match.at(0).message.contains("none matched"))
@@ -39,34 +39,40 @@
 // claims, its own error is reported instead of the summary.
 #let letter-or-num = any-of((enum-of(("a", "b")), number()))
 // The enum takes strings, not bools: no member claims `true`.
-#let bool-err = validate(true, schema: letter-or-num)
+#let bool-err = validate(letter-or-num, true)
 #assert.eq(bool-err.map(e => e.code), ("type",))
 #assert(bool-err.at(0).message.contains("none matched"))
 // A string is claimed by the enum alone.
-#let letter-err = validate("c", schema: letter-or-num)
+#let letter-err = validate(letter-or-num, "c")
 #assert.eq(letter-err.map(e => e.code), ("enum",))
 #assert(letter-err.at(0).message.starts-with("expected one of \"a\", \"b\""))
 // A number breaking a range is claimed by the number member.
 #assert(
-  validate(-1, schema: any-of((
-    enum-of(("a", "b")),
-    (..number(), minimum: 0),
-  )))
+  validate(
+    any-of((
+      enum-of(("a", "b")),
+      (..number(), minimum: 0),
+    )),
+    -1,
+  )
     .at(0)
     .message
     .contains("≥ 0"),
 )
 // A float on an integer member is still claimed: `integer`, not `type`.
-#let int-or-str = validate(1.5, schema: any-of((
-  integer(),
-  string(pattern: "^a"),
-)))
+#let int-or-str = validate(
+  any-of((
+    integer(),
+    string(pattern: "^a"),
+  )),
+  1.5,
+)
 #assert.eq(int-or-str.map(e => (e.path, e.code, e.expected, e.got)), (
   ((), "integer", none, 1.5),
 ))
 // A type error below the union's own path doesn't stop a member claiming.
 #assert.eq(
-  validate((a: 1), schema: any-of((object((a: string())), number()))).map(
+  validate(any-of((object((a: string())), number())), (a: 1)).map(
     e => (e.path, e.code, e.expected, e.got),
   ),
   ((("a",), "type", "string", "integer"),),
@@ -74,12 +80,12 @@
 
 // Inside an object, a union reports at its own path; null is absent.
 #let holder = object((value: any-of((string(), array-of(number())))))
-#assert.eq(validate((value: (1, 2)), schema: holder), ())
-#assert.eq(validate((value: "text"), schema: holder), ())
-#assert.eq(validate((value: true), schema: holder).map(e => e.path), (
+#assert.eq(validate(holder, (value: (1, 2))), ())
+#assert.eq(validate(holder, (value: "text")), ())
+#assert.eq(validate(holder, (value: true)).map(e => e.path), (
   ("value",),
 ))
-#assert.eq(validate((value: none), schema: holder), ())
+#assert.eq(validate(holder, (value: none)), ())
 
 // Nesting stays affordable: each level validates every member once.
 // Twelve levels of a member that recurses through an array, failing at
@@ -90,15 +96,15 @@
   deep = any-of((deep, number(), array-of(deep)))
   deep-value = (deep-value,)
 }
-#assert.eq(validate(deep-value, schema: deep).len(), 1)
+#assert.eq(validate(deep, deep-value).len(), 1)
 
 // ---- one-of: exactly one -------------------------------------------------
 
 #let exclusive = one-of((number(), enum-of((1, 2))))
 // 3 matches only number().
-#assert.eq(validate(3, schema: exclusive), ())
+#assert.eq(validate(exclusive, 3), ())
 // 1 matches both.
-#let multi = validate(1, schema: exclusive)
+#let multi = validate(exclusive, 1)
 #assert.eq(multi.len(), 1)
 #assert(multi.at(0).message.contains("exactly one"))
 #assert(multi.at(0).message.contains("2 matched"))
@@ -106,9 +112,9 @@
 // ---- not-of ------------------------------------------------------------
 
 #let not-str = not-of(string())
-#assert.eq(validate(42, schema: not-str), ())
-#assert.eq(validate((a: 1), schema: not-str), ())
-#let negated = validate("nope", schema: not-str)
+#assert.eq(validate(not-str, 42), ())
+#assert.eq(validate(not-str, (a: 1)), ())
+#let negated = validate(not-str, "nope")
 #assert.eq(negated.len(), 1)
 #assert(negated.at(0).message.contains("not matching"))
 
@@ -119,17 +125,17 @@
 
 #let x-word = string(pattern: "^x", expected: "starting with x")
 #let long-x = if-of(string(min-length: 5), then: x-word)
-#assert.eq(validate("abc", schema: long-x), ())
-#assert.eq(validate("xyzzy", schema: long-x), ())
-#assert.eq(validate(42, schema: long-x), ())
-#assert.eq(validate("abcde", schema: long-x).map(e => e.message), (
+#assert.eq(validate(long-x, "abc"), ())
+#assert.eq(validate(long-x, "xyzzy"), ())
+#assert.eq(validate(long-x, 42), ())
+#assert.eq(validate(long-x, "abcde").map(e => e.message), (
   "expected starting with x.",
 ))
 // Coerce follows the branch validate judged by.
 #let rich-if-str = if-of(string(), then: content-type, otherwise: number())
-#assert.eq(type(coerce("hi", schema: rich-if-str)), content)
-#assert.eq(coerce(3, schema: rich-if-str), 3)
-#assert.eq(validate(true, schema: rich-if-str).map(e => e.code), ("type",))
+#assert.eq(type(coerce(rich-if-str, "hi")), content)
+#assert.eq(coerce(rich-if-str, 3), 3)
+#assert.eq(validate(rich-if-str, true).map(e => e.code), ("type",))
 
 // In a union, a conditional member claims a value as its chosen branch
 // does: here a string, whose branch only breaks a constraint, so its
@@ -140,25 +146,25 @@
   otherwise: number(),
 )
 #let bool-or-cond = any-of(bool-type, short-str)
-#assert.eq(validate(true, schema: bool-or-cond), ())
-#assert.eq(validate(1, schema: bool-or-cond), ())
-#assert.eq(validate("a", schema: bool-or-cond).map(e => e.code), ("length",))
+#assert.eq(validate(bool-or-cond, true), ())
+#assert.eq(validate(bool-or-cond, 1), ())
+#assert.eq(validate(bool-or-cond, "a").map(e => e.code), ("length",))
 // Neither branch takes an object: no member claims it. The `type`
 // error's `expected` lists what each member's own type error does, so
 // a conditional the branch its condition picked. The message names the
 // member `conditional` when its branches differ...
-#let unclaimed = validate((a: 1), schema: bool-or-cond)
+#let unclaimed = validate(bool-or-cond, (a: 1))
 #assert.eq(unclaimed.map(e => e.code), ("type",))
 #assert.eq(unclaimed.at(0).expected, "boolean or number")
 // A branch the condition didn't pick names nothing, even one with no
 // type gate of its own.
 #assert.eq(
   validate(
-    (a: 1),
-    schema: any-of(
+    any-of(
       bool-type,
       if-of(string(), then: not-of(number()), otherwise: number()),
     ),
+    (a: 1),
   ).map(e => (e.code, e.expected)),
   (("type", "boolean or number"),),
 )
@@ -166,18 +172,18 @@
 // ...and by its branches' kind when they agree.
 #assert.eq(
   validate(
-    1,
-    schema: any-of(
+    any-of(
       bool-type,
       if-of(string(), then: string(min-length: 2), otherwise: x-word),
     ),
+    1,
   )
     .at(0)
     .message,
   "expected a value matching one of: bool | string; none matched.",
 )
 #assert(
-  validate("ab", schema: not-of(short-str))
+  validate(not-of(short-str), "ab")
     .at(0)
     .message
     .contains("negated conditional schema"),
@@ -185,9 +191,9 @@
 // A missing branch matches every value that takes it, so a one-of
 // counts the conditional for a number here.
 #let num-or-cond = one-of(number(), if-of(string(), then: x-word))
-#assert.eq(validate("xy", schema: num-or-cond), ())
+#assert.eq(validate(num-or-cond, "xy"), ())
 #assert(
-  validate(1, schema: num-or-cond).at(0).message.contains("2 matched"),
+  validate(num-or-cond, 1).at(0).message.contains("2 matched"),
 )
 
 // ---- coerce --------------------------------------------------------------
@@ -195,15 +201,15 @@
 // A union models the value with the first matching member: content
 // wraps, the rest pass through, inside a document too.
 #let rich-or-num = any-of((content-type, number()))
-#assert.eq(type(coerce("hello", schema: rich-or-num)), content)
-#assert.eq(coerce(7, schema: rich-or-num), 7)
+#assert.eq(type(coerce(rich-or-num, "hello")), content)
+#assert.eq(coerce(rich-or-num, 7), 7)
 #let doc-schema = object((x: any-of((string(), number()))))
-#assert.eq(coerce((x: 5), schema: doc-schema).x, 5)
-#assert.eq(coerce((x: "s"), schema: doc-schema).x, "s")
+#assert.eq(coerce(doc-schema, (x: 5)).x, 5)
+#assert.eq(coerce(doc-schema, (x: "s")).x, "s")
 
 // `not` has no shape to coerce toward: the value passes through.
-#assert.eq(coerce(42, schema: not-of(string())), 42)
-#assert.eq(coerce((a: 1), schema: not-of(string())), (a: 1))
+#assert.eq(coerce(not-of(string()), 42), 42)
+#assert.eq(coerce(not-of(string()), (a: 1)), (a: 1))
 
 // ---- a `type` array ------------------------------------------------------
 //
@@ -219,12 +225,12 @@
 #let v(s) = T((type: "object", properties: (v: s)))
 #let either = v((type: ("string", "number")))
 #for ok in ("a", 3, 1.5, none) {
-  assert.eq(validate((v: ok), schema: either), ())
+  assert.eq(validate(either, (v: ok)), ())
 }
-#assert.eq(validate((v: true), schema: either).len(), 1)
+#assert.eq(validate(either, (v: true)).len(), 1)
 // A wrong-typed value gets the summary.
 #assert(
-  validate((v: true), schema: either)
+  validate(either, (v: true))
     .at(0)
     .message
     .contains(
@@ -233,27 +239,27 @@
 )
 // The null member judges no non-null value: by default the union
 // reports what the types alone would.
-#assert.eq(validate(true, schema: with-null), validate(true, schema: su))
+#assert.eq(validate(with-null, true), validate(su, true))
 
 // Each type's keywords apply to its own member only.
 #let constrained = v((type: ("string", "integer"), minLength: 3, minimum: 10))
 #for ok in ("abc", 10, 100, "a-long-string") {
-  assert.eq(validate((v: ok), schema: constrained), ())
+  assert.eq(validate(constrained, (v: ok)), ())
 }
-#assert(validate((v: 9), schema: constrained).len() > 0)
+#assert(validate(constrained, (v: 9)).len() > 0)
 // A right-typed value that breaks a constraint reports the constraint.
-#let short = validate((v: "ab"), schema: constrained)
+#let short = validate(constrained, (v: "ab"))
 #assert.eq(short.len(), 1)
 #assert(short.at(0).message.contains("string length"))
 
 // Containers as members.
 #let mixed = v((type: ("string", "array"), items: (type: "integer")))
-#assert.eq(validate((v: "x"), schema: mixed), ())
-#assert.eq(validate((v: (1, 2)), schema: mixed), ())
-#assert(validate((v: ("x",)), schema: mixed).len() > 0)
+#assert.eq(validate(mixed, (v: "x")), ())
+#assert.eq(validate(mixed, (v: (1, 2))), ())
+#assert(validate(mixed, (v: ("x",))).len() > 0)
 
 // Overlapping members stay valid (any-of, not one-of).
-#assert.eq(validate((v: 1), schema: v((type: ("number", "integer")))), ())
+#assert.eq(validate(v((type: ("number", "integer"))), (v: 1)), ())
 
 // ---- nullable ------------------------------------------------------------
 //
@@ -298,31 +304,31 @@
   let wrap(s) = T((type: "object", properties: (f: s), required: ("f",)))
   for x in values {
     // Bare, inside an object, and as an array element.
-    assert.eq(validate(x, schema: n), validate(x, schema: p))
+    assert.eq(validate(n, x), validate(p, x))
     assert.eq(
-      validate((f: x), schema: wrap(nullable-js)),
-      validate((f: x), schema: wrap(plain-js)),
+      validate(wrap(nullable-js), (f: x)),
+      validate(wrap(plain-js), (f: x)),
     )
-    if validate(x, schema: p).all(e => (
+    if validate(p, x).all(e => (
       e.code not in ("type", "enum", "union")
     )) {
-      assert.eq(coerce(x, schema: n), coerce(x, schema: p))
+      assert.eq(coerce(n, x), coerce(p, x))
       assert.eq(
-        coerce((x, none), schema: (kind: "array", elem: n)),
-        coerce((x, none), schema: (kind: "array", elem: p)),
+        coerce((kind: "array", elem: n), (x, none)),
+        coerce((kind: "array", elem: p), (x, none)),
       )
     }
   }
   // Null: absent by default, so required still fires and the model
   // drops it.
   let (wn, wp) = (wrap(nullable-js), wrap(plain-js))
-  assert.eq(validate((f: none), schema: wn), validate((f: none), schema: wp))
-  assert.eq(coerce((f: none), schema: wn), coerce((f: none), schema: wp))
+  assert.eq(validate(wn, (f: none)), validate(wp, (f: none)))
+  assert.eq(coerce(wn, (f: none)), coerce(wp, (f: none)))
   // Strict: the nullable field accepts it and keeps it; plain X rejects it.
-  assert.eq(validate((f: none), schema: wn, strict-null: true), ())
-  assert.eq(parse((f: none), schema: wn, strict-null: true), (f: none))
+  assert.eq(validate(wn, (f: none), strict-null: true), ())
+  assert.eq(parse(wn, (f: none), strict-null: true), (f: none))
   assert.eq(
-    validate((f: none), schema: wp, strict-null: true).map(e => e.code),
+    validate(wp, (f: none), strict-null: true).map(e => e.code),
     ("type",),
   )
 }
@@ -331,14 +337,14 @@
 #let multi = T((type: ("string", "integer", "null")))
 #for x in ("a", 1, 1.5, true, (a: 1)) {
   assert.eq(
-    validate(x, schema: multi),
-    validate(x, schema: T((type: ("string", "integer")))),
+    validate(multi, x),
+    validate(T((type: ("string", "integer"))), x),
   )
 }
 #assert.eq(
   validate(
+    v((type: ("string", "integer", "null"))),
     (v: none),
-    schema: v((type: ("string", "integer", "null"))),
     strict-null: true,
   ),
   (),

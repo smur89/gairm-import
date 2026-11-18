@@ -240,7 +240,7 @@
 // required-keys-not-covered both fail at construction, not as a
 // phantom validation error. `dependent-required` follows the same
 // rule: a malformed map always panics, and trigger / dependent keys
-// outside `shape` panic only when strict.
+// outside `shape` panic only when the object is closed.
 //
 // The argument shapes are checked by _object-problem, which the
 // translator words for its own keywords; whether the names are in
@@ -277,36 +277,34 @@
   }
 }
 
-/// A dictionary with the fields in `shape`. Panics if a field is not a
-/// schema, if `additional` is the wrong shape, if `required-keys` or a
-/// `dependent-required` entry is not an array of key names, or, when
-/// `additional` is `none` or `false`, if `required-keys` or
-/// `dependent-required` names a field not in `shape`.
-///
-/// - shape (dictionary): Field name to schema.
-/// - required-keys (array): Fields that must be present.
-/// - dependent-required (dictionary): Field name to the fields that must
-///   also be present whenever it is.
-/// - additional (none, bool, dictionary): What to do with keys not in
-///   `shape`. `none` or `false` rejects them, `true` lets them through
-///   unchecked, and a schema validates each one against it.
-/// -> dictionary
-#let object(
-  shape,
-  required-keys: (),
-  dependent-required: (:),
-  additional: none,
-) = {
+// object()'s body, its panics naming `who`: object() itself, or the
+// public function that builds or edits an object through it (map(),
+// a lens edit), so a bad argument is named as the caller's call spells
+// it.
+#let _object(who, shape, required-keys, dependent-required, additional) = {
+  if type(shape) != dictionary {
+    _fail(who, _problem(
+      "shape",
+      "a dictionary of field name to schema",
+      repr(shape),
+    ))
+  }
   let p = _object-problem(required-keys, dependent-required, additional)
-  if p != none { _fail("object()", p) }
+  if p != none { _fail(who, p) }
+  // A key listed twice is required once, so it is missing once.
+  let required-keys = required-keys.dedup()
+  let dependent-required = dependent-required
+    .pairs()
+    .map(((trigger, dependents)) => (trigger, dependents.dedup()))
+    .to-dict()
   // false ≡ none in our model; normalise so the constructor and the
   // translator agree on what they accept.
   let normalized = if additional == false { none } else { additional }
   for (key, sub) in shape {
-    _require-schema(sub, "object() field " + repr(key))
+    _require-schema(sub, who + " field " + repr(key))
   }
   // With `additional`, undeclared required keys are covered by the
-  // additional schema, so the subset check only applies when strict.
+  // additional schema, so the subset check only applies when closed.
   let unknown = if normalized == none {
     required-keys.filter(k => k not in shape)
   } else {
@@ -314,7 +312,7 @@
   }
   if unknown.len() > 0 {
     _bail(
-      "object()",
+      who,
       "required-keys references keys not in shape: " + unknown.join(", ") + ".",
     )
   }
@@ -329,7 +327,7 @@
   }
   if unknown-dependent.len() > 0 {
     _bail(
-      "object()",
+      who,
       "dependent-required references keys not in shape: "
         + unknown-dependent.dedup().join(", ")
         + ".",
@@ -349,6 +347,29 @@
   result
 }
 
+/// A dictionary with the fields in `shape`. A key listed twice in
+/// `required-keys` or a `dependent-required` entry counts once. Panics if
+/// `shape` is not a dictionary, if a field is not a schema, if
+/// `additional` is the wrong shape, if `required-keys` or a
+/// `dependent-required` entry is not an array of key names, or, when
+/// `additional` is `none` or `false`, if `required-keys` or
+/// `dependent-required` names a field not in `shape`.
+///
+/// - shape (dictionary): Field name to schema.
+/// - required-keys (array): Fields that must be present.
+/// - dependent-required (dictionary): Field name to the fields that must
+///   also be present whenever it is.
+/// - additional (none, bool, dictionary): What to do with keys not in
+///   `shape`. `none` or `false` rejects them, `true` lets them through
+///   unchecked, and a schema validates each one against it.
+/// -> dictionary
+#let object(
+  shape,
+  required-keys: (),
+  dependent-required: (:),
+  additional: none,
+) = _object("object()", shape, required-keys, dependent-required, additional)
+
 // The fields object() takes as arguments; any other field on a node
 // (a hand-added annotation) rides along unchanged.
 #let _object-args = (
@@ -360,16 +381,17 @@
 )
 
 // `node` with `changes` applied, rebuilt through object() so every
-// edit keeps the constructor's invariants. A change to `additional:
+// edit keeps the constructor's invariants; a panic names `who`. A change to `additional:
 // none` or `dependent-required: (:)` drops that field, as object()
 // does.
-#let _object-with(node, ..changes) = {
+#let _object-with(node, who: "object()", ..changes) = {
   let s = (:..node, ..changes.named())
-  let out = object(
+  let out = _object(
+    who,
     s.shape,
-    required-keys: s.at("required-keys", default: ()),
-    dependent-required: s.at("dependent-required", default: (:)),
-    additional: s.at("additional", default: none),
+    s.at("required-keys", default: ()),
+    s.at("dependent-required", default: (:)),
+    s.at("additional", default: none),
   )
   for (k, v) in s {
     if k not in _object-args { out.insert(k, v) }
@@ -394,11 +416,12 @@
 /// - value-schema (dictionary): The schema for every value.
 /// - required-keys (array): Keys that must be present.
 /// -> dictionary
-#let map(value-schema, required-keys: ()) = object(
-  (:),
-  required-keys: required-keys,
-  additional: value-schema,
-)
+#let map(value-schema, required-keys: ()) = {
+  // Checked here, so it is named value-schema, not the `additional`
+  // object() takes it as.
+  _require-schema(value-schema, "map() value-schema")
+  _object("map()", (:), required-keys, (:), value-schema)
+}
 
 // ---- engine behaviour ------------------------------------------------
 //
@@ -469,9 +492,11 @@
       // 2 of a valid key, otherwise the full key list. An unknown key
       // holding null is still flagged: silently swallowing typos
       // defeats the point of strict validation.
-      let suggestion = _closest-match(key, schema.shape.keys(), 2)
+      let suggestion = _closest-match(key, schema.shape.keys())
       let tail = if suggestion != none {
         "Did you mean " + repr(suggestion) + "?"
+      } else if schema.shape.len() == 0 {
+        "The object takes no keys."
       } else {
         "Valid keys: " + schema.shape.keys().join(", ") + "."
       }
@@ -485,7 +510,8 @@
     }
   }
   // A required key holding null counts as missing.
-  for key in schema.at("required-keys", default: ()) {
+  let required = schema.at("required-keys", default: ())
+  for key in required {
     if not _has(value, key, ctx) {
       errors += _error(
         ctx.path + (key,),
@@ -494,13 +520,16 @@
       )
     }
   }
-  // A null trigger does not fire, and a null dependent is missing.
+  // A null trigger does not fire, and a null dependent is missing. The
+  // error sits at the missing key, as `required`'s does, and `got`
+  // names the key that requires it.
   for (trigger, dependents) in schema.at("dependent-required", default: (:)) {
     if not _has(value, trigger, ctx) { continue }
+    // A required key that is missing is already reported, once.
     for dependent in dependents {
-      if not _has(value, dependent, ctx) {
+      if not _has(value, dependent, ctx) and dependent not in required {
         errors += _error(
-          ctx.path,
+          ctx.path + (dependent,),
           "dependent",
           repr(dependent)
             + " is required when "

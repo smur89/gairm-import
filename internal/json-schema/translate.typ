@@ -10,7 +10,8 @@
 #import "../kinds/leaf.typ": any-type, enum-of
 #import "../kinds/structure.typ": any-of, one-of, not-of
 #import "keyword.typ": (
-  _bail, _check-keywords, _check-keywords-typed, _has-keyword-for, _role-of,
+  _bail, _bail-problem, _check-keywords, _check-keywords-typed,
+  _has-keyword-for, _role-of,
 )
 #import "build.typ": _builders, _build, _fold-membership
 #import "all-of.typ": _all-of
@@ -20,6 +21,10 @@
 // cycle (e.g. `definitions.alias → alias`) — panic before Typst's
 // recursion limit fires deep in the stack.
 #let _resolve-ref(ref, root, seen) = {
+  // `#/` is not the root: as a JSON Pointer, `/` names the key "".
+  if ref == "#" {
+    _bail("$ref \"#\" cannot reference the document root.")
+  }
   if not ref.starts-with("#/") {
     _bail(
       "only internal $ref (starting with \"#/\") is supported, got: "
@@ -35,9 +40,6 @@
         + repr(ref)
         + ".",
     )
-  }
-  if ref == "#/" {
-    _bail("$ref \"#/\" cannot reference the document root.")
   }
   // The fragment is a URI's, so it is percent-decoded into the pointer
   // (RFC 3986) before the pointer is read (RFC 6901): `%25` is `%`.
@@ -201,7 +203,12 @@
       and "additionalProperties" not in js
   )
   let js = if open { (..js, additionalProperties: true) } else { js }
-  let members = types.map(t => _build(js, ctx, t, _translate))
+  // An integer member whose bounds hold no integer takes no value, so a
+  // `type` list drops it; with no other member the schema is
+  // unsatisfiable and bails.
+  let built = types.map(t => _build(js, ctx, t, _translate))
+  let members = built.filter(b => b.gap == none).map(b => b.node)
+  if members == () { _bail-problem(built.first().gap) }
   if members.len() == 1 { members.first() } else { any-of(members) }
 }
 

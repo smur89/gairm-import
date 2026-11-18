@@ -73,7 +73,7 @@
     (a: "x"),
     object((a: string(), b: string()), dependent-required: (a: ("b",))),
     "dependent",
-    (),
+    ("b",),
     "b",
     "a",
   ),
@@ -178,7 +178,7 @@
   // not
   ("x", not-of(string()), "not", (), none, none),
 ) {
-  let errs = validate(value, schema: schema)
+  let errs = validate(schema, value)
   assert.eq(errs.len(), 1, message: repr(errs))
   let e = errs.first()
   assert.eq(e.keys().sorted(), ("code", "expected", "got", "message", "path"))
@@ -206,27 +206,26 @@
   (object((name: string())), "x", "expected object, got string."),
 ) {
   assert.eq(
-    validate((f: value), schema: object((f: schema))).map(e => e.message),
+    validate(object((f: schema)), (f: value)).map(e => e.message),
     (message,),
   )
 }
 // Null is absent by default; strict-null judges it and names it.
-#assert.eq(validate((f: none), schema: object((f: string()))), ())
+#assert.eq(validate(object((f: string())), (f: none)), ())
 #assert.eq(
-  validate((f: none), schema: object((f: string())), strict-null: true)
-    .first()
-    .message,
+  validate(object((f: string())), (f: none), strict-null: true).first().message,
   "expected string, got null.",
 )
 
 // ---- unknown keys suggest the closest valid key ----------------------
 //
 // The suggestion is the key fewest edits away (Levenshtein), within
-// two edits inclusive, the first declared winning a tie.
+// two edits inclusive (one for a key of up to three characters, where
+// two reach almost anything), the first declared winning a tie.
 
 #let suggestion(key, keys) = {
   let shape = keys.map(k => (k, string())).to-dict()
-  let message = validate(((key): 1), schema: object(shape)).first().message
+  let message = validate(object(shape), ((key): 1)).first().message
   let hint = message.find(regex("Did you mean \"[^\"]*\"\\?"))
   if hint == none { none } else { hint.slice(14, -2) }
 }
@@ -237,8 +236,11 @@
   ("psoition", ("name", "position", "url"), "position"), // transposition: 2 edits
   ("enmail", ("name", "email", "phone"), "email"), // one extra letter
   ("nme", ("name", "email"), "name"), // the closer of two
-  ("ab", ("xy",), "xy"), // exactly two edits still suggests
-  ("abc", ("xyz",), none), // three edits does not
+  ("abcd", ("xycd",), "xycd"), // exactly two edits still suggests
+  ("abcd", ("xyzd",), none), // three edits does not
+  ("ab", ("xy",), none), // two edits on a short key is too far
+  ("a", ("id",), none),
+  ("nam", ("name",), "name"), // one edit on a short key suggests
   ("contact", ("name", "email", "phone"), none),
   ("anything", (), none), // no keys to suggest
   // A tie goes to the key declared first.

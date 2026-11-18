@@ -1,4 +1,4 @@
-// expect: object() dependent-required references keys not in shape: x.
+// expect: set-required dependent-required references keys not in shape: x.
 #import "../../lib.typ": set-required, string
 #let bad = (
   kind: "object",

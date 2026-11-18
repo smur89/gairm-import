@@ -139,16 +139,19 @@
 // at translate time on a bad-shape value — better than a kind dict the
 // validator can't reason about — and on bounds no value can satisfy
 // (min > max, etc.), which would translate cleanly but reject every
-// input as a mystery validation failure.
+// input as a mystery validation failure. Returns `(node, gap)`: `gap`
+// is the problem of integer bounds that hold no integer (constraint.typ),
+// which the caller decides on, since a `type` list's other members may
+// still take a value.
 #let _with-constraints(node, js, t) = {
   let family = _constraint-family.at(t, default: none)
-  if family == none { return node }
+  if family == none { return (node: node, gap: none) }
   let read = _read-constraints(node, family, js, row => row.json)
   if read.problem != none { _bail-problem(read.problem) }
-  read.node
+  (node: read.node, gap: read.gap)
 }
 
-// The schema for the node as JSON type `t`.
+// The schema for the node as JSON type `t`, as `(node, gap)`.
 #let _build(js, ctx, t, recur) = _with-constraints(
   _builders.at(t)(js, ctx, recur),
   js,
@@ -177,7 +180,7 @@
     )
   }
   let by-type = ("string", "number", "array")
-    .map(t => (t, _build(js, ctx, t, recur)))
+    .map(t => (t, _build(js, ctx, t, recur).node))
     .to-dict()
   let survivors = values.filter(v => {
     let kind = _json-type-name(v)

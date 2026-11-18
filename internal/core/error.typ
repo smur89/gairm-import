@@ -52,6 +52,13 @@
     + "."
 )
 
+/// `word` with its indefinite article: "a string", "an integer", "a
+/// union" (a vowel letter with a consonant sound).
+#let _a(word) = {
+  let vowel = word.first() in "aeiou" and not word.starts-with("uni")
+  (if vowel { "an " } else { "a " }) + word
+}
+
 /// One validation error, as a one-element array so results concatenate.
 #let _error(path, code, message, expected: none, got: none) = {
   _internal(code in _codes, "unknown error code " + repr(code))
@@ -103,9 +110,7 @@
 /// string", "an array"; null takes none).
 #let _type-miss(path, expected, value) = {
   let got = _type-name-of(value)
-  let noun = if expected == "null" { expected } else if (
-    expected.first() in "aeiou"
-  ) { "an " + expected } else { "a " + expected }
+  let noun = if expected == "null" { expected } else { _a(expected) }
   (
     errors: _error(
       path,
@@ -127,7 +132,7 @@
     + _format-path(path)
     + ": "
     + _expected-got(expected, _type-name-of(value))
-    + " Run validate(data) first."
+    + " Run validate(schema, data) first."
 )
 
 // A check on an argument returns a problem, or none, rather than
@@ -194,6 +199,13 @@
   entry: entry,
 )
 
+/// Panics, as `who` words it, unless argument `arg` is true or false.
+#let _require-bool(value, who, arg) = {
+  if type(value) != bool {
+    _fail(who, _problem(arg, "true or false", repr(value)))
+  }
+}
+
 /// Panics, as `who` words it, unless argument `arg` is a list of keys.
 #let _require-key-names(value, who, arg) = {
   let p = _key-names-problem(value, arg)
@@ -202,6 +214,7 @@
 
 #let _format-report(errors) = {
   let n = errors.len()
+  if n == 0 { return "gairm-import: found no problems in the input." }
   let noun = if n == 1 { "problem" } else { "problems" }
   let lines = errors.map(e => "  - " + _format-path(e.path) + ": " + e.message)
   (
@@ -250,11 +263,13 @@
 }
 
 // Pure: pick the candidate closest to `target` by edit distance, or
-// `none` if the best is outside `max-distance` (inclusive) or
-// `candidates` is empty. Single-pass fold — strict `<` keeps the
-// first-seen winner on ties, so the schema's declaration order
-// decides equidistant matches.
-#let _closest-match(target, candidates, max-distance) = {
+// `none` if the best is too far or `candidates` is empty. Too far is
+// more than 2 edits, or more than 1 for a target of up to three
+// characters, where 2 edits reach almost any short key (`a` → `id`).
+// Single-pass fold — strict `<` keeps the first-seen winner on ties,
+// so the schema's declaration order decides equidistant matches.
+#let _closest-match(target, candidates) = {
+  let max-distance = if target.clusters().len() <= 3 { 1 } else { 2 }
   let best = candidates.fold(none, (acc, c) => {
     let d = _edit-distance(target, c)
     if acc == none or d < acc.distance { (key: c, distance: d) } else { acc }

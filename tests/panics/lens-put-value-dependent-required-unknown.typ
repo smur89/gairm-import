@@ -1,4 +1,4 @@
-// expect: object() dependent-required references keys not in shape: x.
+// expect: lens-put value dependent-required references keys not in shape: x.
 // Closing an open object whose dependent-required names a key only
 // the openness allowed.
 #import "../../lib.typ": lens-put, object, string

@@ -11,27 +11,27 @@
 // A dict, a path (read from the caller's file) or bytes give the same
 // model, through validate, coerce and parse alike.
 #let minimal = "fixtures/resume-minimal.json"
-#let model = parse(path(minimal), schema: resume-schema)
+#let model = parse(resume-schema, path(minimal))
 #assert.eq(model.basics.name, "Seán Ó Murchú")
 #for data in (json(minimal), path(minimal), read(minimal, encoding: none)) {
-  assert.eq(validate(data, schema: resume-schema), ())
-  assert.eq(coerce(data, schema: resume-schema), model)
-  assert.eq(parse(data, schema: resume-schema), model)
+  assert.eq(validate(resume-schema, data), ())
+  assert.eq(coerce(resume-schema, data), model)
+  assert.eq(parse(resume-schema, data), model)
 }
 // Free text is str under the faithful schema, content under strict.
 #assert.eq(type(model.basics.summary), str)
 #assert.eq(
-  type(parse(path(minimal), schema: resume-schema-strict).basics.summary),
+  type(parse(resume-schema-strict, path(minimal)).basics.summary),
   content,
 )
 
 // ---- every section ---------------------------------------------------------
 
 #let full = json("fixtures/resume-full.json")
-#assert.eq(validate(full, schema: resume-schema), ())
-#assert.eq(validate(full, schema: resume-schema-strict), ())
-#let faithful = parse(full, schema: resume-schema)
-#let strict = parse(full, schema: resume-schema-strict)
+#assert.eq(validate(resume-schema, full), ())
+#assert.eq(validate(resume-schema-strict, full), ())
+#let faithful = parse(resume-schema, full)
+#let strict = parse(resume-schema-strict, full)
 
 #for model in (faithful, strict) {
   assert("name" in model.basics)
@@ -96,10 +96,10 @@
 // model leaves those keys out.
 
 #let with-nulls = json("fixtures/resume-with-nulls.json")
-#assert.eq(validate(with-nulls, schema: resume-schema), ())
-#assert.eq(validate(with-nulls, schema: resume-schema-strict), ())
-#let faithful = parse(with-nulls, schema: resume-schema)
-#let strict = parse(with-nulls, schema: resume-schema-strict)
+#assert.eq(validate(resume-schema, with-nulls), ())
+#assert.eq(validate(resume-schema-strict, with-nulls), ())
+#let faithful = parse(resume-schema, with-nulls)
+#let strict = parse(resume-schema-strict, with-nulls)
 
 #for model in (faithful, strict) {
   assert.eq(model.basics, (
@@ -129,8 +129,8 @@
 // ---- upstream's sample -----------------------------------------------------
 
 #let sample = json("fixtures/jsonresume-sample.json")
-#assert.eq(validate(sample, schema: resume-schema), ())
-#assert.eq(validate(sample, schema: resume-schema-strict), ())
+#assert.eq(validate(resume-schema, sample), ())
+#assert.eq(validate(resume-schema-strict, sample), ())
 
 // Strict meta.lastModified takes upstream's `YYYY-MM-DDThh:mm:ss` (which
 // the sample uses) or a bare date, and nothing else.
@@ -139,11 +139,11 @@
   meta: (lastModified: value),
 )
 #for ok in ("2026-10-22T14:30:00", "2026-10-22T14:30:00Z", "2026-10-22") {
-  assert.eq(validate(with-modified(ok), schema: resume-schema-strict), ())
+  assert.eq(validate(resume-schema-strict, with-modified(ok)), ())
 }
 #for bad in ("2026-10-22 14:30", "yesterday") {
   assert.eq(
-    validate(with-modified(bad), schema: resume-schema-strict).map(e => e.path),
+    validate(resume-schema-strict, with-modified(bad)).map(e => e.path),
     (("meta", "lastModified"),),
   )
 }
@@ -166,22 +166,21 @@
       ),
     ),
 ) {
-  assert.eq(validate(doc, schema: resume-schema-strict), ())
+  assert.eq(validate(resume-schema-strict, doc), ())
 }
-#assert.eq(validate(with-keywords, schema: resume-schema), ())
+#assert.eq(validate(resume-schema, with-keywords), ())
 
 // Unknown keys outside `custom` are still rejected.
 #assert.eq(
-  validate(
-    base + (work: ((name: "Acme", nope: 1),)),
-    schema: resume-schema-strict,
-  ).map(e => e.path),
+  validate(resume-schema-strict, base + (work: ((name: "Acme", nope: 1),))).map(
+    e => e.path,
+  ),
   (("work", 0, "nope"),),
 )
 
 // The upstream iso8601 pattern rejects month 13 even in the faithful
 // schema.
 #assert.ne(
-  validate(base + (work: ((startDate: "2024-13"),)), schema: resume-schema),
+  validate(resume-schema, base + (work: ((startDate: "2024-13"),))),
   (),
 )

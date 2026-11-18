@@ -12,12 +12,12 @@
   array-of(content-type),
 )
 #assert.eq(altacv-schema.additional, resume-schema.additional)
-#assert.eq(validate((focusAreas: ("a",), extra: 1), schema: altacv-schema), ())
+#assert.eq(validate(altacv-schema, (focusAreas: ("a",), extra: 1)), ())
 // Spreading the shape into a new object closes the top level.
 #assert.ne(
   validate(
+    object((..resume-schema.shape, focusAreas: array-of(content-type))),
     (extra: 1),
-    schema: object((..resume-schema.shape, focusAreas: array-of(content-type))),
   ),
   (),
 )

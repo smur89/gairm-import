@@ -11,15 +11,13 @@
   required-keys: ("name", "nickname"),
 )
 #assert.eq(
-  parse((name: "Ada", nickname: none), schema: schema, strict-null: true),
+  parse(schema, (name: "Ada", nickname: none), strict-null: true),
   (name: "Ada", nickname: none),
 )
 
-#let codes(data, s, strict) = validate(
-  data,
-  schema: s,
-  strict-null: strict,
-).map(e => e.code)
+#let codes(data, s, strict) = validate(s, data, strict-null: strict).map(e => {
+  e.code
+})
 #let req = object((a: string()), required-keys: ("a",))
 #let opt = object((a: string()))
 #let nul = object((a: nullable(string())))
@@ -34,55 +32,51 @@
 // Key holding null, field not nullable.
 #assert.eq(codes((a: none), req, false), ("required",))
 #assert.eq(codes((a: none), opt, false), ())
-#assert.eq(coerce((a: none), schema: opt), (:))
+#assert.eq(coerce(opt, (a: none)), (:))
 #assert.eq(codes((a: none), opt, true), ("type",))
 #assert(
-  validate((a: none), schema: opt, strict-null: true)
+  validate(opt, (a: none), strict-null: true)
     .first()
     .message
     .contains("got null"),
 )
 // Key holding null, field nullable(X).
-#assert.eq(coerce((a: none), schema: nul), (:))
-#assert.eq(coerce((a: none), schema: nul, strict-null: true), (a: none))
+#assert.eq(coerce(nul, (a: none)), (:))
+#assert.eq(coerce(nul, (a: none), strict-null: true), (a: none))
 // Unknown key holding null.
 #for strict in (false, true) {
   assert.eq(codes((b: none), opt, strict), ("unknown-key",))
 }
 // Null array element.
-#assert.eq(coerce(("x", none), schema: arr), ("x",))
+#assert.eq(coerce(arr, ("x", none)), ("x",))
 #assert.eq(codes(("x", none), arr, true), ("type",))
 #assert.eq(
-  coerce(
-    ("x", none),
-    schema: array-of(nullable(string())),
-    strict-null: true,
-  ),
+  coerce(array-of(nullable(string())), ("x", none), strict-null: true),
   ("x", none),
 )
 // Dependent-required trigger holding null.
 #assert.eq(codes((a: none), dep, false), ())
 #assert.eq(codes((a: none), dep, true), ("type", "dependent"))
 // Object whose keys are all null.
-#assert.eq(coerce((o: (a: none)), schema: object((o: opt))), (o: (:)))
+#assert.eq(coerce(object((o: opt)), (o: (a: none))), (o: (:)))
 // Free-form object.
 #for strict in (false, true) {
-  assert.eq(coerce((a: none), schema: free, strict-null: strict), (a: none))
+  assert.eq(coerce(free, (a: none), strict-null: strict), (a: none))
 }
 
 // Strict null on a resume schema: a declared field rejects null, the
 // free-form `custom` bag keeps it.
 #for schema in (resume-schema, resume-schema-strict) {
   assert.eq(
-    validate((basics: (name: none)), schema: schema, strict-null: true).map(
+    validate(schema, (basics: (name: none)), strict-null: true).map(
       e => e.code,
     ),
     ("type",),
   )
   assert.eq(
     validate(
+      schema,
       (basics: (name: "A", custom: (k: none))),
-      schema: schema,
       strict-null: true,
     ),
     (),

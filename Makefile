@@ -110,7 +110,8 @@ check: test fmt-check check-layers check-conventions ## test + fmt-check + check
 # imports from core/, kinds/, the engine and its own siblings: never
 # lens or introspect. The other L3 modules, internal/lens.typ and
 # internal/introspect.typ, import only from core/, kinds/ and the
-# engine: never each other.
+# engine: never each other. internal/run.typ, the run functions lib.typ
+# re-exports, is L3 too, with the same imports as lens and introspect.
 SIBLING_IMPORT := \#import +"[a-z][a-z0-9-]*\.typ"
 LAYERS := core kinds engine json-schema lens-introspect
 
@@ -130,9 +131,9 @@ json-schema.files := internal/json-schema/*.typ
 json-schema.allow := $(SIBLING_IMPORT)|\#import +"\.\./((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
 json-schema.says  := internal/json-schema/ may import only internal/core/, internal/kinds/, internal/engine.typ and its own siblings
 
-lens-introspect.files := internal/lens.typ internal/introspect.typ
+lens-introspect.files := internal/lens.typ internal/introspect.typ internal/run.typ
 lens-introspect.allow := \#import +"((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
-lens-introspect.says  := internal/lens.typ and internal/introspect.typ may import only internal/core/, internal/kinds/ and internal/engine.typ
+lens-introspect.says  := internal/lens.typ, internal/introspect.typ and internal/run.typ may import only internal/core/, internal/kinds/ and internal/engine.typ
 
 # Shell that sets `status=1` and prints `<check>: <message>:` and the
 # hits when the command lists any. The message and the command are

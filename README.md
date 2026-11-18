@@ -1,7 +1,7 @@
 <h1 align="center">gairm-import</h1>
 
 <p align="center">
-  <a href="https://typst.app/universe/package/gairm-import"><img alt="gairm-import on Typst Universe" src="https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Ftypst.app%2Funiverse%2Fpackage%2Fgairm-import&query=%2Fhtml%2Fbody%2Fdiv%2Fmain%2Fdiv%5B2%5D%2Faside%2Fsection%5B2%5D%2Fdl%2Fdd%5B3%5D&logo=typst&label=Universe&color=%23239DAE&style=flat-square"></a>
+  <a href="https://typst.app/universe/package/gairm-import"><img alt="gairm-import on Typst Universe" src="https://img.shields.io/badge/Typst_Universe-gairm--import-239DAE?logo=typst&style=flat-square"></a>
   <a href="https://github.com/smur89/gairm-import/releases"><img alt="Latest GitHub release version of gairm-import" src="https://img.shields.io/github/v/release/smur89/gairm-import?style=flat-square"></a>
   <a href="https://github.com/smur89/gairm-import/actions/workflows/build.yml"><img alt="GitHub Actions build workflow status on the gairm-import main branch" src="https://img.shields.io/github/actions/workflow/status/smur89/gairm-import/build.yml?style=flat-square"></a>
   <a href="LICENSE"><img alt="MIT license badge linking to the gairm-import LICENSE file" src="https://img.shields.io/github/license/smur89/gairm-import?style=flat-square"></a>
@@ -9,11 +9,12 @@
 </p>
 
 <p align="center">
-  <strong>JSON Schema → Typst dict coercer.</strong>
+  <strong>Validate JSON against a schema, get typed Typst values.</strong>
   <br>
-  Validate a JSON document against a JSON Schema (draft&nbsp;7 subset) and
-  get back a normalised Typst value ready to render. Bring your own schema,
-  such as <a href="https://jsonresume.org/schema">JSON Resume</a>'s.
+  Check a JSON document against a JSON Schema (draft&nbsp;7 subset) or a
+  schema built in Typst, see every problem at once, and get back a
+  normalised Typst value ready to render. Bring your own schema, such as
+  <a href="https://jsonresume.org/schema">JSON Resume</a>'s.
 </p>
 
 <p align="center">
@@ -30,6 +31,8 @@
 - [Null handling](#null-handling)
 - [Validating a JSON Resume](#validating-a-json-resume)
 - [Reference](#reference)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## What it is
 
@@ -48,7 +51,7 @@ Translate a JSON Schema document you already have:
 #import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
 
 #let book-schema = schema-from-json-schema(json("book-schema.json"))
-#let book = parse(path("book.json"), schema: book-schema)
+#let book = parse(book-schema, path("book.json"))
 ```
 <!-- x-release-please-end -->
 
@@ -60,14 +63,17 @@ Or build the schema in Typst:
   parse, object, array-of, string, number,
 )
 
-#let book-schema = object((
-  title:  string(),
-  author: string(),
-  year:   number(),
-  tags:   array-of(string()),
-))
+#let book-schema = object(
+  (
+    title:  string(),
+    author: string(),
+    year:   number(),
+    tags:   array-of(string()),
+  ),
+  required-keys: ("title", "author", "year", "tags"),
+)
 
-#let book = parse(path("book.json"), schema: book-schema)
+#let book = parse(book-schema, path("book.json"))
 ```
 <!-- x-release-please-end -->
 
@@ -103,9 +109,24 @@ number and `book.tags` an array of strings.
 
 `parse` validates and coerces in one call and panics with every problem
 found. `validate` returns the problems as a list, and `coerce` builds the
-model without checking. All three take `schema:` (required) and
-`strict-null:` (default `false`). [REFERENCE.md](REFERENCE.md) covers
-the rest, one section per group.
+model without checking. All three take the schema, then the data, and
+`strict-null:` (default `false`). With the schema first, `.with` makes a
+parser for one schema:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
+
+#let parse-book = parse.with(schema-from-json-schema(json("book-schema.json")))
+#let atlas = parse-book(path("atlas.json"))
+#let gazetteer = parse-book(path("gazetteer.json"))
+```
+<!-- x-release-please-end -->
+
+Up to 0.13 the data came first and the schema was named,
+`parse(data, schema: s)`; from 1.0 that call fails with "missing
+argument: data", and swapping the two arguments fixes it.
+[REFERENCE.md](REFERENCE.md) covers the rest, one section per group.
 
 ## Input forms
 
@@ -113,9 +134,9 @@ the rest, one section per group.
 
 | You pass | It is read as |
 |---|---|
-| `path("resume.json")` | JSON, resolved from your file |
-| bytes, such as `read("resume.json", encoding: none)` | JSON |
-| a dictionary, such as `json("resume.json")` | the document itself |
+| `path("book.json")` | JSON, resolved from your file |
+| bytes, such as `read("book.json", encoding: none)` | JSON |
+| a dictionary, such as `json("book.json")` | the document itself |
 | any other value: an array, a number, a string | the document itself, whatever root the schema takes |
 
 A string is data, not a path: inside a package it would resolve from the
@@ -125,23 +146,33 @@ panics with a hint to use `path(..)`. A `null` document panics.
 
 ## Errors
 
-`parse` reports every problem in one panic. A document with a numeric
-`basics.email` and two stray keys, parsed with the stricter
-`resume-schema-strict` from
-[Validating a JSON Resume](#validating-a-json-resume):
+`parse` reports every problem in one panic. The book from
+[Quick start](#quick-start), whose schemas require all four fields, with
+a numeric author, a misspelt `year` and a number among its tags:
 
-```text
-error: panicked with: gairm-import: found 3 problems in the input:
-  - basics.email: expected string, got integer.
-  - work[0].positon: unknown key "positon". Did you mean "position"?
-  - meta.foo: unknown key "foo". Valid keys: canonical, version, lastModified.
+```json
+{
+  "title": "The Pocket Atlas of Imaginary Places",
+  "author": 1998,
+  "yaer": 1998,
+  "tags": ["atlas", 3]
+}
 ```
 
-The plain `resume-schema` reports only the first line, since upstream lets
-undeclared keys through. To present problems
-yourself, call `validate`, which returns them as records. The first line
-above is `(path: ("basics", "email"), code: "type", message: "expected
-string, got integer.", expected: "string", got: "integer")`.
+```text
+error: panicked with: gairm-import: found 4 problems in the input:
+  - author: expected string, got integer.
+  - yaer: unknown key "yaer". Did you mean "year"?
+  - tags[1]: expected string, got integer.
+  - year: missing required key "year".
+```
+
+To present problems yourself, call `validate`, which returns them as
+records. The first line above is `(path: ("author",), code: "type",
+message: "expected string, got integer.", expected: "string", got:
+"integer")`. A record's `path` is where in the document the problem is;
+for a missing key, `required` or `dependent`, it is the key that is
+missing.
 
 Branch on `code`, not on the message. `expected` and `got` hold the data
 behind the message, or `none` where a code has nothing to put there:
@@ -161,7 +192,7 @@ behind the message, or `none` where a code has nothing to put there:
 | `integer` | A fractional number where an integer is expected | | The number |
 | `items` | Too few or too many array items | The bound broken: `(min-items: 1)` or `(max-items: 5)` | The item count |
 | `unique` | Duplicate array items | | The two duplicate indices |
-| `union` | Several alternatives take the value's type but none matches, or more than one `one-of` member matches | The alternatives' kinds | |
+| `union` | Several alternatives take the value's type but none matches, or more than one `one-of` member matches | The members' kinds, as an array (`("string (date)", "integer")`) | |
 | `not` | The value matches a `not-of` schema | | |
 
 `format-errors(errors)` turns the records into `parse`'s report, reading
@@ -173,22 +204,22 @@ only `path` and `message`:
   validate, coerce, format-errors, schema-from-json-schema,
 )
 
-#let resume-schema = schema-from-json-schema(json("resume.schema.json"))
-#let doc = json("resume.json")
-#let errors = validate(doc, schema: resume-schema)
+#let book-schema = schema-from-json-schema(json("book-schema.json"))
+#let doc = json("book.json")
+#let errors = validate(book-schema, doc)
 #if errors.len() > 0 {
-  [Resume has #errors.len() issue(s).]
+  [Book has #errors.len() issue(s).]
   raw(format-errors(errors))
 } else {
-  let model = coerce(doc, schema: resume-schema)
-  // render model …
+  let book = coerce(book-schema, doc)
+  // render book …
 }
 ```
 <!-- x-release-please-end -->
 
 ## Null handling
 
-By default JSON `null` means "absent", as most JSON Resume emitters intend
+By default JSON `null` means "absent", as most JSON emitters intend
 (`"summary": null` is the same as no summary). Pass `strict-null: true` to
 `parse`, `validate` or `coerce` when `null` must mean something: it is then
 an ordinary value that a schema accepts or rejects.
@@ -216,20 +247,20 @@ value exactly as `X` does:
   (name: string(), nickname: nullable(string())),
   required-keys: ("name", "nickname"),
 )
-#parse((name: "Ada", nickname: none), schema: schema, strict-null: true)
+#parse(schema, (name: "Ada", nickname: none), strict-null: true)
 // → (name: "Ada", nickname: none)
 ```
 <!-- x-release-please-end -->
 
 The JSON Resume schema declares no nullable fields, so with
-`strict-null: true` it rejects a `null` in any declared field. The free-form `custom` objects check nothing, so a `null` there
-is kept.
+`strict-null: true` it rejects a `null` in any declared field. The
+free-form `custom` objects check nothing, so a `null` there is kept.
 
 ## Validating a JSON Resume
 
 [JSON Resume](https://jsonresume.org/schema) publishes its schema as a JSON
-Schema document. Save a copy beside your file, from
-[jsonresume.org/schema](https://jsonresume.org/schema) or the
+Schema document. Save a copy beside your file as `resume.schema.json`,
+from [jsonresume.org/schema](https://jsonresume.org/schema) or the
 [`@jsonresume/schema`](https://www.npmjs.com/package/@jsonresume/schema)
 npm package, and translate it:
 
@@ -238,7 +269,7 @@ npm package, and translate it:
 #import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
 
 #let resume-schema = schema-from-json-schema(json("resume.schema.json"))
-#let resume = parse(path("resume.json"), schema: resume-schema)
+#let resume = parse(resume-schema, path("resume.json"))
 // hand `resume` to any compatible Typst CV template
 ```
 <!-- x-release-please-end -->
@@ -282,15 +313,16 @@ renderer that takes JSON Resume data, such as
 #import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
 
 #let resume-schema = schema-from-json-schema(json("resume.schema.json"))
-#alta(parse(path("resume.json"), schema: resume-schema))
+#alta(parse(resume-schema, path("resume.json")))
 ```
 <!-- x-release-please-end -->
 
 Upstream sets `additionalProperties: true` at the top level and on every
-section's items, so undeclared keys pass. Its date fields (`startDate`,
-`endDate`, `date`, …) are strings checked by its `iso8601` regex, and
-`meta.lastModified` is a plain string. For a stricter schema, edit the
-document before translating it and the schema after:
+section's items, so undeclared keys pass: a misspelt `positon` is kept
+rather than reported. Its date fields (`startDate`, `endDate`, `date`, …)
+are strings checked by its `iso8601` regex, and `meta.lastModified` is a
+plain string. For a stricter schema, edit the document before translating
+it and the schema after:
 
 - close every object that declares properties, so an undeclared key is an
   error. Typed extras (`additionalProperties` with a schema) still pass if
@@ -349,18 +381,26 @@ document before translating it and the schema after:
   (schema, at) => lens-put(schema, at, content-type),
 )
 
-#let resume = parse(path("resume.json"), schema: resume-schema-strict)
+#let resume = parse(resume-schema-strict, path("resume.json"))
 ```
 <!-- x-release-please-end -->
+
+Under the strict schema, a misspelt key in a work entry is reported with
+a suggestion:
+
+```text
+  - work[0].positon: unknown key "positon". Did you mean "position"?
+```
 
 For a different mix, or for a renderer's own fields, edit either schema
 with lenses; see [REFERENCE.md](REFERENCE.md#lenses-and-edits).
 
 ## Reference
 
-[REFERENCE.md](REFERENCE.md) documents every constructor and argument,
-the formats, lenses and the edits, introspection, JSON Pointer, the JSON
-Schema translator and its deviations from draft 7.
+[REFERENCE.md](REFERENCE.md) documents the run functions and the model
+they return, every constructor and argument, the formats, lenses and the
+edits, introspection, JSON Pointer, the JSON Schema translator and its
+deviations from draft 7.
 
 ## Contributing
 

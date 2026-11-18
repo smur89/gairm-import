@@ -82,10 +82,9 @@
   lang => object((..lang.shape, rating: number())),
 )
 #assert.eq(
-  validate(
-    (languages: ((language: "English", fluency: "native", rating: 5),)),
-    schema: with-rating,
-  ),
+  validate(with-rating, (
+    languages: ((language: "English", fluency: "native", rating: 5),),
+  )),
   (),
 )
 #assert.eq(lens-get(with-rating, language-items).shape.rating, number())
@@ -191,10 +190,13 @@
 ))
 #assert.eq(lens-get(translated, ("else",)), number())
 #assert.eq(
-  validate(-1, schema: lens-put(translated, ("else",), (
-    ..number(),
-    minimum: 0,
-  ))).map(e => e.code),
+  validate(
+    lens-put(translated, ("else",), (
+      ..number(),
+      minimum: 0,
+    )),
+    -1,
+  ).map(e => e.code),
   ("range",),
 )
 

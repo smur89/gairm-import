@@ -7,7 +7,7 @@
   import "@preview/gairm-import:0.0.0": parse, schema-from-json-schema
 
   let book-schema = schema-from-json-schema(json("book-schema.json"))
-  let book = parse(path("book.json"), schema: book-schema)
+  let book = parse(book-schema, path("book.json"))
   book
 }
 
@@ -15,14 +15,17 @@
 #let from-combinators = {
   import "@preview/gairm-import:0.0.0": parse, object, array-of, string, number
 
-  let book-schema = object((
-    title: string(),
-    author: string(),
-    year: number(),
-    tags: array-of(string()),
-  ))
+  let book-schema = object(
+    (
+      title: string(),
+      author: string(),
+      year: number(),
+      tags: array-of(string()),
+    ),
+    required-keys: ("title", "author", "year", "tags"),
+  )
 
-  let book = parse(path("book.json"), schema: book-schema)
+  let book = parse(book-schema, path("book.json"))
   book
 }
 
@@ -34,3 +37,11 @@
 )
 #assert.eq(from-json-schema, expected)
 #assert.eq(from-combinators, expected)
+
+// "API at a glance": with the schema first, `.with` makes a parser.
+#{
+  import "@preview/gairm-import:0.0.0": parse, schema-from-json-schema
+
+  let parse-book = parse.with(schema-from-json-schema(json("book-schema.json")))
+  assert.eq(parse-book(path("book.json")), expected)
+}

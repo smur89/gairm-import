@@ -1,11 +1,13 @@
 # gairm-import reference
 
 The [README](README.md) is the guide: quick start, input forms, errors,
-null handling and validating a JSON Resume. This file covers the rest, and
-says each thing once. Examples on JSON Resume use the `resume-schema` and
+null handling and validating a JSON Resume. This file is the reference
+for every export, and says each thing once. Examples on JSON Resume use the `resume-schema` and
 `resume-schema-strict` that the README's
 [Validating a JSON Resume](README.md#validating-a-json-resume) builds.
 
+- [Running](#running)
+  - [The model](#the-model)
 - [Constructors](#constructors)
 - [Formats](#formats)
 - [Lenses and edits](#lenses-and-edits)
@@ -23,6 +25,58 @@ The examples assume the whole package is imported:
 #import "@preview/gairm-import:0.13.0": *
 ```
 <!-- x-release-please-end -->
+
+## Running
+
+| Function | Returns |
+|---|---|
+| `validate(schema, data, strict-null: false)` | every problem found, as an array of error records; `()` when `data` is valid |
+| `coerce(schema, data, strict-null: false)` | the model of `data`, without checking it first; panics only where the data leaves no model at all |
+| `parse(schema, data, strict-null: false)` | the model, after validating; panics with every problem found |
+| `format-errors(errors)` | `parse`'s report for the records `validate` returned, as a string |
+
+`data` is the document, or where to read it; see
+[Input forms](README.md#input-forms). The schema comes first, so
+`parse.with(schema)` is a parser for one schema. `strict-null` decides
+whether JSON `null` is an absent key (off) or a value (on); see
+[Null handling](README.md#null-handling).
+
+An error record is `(path, code, message, expected, got)`:
+
+- `path` is where in the document the problem is, as keys and array
+  indices (`("work", 0, "url")`); for a missing key (`required`,
+  `dependent`) it is the key that is missing, and `()` is the root. A
+  missing key the object requires is reported once, as `required`, and
+  never also as `dependent`; one it doesn't require gets a `dependent`
+  record for each present key that requires it;
+- `code` says what kind of problem it is;
+  [Errors](README.md#errors) lists the codes and what `expected` and `got`
+  hold for each;
+- `message` says it in words, without the path: `expected string, got
+  integer.`
+
+`path-to-pointer(record.path)` gives the record's location as a JSON
+Pointer. A schema argument that is not a schema, or a `null` document,
+panics before any validation. A string is checked as data; only when it
+ends in `.json` and the schema's root rejects its type does the call
+panic, with a hint to read the file with `path(..)`.
+
+### The model
+
+`coerce` and `parse` return the document as the schema describes it:
+
+| Schema | Model |
+|---|---|
+| `string(..)` | the string. A Typst `datetime` becomes its ISO string: one with a date and no time in a `date` field, one with both in a `date-time` field; any other `datetime` is a `format` error (see [Formats](#formats)) |
+| `content-type` | the string as Typst `content` |
+| `number(..)`, `integer(..)` | the number as given: an `integer` field keeps `1.0` as a float |
+| `bool-type`, `null-type`, `enum-of(..)`, `const-of(..)` | the value as given |
+| `any-type` | the value as given, nested values included |
+| `array-of(..)` | each item's model; absent (null) items dropped |
+| `object(..)` | each declared key's model, absent keys dropped. Undeclared keys are dropped, passed through as given (`additional: true`), or modelled by the `additional` schema. A free-form object (no fields, `additional: true`) is kept as given, nulls included |
+| `any-of(..)`, `one-of(..)` | the model of the first member that matches |
+| `not-of(..)` | the value as given |
+| `if-of(..)` | the model of the branch the condition picks, or the value as given when that branch is left out |
 
 ## Constructors
 
@@ -65,12 +119,15 @@ built.
   reported, and the branch it picks gives the errors and the model.
   `if-of(string(min-length: 5), then: string(pattern: "^x"))` accepts
   `"abc"` and `"xyzzy"`, and rejects `"abcde"`.
+- `integer`'s bounds must leave a whole number between them:
+  `integer(minimum: 1.5, maximum: 1.7)` panics.
 - `object`'s `additional` says what to do with keys not in `shape`:
   `none` (the default) or `false` rejects them, `true` lets them through
   unchecked, and a schema checks each one against it. `required-keys` lists
   the keys that must be present, and `dependent-required` maps a key to the
-  keys that must be present whenever it is. A key holding `null` counts as
-  absent for both unless `strict-null` is on.
+  keys that must be present whenever it is; a key listed twice counts
+  once. A key holding `null` counts as absent for both unless
+  `strict-null` is on.
 
 Four kinds take no arguments and are constants: `content-type` (a string,
 returned as Typst `content` so it splices into markup), `bool-type`,
@@ -166,7 +223,7 @@ comes first, so edits chain through `.fold`. A node written by `lens-put`
 or returned by `lens-over`'s function must be a schema, and every object
 an edit touches is rebuilt through `object()`, so an edit cannot break its
 invariants. A missing path, a missing field, or adding a field that exists
-panics.
+panics, naming the function and the segment that failed.
 
 ```typst
 // A renderer-specific top-level field.
@@ -293,11 +350,15 @@ they work wherever a location does. A query is:
   the query sets, with the same value: `string()` finds every string,
   `string(format: "date")` only the date strings, `number()` numbers but
   not integers, and `number(minimum: 0)` only numbers with that minimum;
-- or a constructor, which matches every node of the kind it builds:
-  `enum-of`, `any-of`, `one-of`, `not-of`, `if-of`.
+- or a constructor, which matches the nodes it builds: `enum-of` every
+  enum, `const-of` the single-value ones, `any-of` the inclusive unions
+  (a nullable is one), `one-of` the exclusive ones, `nullable` the
+  nullable ones, and `not-of`, `if-of` every node of their kind.
 
 `object` and `array` are walked through, not searched for, and panic as a
-query.
+query. An `additional` schema shadowed by a field literally named
+`"additionalProperties"` has no path, so it is not searched; reach it
+with `lens-over` on its object.
 
 ```typst
 #paths-of-kind(resume-schema-strict, string(format: "date"))
@@ -348,8 +409,8 @@ draft 7, and panics, naming the keyword, on anything it would otherwise
 have to drop.
 
 ```typst
-#let canonical = schema-from-json-schema(path("resume-schema.json"))
-#let model = coerce(json("resume.json"), schema: canonical)
+#let canonical = schema-from-json-schema(path("resume.schema.json"))
+#let model = coerce(canonical, json("resume.json"))
 ```
 
 The constraint keywords become the fields the constructor arguments set,
@@ -419,7 +480,7 @@ Each of these panics with a message naming it:
   `minLenght` included;
 - boolean schemas (`properties: {a: true}`, `items: false`) and the array
   form of `items`;
-- `$ref` outside the document, to the root (`#` or `#/`), to a named
+- `$ref` outside the document, to the root (`#`), to a named
   anchor, or in a cycle;
 - formats other than the nine;
 - `allOf` with non-object members or with closed members that declare

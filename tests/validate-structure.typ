@@ -9,10 +9,7 @@
 )
 
 // The errors for `value` under key `k`, so every path starts at ("k",).
-#let at(k, schema, value) = validate(
-  ((k): value),
-  schema: object(((k): schema)),
-)
+#let at(k, schema, value) = validate(object(((k): schema)), ((k): value))
 
 // ---- the type gate ---------------------------------------------------
 
@@ -69,8 +66,8 @@
 #let person = object((name: string(), age: number()))
 
 // Every key is optional by default.
-#assert.eq(validate((name: "Alice", age: 30), schema: person), ())
-#assert.eq(validate((name: "Alice"), schema: person), ())
+#assert.eq(validate(person, (name: "Alice", age: 30)), ())
+#assert.eq(validate(person, (name: "Alice")), ())
 
 // An unknown key one or two edits from a valid one gets a "Did you
 // mean …?" hint instead of the full Valid-keys dump.
@@ -105,19 +102,16 @@
   details: object((title: string(), bullets: array-of(content-type))),
 ))
 #assert.eq(
-  validate(
-    (
-      greeting: "Hello",
-      rating: 5,
-      recipients: ("world", "everyone"),
-      details: (title: "Welcome", bullets: ("first point", "second point")),
-    ),
-    schema: extension-schema,
-  ),
+  validate(extension-schema, (
+    greeting: "Hello",
+    rating: 5,
+    recipients: ("world", "everyone"),
+    details: (title: "Welcome", bullets: ("first point", "second point")),
+  )),
   (),
 )
 #assert.eq(
-  validate((greeting: 42, rating: "high"), schema: extension-schema).map(e => (
+  validate(extension-schema, (greeting: 42, rating: "high")).map(e => (
     e.path
   )),
   (("greeting",), ("rating",)),
@@ -129,12 +123,12 @@
   (name: string(), email: string()),
   required-keys: ("name",),
 )
-#assert.eq(validate((name: "Alice", email: "a@x"), schema: strict-person), ())
-#assert.eq(validate((name: "Alice"), schema: strict-person), ())
+#assert.eq(validate(strict-person, (name: "Alice", email: "a@x")), ())
+#assert.eq(validate(strict-person, (name: "Alice")), ())
 // Without required-keys, every key stays optional.
-#assert.eq(validate((:), schema: object((name: string()))), ())
+#assert.eq(validate(object((name: string())), (:)), ())
 
-#let errs = validate((email: "a@x"), schema: strict-person)
+#let errs = validate(strict-person, (email: "a@x"))
 #assert.eq(errs.len(), 1)
 #assert.eq(errs.at(0).path, ("name",))
 #assert(errs.at(0).message.contains("missing required key"))
@@ -157,24 +151,25 @@
 )
 
 // Trigger absent: nothing required. Trigger present: dependents too.
-#assert.eq(validate((:), schema: contact), ())
-#assert.eq(validate((email: "a@x"), schema: contact), ())
-#assert.eq(validate((phone: "1", email: "a@x", name: "A"), schema: contact), ())
+#assert.eq(validate(contact, (:)), ())
+#assert.eq(validate(contact, (email: "a@x")), ())
+#assert.eq(validate(contact, (phone: "1", email: "a@x", name: "A")), ())
 
-// One error per missing dependent, at the object's path.
+// One error per missing dependent, at the missing key's path, as a
+// `required` error is.
 #let errs = at("basics", contact, (phone: "1", name: "A"))
 #assert.eq(errs.len(), 1)
-#assert.eq(errs.at(0).path, ("basics",))
+#assert.eq(errs.at(0).path, ("basics", "email"))
 #assert.eq(
   errs.at(0).message,
   "\"email\" is required when \"phone\" is present.",
 )
-#assert.eq(validate((phone: "1"), schema: contact).len(), 2)
+#assert.eq(validate(contact, (phone: "1")).len(), 2)
 
 // A null trigger does not fire; a null dependent is missing.
-#assert.eq(validate((phone: none), schema: contact), ())
+#assert.eq(validate(contact, (phone: none)), ())
 #assert.eq(
-  validate((phone: "1", email: none, name: "A"), schema: contact).len(),
+  validate(contact, (phone: "1", email: none, name: "A")).len(),
   1,
 )
 
@@ -187,8 +182,8 @@
   dependent-required: (a: ("x",)),
   additional: true,
 )
-#assert.eq(validate((a: "1"), schema: open).len(), 1)
-#assert.eq(validate((a: "1", x: 2), schema: open), ())
+#assert.eq(validate(open, (a: "1")).len(), 1)
+#assert.eq(validate(open, (a: "1", x: 2)), ())
 
 // The translator reads dependentRequired and draft 7's array-form
 // dependencies alike.
@@ -231,7 +226,7 @@
   (phone: ("email",)),
 )
 #assert.eq(
-  validate((phone: "1"), schema: nullable-contact).map(e => e.code),
+  validate(nullable-contact, (phone: "1")).map(e => e.code),
   ("dependent",),
 )
 
@@ -242,6 +237,54 @@
   properties: (a: (type: "string"), b: (type: "string")),
   dependentRequired: (a: ("b",)),
 ))
-#assert.eq(validate("x", schema: mixed), ())
-#assert.eq(validate((a: "1", b: "2"), schema: mixed), ())
-#assert(validate((a: "1"), schema: mixed).len() > 0)
+#assert.eq(validate(mixed, "x"), ())
+#assert.eq(validate(mixed, (a: "1", b: "2")), ())
+#assert(validate(mixed, (a: "1")).len() > 0)
+
+// A key listed twice is required once: one error, not two.
+#let twice = object((a: string()), required-keys: ("a", "a"))
+#assert.eq(twice.required-keys, ("a",))
+#assert.eq(validate(twice, (:)).len(), 1)
+#assert.eq(
+  object(
+    (a: string(), b: string()),
+    dependent-required: (a: ("b", "b")),
+  ).dependent-required,
+  (a: ("b",)),
+)
+#assert.eq(
+  schema-from-json-schema((
+    type: "object",
+    properties: (a: (type: "string")),
+    required: ("a", "a"),
+  )).required-keys,
+  ("a",),
+)
+
+// An object that declares no keys says so, rather than listing none.
+#assert.eq(
+  validate(object((:)), (x: 1)).first().message,
+  "unknown key \"x\". The object takes no keys.",
+)
+
+// A dependent listed twice is reported once, at the missing key.
+#assert.eq(
+  validate(
+    object((a: string(), b: string()), dependent-required: (a: ("b", "b"))),
+    (a: "1"),
+  ).map(e => (e.path, e.code)),
+  ((("b",), "dependent"),),
+)
+// A key both required and a missing dependent is reported once, as
+// required.
+#assert.eq(
+  validate(
+    object(
+      (x: string(), b: string()),
+      required-keys: ("b",),
+      dependent-required: (x: ("b",)),
+    ),
+    (x: "1"),
+  ).map(e => (e.path, e.code)),
+  ((("b",), "required"),),
+)

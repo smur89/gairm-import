@@ -15,9 +15,9 @@ against `main`. Report security issues privately, as
 `gairm-import` is a JSON Schema (draft 7 subset) → Typst engine;
 [JSON Resume](https://jsonresume.org/schema) is a README use case, not a
 bundled schema. Engine work (validation, coercion, translator keywords,
-lenses, introspection) is in scope. Anything renderer-specific (colours, labels, decorations) belongs in
-the consuming template, and fields outside a schema belong in an extension
-schema built by the caller (see
+lenses, introspection) is in scope. Anything renderer-specific (colours,
+labels, decorations) belongs in the consuming template, and fields
+outside a schema belong in an extension schema built by the caller (see
 [Lenses and edits](REFERENCE.md#lenses-and-edits)).
 
 ## Project layout

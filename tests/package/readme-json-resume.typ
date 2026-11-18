@@ -11,7 +11,7 @@
 #let schema-file = "/tests/fixtures/jsonresume-schema.json"
 
 #let resume-schema = schema-from-json-schema(json(schema-file))
-#let resume = parse(path("resume.json"), schema: resume-schema)
+#let resume = parse(resume-schema, path("resume.json"))
 // hand `resume` to any compatible Typst CV template
 
 #assert.eq(resume.basics.name, "Seán Ó Murchú")
@@ -77,11 +77,24 @@
   (schema, at) => lens-put(schema, at, content-type),
 )
 
-#let resume = parse(path("resume.json"), schema: resume-schema-strict)
+#let resume = parse(resume-schema-strict, path("resume.json"))
 
 // The fixture tests run against the same two schemas.
 #{
   import "/tests/fixtures/resume.typ" as fixture
   assert.eq(resume-schema, fixture.resume-schema)
   assert.eq(resume-schema-strict, fixture.resume-schema-strict)
+}
+
+// The strict schema reports a misspelt work key with a suggestion; the
+// upstream one lets it through.
+#{
+  import "@preview/gairm-import:0.0.0": validate, format-errors
+  let doc = (work: ((name: "Acme", positon: "Engineer"),))
+  assert(
+    format-errors(validate(resume-schema-strict, doc)).contains(
+      "  - work[0].positon: unknown key \"positon\". Did you mean \"position\"?",
+    ),
+  )
+  assert.eq(validate(resume-schema, doc), ())
 }

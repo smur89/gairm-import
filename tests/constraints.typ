@@ -3,7 +3,7 @@
 // kebab-case field on the node; validate checks it after the type.
 
 #import "../lib.typ": (
-  validate, schema-from-json-schema, array-of, object, string,
+  validate, schema-from-json-schema, array-of, object, string, number, any-type,
 )
 
 #let T = schema-from-json-schema
@@ -57,9 +57,9 @@
     ((((k: "x"), (k: "x")), ""),),
   ),
 ) {
-  for v in good { assert.eq(validate(v, schema: node), (), message: repr(v)) }
+  for v in good { assert.eq(validate(node, v), (), message: repr(v)) }
   for (v, text) in bad {
-    let errs = validate(v, schema: node)
+    let errs = validate(node, v)
     assert.eq(errs.len(), 1, message: repr(v))
     assert(errs.at(0).message.contains(text), message: errs.at(0).message)
   }
@@ -68,8 +68,8 @@
 // A quotient too large for a float (the JSON Schema test suite's "float
 // division = inf") is not a multiple, rather than a crash comparing NaN.
 #let mult-tiny = T((type: "number", multipleOf: 0.123456789))
-#assert.eq(validate(1e308, schema: mult-tiny).map(e => e.code), ("multiple",))
-#assert.eq(validate(0.246913578, schema: mult-tiny), ())
+#assert.eq(validate(mult-tiny, 1e308).map(e => e.code), ("multiple",))
+#assert.eq(validate(mult-tiny, 0.246913578), ())
 
 // ---- translation -----------------------------------------------------------
 
@@ -125,7 +125,7 @@
   assert.eq(T(js), node)
 }
 #assert.eq(
-  validate("a", schema: T((type: "string", minLength: 2.0))).at(0).message,
+  validate(T((type: "string", minLength: 2.0)), "a").at(0).message,
   "expected string length ≥ 2, got 1.",
 )
 
@@ -147,7 +147,7 @@
     "duplicate",
   ),
 ) {
-  let errs = validate(value, schema: T(js))
+  let errs = validate(T(js), value)
   assert(errs.len() > 0, message: "expected an error for " + repr(js))
   assert(errs.at(0).message.contains(text), message: errs.at(0).message)
 }
@@ -155,13 +155,16 @@
 // ---- in a document -------------------------------------------------------
 
 // Constraint errors carry the full path, beside other fields' errors.
-#let bad-person = validate((name: "", age: -1), schema: object(
-  (
-    name: (kind: "string", min-length: 1),
-    age: (kind: "number", minimum: 0),
+#let bad-person = validate(
+  object(
+    (
+      name: (kind: "string", min-length: 1),
+      age: (kind: "number", minimum: 0),
+    ),
+    required-keys: ("name",),
   ),
-  required-keys: ("name",),
-))
+  (name: "", age: -1),
+)
 #assert.eq(bad-person.map(e => e.path), (("name",), ("age",)))
 #assert(bad-person.at(0).message.contains("≥ 1"))
 #assert(bad-person.at(1).message.contains("≥ 0"))
@@ -170,10 +173,42 @@
 // unique-items count what is left; the duplicate report cites the
 // original indices.
 #let min-two = (kind: "array", elem: string(), min-items: 2)
-#assert.eq(validate(("a", none, "b"), schema: min-two), ())
-#assert(validate(("a", none), schema: min-two).at(0).message.contains("got 1"))
+#assert.eq(validate(min-two, ("a", none, "b")), ())
+#assert(validate(min-two, ("a", none)).at(0).message.contains("got 1"))
 #let unique = (kind: "array", elem: string(), unique-items: true)
-#assert.eq(validate(("a", none, "b", none), schema: unique), ())
-#let dup = validate(("a", none, "b", "a"), schema: unique)
+#assert.eq(validate(unique, ("a", none, "b", none)), ())
+#let dup = validate(unique, ("a", none, "b", "a"))
 #assert.eq(dup.len(), 1)
 #assert(dup.at(0).message.contains("indices 0 and 3"))
+
+// Uniqueness: the all-unique fast path and the pairwise search agree,
+// `1` and `1.0` included, and a duplicate is still cited by its first
+// pair of source indices.
+#let uniq = array-of(number(), unique-items: true)
+#assert.eq(validate(uniq, range(500)), ())
+#assert.eq(
+  validate(uniq, range(500) + (3,)).map(e => e.got),
+  ((3, 500),),
+)
+#assert.eq(validate(uniq, (1, 1.0)).map(e => e.got), ((0, 1),))
+
+// Dictionaries equal in content are duplicates whatever their key order.
+#let pairs = array-of(object((a: number(), b: number())), unique-items: true)
+#assert.eq(
+  validate(pairs, ((a: 1, b: 2), (b: 2, a: 1))).map(e => e.code),
+  ("unique",),
+)
+// With several duplicate pairs, the one cited is the first item's.
+#assert.eq(validate(uniq, (1, 2, 2, 1)).map(e => e.got), ((0, 3),))
+
+// Strings take the one-pass path; it cites the same pair as the
+// equality scan, and mixed arrays still go through that scan.
+#let uniq-str = array-of(string(), unique-items: true)
+#assert.eq(validate(uniq-str, ("a", "b", "b", "a")).map(e => e.got), ((0, 3),))
+#assert.eq(validate(uniq-str, range(500).map(str)), ())
+#assert.eq(
+  validate(array-of(any-type, unique-items: true), ("1", 1, 1.0)).map(e => (
+    e.got
+  )),
+  ((1, 2),),
+)

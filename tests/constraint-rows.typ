@@ -41,7 +41,7 @@
   assert(
     candidates
       .at(row.family)
-      .any(v => validate(v, schema: node).any(e => (
+      .any(v => validate(node, v).any(e => (
         e.code == row.code and e.path == ()
       ))),
     message: row.field + " should report code " + repr(row.code),

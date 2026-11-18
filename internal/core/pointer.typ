@@ -29,14 +29,15 @@
 //     decode regex, and the encoder reproduces the same bytes).
 //   - path → pointer → path is lossless EXCEPT when a str segment
 //     looks like an array index (e.g. `("0",)` decodes back as
-//     `(0,)`). Validator + lens code never emit numeric strings, so
-//     this isn't a concern in practice.
+//     `(0,)`). Data paths do carry such keys (a `"2024"` key in a
+//     year-keyed object), so a decoded path is not always the one
+//     encoded, though both name the same place in the document.
 
 // Order matters: `~1` → `/` first would let an `~1` token round-
 // trip wrong (e.g. `~01` should decode to `~1`, not `/0`). Encode
 // `~` first so subsequent `/` encodes don't see the new `~0` we
 // just introduced. Decode mirrors: `~1` before `~0`.
-#import "error.typ": _bail
+#import "error.typ": _bail, _fail, _problem
 
 #let _escape-token(s) = s.replace("~", "~0").replace("/", "~1")
 
@@ -81,6 +82,13 @@
 /// - path (array): Field names and array indices.
 /// -> str
 #let path-to-pointer(path) = {
+  if type(path) != array {
+    _fail("path-to-pointer", _problem(
+      "path",
+      "an array of keys and indices",
+      repr(path),
+    ))
+  }
   if path.len() == 0 { return "" }
   let parts = path.map(seg => {
     if type(seg) == str { _escape-token(seg) } else if type(seg) == int {
@@ -122,6 +130,9 @@
 /// - pointer (str): The pointer.
 /// -> array
 #let pointer-to-path(pointer) = {
+  if type(pointer) != str {
+    _fail("pointer-to-path", _problem("pointer", "a string", repr(pointer)))
+  }
   if pointer == "" { return () }
   if not pointer.starts-with("/") {
     _bail(

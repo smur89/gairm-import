@@ -210,7 +210,7 @@ work[]:
 #for (schema, ctor) in (
   (resume-schema, string),
   (resume-schema, bool-type),
-  (resume-schema, any-of),
+  (resume-schema, one-of),
 ) {
   let found = paths-of-kind(schema, ctor)
   assert(found.len() > 0, message: repr(ctor))
@@ -227,13 +227,18 @@ work[]:
   fixed: const-of("x"),
   either: any-of((string(), number())),
   exactly: one-of((string(), number())),
+  maybe: nullable(string()),
   other: not-of(string()),
   cond: if-of(bool-type, then: number()),
 ))
 #assert.eq(paths-of-kind(kinds-toy, enum-of), (("fixed",), ("level",)))
-#assert.eq(paths-of-kind(kinds-toy, const-of), (("fixed",), ("level",)))
-#assert.eq(paths-of-kind(kinds-toy, any-of), (("either",), ("exactly",)))
-#assert.eq(paths-of-kind(kinds-toy, one-of), (("either",), ("exactly",)))
+// A constructor finds the nodes it builds, narrower than its kind:
+// const-of the single-value enums, any-of the inclusive unions (a
+// nullable is one), one-of the exclusive ones, nullable the nullables.
+#assert.eq(paths-of-kind(kinds-toy, const-of), (("fixed",),))
+#assert.eq(paths-of-kind(kinds-toy, any-of), (("either",), ("maybe",)))
+#assert.eq(paths-of-kind(kinds-toy, one-of), (("exactly",),))
+#assert.eq(paths-of-kind(kinds-toy, nullable), (("maybe",),))
 #assert.eq(paths-of-kind(kinds-toy, not-of), (("other",),))
 #assert.eq(paths-of-kind(kinds-toy, if-of), (("cond",),))
 
@@ -469,3 +474,32 @@ phone → email",
 ) {
   assert.eq(describe-schema(schema), drawn)
 }
+
+// Columns line up by grapheme cluster, not byte: `seán` and `名前`
+// pad as four and two characters wide.
+#assert.eq(
+  describe-schema(object((sean: string(), "seán": number(), "名前": string()))),
+  "sean  string\nseán  number\n名前    string",
+)
+
+// The nullable query reads a union's shape, so a hand-built member is
+// searched past, not rebuilt, and a first member of no registered kind
+// is not a nullable.
+#for members in (((kind: "money"),), ((kind: "money"), null-type)) {
+  assert.eq(
+    paths-of-kind(
+      object((a: (kind: "union", members: members, exclusive: false))),
+      nullable,
+    ),
+    (),
+  )
+}
+#assert.eq(paths-of-kind(object((a: nullable(string()))), nullable), (("a",),))
+// An additional schema shadowed by a literal "additionalProperties"
+// field has no path, so none is returned for it.
+#let shadowed = object(
+  (additionalProperties: any-of(string(), number())),
+  additional: one-of(string(), number()),
+)
+#assert.eq(paths-of-kind(shadowed, one-of), ())
+#assert.eq(paths-of-kind(shadowed, any-of), (("additionalProperties",),))
