@@ -41,3 +41,19 @@
   coerce(book-schema, json("book.json")).title,
   "The Pocket Atlas of Imaginary Places",
 )
+
+// "whose schemas require all four fields": the Typst schema from Quick
+// start reports the same problems as the translated one.
+#{
+  import "@preview/gairm-import:0.0.0": object, string, number, array-of
+  let typst-schema = object(
+    (
+      title: string(),
+      author: string(),
+      year: number(),
+      tags: array-of(string()),
+    ),
+    required-keys: ("title", "author", "year", "tags"),
+  )
+  assert.eq(validate(typst-schema, doc), validate(book-schema, doc))
+}

@@ -52,8 +52,12 @@
     + "."
 )
 
-/// `word` with its indefinite article: "a string", "an integer".
-#let _a(word) = (if word.first() in "aeiou" { "an " } else { "a " }) + word
+/// `word` with its indefinite article: "a string", "an integer", "a
+/// union" (a vowel letter with a consonant sound).
+#let _a(word) = {
+  let vowel = word.first() in "aeiou" and not word.starts-with("uni")
+  (if vowel { "an " } else { "a " }) + word
+}
 
 /// One validation error, as a one-element array so results concatenate.
 #let _error(path, code, message, expected: none, got: none) = {
@@ -128,7 +132,7 @@
     + _format-path(path)
     + ": "
     + _expected-got(expected, _type-name-of(value))
-    + " Run validate(data) first."
+    + " Run validate(schema, data) first."
 )
 
 // A check on an argument returns a problem, or none, rather than

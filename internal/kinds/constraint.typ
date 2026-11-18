@@ -19,13 +19,18 @@
       type(v) == float
         and not v.is-infinite()
         and calc.fract(v) == 0
-        and calc.abs(v) < 9.2e18
+        and calc.abs(v) < calc.pow(2.0, 63)
     )
 )
 #let _count = (
   (ok: v => _whole(v) and v >= 0, must: "a non-negative integer"),
 )
-#let _number = ((ok: v => type(v) in (int, float), must: "a number"),)
+#let _number = (
+  (
+    ok: v => type(v) == int or (type(v) == float and not v.is-nan()),
+    must: "a number",
+  ),
+)
 #let _positive = _number + ((ok: v => v > 0, must: "> 0"),)
 #let _flag = ((ok: v => type(v) == bool, must: "a boolean"),)
 
@@ -220,22 +225,36 @@
 #let _ceil(v) = _trunc(v) + if calc.fract(v) > 0 { 1 } else { 0 }
 #let _floor(v) = _trunc(v) - if calc.fract(v) < 0 { 1 } else { 0 }
 
+// `v + d` for a step of one, in float where an int step could pass the
+// int range: an exclusive bound at the largest or smallest int.
+#let _step(v, d) = if type(v) == int and calc.abs(float(v)) >= 9e18 {
+  float(v) + d
+} else { v + d }
+
 // The nearest whole number a bound of each `op` lets through.
 #let _whole-bound = (
   "≥": _ceil,
-  ">": v => _floor(v) + 1,
+  ">": v => _step(_floor(v), 1),
   "≤": _floor,
-  "<": v => _ceil(v) - 1,
+  "<": v => _step(_ceil(v), -1),
 )
 
 /// The tightest lower and upper bound on an integer node, as
 /// `(lower, upper)` field names, when they leave no whole number
-/// between them (`minimum: 1.5, maximum: 1.7`); none otherwise.
+/// between them (`minimum: 1.5, maximum: 1.7`); none otherwise. An
+/// infinite bound restricts nothing, so it is never the tightest.
 #let _integer-gap(node) = {
   if node.at("kind", default: none) != "integer" { return none }
   let tightest(ops, pick) = {
     let found = _constraint-rows
-      .filter(row => row.at("op", default: none) in ops and row.field in node)
+      .filter(row => (
+        row.at("op", default: none) in ops
+          and row.field in node
+          and not (
+            type(node.at(row.field)) == float
+              and node.at(row.field).is-infinite()
+          )
+      ))
       .map(row => (row.field, _whole-bound.at(row.op)(node.at(row.field))))
     if found != () { found.sorted(key: p => p.at(1)).at(pick) }
   }
@@ -263,9 +282,11 @@
 /// the row's JSON keyword for the translator, its field for a
 /// constructor. Only `family`'s rows are read, in row order; each value
 /// is stored as the row reads it, and `false` (uniqueItems' default) is
-/// left off. Returns `(node, problem)`: the problem (error.typ) is the
-/// first value a row does not accept, its `arg` the `key`, or bounds no
-/// value satisfies, each named by its `key` with its value; or none.
+/// left off. Returns `(node, problem, gap)`: the problem (error.typ) is
+/// the first value a row does not accept, its `arg` the `key`, or bounds
+/// no value satisfies, each named by its `key` with its value; or none.
+/// `gap` is the problem of an integer node whose bounds hold numbers but
+/// no integer, or none.
 #let _read-constraints(node, family, given, key) = {
   let result = node
   for row in _constraint-rows {
@@ -273,7 +294,11 @@
     let v = given.at(key(row))
     let must = _value-problem(row, v)
     if must != none {
-      return (node: result, problem: _problem(key(row), must, repr(v)))
+      return (
+        node: result,
+        problem: _problem(key(row), must, repr(v)),
+        gap: none,
+      )
     }
     if v != false {
       result.insert(row.field, row.at("read", default: x => x)(v))
@@ -286,17 +311,27 @@
       + ")"
   )
   let clash = _bounds-conflict(result)
-  // Bounds a number satisfies can still hold no integer.
-  let gap = if clash == none { _integer-gap(result) }
   let message = if clash != none {
     let (lower, upper) = (clash.lower, clash.upper).map(named)
     if clash.strict {
       lower + " and " + upper + " leave no satisfying value."
     } else { lower + " > " + upper + " is unsatisfiable." }
-  } else if gap != none {
-    named(gap.lower) + " and " + named(gap.upper) + " leave no integer."
   }
-  (node: result, problem: if message != none { (message: message) })
+  // Bounds a number satisfies can still hold no integer. Reported apart
+  // from `problem`, so a `type` list can drop its integer member alone.
+  let gap = if clash == none { _integer-gap(result) }
+  (
+    node: result,
+    problem: if message != none { (message: message) },
+    gap: if gap != none {
+      (
+        message: named(gap.lower)
+          + " and "
+          + named(gap.upper)
+          + " leave no integer.",
+      )
+    },
+  )
 }
 
 /// `node` with a constructor's constraint arguments of `family` set.
@@ -308,6 +343,7 @@
   let given = args.pairs().filter(((_, v)) => v != none).to-dict()
   let read = _read-constraints(node, family, given, row => row.field)
   if read.problem != none { _fail(who, read.problem) }
+  if read.gap != none { _fail(who, read.gap) }
   read.node
 }
 

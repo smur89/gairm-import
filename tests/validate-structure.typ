@@ -266,3 +266,25 @@
   validate(object((:)), (x: 1)).first().message,
   "unknown key \"x\". The object takes no keys.",
 )
+
+// A dependent listed twice is reported once, at the missing key.
+#assert.eq(
+  validate(
+    object((a: string(), b: string()), dependent-required: (a: ("b", "b"))),
+    (a: "1"),
+  ).map(e => (e.path, e.code)),
+  ((("b",), "dependent"),),
+)
+// A key both required and a missing dependent is reported once, as
+// required.
+#assert.eq(
+  validate(
+    object(
+      (x: string(), b: string()),
+      required-keys: ("b",),
+      dependent-required: (x: ("b",)),
+    ),
+    (x: "1"),
+  ).map(e => (e.path, e.code)),
+  ((("b",), "required"),),
+)

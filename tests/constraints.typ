@@ -191,3 +191,12 @@
   ((3, 500),),
 )
 #assert.eq(validate(uniq, (1, 1.0)).map(e => e.got), ((0, 1),))
+
+// Dictionaries equal in content are duplicates whatever their key order.
+#let pairs = array-of(object((a: number(), b: number())), unique-items: true)
+#assert.eq(
+  validate(pairs, ((a: 1, b: 2), (b: 2, a: 1))).map(e => e.code),
+  ("unique",),
+)
+// With several duplicate pairs, the one cited is the first item's.
+#assert.eq(validate(uniq, (1, 2, 2, 1)).map(e => e.got), ((0, 3),))

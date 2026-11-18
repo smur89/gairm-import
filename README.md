@@ -63,12 +63,15 @@ Or build the schema in Typst:
   parse, object, array-of, string, number,
 )
 
-#let book-schema = object((
-  title:  string(),
-  author: string(),
-  year:   number(),
-  tags:   array-of(string()),
-))
+#let book-schema = object(
+  (
+    title:  string(),
+    author: string(),
+    year:   number(),
+    tags:   array-of(string()),
+  ),
+  required-keys: ("title", "author", "year", "tags"),
+)
 
 #let book = parse(book-schema, path("book.json"))
 ```
@@ -144,8 +147,8 @@ panics with a hint to use `path(..)`. A `null` document panics.
 ## Errors
 
 `parse` reports every problem in one panic. The book from
-[Quick start](#quick-start), with a numeric author, a misspelt `year` and
-a number among its tags:
+[Quick start](#quick-start), whose schemas require all four fields, with
+a numeric author, a misspelt `year` and a number among its tags:
 
 ```json
 {

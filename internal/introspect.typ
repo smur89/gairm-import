@@ -166,7 +166,11 @@
   (
     kind: kind.kind,
     test: n => _matches(kind, n),
-    name: _a(_kind-label(kind)) + " schema",
+    // A kind the registry doesn't know may not even be a string, so it
+    // is named as given.
+    name: if type(kind.kind) == str and kind.kind in _kinds {
+      _a(_kind-label(kind)) + " schema"
+    } else { "a node of kind " + repr(kind.kind) },
   )
 } else if type(kind) == function {
   for (name, d) in _kinds {

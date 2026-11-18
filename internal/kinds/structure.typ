@@ -510,7 +510,8 @@
     }
   }
   // A required key holding null counts as missing.
-  for key in schema.at("required-keys", default: ()) {
+  let required = schema.at("required-keys", default: ())
+  for key in required {
     if not _has(value, key, ctx) {
       errors += _error(
         ctx.path + (key,),
@@ -524,8 +525,9 @@
   // names the key that requires it.
   for (trigger, dependents) in schema.at("dependent-required", default: (:)) {
     if not _has(value, trigger, ctx) { continue }
+    // A required key that is missing is already reported, once.
     for dependent in dependents {
-      if not _has(value, dependent, ctx) {
+      if not _has(value, dependent, ctx) and dependent not in required {
         errors += _error(
           ctx.path + (dependent,),
           "dependent",

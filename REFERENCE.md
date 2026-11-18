@@ -45,7 +45,9 @@ An error record is `(path, code, message, expected, got)`:
 
 - `path` is where in the document the problem is, as keys and array
   indices (`("work", 0, "url")`); for a missing key (`required`,
-  `dependent`) it is the key that is missing, and `()` is the root;
+  `dependent`) it is the key that is missing, and `()` is the root. A
+  missing key is reported once: `required` when the object requires it,
+  `dependent` otherwise;
 - `code` says what kind of problem it is;
   [Errors](README.md#errors) lists the codes and what `expected` and `got`
   hold for each;
@@ -53,8 +55,10 @@ An error record is `(path, code, message, expected, got)`:
   integer.`
 
 `path-to-pointer(record.path)` gives the record's location as a JSON
-Pointer. A schema that is not a schema, a `null` document, or a string
-that names a JSON file panics before any validation.
+Pointer. A schema argument that is not a schema, or a `null` document,
+panics before any validation. A string is checked as data; only when it
+ends in `.json` and the schema's root rejects its type does the call
+panic, with a hint to read the file with `path(..)`.
 
 ### The model
 
@@ -62,7 +66,7 @@ that names a JSON file panics before any validation.
 
 | Schema | Model |
 |---|---|
-| `string(..)` | the string. A Typst `datetime` given to a `date` or `date-time` field becomes its ISO string (see [Formats](#formats)) |
+| `string(..)` | the string. A Typst `datetime` becomes its ISO string: one with a date and no time in a `date` field, one with both in a `date-time` field; any other `datetime` is a `format` error (see [Formats](#formats)) |
 | `content-type` | the string as Typst `content` |
 | `number(..)`, `integer(..)` | the number as given: an `integer` field keeps `1.0` as a float |
 | `bool-type`, `null-type`, `enum-of(..)`, `const-of(..)` | the value as given |
@@ -351,7 +355,9 @@ they work wherever a location does. A query is:
   nullable ones, and `not-of`, `if-of` every node of their kind.
 
 `object` and `array` are walked through, not searched for, and panic as a
-query.
+query. An `additional` schema shadowed by a field literally named
+`"additionalProperties"` has no path, so it is not searched; reach it
+with `lens-over` on its object.
 
 ```typst
 #paths-of-kind(resume-schema-strict, string(format: "date"))
@@ -473,7 +479,7 @@ Each of these panics with a message naming it:
   `minLenght` included;
 - boolean schemas (`properties: {a: true}`, `items: false`) and the array
   form of `items`;
-- `$ref` outside the document, to the root (`#` or `#/`), to a named
+- `$ref` outside the document, to the root (`#`), to a named
   anchor, or in a cycle;
 - formats other than the nine;
 - `allOf` with non-object members or with closed members that declare

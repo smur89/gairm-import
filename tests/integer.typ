@@ -78,3 +78,25 @@
 #assert.eq(integer(exclusive-minimum: 1, maximum: 2).maximum, 2)
 #assert.eq(integer(minimum: -1.5, exclusive-maximum: -0.5).minimum, -1.5)
 #assert.eq(integer(minimum: 1e300, maximum: 1e300).minimum, 1e300)
+
+// An infinite bound restricts nothing, and an exclusive bound at the
+// int limit steps past it in float rather than overflowing.
+#assert.eq(validate(integer(minimum: -calc.inf, maximum: calc.inf), 0), ())
+#assert.eq(
+  integer(exclusive-minimum: 9223372036854775807, maximum: 1e20).maximum,
+  1e20,
+)
+// In a `type` list, an integer member with no integer in its bounds is
+// dropped; the number member still takes 1.6.
+#let num-or-int = schema-from-json-schema((
+  type: ("number", "integer"),
+  minimum: 1.5,
+  maximum: 1.7,
+))
+#assert.eq(num-or-int.kind, "number")
+#assert.eq(validate(num-or-int, 1.6), ())
+// A whole float count fits an int up to 2^63.
+#assert.eq(
+  schema-from-json-schema((type: "array", maxItems: 9.21e18)).max-items,
+  9210000000000000000,
+)

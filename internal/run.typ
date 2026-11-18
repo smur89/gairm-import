@@ -13,9 +13,11 @@
 #import "kinds/structure.typ": _is-schema, _require-schema
 #import "engine.typ": _walk, _coerce-result, _parse-result
 
-// The walk a run function's call asks for, after checking its
-// arguments and reading its input.
-#let _run(fn-name, schema, data, strict-null) = {
+// A run function's checked arguments, as the (value, ctx) its walk
+// takes. It returns before the walk, and each run function calls _walk
+// itself, so this helper adds no frame under the walk: Typst caps the
+// call depth, and every frame costs a level of document nesting.
+#let _prepare(fn-name, schema, data, strict-null) = {
   if not _is-schema(schema) and _is-schema(data) {
     _bail(
       fn-name,
@@ -24,10 +26,10 @@
   }
   _require-schema(schema, fn-name + " schema")
   _require-bool(strict-null, fn-name, "strict-null")
-  let value = _decode-input(fn-name, data, str-is-data: true)
-  let r = _walk(schema, value, _ctx(strict-null: strict-null))
-  _refuse-path(fn-name, data, r)
-  r
+  (
+    value: _decode-input(fn-name, data, str-is-data: true),
+    ctx: _ctx(strict-null: strict-null),
+  )
 }
 
 /// Checks `data` against `schema` and returns every problem found, as
@@ -42,10 +44,15 @@
 ///   root does not take, as a string path would resolve from the
 ///   package: use `path(..)` or `json(..)` to read a file.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
-///   `null` is a value: only `null-type` and `nullable(..)` accept it.
+///   `null` is a value its schema judges: `null-type`, `nullable(..)`
+///   and `any-type` accept it, and the rest reject it. A `null`
+///   document panics either way.
 /// -> array
 #let validate(schema, data, strict-null: false) = {
-  _run("validate", schema, data, strict-null).errors
+  let (value, ctx) = _prepare("validate", schema, data, strict-null)
+  let r = _walk(schema, value, ctx)
+  _refuse-path("validate", data, r)
+  r.errors
 }
 
 /// Turns `data` into the typed model without checking it first, so run
@@ -57,10 +64,15 @@
 /// - schema (dictionary): The schema that says what each field becomes.
 /// - data (any): The document, or where to read it, as for `validate`.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
-///   `null` is a value: only `null-type` and `nullable(..)` accept it.
+///   `null` is a value its schema judges: `null-type`, `nullable(..)`
+///   and `any-type` accept it, and the rest reject it. A `null`
+///   document panics either way.
 /// -> any
 #let coerce(schema, data, strict-null: false) = {
-  _coerce-result(_run("coerce", schema, data, strict-null))
+  let (value, ctx) = _prepare("coerce", schema, data, strict-null)
+  let r = _walk(schema, value, ctx)
+  _refuse-path("coerce", data, r)
+  _coerce-result(r)
 }
 
 /// Validates `data` against `schema`, then coerces it into the typed
@@ -72,10 +84,15 @@
 ///   the root may be anything the schema takes, an array or a scalar
 ///   included.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
-///   `null` is a value: only `null-type` and `nullable(..)` accept it.
+///   `null` is a value its schema judges: `null-type`, `nullable(..)`
+///   and `any-type` accept it, and the rest reject it. A `null`
+///   document panics either way.
 /// -> any
 #let parse(schema, data, strict-null: false) = {
-  _parse-result(_run("parse", schema, data, strict-null))
+  let (value, ctx) = _prepare("parse", schema, data, strict-null)
+  let r = _walk(schema, value, ctx)
+  _refuse-path("parse", data, r)
+  _parse-result(r)
 }
 
 /// Turns a list of validation errors, as `validate` returns them, into
@@ -90,6 +107,7 @@
       and errors.all(e => (
         type(e) == dictionary
           and type(e.at("path", default: none)) == array
+          and e.path.all(seg => type(seg) in (str, int))
           and type(e.at("message", default: none)) == str
       ))
   )

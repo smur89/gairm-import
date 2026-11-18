@@ -51,7 +51,6 @@
   (
     (("age",), "integer"),
     (("code",), "pattern"),
-    (("email",), "dependent"),
     (("email",), "required"),
     (("name",), "length"),
     (("rating",), "multiple"),

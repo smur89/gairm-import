@@ -11,8 +11,10 @@
 // ---- depth ---------------------------------------------------------------
 //
 // Each nesting level costs two call frames against Typst's limit (the
-// walk, then the kind's walk), so about 38 levels fit. Real documents
-// nest under 10; 30 is the floor this pins.
+// walk, then the kind's walk), so 37 levels fit when a run function is
+// called at the top level. Real documents nest under 10, but the pin is
+// the limit itself, so a frame added between the entry point and the
+// walk fails here rather than costing a level unnoticed.
 
 #let nested-arrays(n) = {
   let schema = string()
@@ -33,10 +35,10 @@
   (schema, value)
 }
 
-#let (deep-array, deep-array-value) = nested-arrays(30)
+#let (deep-array, deep-array-value) = nested-arrays(37)
 #assert.eq(validate(deep-array, deep-array-value), ())
 #assert.eq(coerce(deep-array, deep-array-value), deep-array-value)
-#let (deep-object, deep-object-value) = nested-objects(30)
+#let (deep-object, deep-object-value) = nested-objects(37)
 #assert.eq(validate(deep-object, deep-object-value), ())
 #assert.eq(parse(deep-object, deep-object-value), deep-object-value)
 

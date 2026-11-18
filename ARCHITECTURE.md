@@ -51,8 +51,12 @@ for a named kind outside `internal/kinds/` unless it is marked
 ## The walk
 
 `engine.typ`'s `_walk(schema, value, ctx) -> (errors, value, fatal)` is
-the only walk; `validate`, `coerce` and `parse` (`run.typ`) are views over
-one result, so they can't disagree. Its header explains the three parts, and
+the only walk; `validate`, `coerce` and `parse` (`run.typ`) share it and
+its rules, so they can't disagree about what is valid. They differ in
+what they make of the result: `validate` returns the errors, `parse`
+panics on any, and `coerce` returns the model, panicking only where the
+data leaves none (an undeclared key in a closed object is an error to
+`validate` and `parse`, and dropped by `coerce`). Its header explains the three parts, and
 `core/ctx.typ`'s explains the context and how null counts as absent.
 Composite kinds recurse through the `recur` argument their `walk`
 receives.

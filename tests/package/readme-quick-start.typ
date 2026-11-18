@@ -15,12 +15,15 @@
 #let from-combinators = {
   import "@preview/gairm-import:0.0.0": parse, object, array-of, string, number
 
-  let book-schema = object((
-    title: string(),
-    author: string(),
-    year: number(),
-    tags: array-of(string()),
-  ))
+  let book-schema = object(
+    (
+      title: string(),
+      author: string(),
+      year: number(),
+      tags: array-of(string()),
+    ),
+    required-keys: ("title", "author", "year", "tags"),
+  )
 
   let book = parse(book-schema, path("book.json"))
   book

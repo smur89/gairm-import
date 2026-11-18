@@ -20,22 +20,21 @@
 
 #let _get-at(s, path, who) = path.fold(s, (n, seg) => _child(n, seg, who))
 
-// _child runs on the way down, so a bad segment panics the same way
-// from a put as from a get.
+// _child runs on the way down, before the node's writer is looked at,
+// so a bad segment panics the same way from a put as from a get, a leaf
+// (which has no writer) included.
 #let _set-at(s, path, sub, who) = if path == () { sub } else {
   let (head, ..rest) = path
-  (_descriptor(s).with-child)(
-    s,
-    head,
-    _set-at(_child(s, head, who), rest, sub, who),
-  )
+  let child = _child(s, head, who)
+  (_descriptor(s).with-child)(s, head, _set-at(child, rest, sub, who), who)
 }
 
-// Every (path, node) pair, pre-order.
+// Every (path, node) pair, pre-order, of the nodes a path reaches: a
+// child with no segment (a shadowed additional schema) is skipped.
 #let _nodes(s, path: ()) = {
   let out = ((path, s),)
   for (seg, sub, _) in _children(s) {
-    out += _nodes(sub, path: path + (seg,))
+    if seg != none { out += _nodes(sub, path: path + (seg,)) }
   }
   out
 }

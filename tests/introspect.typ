@@ -481,3 +481,23 @@ phone → email",
   describe-schema(object((sean: string(), "seán": number(), "名前": string()))),
   "sean  string\nseán  number\n名前    string",
 )
+
+// The nullable query reads a union's shape, so a hand-built member is
+// searched past, not rebuilt.
+#assert.eq(
+  paths-of-kind(
+    object((
+      a: (kind: "union", members: ((kind: "money"),), exclusive: false),
+    )),
+    nullable,
+  ),
+  (),
+)
+// An additional schema shadowed by a literal "additionalProperties"
+// field has no path, so none is returned for it.
+#let shadowed = object(
+  (additionalProperties: any-of(string(), number())),
+  additional: one-of(string(), number()),
+)
+#assert.eq(paths-of-kind(shadowed, one-of), ())
+#assert.eq(paths-of-kind(shadowed, any-of), (("additionalProperties",),))
