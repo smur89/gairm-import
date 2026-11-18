@@ -1,7 +1,8 @@
 // allOf: the object-merge subset. Each member translates on its own and
 // the objects merge into one; what the merge can't express bails here.
 
-#import "../kinds/structure.typ": object, nullable, _is-object, _kind-label
+#import "../kinds/structure.typ": object, nullable, _is-object
+#import "../kinds/walk.typ": _kind-label
 #import "../core/error.typ": _a
 #import "keyword.typ": _bail
 

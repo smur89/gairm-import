@@ -15,7 +15,7 @@ representation and the same walk.
 ```text
 lib.typ                     # the only public surface: re-exports, no definitions
 internal/core/              # L0: input forms, errors, the walk context, JSON Pointer
-internal/kinds/             # L1: constructors, formats, constraint rows, the kind registry, traversal
+internal/kinds/             # L1: constructors, formats, constraint rows, walks, the kind registry and catalog, traversal
 internal/engine.typ         # L2: the one walk over schema and value
 internal/json-schema/       # L3: the JSON Schema translator
 internal/lens.typ           # L3: lens-get / lens-put / lens-over and the field edits
@@ -44,7 +44,10 @@ A kind's behaviour lives in its descriptor in `kinds/registry.typ` (the
 header lists the fields): how it walks, its children and their labels,
 how a lens replaces a child, and how `describe-schema` draws it. The
 engine, lenses and introspection read the registry rather than keeping
-their own `kind ==` ladders; `make check-conventions` rejects a test
+their own `kind ==` ladders. Within `kinds/`, the walks (`walk.typ`) sit
+below the registry and the constructors (`structure.typ`) above it,
+since a constructor checks its sub-schemas against the registered
+kinds; `catalog.typ`, above both, lists each kind's constructors. `make check-conventions` rejects a test
 for a named kind outside `internal/kinds/` unless it is marked
 `// kind-check: <why>`.
 
@@ -90,10 +93,10 @@ engine has no general intersection kind.
   family's constructor (`tests/constraint-rows.typ` fails until it
   exists), plus REFERENCE.md.
 - **A format**: a row in `kinds/format.typ`, plus REFERENCE.md.
-- **A kind**: a constructor in `kinds/`, a descriptor in `registry.typ`
-  (a load-time check fails on an exported constructor no descriptor
-  lists), and an export in `lib.typ` and `tests/exports.typ`, plus
-  REFERENCE.md.
+- **A kind**: a constructor in `kinds/`, a descriptor in `registry.typ`,
+  its constructors in `catalog.typ` (a load-time check fails on an
+  exported constructor the catalog doesn't list), and an export in
+  `lib.typ` and `tests/exports.typ`, plus REFERENCE.md.
 - **A JSON Schema keyword**: an entry in `json-schema/keyword.typ`, then
   the builder or applicator that consumes it.
 - **A panic**: the helpers in `core/error.typ`, and a case in

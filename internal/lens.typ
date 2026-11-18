@@ -38,8 +38,9 @@
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": (
-  _require-schema, _is-schema, _is-object, _object-with, _kind-label,
+  _require-schema, _is-schema, _is-object, _object-with,
 )
+#import "kinds/walk.typ": _kind-label
 #import "core/error.typ": (
   _a, _bail, _fail, _problem, _not-in, _require-bool, _require-key-names,
 )

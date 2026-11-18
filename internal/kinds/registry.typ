@@ -3,16 +3,17 @@
 // ladders. A descriptor holds:
 //
 //   walk          (schema, value, ctx, recur) => (errors, value, fatal):
-//                 what the engine runs (structure.typ; a leaf's is built
-//                 from its check by _leaf-walk, leaf.typ)
+//                 what the engine runs (walk.typ; a leaf's is built from
+//                 its check by _leaf-walk, leaf.typ)
 //   searchable    paths-of-kind finds it, rather than only walking
 //                 through it
 //   children      schema => ((segment, sub-schema, label), ..): segments
 //                 as lens paths spell them, labels as describe-schema
 //                 draws them
-//   with-child    (schema, segment, sub, who) => the node with that
-//                 child replaced, a panic naming `who`, the lens function
-//                 writing it; none for a leaf, which has no children
+//   with-child    (schema, segment, sub) => the node with that child
+//                 replaced; none for a leaf, which has no children. An
+//                 object comes back as it is; the lens write rebuilds
+//                 it through object() (traverse.typ)
 //   suffix        schema => what describe-schema prints on the node's own
 //                 row: by default a leaf's kind, and no header (none)
 //                 for a node with children
@@ -23,37 +24,25 @@
 //                 the node as `of` with `mark` (a nullable as `X?`)
 //   bad-segment   (schema, segment) => the problem (error.typ) a lens
 //                 reports when the segment names no child
-//   constructors  the public functions that build this kind, as
-//                 (function, test) pairs: paths-of-kind's query by
-//                 that constructor finds the nodes the test holds for
-//                 (one-of the exclusive unions). A bare function is
-//                 a pair whose test holds for every node of the kind.
+//
+// The constructors that build each kind are listed in catalog.typ: they
+// sit above this registry, since their schema check reads its kinds.
 
-#import "leaf.typ" as _leaf-mod
 #import "leaf.typ": (
-  number, integer, enum-of, const-of, null-type, _leaf-walk, _string-check,
-  _number-check, _integer-check, _bool-check, _null-check, _any-check,
-  _enum-check,
+  null-type, _leaf-walk, _string-check, _number-check, _integer-check,
+  _bool-check, _null-check, _any-check, _enum-check,
 )
-#import "../core/error.typ": _a, _internal, _not-in, _problem
-#import "format.typ" as _format-mod
-#import "format.typ": string, _string-kind-check
-#import "structure.typ" as _structure-mod
-#import "structure.typ": (
-  array-of, object, map, any-of, one-of, not-of, if-of, nullable, _array-walk,
-  _object-walk, _union-walk, _not-walk, _if-walk, _object-with, _schema-kinds,
-  _kind-label,
+#import "../core/error.typ": _a, _not-in, _problem
+#import "format.typ": _string-kind-check
+#import "walk.typ": (
+  _array-walk, _object-walk, _union-walk, _not-walk, _if-walk, _kind-label,
 )
 
-// `nullable(X)`: an any-of of exactly X then null. Read off the node's
-// shape rather than by rebuilding nullable(X), which would panic on a
-// hand-built member mid-search.
+// `nullable(X)`'s shape: an any-of of exactly X then null. Read off the
+// node rather than by rebuilding nullable(X), which would panic on a
+// hand-built member.
 #let _is-nullable(s) = (
-  not s.exclusive
-    and s.members.len() == 2
-    and s.members.last() == null-type
-    and type(s.members.first()) == dictionary
-    and s.members.first().at("kind", default: none) in _schema-kinds
+  not s.exclusive and s.members.len() == 2 and s.members.last() == null-type
 )
 
 // A conditional's children, as (segment, field): the lens segments are
@@ -79,7 +68,6 @@
       + _a(s.kind)
       + " schema, which has no children.",
   ),
-  constructors: (),
   walk: none,
   check: none,
   family: none,
@@ -95,9 +83,6 @@
   inline: inline,
   shorthand: shorthand,
   bad-segment: bad-segment,
-  constructors: constructors.map(c => if type(c) == array { c } else {
-    (c, _ => true)
-  }),
 )
 
 #let _kinds = (
@@ -110,18 +95,14 @@
     suffix: s => (
       _kind-label(s) + if "pattern" in s { " + pattern" } else { "" }
     ),
-    constructors: (string,),
   ),
   // The model wraps the string so it splices into markup.
   content: _kind(check: _string-check, family: "string", model: v => [#v]),
-  number: _kind(check: _number-check, family: "number", constructors: (
-    number,
-  )),
+  number: _kind(check: _number-check, family: "number"),
   // A number with the integral gate; the number rows apply.
   integer: _kind(
     check: _integer-check,
     family: "number",
-    constructors: (integer,),
   ),
   bool: _kind(check: _bool-check),
   null: _kind(check: _null-check),
@@ -130,7 +111,6 @@
   enum: _kind(
     check: _enum-check,
     suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
-    constructors: (enum-of, (const-of, s => s.values.len() == 1)),
   ),
   // paths-of-kind only walks through the two plain containers: every
   // schema is full of them, so asking for one is more likely a slip
@@ -140,13 +120,12 @@
     searchable: false,
     inline: true,
     children: s => (("items", s.elem, "[]"),),
-    with-child: (s, _, sub, _) => (..s, elem: sub),
+    with-child: (s, _, sub) => (..s, elem: sub),
     bad-segment: (s, seg) => _problem(
       "path segment",
       "\"items\" for an array schema",
       repr(seg),
     ),
-    constructors: (array-of,),
   ),
   // Fields in key order, so every walk is diff-stable whatever order
   // the source declared them in; then the additional schema when it
@@ -175,13 +154,14 @@
         fields + ((seg, additional, "*"),)
       } else { fields }
     },
-    // Through object(), so a lens write keeps its invariants.
-    with-child: (s, seg, sub, who) => if seg in s.shape {
+    // As given: the lens write rebuilds it through object()
+    // (traverse.typ), which sits above this registry.
+    with-child: (s, seg, sub) => if seg in s.shape {
       // Typst dicts are values: this copy leaves `s` untouched.
       let shape = s.shape
       shape.insert(seg, sub)
-      _object-with(s, who: who, shape: shape)
-    } else { _object-with(s, who: who, additional: sub) },
+      (..s, shape: shape)
+    } else { (..s, additional: sub) },
     bad-segment: (s, seg) => if seg == "additionalProperties" {
       (
         message: "path segment \"additionalProperties\" needs the "
@@ -199,7 +179,6 @@
         ),
       )
     },
-    constructors: (object, map),
   ),
   // A member's segment is its index, so a path doesn't say whether it
   // went through any-of or one-of.
@@ -209,7 +188,7 @@
       .members
       .enumerate()
       .map(((i, m)) => (i, m, "[" + str(i) + "]")),
-    with-child: (s, i, sub, _) => {
+    with-child: (s, i, sub) => {
       // Typst arrays are values: this copy leaves `s` untouched.
       let members = s.members
       members.at(i) = sub
@@ -226,23 +205,17 @@
     suffix: s => if s.exclusive { "one of" } else { "any of" },
     // `nullable(X)`, an any-of of exactly X then null, draws as `X?`.
     shorthand: s => if _is-nullable(s) { (of: s.members.first(), mark: "?") },
-    constructors: (
-      (any-of, s => not s.exclusive),
-      (one-of, s => s.exclusive),
-      (nullable, _is-nullable),
-    ),
   ),
   "not": _kind(
     walk: _not-walk,
     // No header: the member's label, its lens segment, says it.
     children: s => (("not", s.member, "not"),),
-    with-child: (s, _, sub, _) => (..s, member: sub),
+    with-child: (s, _, sub) => (..s, member: sub),
     bad-segment: (s, seg) => _problem(
       "path segment",
       "\"not\" for a not schema",
       repr(seg),
     ),
-    constructors: (not-of,),
   ),
   // The condition, then the branches it has. No header, as for `not`:
   // the labels, the lens segments, say what each child is.
@@ -253,7 +226,7 @@
       s.at(field),
       seg,
     )),
-    with-child: (s, seg, sub, _) => {
+    with-child: (s, seg, sub) => {
       let (_, field) = _if-parts.find(((k, _)) => k == seg)
       (..s, (field): sub)
     },
@@ -264,51 +237,8 @@
         + " for an if schema",
       repr(seg),
     ),
-    constructors: (if-of,),
   ),
 )
-
-// Every exported constant names a registered kind, and every exported
-// constructor is listed by some descriptor, so a new kind can't miss
-// its descriptor. `dictionary(module)` lists a module's names.
-#let _check-coverage(kinds, modules) = {
-  for mod in modules {
-    for (name, v) in dictionary(mod) {
-      if name.starts-with("_") { continue }
-      if type(v) == dictionary {
-        _internal(
-          v.at("kind", default: none) in kinds,
-          name
-            + " has kind "
-            + repr(v.at("kind", default: none))
-            + ", which has no descriptor.",
-        )
-      } else if type(v) == function {
-        _internal(
-          kinds.values().any(d => d.constructors.any(((f, _)) => f == v)),
-          "constructor " + name + " is in no descriptor's constructors.",
-        )
-      }
-    }
-  }
-}
-
-#_check-coverage(_kinds, (_leaf-mod, _format-mod, _structure-mod))
-
-// The constructors' schema check (_require-schema) knows the kinds by
-// name, since it sits below this registry: the two lists must agree.
-#let _check-kind-names(kinds, names) = {
-  _internal(
-    kinds.keys().sorted() == names.sorted(),
-    "the registered kinds "
-      + repr(kinds.keys().sorted())
-      + " differ from structure.typ's _schema-kinds "
-      + repr(names.sorted())
-      + ".",
-  )
-}
-
-#_check-kind-names(_kinds, _schema-kinds)
 
 // A node of a kind the registry doesn't know (hand-built) behaves as a
 // leaf, as it did before the registry.

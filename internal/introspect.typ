@@ -13,7 +13,9 @@
 
 #import "core/error.typ": _a, _fail, _problem
 #import "kinds/registry.typ": _kinds, _descriptor
-#import "kinds/structure.typ": _kind-label, _require-schema
+#import "kinds/catalog.typ": _constructor
+#import "kinds/structure.typ": _require-schema
+#import "kinds/walk.typ": _kind-label
 #import "kinds/traverse.typ": _children, _paths-where
 #import "kinds/constraint.typ": _constraint-rows
 
@@ -159,7 +161,7 @@
 
 // What paths-of-kind looks for, as (kind, test, name): a schema node
 // finds the nodes of its kind it _matches, a constructor the nodes its
-// descriptor's test holds for (registry.typ), and anything else is of
+// test holds for (catalog.typ), and anything else is of
 // no kind, which no search takes. `name` says what the query was, for
 // the panic: a whole node's repr can run to pages.
 #let _query(kind) = if type(kind) == dictionary and "kind" in kind {
@@ -177,11 +179,10 @@
     } else { "a node of kind " + repr(kind.kind) },
   )
 } else if type(kind) == function {
-  for (name, d) in _kinds {
-    let hit = d.constructors.find(((f, _)) => f == kind)
-    if hit != none { return (kind: name, test: hit.at(1), name: repr(kind)) }
+  let c = _constructor(kind)
+  if c == none { (kind: none, name: repr(kind)) } else {
+    (kind: c.kind, test: c.test, name: repr(kind))
   }
-  (kind: none, name: repr(kind))
 } else { (kind: none, name: repr(kind)) }
 
 // Container kinds (`object`, `array`) are deliberately rejected — the
