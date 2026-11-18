@@ -18,16 +18,16 @@
   type: "object",
   properties: (a: (type: "string")),
 ))
-#assert.eq(validate((b: 1), schema: closed).map(e => e.code), ("unknown-key",))
+#assert.eq(validate(closed, (b: 1)).map(e => e.code), ("unknown-key",))
 
 // String length counts grapheme clusters: e plus a combining accent.
 #assert.eq(
-  validate("e\u{301}", schema: string(min-length: 2)).map(e => e.got),
+  validate(string(min-length: 2), "e\u{301}").map(e => e.got),
   (1,),
 )
 
 // multipleOf on floats uses a tolerance.
-#assert.eq(validate(0.3, schema: number(multiple-of: 0.1)), ())
+#assert.eq(validate(number(multiple-of: 0.1), 0.3), ())
 
 // uniqueItems compares items as the model holds them.
 #let pairs = schema-from-json-schema((
@@ -39,11 +39,11 @@
   ),
 ))
 #assert.eq(
-  validate(((a: 1, b: none), (a: 1)), schema: pairs).map(e => e.code),
+  validate(pairs, ((a: 1, b: none), (a: 1))).map(e => e.code),
   ("unique",),
 )
 #assert.eq(
-  validate(((a: 1, b: none), (a: 1)), schema: pairs, strict-null: true).map(
+  validate(pairs, ((a: 1, b: none), (a: 1)), strict-null: true).map(
     e => e.code,
   ),
   ("type",),
@@ -54,7 +54,7 @@
   uniqueItems: true,
   items: (type: "object", additionalProperties: true),
 ))
-#assert.eq(validate(((a: 1, b: none), (a: 1)), schema: bags), ())
+#assert.eq(validate(bags, ((a: 1, b: none), (a: 1))), ())
 
 // if / then / else beside other keywords: `then: {required: ["b"]}`
 // requires a property the node declares, and `if` is open, so it holds
@@ -65,12 +65,12 @@
   "if": (properties: (a: (const: "x"))),
   then: (required: ("b",)),
 ))
-#assert.eq(validate((a: "x", b: "y"), schema: kinded), ())
-#assert.eq(validate((a: "y"), schema: kinded), ())
-#assert.eq(validate((a: "x"), schema: kinded).map(e => e.code), ("required",))
+#assert.eq(validate(kinded, (a: "x", b: "y")), ())
+#assert.eq(validate(kinded, (a: "y")), ())
+#assert.eq(validate(kinded, (a: "x")).map(e => e.code), ("required",))
 
 // integer accepts 1.0 and keeps it a float.
 #assert.eq(
-  type(coerce(1.0, schema: schema-from-json-schema((type: "integer")))),
+  type(coerce(schema-from-json-schema((type: "integer")), 1.0)),
   float,
 )

@@ -14,16 +14,16 @@
 #assert.eq(str-map.additional, string())
 
 // All-strings map: arbitrary keys, every value validated.
-#assert.eq(validate((en: "English", fr: "Français"), schema: str-map), ())
+#assert.eq(validate(str-map, (en: "English", fr: "Français")), ())
 
-#let map-errs = validate((en: "English", fr: 42), schema: str-map)
+#let map-errs = validate(str-map, (en: "English", fr: 42))
 #assert.eq(map-errs.len(), 1)
 #assert.eq(map-errs.at(0).path, ("fr",))
 #assert(map-errs.at(0).message.contains("expected string"))
 
 // Coerce passes through every key, dropping nulls.
 #assert.eq(
-  coerce((a: "x", b: "y", c: none), schema: str-map),
+  coerce(str-map, (a: "x", b: "y", c: none)),
   (a: "x", b: "y"),
 )
 
@@ -36,15 +36,15 @@
 )
 
 // Declared key validated per properties; extras per `additional`.
-#assert.eq(validate((name: "Ada", year: 1815, age: 200), schema: mixed), ())
+#assert.eq(validate(mixed, (name: "Ada", year: 1815, age: 200)), ())
 
 // Wrong type on a declared key still errors via the property schema.
-#let mixed-err = validate((name: 1, year: 1815), schema: mixed)
+#let mixed-err = validate(mixed, (name: 1, year: 1815))
 #assert.eq(mixed-err.len(), 1)
 #assert.eq(mixed-err.at(0).path, ("name",))
 
 // Wrong type on an extra errors via `additional`.
-#let extra-err = validate((name: "Ada", year: "1815"), schema: mixed)
+#let extra-err = validate(mixed, (name: "Ada", year: "1815"))
 #assert.eq(extra-err.len(), 1)
 #assert.eq(extra-err.at(0).path, ("year",))
 #assert(extra-err.at(0).message.contains("expected number"))
@@ -54,23 +54,24 @@
 #let permissive = object((name: string()), additional: true)
 // Any extra accepted without validation.
 #assert.eq(
-  validate(
-    (name: "Ada", anything: (nested: ("array",)), other: 42),
-    schema: permissive,
-  ),
+  validate(permissive, (
+    name: "Ada",
+    anything: (nested: ("array",)),
+    other: 42,
+  )),
   (),
 )
 
 // Coerce preserves extras verbatim — no recursion into them.
 #assert.eq(
-  coerce((name: "Ada", whatever: (a: 1, b: 2)), schema: permissive),
+  coerce(permissive, (name: "Ada", whatever: (a: 1, b: 2))),
   (name: "Ada", whatever: (a: 1, b: 2)),
 )
 
 // --- strict path unchanged (no `additional`) ------------------------
 
 #let strict = object((name: string()))
-#let strict-err = validate((name: "Ada", year: 1815), schema: strict)
+#let strict-err = validate(strict, (name: "Ada", year: 1815))
 #assert.eq(strict-err.len(), 1)
 #assert(strict-err.at(0).message.contains("unknown key"))
 
@@ -128,12 +129,12 @@
 )
 #assert.eq(open-required.required-keys, ("id",))
 // And the runtime still flags it missing if absent…
-#let missing = validate((:), schema: open-required)
+#let missing = validate(open-required, (:))
 #assert.eq(missing.len(), 1)
 #assert(missing.at(0).message.contains("missing required key \"id\""))
 // …and validates the value against `additional` when present.
-#assert.eq(validate((id: "abc"), schema: open-required), ())
-#let wrong-type = validate((id: 1), schema: open-required)
+#assert.eq(validate(open-required, (id: "abc")), ())
+#let wrong-type = validate(open-required, (id: 1))
 #assert.eq(wrong-type.len(), 1)
 #assert(wrong-type.at(0).message.contains("expected string"))
 
@@ -141,13 +142,10 @@
 //
 // A pure map of objects: error inside one entry surfaces the real key.
 #let book-map = map(object((title: string()), required-keys: ("title",)))
-#let bad-books = validate(
-  (
-    one: (title: "Ulysses"),
-    two: (title: 42),
-  ),
-  schema: book-map,
-)
+#let bad-books = validate(book-map, (
+  one: (title: "Ulysses"),
+  two: (title: 42),
+))
 #assert.eq(bad-books.len(), 1)
 #assert.eq(bad-books.at(0).path, ("two", "title"))
 
@@ -165,8 +163,8 @@
 #let required-map = map(string(), required-keys: ("id",))
 #assert.eq(required-map.required-keys, ("id",))
 #assert.eq(required-map.additional, string())
-#assert.eq(validate((id: "abc", other: "ok"), schema: required-map), ())
-#let missing-id = validate((other: "ok"), schema: required-map)
+#assert.eq(validate(required-map, (id: "abc", other: "ok")), ())
+#let missing-id = validate(required-map, (other: "ok"))
 #assert.eq(missing-id.len(), 1)
 #assert(missing-id.at(0).message.contains("missing required key \"id\""))
 
@@ -174,11 +172,14 @@
 //
 // Null extras are dropped like declared null keys, but the object
 // itself is present, so it stays a (possibly empty) dict.
-#assert.eq(coerce((a: none, b: none), schema: map(string())), (:))
+#assert.eq(coerce(map(string()), (a: none, b: none)), (:))
 #assert.eq(
-  coerce((id: "x", a: none, b: none), schema: map(string(), required-keys: (
-    "id",
-  ))),
+  coerce(
+    map(string(), required-keys: (
+      "id",
+    )),
+    (id: "x", a: none, b: none),
+  ),
   (id: "x"),
 )
 

@@ -41,33 +41,40 @@
 
 // Validation unchanged: the number gate, the integral gate, then the
 // number rows.
-#assert.eq(validate(2, schema: integer()), ())
-#assert.eq(validate(2.0, schema: integer()), ())
-#assert.eq(validate(1.5, schema: integer()).map(e => e.code), ("integer",))
-#assert.eq(validate("x", schema: integer()).map(e => e.code), ("type",))
+#assert.eq(validate(integer(), 2), ())
+#assert.eq(validate(integer(), 2.0), ())
+#assert.eq(validate(integer(), 1.5).map(e => e.code), ("integer",))
+#assert.eq(validate(integer(), "x").map(e => e.code), ("type",))
 #assert.eq(
-  validate(1.5, schema: (..integer(), minimum: 2)).map(e => e.code),
+  validate((..integer(), minimum: 2), 1.5).map(e => e.code),
   ("integer", "range"),
 )
 #assert.eq(
-  validate(1, schema: (..integer(), minimum: 2)).map(e => e.code),
+  validate((..integer(), minimum: 2), 1).map(e => e.code),
   ("range",),
 )
-#assert.eq(coerce(3, schema: integer()), 3)
+#assert.eq(coerce(integer(), 3), 3)
 
 // `["number", "integer"]` overlaps and still takes 1 and 1.5.
 #let overlap = schema-from-json-schema((type: ("number", "integer")))
 #assert.eq(overlap, any-of((number(), integer())))
-#assert.eq(validate(1, schema: overlap), ())
-#assert.eq(validate(1.5, schema: overlap), ())
+#assert.eq(validate(overlap, 1), ())
+#assert.eq(validate(overlap, 1.5), ())
 
 // Union and `not` errors name an integer member `integer`.
 #let int-or-str = any-of((integer(), string()))
 #assert.eq(
-  validate((1, 2), schema: int-or-str).at(0).message,
+  validate(int-or-str, (1, 2)).at(0).message,
   "expected a value matching one of: integer | string; none matched.",
 )
 #assert.eq(
-  validate(1, schema: not-of(integer())).at(0).message,
+  validate(not-of(integer()), 1).at(0).message,
   "expected a value not matching the negated integer schema.",
 )
+
+// Bounds must leave an integer, not just a number; ones that do are
+// fine however they are written.
+#assert.eq(integer(minimum: 1.5, maximum: 2).maximum, 2)
+#assert.eq(integer(exclusive-minimum: 1, maximum: 2).maximum, 2)
+#assert.eq(integer(minimum: -1.5, exclusive-maximum: -0.5).minimum, -1.5)
+#assert.eq(integer(minimum: 1e300, maximum: 1e300).minimum, 1e300)

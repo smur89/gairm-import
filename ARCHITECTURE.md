@@ -13,22 +13,23 @@ representation and the same walk.
 ## Codemap
 
 ```text
-lib.typ                     # the only public surface
+lib.typ                     # the only public surface: re-exports, no definitions
 internal/core/              # L0: input forms, errors, the walk context, JSON Pointer
 internal/kinds/             # L1: constructors, formats, constraint rows, the kind registry, traversal
 internal/engine.typ         # L2: the one walk over schema and value
 internal/json-schema/       # L3: the JSON Schema translator
 internal/lens.typ           # L3: lens-get / lens-put / lens-over and the field edits
 internal/introspect.typ     # L3: describe-schema, paths-of-kind
+internal/run.typ            # L3: validate / coerce / parse and format-errors
 tests/*.typ                 # assertions, one file per public concept
 tests/panics/               # one case per place the package panics
 tests/package/              # compiled against the staged package; readme-* and reference-* mirror the docs
 ```
 
 `make check-layers` enforces the layering; the rule table in the Makefile
-is authoritative. `lib.typ` reaches internals through underscore aliases,
-so a name that starts with `_` is never part of the API, and
-`tests/exports.typ` pins what is.
+is authoritative. `lib.typ` only re-exports public names, so a `*` import
+brings in nothing internal, and `tests/exports.typ` pins the list. A name
+that starts with `_` is never part of the API.
 
 ## Schemas are data
 
@@ -50,8 +51,8 @@ for a named kind outside `internal/kinds/` unless it is marked
 ## The walk
 
 `engine.typ`'s `_walk(schema, value, ctx) -> (errors, value, fatal)` is
-the only walk; `validate`, `coerce` and `parse` are views over one result,
-so they can't disagree. Its header explains the three parts, and
+the only walk; `validate`, `coerce` and `parse` (`run.typ`) are views over
+one result, so they can't disagree. Its header explains the three parts, and
 `core/ctx.typ`'s explains the context and how null counts as absent.
 Composite kinds recurse through the `recur` argument their `walk`
 receives.

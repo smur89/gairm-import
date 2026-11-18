@@ -20,6 +20,9 @@
 // cycle (e.g. `definitions.alias → alias`) — panic before Typst's
 // recursion limit fires deep in the stack.
 #let _resolve-ref(ref, root, seen) = {
+  if ref in ("#", "#/") {
+    _bail("$ref " + repr(ref) + " cannot reference the document root.")
+  }
   if not ref.starts-with("#/") {
     _bail(
       "only internal $ref (starting with \"#/\") is supported, got: "
@@ -35,9 +38,6 @@
         + repr(ref)
         + ".",
     )
-  }
-  if ref == "#/" {
-    _bail("$ref \"#/\" cannot reference the document root.")
   }
   // The fragment is a URI's, so it is percent-decoded into the pointer
   // (RFC 3986) before the pointer is read (RFC 6901): `%25` is `%`.

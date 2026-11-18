@@ -38,15 +38,25 @@
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": (
-  _require-schema, _is-schema, _is-object, _object-with,
+  _require-schema, _is-schema, _is-object, _object-with, _kind-label,
 )
-#import "core/error.typ": _bail, _fail, _problem, _not-in, _require-key-names
+#import "core/error.typ": (
+  _a, _bail, _fail, _problem, _not-in, _require-bool, _require-key-names,
+)
 
 // A node entering from user code: a schema, and an object one rebuilt
 // through object() so it can't break the constructor's invariants.
 #let _checked(node, who) = {
   _require-schema(node, who)
-  if _is-object(node) { _object-with(node) } else { node }
+  if _is-object(node) { _object-with(node, who: who) } else { node }
+}
+
+// A field name an edit takes: panics, naming `op`, unless `key` is a
+// string.
+#let _require-key(key, op) = {
+  if type(key) != str {
+    _fail(op, _problem("key", "a string", repr(key)))
+  }
 }
 
 // What an argument is, for the order panic below.
@@ -77,7 +87,7 @@
 /// -> dictionary
 #let lens-get(schema, at) = {
   let (schema, path) = _subject(schema, at, "lens-get")
-  _get-at(schema, path)
+  _get-at(schema, path, "lens-get")
 }
 
 // `put` because `set` is a Typst keyword.
@@ -91,7 +101,7 @@
 /// -> dictionary
 #let lens-put(schema, at, value) = {
   let (schema, path) = _subject(schema, at, "lens-put")
-  _set-at(schema, path, _checked(value, "lens-put value"))
+  _set-at(schema, path, _checked(value, "lens-put value"), "lens-put")
 }
 
 /// Returns a new schema with the node at `at` replaced by `fn` applied
@@ -104,10 +114,12 @@
 /// -> dictionary
 #let lens-over(schema, at, fn) = {
   let (schema, path) = _subject(schema, at, "lens-over")
-  _set-at(schema, path, _checked(
-    fn(_get-at(schema, path)),
-    "lens-over result",
-  ))
+  _set-at(
+    schema,
+    path,
+    _checked(fn(_get-at(schema, path, "lens-over")), "lens-over result"),
+    "lens-over",
+  )
 }
 // The skeleton the object edits share: check the schema and the
 // location once, find the object at `at`, let `edit` check it and
@@ -116,16 +128,15 @@
 #let _edit-object(schema, at, op, edit) = {
   _require-schema(schema, op + "'s first argument")
   let path = _location-path(at, op)
-  let parent = _get-at(schema, path)
+  let parent = _get-at(schema, path, op)
   if not _is-object(parent) {
-    _bail(
-      op,
-      "expects an object schema at the lens target, got kind="
-        + repr(parent.kind)
-        + ".",
-    )
+    _fail(op, _problem(
+      "location",
+      "an object schema",
+      _a(_kind-label(parent)) + " schema",
+    ))
   }
-  _set-at(schema, path, _object-with(parent, ..edit(parent)))
+  _set-at(schema, path, _object-with(parent, who: op, ..edit(parent)), op)
 }
 
 // Collisions panic instead of overwriting silently — for the
@@ -144,9 +155,8 @@
 /// - required (bool): Whether the object also requires the field.
 /// -> dictionary
 #let add-field(schema, at, key, sub-schema, required: false) = {
-  if type(required) != bool {
-    _fail("add-field", _problem("required", "true or false", repr(required)))
-  }
+  _require-bool(required, "add-field", "required")
+  _require-key(key, "add-field")
   _edit-object(schema, at, "add-field", parent => {
     if key in parent.shape {
       _bail(
@@ -231,11 +241,9 @@
 /// - at (dictionary, array): The object: a lens or a path array.
 /// - key (str): The field to remove.
 /// -> dictionary
-#let remove-field(schema, at, key) = _edit-object(
-  schema,
-  at,
-  "remove-field",
-  parent => {
+#let remove-field(schema, at, key) = {
+  _require-key(key, "remove-field")
+  _edit-object(schema, at, "remove-field", parent => {
     if key not in parent.shape {
       _bail("remove-field", _not-in(
         "key " + repr(key),
@@ -261,5 +269,5 @@
       required-keys: parent.required-keys.filter(k => k != key),
       dependent-required: dependent,
     )
-  },
-)
+  })
+}

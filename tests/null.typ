@@ -170,7 +170,7 @@
     ),
     (a: none),
     ((), (:)),
-    ((((), "dependent"),), (a: none)),
+    (((("b",), "dependent"),), (a: none)),
   ),
   // A free-form object (no fields, `additional: true`, like JSON
   // Resume's `custom`) passes through as given, nulls included.
@@ -201,18 +201,18 @@
   for (strict, (want, model)) in ((false, default), (true, strict)) {
     let label = repr(value) + " (strict-null: " + repr(strict) + ")"
     assert.eq(
-      codes(validate(value, schema: schema, strict-null: strict)),
+      codes(validate(schema, value, strict-null: strict)),
       want,
       message: label,
     )
     if model != none {
       assert.eq(
-        coerce(value, schema: schema, strict-null: strict),
+        coerce(schema, value, strict-null: strict),
         model,
         message: label,
       )
       if want == () and type(value) == dictionary {
-        assert.eq(parse(value, schema: schema, strict-null: strict), model)
+        assert.eq(parse(schema, value, strict-null: strict), model)
       }
     }
   }
@@ -220,16 +220,16 @@
 
 // A strict-mode null names itself in the error.
 #let strict-req = validate(
+  object((name: string()), required-keys: ("name",)),
   (name: none),
-  schema: object((name: string()), required-keys: ("name",)),
   strict-null: true,
 )
 #assert.eq(strict-req.at(0).message, "expected string, got null.")
 #assert.eq(strict-req.at(0).got, "null")
 #assert.eq(
   validate(
+    field(any-of((string(), enum-of((1,))))),
     (f: none),
-    schema: field(any-of((string(), enum-of((1,))))),
     strict-null: true,
   )
     .at(0)
@@ -238,8 +238,8 @@
 )
 #assert.eq(
   validate(
+    (..array-of(nullable(string())), unique-items: true),
     (none, "a", "b", none),
-    schema: (..array-of(nullable(string())), unique-items: true),
     strict-null: true,
   )
     .at(0)
@@ -248,39 +248,39 @@
 )
 
 // A null section of a document is absent too.
-#assert.eq(validate((basics: none), schema: resume-schema), ())
+#assert.eq(validate(resume-schema, (basics: none)), ())
 // An empty document is valid; only a null one panics
 // (tests/panics/).
-#assert.eq(validate((:), schema: resume-schema), ())
+#assert.eq(validate(resume-schema, (:)), ())
 
 // ---- the union rule: null-type never competes for a non-null value ---
 
 #for strict in (false, true) {
   let wrapped = validate(
+    object((name: nullable(string()))),
     (name: 1),
-    schema: object((name: nullable(string()))),
     strict-null: strict,
   )
-  assert.eq(wrapped, validate((name: 1), schema: object((name: string()))))
+  assert.eq(wrapped, validate(object((name: string())), (name: 1)))
   assert.eq(wrapped.at(0).message, "expected string, got integer.")
   // Several non-null members: the summary names only them.
   assert.eq(
     validate(
+      any-of((string(), enum-of((1,)), null-type)),
       true,
-      schema: any-of((string(), enum-of((1,)), null-type)),
       strict-null: strict,
     ),
-    validate(true, schema: any-of((string(), enum-of((1,))))),
+    validate(any-of((string(), enum-of((1,)))), true),
   )
   // null-type rejects anything else.
   assert.eq(
-    validate(1, schema: null-type, strict-null: strict).at(0).message,
+    validate(null-type, 1, strict-null: strict).at(0).message,
     "expected null, got integer.",
   )
 }
 // A union of null-type alone still judges a non-null value.
 #assert.eq(
-  codes(validate(1, schema: any-of((null-type,)), strict-null: true)),
+  codes(validate(any-of((null-type,)), 1, strict-null: true)),
   (((), "type"),),
 )
 
@@ -301,19 +301,19 @@
   otherwise: number(),
 ))
 #for schema in (null-or-word, null-if-str) {
-  assert.eq(validate((f: none), schema: schema), ())
-  assert.eq(coerce((f: none), schema: schema), (:))
+  assert.eq(validate(schema, (f: none)), ())
+  assert.eq(coerce(schema, (f: none)), (:))
 }
-#assert.eq(validate((f: none), schema: null-or-word, strict-null: true), ())
-#assert.eq(coerce((f: none), schema: null-or-word, strict-null: true), (
+#assert.eq(validate(null-or-word, (f: none), strict-null: true), ())
+#assert.eq(coerce(null-or-word, (f: none), strict-null: true), (
   f: none,
 ))
 #assert.eq(
-  codes(validate((f: "a"), schema: null-or-word, strict-null: true)),
+  codes(validate(null-or-word, (f: "a"), strict-null: true)),
   ((("f",), "length"),),
 )
 #assert.eq(
-  validate((f: none), schema: null-if-str, strict-null: true).map(e => (
+  validate(null-if-str, (f: none), strict-null: true).map(e => (
     e.code,
     e.message,
   )),
@@ -327,33 +327,32 @@
 // an (empty) dict.
 
 #let section = object((name: string(), summary: content-type))
-#assert.eq(coerce((name: none, summary: none), schema: section), (:))
-#assert.eq(coerce((:), schema: section), (:))
-#assert.eq(coerce((nickname: "Al", color: "blue"), schema: section), (:))
+#assert.eq(coerce(section, (name: none, summary: none)), (:))
+#assert.eq(coerce(section, (:)), (:))
+#assert.eq(coerce(section, (nickname: "Al", color: "blue")), (:))
 #assert.eq(
-  coerce(
-    (basics: (name: none, email: none, summary: none)),
-    schema: resume-schema-strict,
-  ),
+  coerce(resume-schema-strict, (
+    basics: (name: none, email: none, summary: none),
+  )),
   (basics: (:)),
 )
-#assert.eq(parse(bytes("{}"), schema: resume-schema), (:))
+#assert.eq(parse(resume-schema, bytes("{}")), (:))
 #assert.eq(
-  parse(bytes("{\"basics\":{\"name\":null}}"), schema: resume-schema),
+  parse(resume-schema, bytes("{\"basics\":{\"name\":null}}")),
   (basics: (:)),
 )
 
 // A required key holding `{}` validates, so it survives coercion.
 #let holder = object((cfg: object((x: string()))), required-keys: ("cfg",))
-#assert.eq(validate((cfg: (:)), schema: holder), ())
-#assert.eq(coerce((cfg: (:)), schema: holder), (cfg: (:)))
+#assert.eq(validate(holder, (cfg: (:))), ())
+#assert.eq(coerce(holder, (cfg: (:))), (cfg: (:)))
 
 // Null content elements drop; the rest still wrap.
 #let chs = coerce(
-  (none, "first", none, "second"),
-  schema: array-of(
+  array-of(
     content-type,
   ),
+  (none, "first", none, "second"),
 )
 #assert.eq(chs.map(type), (content, content))
 
@@ -364,31 +363,34 @@
 // indices.
 
 #let at-least-one = (..array-of(object((y: string()))), min-items: 1)
-#assert.eq(validate((ys: ((y: none),)), schema: object((ys: at-least-one))), ())
-#assert.eq(coerce(((y: none),), schema: at-least-one), ((:),))
+#assert.eq(validate(object((ys: at-least-one)), (ys: ((y: none),))), ())
+#assert.eq(coerce(at-least-one, ((y: none),)), ((:),))
 
 #let unique = (
   ..array-of(object((x: string(), y: object((:))))),
   unique-items: true,
 )
 #let distinct = ((x: "a", y: (:)), (x: "a"))
-#assert.eq(validate((us: distinct), schema: object((us: unique))), ())
-#assert.eq(coerce(distinct, schema: unique), distinct)
+#assert.eq(validate(object((us: unique)), (us: distinct)), ())
+#assert.eq(coerce(unique, distinct), distinct)
 #assert.eq(
-  validate((us: ((x: "a", y: none), (x: "b"))), schema: object((us: unique))),
+  validate(object((us: unique)), (us: ((x: "a", y: none), (x: "b")))),
   (),
 )
 // Items that differ only by a null key are duplicates, nested too.
 #let null-dupes = ((x: "a", y: none), (x: "a"))
-#assert.eq(coerce(null-dupes, schema: unique), ((x: "a"), (x: "a")))
-#let dupe-errs = validate((us: null-dupes), schema: object((us: unique)))
+#assert.eq(coerce(unique, null-dupes), ((x: "a"), (x: "a")))
+#let dupe-errs = validate(object((us: unique)), (us: null-dupes))
 #assert.eq(dupe-errs.len(), 1)
 #assert(dupe-errs.at(0).message.contains("indices 0 and 1"))
 #assert.eq(
-  validate(((y: (z: none)), (y: (:))), schema: (
-    ..array-of(object((y: object((z: string()))))),
-    unique-items: true,
-  )).len(),
+  validate(
+    (
+      ..array-of(object((y: object((z: string()))))),
+      unique-items: true,
+    ),
+    ((y: (z: none)), (y: (:))),
+  ).len(),
   1,
 )
 
@@ -417,9 +419,9 @@
   meta: none,
   custom: (myTool: none),
 )
-#assert.eq(validate(raw, schema: resume-schema), ())
+#assert.eq(validate(resume-schema, raw), ())
 // resume-schema-strict, so highlights coerce to content.
-#let model = coerce(raw, schema: resume-schema-strict)
+#let model = coerce(resume-schema-strict, raw)
 #assert.eq(model.basics, (name: "Alice"))
 #assert.eq(model.work.at(0).keys(), ("name", "position", "highlights"))
 #assert.eq(model.work.at(0).highlights.map(type), (content, content))

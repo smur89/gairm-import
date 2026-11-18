@@ -34,11 +34,11 @@
 }
 
 #let (deep-array, deep-array-value) = nested-arrays(30)
-#assert.eq(validate(deep-array-value, schema: deep-array), ())
-#assert.eq(coerce(deep-array-value, schema: deep-array), deep-array-value)
+#assert.eq(validate(deep-array, deep-array-value), ())
+#assert.eq(coerce(deep-array, deep-array-value), deep-array-value)
 #let (deep-object, deep-object-value) = nested-objects(30)
-#assert.eq(validate(deep-object-value, schema: deep-object), ())
-#assert.eq(parse(deep-object-value, schema: deep-object), deep-object-value)
+#assert.eq(validate(deep-object, deep-object-value), ())
+#assert.eq(parse(deep-object, deep-object-value), deep-object-value)
 
 // ---- overlapping unions -------------------------------------------------
 //
@@ -59,7 +59,7 @@
   v
 }
 #assert.eq(
-  parse((a: deep-value), schema: object((a: overlapping))),
+  parse(object((a: overlapping)), (a: deep-value)),
   (a: deep-value),
 )
 
@@ -70,25 +70,25 @@
 // with what coerce returns.
 #let free-form = object((:), additional: true)
 #let unique-bags = (..array-of(free-form), unique-items: true)
-#assert.eq(validate(((a: none), (:)), schema: unique-bags), ())
-#assert.eq(coerce(((a: none), (:)), schema: unique-bags), ((a: none), (:)))
+#assert.eq(validate(unique-bags, ((a: none), (:))), ())
+#assert.eq(coerce(unique-bags, ((a: none), (:))), ((a: none), (:)))
 // Null keys in a declared shape are still dropped before comparing.
 #let unique-shaped = (..array-of(object((a: string()))), unique-items: true)
 #assert.eq(
-  validate(((a: none), (:)), schema: unique-shaped).map(e => e.code),
+  validate(unique-shaped, ((a: none), (:))).map(e => e.code),
   ("unique",),
 )
 // A `not` passes its value through as given, nulls included, so these
 // two are distinct too.
 #let unique-not = (..array-of(not-of(number())), unique-items: true)
-#assert.eq(validate(((a: 1, b: none), (a: 1)), schema: unique-not), ())
+#assert.eq(validate(unique-not, ((a: 1, b: none), (a: 1))), ())
 // A datetime and the ISO string it coerces to are the same item.
 #let unique-dates = (..array-of(string(format: "date")), unique-items: true)
 #assert.eq(
-  validate(
-    ("2024-01-02", datetime(year: 2024, month: 1, day: 2)),
-    schema: unique-dates,
-  ).map(e => e.code),
+  validate(unique-dates, (
+    "2024-01-02",
+    datetime(year: 2024, month: 1, day: 2),
+  )).map(e => e.code),
   ("unique",),
 )
 
@@ -97,8 +97,8 @@
 // A one-of with several matching members is a validation error, but
 // the first match still models the value, so coerce returns it.
 #let either = one-of((string(), string()))
-#assert.eq(validate("x", schema: either).map(e => e.code), ("union",))
-#assert.eq(coerce("x", schema: either), "x")
+#assert.eq(validate(either, "x").map(e => e.code), ("union",))
+#assert.eq(coerce(either, "x"), "x")
 
 // ---- one input rule --------------------------------------------------------
 //
@@ -108,14 +108,14 @@
 // schema's root does not take it (then all three panic with the
 // path(..) hint; tests/panics/).
 #let numbers = array-of(number())
-#assert.eq(parse((1, 2), schema: numbers), (1, 2))
-#assert.eq(parse(bytes("[1, 2]"), schema: numbers), (1, 2))
-#assert.eq(parse("2024-01-15", schema: string(format: "date")), "2024-01-15")
+#assert.eq(parse(numbers, (1, 2)), (1, 2))
+#assert.eq(parse(numbers, bytes("[1, 2]")), (1, 2))
+#assert.eq(parse(string(format: "date"), "2024-01-15"), "2024-01-15")
 // A `.json` string the root takes is a value like any other.
-#assert.eq(validate("notes.json", schema: string()), ())
-#assert.eq(parse("notes.json", schema: string()), "notes.json")
+#assert.eq(validate(string(), "notes.json"), ())
+#assert.eq(parse(string(), "notes.json"), "notes.json")
 // A string the root rejects that names no file is a type error.
 #assert.eq(
-  validate("notes", schema: object((:))).map(e => e.code),
+  validate(object((:)), "notes").map(e => e.code),
   ("type",),
 )

@@ -18,54 +18,51 @@
   (bool-type, false),
   (array-of(string()), ("a", "b")),
 ) {
-  assert.eq(coerce(value, schema: schema), value)
+  assert.eq(coerce(schema, value), value)
 }
 
-#assert.eq(type(coerce("summary text", schema: content-type)), content)
+#assert.eq(type(coerce(content-type, "summary text")), content)
 
 // Every element of an array of content wraps.
-#let cs = coerce(("one", "two"), schema: array-of(content-type))
+#let cs = coerce(array-of(content-type), ("one", "two"))
 #assert.eq(cs.len(), 2)
 #assert.eq(type(cs.at(0)), content)
 #assert.eq(type(cs.at(1)), content)
 
 // An object: content fields wrap, the rest pass through.
 #let person = object((name: string(), summary: content-type, age: number()))
-#let coerced = coerce(
-  (name: "Alice", summary: "Hello", age: 30),
-  schema: person,
-)
+#let coerced = coerce(person, (name: "Alice", summary: "Hello", age: 30))
 #assert.eq(coerced.name, "Alice")
 #assert.eq(type(coerced.summary), content)
 #assert.eq(coerced.age, 30)
 
 // Missing keys stay absent, required or not.
-#assert.eq(coerce((name: "Bob"), schema: person), (name: "Bob"))
+#assert.eq(coerce(person, (name: "Bob")), (name: "Bob"))
 #assert.eq(
   coerce(
-    (title: "hi"),
-    schema: object(
+    object(
       (title: string(), body: content-type),
       required-keys: ("title", "body"),
     ),
+    (title: "hi"),
   ),
   (title: "hi"),
 )
 
 // The engine walks any schema: a hand-built extension schema, nested.
 #let model = coerce(
+  object((
+    greeting: content-type,
+    rating: number(),
+    recipients: array-of(string()),
+    details: object((title: string(), bullets: array-of(content-type))),
+  )),
   (
     greeting: "Hello",
     rating: 5,
     recipients: ("world", "everyone"),
     details: (title: "Welcome", bullets: ("first point", "second point")),
   ),
-  schema: object((
-    greeting: content-type,
-    rating: number(),
-    recipients: array-of(string()),
-    details: object((title: string(), bullets: array-of(content-type))),
-  )),
 )
 #assert.eq(type(model.greeting), content)
 #assert.eq(model.rating, 5)

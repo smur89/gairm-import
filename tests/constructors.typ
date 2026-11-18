@@ -180,17 +180,17 @@
   (("a", "a"), array-of(string(), unique-items: true), ("unique",)),
 ) {
   assert.eq(
-    validate(value, schema: schema).map(e => e.code),
+    validate(schema, value).map(e => e.code),
     codes,
     message: repr(value),
   )
 }
 #assert.eq(
-  validate("abcd", schema: string(max-length: 3)).at(0).message,
+  validate(string(max-length: 3), "abcd").at(0).message,
   "expected string length ≤ 3, got 4.",
 )
 #assert.eq(
-  validate("b", schema: string(pattern: "^a", expected: "an a-word")),
+  validate(string(pattern: "^a", expected: "an a-word"), "b"),
   (
     (
       path: (),
@@ -201,7 +201,7 @@
     ),
   ),
 )
-#assert.eq(coerce(("a", "b"), schema: array-of(string(), max-items: 2)), (
+#assert.eq(coerce(array-of(string(), max-items: 2), ("a", "b")), (
   "a",
   "b",
 ))

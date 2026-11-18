@@ -4,28 +4,31 @@
 // schema, an int index for a union member, "not" for a `not` member,
 // "if", "then" and "else" for a conditional's condition and branches.
 
-#import "../core/error.typ": _bail, _fail, _problem
+#import "../core/error.typ": _fail, _problem
 #import "registry.typ": _descriptor
 
 #let _children(s) = (_descriptor(s).children)(s)
 
 // Segments match by type as well as value, so `1.0` or `"0"` names no
-// union member.
-#let _child(s, seg) = {
+// union member. A bad segment panics naming `who`, the public function
+// that followed the path.
+#let _child(s, seg, who) = {
   let hit = _children(s).find(((k, ..)) => type(k) == type(seg) and k == seg)
-  if hit == none {
-    _bail(none, (_descriptor(s).bad-segment)(s, seg))
-  }
+  if hit == none { _fail(who, (_descriptor(s).bad-segment)(s, seg)) }
   hit.at(1)
 }
 
-#let _get-at(s, path) = path.fold(s, _child)
+#let _get-at(s, path, who) = path.fold(s, (n, seg) => _child(n, seg, who))
 
 // _child runs on the way down, so a bad segment panics the same way
 // from a put as from a get.
-#let _set-at(s, path, sub) = if path == () { sub } else {
+#let _set-at(s, path, sub, who) = if path == () { sub } else {
   let (head, ..rest) = path
-  (_descriptor(s).with-child)(s, head, _set-at(_child(s, head), rest, sub))
+  (_descriptor(s).with-child)(
+    s,
+    head,
+    _set-at(_child(s, head, who), rest, sub, who),
+  )
 }
 
 // Every (path, node) pair, pre-order.

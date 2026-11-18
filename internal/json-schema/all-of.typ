@@ -1,7 +1,8 @@
 // allOf: the object-merge subset. Each member translates on its own and
 // the objects merge into one; what the merge can't express bails here.
 
-#import "../kinds/structure.typ": object, nullable, _is-object
+#import "../kinds/structure.typ": object, nullable, _is-object, _kind-label
+#import "../core/error.typ": _a
 #import "keyword.typ": _bail
 
 // Whether a raw allOf member declares `additionalProperties` false or a
@@ -36,9 +37,9 @@
     if not _is-object(m) {
       _bail(
         who
-          + " must all be object schemas; got kind "
-          + repr(m.kind)
-          + ". Non-object composition is out of scope.",
+          + " must all be object schemas, got: "
+          + _a(_kind-label(m))
+          + " schema. Non-object composition is out of scope.",
       )
     }
   }

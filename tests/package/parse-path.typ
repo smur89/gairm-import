@@ -3,10 +3,10 @@
 #import "@preview/gairm-import:0.0.0": parse, object, string
 
 #let resume = parse(
-  path("../fixtures/resume-minimal.json"),
-  schema: object(
+  object(
     (basics: object((name: string()), additional: true)),
     additional: true,
   ),
+  path("../fixtures/resume-minimal.json"),
 )
 #assert.eq(resume.basics.name, "Seán Ó Murchú")

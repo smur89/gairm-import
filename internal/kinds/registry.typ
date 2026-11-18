@@ -20,16 +20,20 @@
 //                 array's elements as `name[]`)
 //   shorthand     schema => none, or (of, mark): describe-schema draws
 //                 the node as `of` with `mark` (a nullable as `X?`)
-//   bad-segment   (schema, segment) => what a lens says when the segment
-//                 names no child
-//   constructors  the public functions that build this kind
+//   bad-segment   (schema, segment) => the problem (error.typ) a lens
+//                 reports when the segment names no child
+//   constructors  the public functions that build this kind, as
+//                 (function, test) pairs: paths-of-kind's query by
+//                 that constructor finds the nodes the test holds for
+//                 (one-of the exclusive unions). A bare function is
+//                 a pair whose test holds for every node of the kind.
 
 #import "leaf.typ" as _leaf-mod
 #import "leaf.typ": (
   number, integer, enum-of, const-of, _leaf-walk, _string-check, _number-check,
   _integer-check, _bool-check, _null-check, _any-check, _enum-check,
 )
-#import "../core/error.typ": _internal, _not-in
+#import "../core/error.typ": _a, _internal, _not-in, _problem
 #import "format.typ" as _format-mod
 #import "format.typ": string, _string-kind-check
 #import "structure.typ" as _structure-mod
@@ -38,6 +42,9 @@
   _object-walk, _union-walk, _not-walk, _if-walk, _object-with, _schema-kinds,
   _kind-label,
 )
+
+// `nullable(X)`: an any-of of exactly X then null.
+#let _is-nullable(s) = s == nullable(s.members.first())
 
 // A conditional's children, as (segment, field): the lens segments are
 // the JSON Schema keywords, the fields if-of()'s arguments (`else` is a
@@ -56,11 +63,11 @@
   inline: false,
   shorthand: s => none,
   bad-segment: (s, seg) => (
-    "lens cannot descend into a leaf schema (kind="
-      + repr(s.kind)
-      + ") with segment "
+    message: "path segment "
       + repr(seg)
-      + "."
+      + " cannot enter "
+      + _a(s.kind)
+      + " schema, which has no children.",
   ),
   constructors: (),
   walk: none,
@@ -78,7 +85,9 @@
   inline: inline,
   shorthand: shorthand,
   bad-segment: bad-segment,
-  constructors: constructors,
+  constructors: constructors.map(c => if type(c) == array { c } else {
+    (c, _ => true)
+  }),
 )
 
 #let _kinds = (
@@ -111,7 +120,7 @@
   enum: _kind(
     check: _enum-check,
     suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
-    constructors: (enum-of, const-of),
+    constructors: (enum-of, (const-of, s => s.values.len() == 1)),
   ),
   // paths-of-kind only walks through the two plain containers: every
   // schema is full of them, so asking for one is more likely a slip
@@ -122,10 +131,10 @@
     inline: true,
     children: s => (("items", s.elem, "[]"),),
     with-child: (s, _, sub) => (..s, elem: sub),
-    bad-segment: (s, seg) => (
-      "lens segment for an array schema must be \"items\", got "
-        + repr(seg)
-        + "."
+    bad-segment: (s, seg) => _problem(
+      "path segment",
+      "\"items\" for an array schema",
+      repr(seg),
     ),
     constructors: (array-of,),
   ),
@@ -159,17 +168,19 @@
     } else { _object-with(s, additional: sub) },
     bad-segment: (s, seg) => if seg == "additionalProperties" {
       (
-        "lens segment \"additionalProperties\" requires the object's "
-          + "`additional` field to be a schema dict, got: "
+        message: "path segment \"additionalProperties\" needs the "
+          + "object's `additional` to be a schema, got: "
           + repr(s.at("additional", default: none))
-          + "."
+          + ".",
       )
     } else {
-      _not-in(
-        "lens path segment " + repr(seg),
-        "object shape",
-        "Valid keys",
-        s.shape.keys(),
+      (
+        message: _not-in(
+          "path segment " + repr(seg),
+          "object shape",
+          "Valid keys",
+          s.shape.keys(),
+        ),
       )
     },
     constructors: (object, map),
@@ -188,28 +199,32 @@
       members.at(i) = sub
       (..s, members: members)
     },
-    bad-segment: (s, seg) => (
-      "lens segment for a union schema must be a member index, 0 to "
+    bad-segment: (s, seg) => _problem(
+      "path segment",
+      "a member index, 0 to "
         + str(s.members.len() - 1)
-        + ", got "
-        + repr(seg)
-        + "."
+        + ", for a union schema",
+      repr(seg),
     ),
     // The header says which union; the members are listed below it.
     suffix: s => if s.exclusive { "one of" } else { "any of" },
     // `nullable(X)`, an any-of of exactly X then null, draws as `X?`.
-    shorthand: s => if s == nullable(s.members.first()) {
-      (of: s.members.first(), mark: "?")
-    },
-    constructors: (any-of, one-of, nullable),
+    shorthand: s => if _is-nullable(s) { (of: s.members.first(), mark: "?") },
+    constructors: (
+      (any-of, s => not s.exclusive),
+      (one-of, s => s.exclusive),
+      (nullable, _is-nullable),
+    ),
   ),
   "not": _kind(
     walk: _not-walk,
     // No header: the member's label, its lens segment, says it.
     children: s => (("not", s.member, "not"),),
     with-child: (s, _, sub) => (..s, member: sub),
-    bad-segment: (s, seg) => (
-      "lens segment for a not schema must be \"not\", got " + repr(seg) + "."
+    bad-segment: (s, seg) => _problem(
+      "path segment",
+      "\"not\" for a not schema",
+      repr(seg),
     ),
     constructors: (not-of,),
   ),
@@ -226,12 +241,12 @@
       let (_, field) = _if-parts.find(((k, _)) => k == seg)
       (..s, (field): sub)
     },
-    bad-segment: (s, seg) => (
-      "lens segment for an if schema must be one of "
+    bad-segment: (s, seg) => _problem(
+      "path segment",
+      "one of "
         + _if-present(s).map(((k, _)) => repr(k)).join(", ")
-        + ", got "
-        + repr(seg)
-        + "."
+        + " for an if schema",
+      repr(seg),
     ),
     constructors: (if-of,),
   ),
@@ -254,7 +269,7 @@
         )
       } else if type(v) == function {
         _internal(
-          kinds.values().any(d => v in d.constructors),
+          kinds.values().any(d => d.constructors.any(((f, _)) => f == v)),
           "constructor " + name + " is in no descriptor's constructors.",
         )
       }

@@ -357,11 +357,7 @@
 
 // Under an optional field, so null can be tried in both modes.
 #let check(js, value, strict, valid) = {
-  let errs = validate(
-    (x: value),
-    schema: object((x: T(js))),
-    strict-null: strict,
-  )
+  let errs = validate(object((x: T(js))), (x: value), strict-null: strict)
   assert.eq(
     errs.len() == 0,
     valid,
@@ -404,24 +400,24 @@
 }
 
 // `{}` coerces any value unchanged, a strict-mode null too.
-#assert.eq(coerce((a: (1, none), b: "x"), schema: any-type), (
+#assert.eq(coerce(any-type, (a: (1, none), b: "x")), (
   a: (1, none),
   b: "x",
 ))
 #assert.eq(
-  coerce((x: none), schema: object((x: any-type)), strict-null: true),
+  coerce(object((x: any-type)), (x: none), strict-null: true),
   (x: none),
 )
 
 // The errors stay the narrowed member's own.
-#let short = validate("a", schema: T((minLength: 2)))
+#let short = validate(T((minLength: 2)), "a")
 #assert.eq(short.map(e => (e.path, e.code)), (((), "length"),))
 #assert.eq(short.at(0).message, "expected string length ≥ 2, got 1.")
 #assert.eq(
-  validate(0, schema: T((minimum: 1))).map(e => e.message),
+  validate(T((minimum: 1)), 0).map(e => e.message),
   ("expected ≥ 1, got 0.",),
 )
-#assert.eq(validate("x", schema: T((format: "date"))).map(e => e.code), (
+#assert.eq(validate(T((format: "date")), "x").map(e => e.code), (
   "format",
 ))
 
@@ -438,15 +434,15 @@
 #let long-x = T(("if": (minLength: 5), then: (pattern: "^x")))
 #assert.eq(long-x, if-of(T((minLength: 5)), then: T((pattern: "^x"))))
 #for v in ("abc", "xyzzy", 42, (a: 1)) {
-  assert.eq(validate(v, schema: long-x), (), message: repr(v))
-  assert.eq(coerce(v, schema: long-x), v)
+  assert.eq(validate(long-x, v), (), message: repr(v))
+  assert.eq(coerce(long-x, v), v)
 }
-#assert.eq(codes(validate("abcde", schema: long-x)), (((), "pattern"),))
+#assert.eq(codes(validate(long-x, "abcde")), (((), "pattern"),))
 // A missing `then`.
 #let not-string = T(("if": (type: "string"), "else": (type: "number")))
-#assert.eq(validate("a", schema: not-string), ())
-#assert.eq(validate(1, schema: not-string), ())
-#assert.eq(codes(validate(true, schema: not-string)), (((), "type"),))
+#assert.eq(validate(not-string, "a"), ())
+#assert.eq(validate(not-string, 1), ())
+#assert.eq(codes(validate(not-string, true)), (((), "type"),))
 
 // The classic example, from the JSON Schema guide: the postal code's
 // pattern depends on the country.
@@ -493,7 +489,7 @@
   ),
 ) {
   assert.eq(
-    codes(validate(value, schema: address)),
+    codes(validate(address, value)),
     errors,
     message: repr(
       value,
@@ -501,9 +497,7 @@
   )
 }
 #assert.eq(
-  validate((country: "CA", postal_code: "12345"), schema: address)
-    .at(0)
-    .expected,
+  validate(address, (country: "CA", postal_code: "12345")).at(0).expected,
   "matching " + repr(ca-post),
 )
 // Every object in the condition is open, nested ones and `type:
@@ -549,7 +543,7 @@
 )
 // Coerce follows the branch: the undeclared key is dropped.
 #assert.eq(
-  coerce((country: "CA", postal_code: "K1A 0B1", street: "x"), schema: address),
+  coerce(address, (country: "CA", postal_code: "K1A 0B1", street: "x")),
   (country: "CA", postal_code: "K1A 0B1"),
 )
 
@@ -568,11 +562,11 @@
   object((kind: string(), extra: string()), required-keys: ("extra",)),
 )
 #assert.eq(kinded.otherwise, object((kind: string(), extra: string())))
-#assert.eq(codes(validate((kind: "x"), schema: kinded)), (
+#assert.eq(codes(validate(kinded, (kind: "x"))), (
   (("extra",), "required"),
 ))
-#assert.eq(validate((kind: "x", extra: "e"), schema: kinded), ())
-#assert.eq(validate((kind: "y"), schema: kinded), ())
+#assert.eq(validate(kinded, (kind: "x", extra: "e")), ())
+#assert.eq(validate(kinded, (kind: "y")), ())
 #assert.eq(
   T((
     type: "object",

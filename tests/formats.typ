@@ -11,7 +11,7 @@
 #import "fixtures/resume.typ": resume-schema-strict
 
 // The errors for `value` at field `f`.
-#let at(kind, value) = validate((f: value), schema: object((f: kind)))
+#let at(kind, value) = validate(object((f: kind)), (f: value))
 
 #let country-code = string(
   pattern: "^[A-Z]{2}$",
@@ -315,6 +315,14 @@
 
 // Nested under array-of / object, paths stay correct.
 #let nested-errs = validate(
+  object((
+    work: array-of(object((
+      url: string(format: "uri"),
+      startDate: string(format: "date"),
+    ))),
+    email: string(format: "email"),
+    codes: array-of(country-code),
+  )),
   (
     work: (
       (url: "https://ok.example", startDate: "2024-01"),
@@ -323,14 +331,6 @@
     email: "name@",
     codes: ("US", "usa", "IE"),
   ),
-  schema: object((
-    work: array-of(object((
-      url: string(format: "uri"),
-      startDate: string(format: "date"),
-    ))),
-    email: string(format: "email"),
-    codes: array-of(country-code),
-  )),
 )
 #assert.eq(nested-errs.map(e => e.path), (
   ("work", 1, "url"),
@@ -352,7 +352,7 @@
   (string(format: "email"), "name@example.com"),
   (string(pattern: "^[A-Z]{2}$"), "US"),
 ) {
-  assert.eq(coerce(value, schema: kind), value)
+  assert.eq(coerce(kind, value), value)
 }
 
 // ---- a format with a pattern -----------------------------------------
@@ -365,21 +365,21 @@
   format: "email",
   pattern: "@example\\.com$",
 ))
-#assert.eq(validate("a@example.com", schema: example-email), ())
+#assert.eq(validate(example-email, "a@example.com"), ())
 // Passes the format, fails the pattern.
-#let errs = validate("a@other.org", schema: example-email)
+#let errs = validate(example-email, "a@other.org")
 #assert.eq(errs.len(), 1)
 #assert(errs.first().message.contains("matching"))
 // Fails the format (the pattern alone would match): the format error.
-#let errs = validate("@example.com", schema: example-email)
+#let errs = validate(example-email, "@example.com")
 #assert.eq(errs.len(), 1)
 #assert(not errs.first().message.contains("matching"))
 
 // A hand-built node may carry `pattern` without `expected`.
 #let bare = (kind: "string", format: "email", pattern: regex("@example\\.com$"))
-#assert.eq(validate("a@example.com", schema: bare), ())
+#assert.eq(validate(bare, "a@example.com"), ())
 #assert.eq(
-  validate("a@other.org", schema: bare).first().message,
+  validate(bare, "a@other.org").first().message,
   "expected matching pattern.",
 )
 
@@ -409,14 +409,14 @@
 )
 
 // The right shapes validate and coerce to ISO strings.
-#assert.eq(validate((d: day, dt: moment), schema: schema), ())
+#assert.eq(validate(schema, (d: day, dt: moment)), ())
 #assert.eq(
-  coerce((d: day, dt: moment), schema: schema),
+  coerce(schema, (d: day, dt: moment)),
   (d: "2024-01-05", dt: "2024-01-05T09:03:07"),
 )
 
 // The wrong shapes are rejected, never truncated.
-#let errs = validate((d: moment, dt: day), schema: schema)
+#let errs = validate(schema, (d: moment, dt: day))
 #assert.eq(errs.map(e => e.path), (("d",), ("dt",)))
 #assert.eq(
   errs.at(0).message,
@@ -427,18 +427,18 @@
   "expected a string or a datetime with a date and a time, got datetime.",
 )
 #assert.eq(
-  validate((d: datetime(hour: 9, minute: 3, second: 7)), schema: schema).len(),
+  validate(schema, (d: datetime(hour: 9, minute: 3, second: 7))).len(),
   1,
 )
 
 // Strict meta.lastModified is a date-time or date string:
 // both datetime shapes land.
 #assert.eq(
-  parse((meta: (lastModified: moment)), schema: resume-schema-strict),
+  parse(resume-schema-strict, (meta: (lastModified: moment))),
   (meta: (lastModified: "2024-01-05T09:03:07")),
 )
 #assert.eq(
-  parse((meta: (lastModified: day)), schema: resume-schema-strict),
+  parse(resume-schema-strict, (meta: (lastModified: day))),
   (meta: (lastModified: "2024-01-05")),
 )
 
@@ -451,11 +451,11 @@
   format: "date",
   pattern: "^2024-",
 ))
-#assert.eq(validate(day, schema: year), ())
-#assert.eq(validate("2024-01-05", schema: year), ())
+#assert.eq(validate(year, day), ())
+#assert.eq(validate(year, "2024-01-05"), ())
 #assert.eq(
-  validate(datetime(year: 2023, month: 1, day: 5), schema: year).len(),
+  validate(year, datetime(year: 2023, month: 1, day: 5)).len(),
   1,
 )
-#assert.eq(validate("2023-01-05", schema: year).len(), 1)
-#assert.eq(coerce(day, schema: year), "2024-01-05")
+#assert.eq(validate(year, "2023-01-05").len(), 1)
+#assert.eq(coerce(year, day), "2024-01-05")

@@ -34,10 +34,7 @@
 )
 #assert.eq(with-rating.shape.languages.elem.shape.rating, number())
 #assert.eq(
-  validate(
-    (languages: ((language: "English", rating: 5),)),
-    schema: with-rating,
-  ),
+  validate(with-rating, (languages: ((language: "English", rating: 5),))),
   (),
 )
 // required: true also requires the field, in the same edit: the same
@@ -98,14 +95,13 @@
 
 #let strict = set-required(schema, basics, ("name", "email"))
 #assert.eq(strict.shape.basics.required-keys, ("name", "email"))
-#let errs = validate((basics: (summary: "hi")), schema: strict)
+#let errs = validate(strict, (basics: (summary: "hi")))
 #assert.eq(errs.map(e => e.path), (("basics", "name"), ("basics", "email")))
 #assert(errs.at(0).message.contains("missing required key"))
 #assert.eq(
-  validate(
-    (basics: (name: "Alice", email: "alice@example.com", summary: "hi")),
-    schema: strict,
-  ),
+  validate(strict, (
+    basics: (name: "Alice", email: "alice@example.com", summary: "hi"),
+  )),
   (),
 )
 
@@ -122,7 +118,7 @@
 #let mixed = unset-required(all-three, basics, ("email",))
 #assert.eq(mixed.shape.basics.required-keys, ("name", "summary"))
 #assert.eq(
-  validate((basics: (:)), schema: mixed).map(e => e.path),
+  validate(mixed, (basics: (:))).map(e => e.path),
   (("basics", "name"), ("basics", "summary")),
 )
 #assert.eq(
@@ -156,7 +152,7 @@
   required-keys: ("a", "extra"),
   additional: true,
 ))
-#assert.eq(validate((a: "x"), schema: req).map(e => e.path), (("extra",),))
+#assert.eq(validate(req, (a: "x")).map(e => e.path), (("extra",),))
 #assert.eq(
   set-required(map(number()), (), ("n",)),
   map(number(), required-keys: ("n",)),

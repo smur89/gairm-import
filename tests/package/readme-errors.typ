@@ -1,34 +1,43 @@
-// Mirrors README.md, "Errors": the combined report, the note that the
-// plain resume schema reports only its first line, and the record it
-// gives for that line, with the schemas "Validating a JSON Resume"
-// builds. The document is ours; the report text must match the
-// README's block (after "panicked with: ").
-#import "@preview/gairm-import:0.0.0": validate, format-errors
-#import "readme-json-resume.typ": resume-schema, resume-schema-strict
+// Mirrors README.md, "Errors": the combined report for the misspelt
+// book, the record its first line comes from, where a missing key's
+// error points, and the format-errors example. The report text must
+// match the README's block (after "panicked with: ").
+#import "@preview/gairm-import:0.0.0": (
+  validate, coerce, format-errors, schema-from-json-schema,
+)
 
+#let book-schema = schema-from-json-schema(json("book-schema.json"))
 #let doc = (
-  basics: (name: "Ada", email: 1),
-  work: ((name: "Acme", positon: "Engineer"),),
-  meta: (foo: "bar"),
+  title: "The Pocket Atlas of Imaginary Places",
+  author: 1998,
+  yaer: 1998,
+  tags: ("atlas", 3),
 )
 
 #assert.eq(
-  format-errors(validate(doc, schema: resume-schema-strict)),
-  "gairm-import: found 3 problems in the input:
-  - basics.email: expected string, got integer.
-  - work[0].positon: unknown key \"positon\". Did you mean \"position\"?
-  - meta.foo: unknown key \"foo\". Valid keys: canonical, version, lastModified.",
+  format-errors(validate(book-schema, doc)),
+  "gairm-import: found 4 problems in the input:
+  - author: expected string, got integer.
+  - yaer: unknown key \"yaer\". Did you mean \"year\"?
+  - tags[1]: expected string, got integer.
+  - year: missing required key \"year\".",
 )
 
-#assert.eq(
-  validate(doc, schema: resume-schema).map(e => e.path),
-  (("basics", "email"),),
-)
-
-#assert.eq(validate(doc, schema: resume-schema).first(), (
-  path: ("basics", "email"),
+#assert.eq(validate(book-schema, doc).first(), (
+  path: ("author",),
   code: "type",
   message: "expected string, got integer.",
   expected: "string",
   got: "integer",
 ))
+
+// A missing key's record points at the key.
+#assert.eq(validate(book-schema, doc).last().path, ("year",))
+
+// The format-errors example, on the valid book.json.
+#let errors = validate(book-schema, json("book.json"))
+#assert.eq(errors, ())
+#assert.eq(
+  coerce(book-schema, json("book.json")).title,
+  "The Pocket Atlas of Imaginary Places",
+)

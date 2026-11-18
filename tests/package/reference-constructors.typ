@@ -21,43 +21,37 @@
 
 // The if-of example.
 #let long-x = if-of(string(min-length: 5), then: string(pattern: "^x"))
-#assert.eq(validate("abc", schema: long-x), ())
-#assert.eq(validate("xyzzy", schema: long-x), ())
-#assert.eq(validate("abcde", schema: long-x).map(e => e.code), ("pattern",))
+#assert.eq(validate(long-x, "abc"), ())
+#assert.eq(validate(long-x, "xyzzy"), ())
+#assert.eq(validate(long-x, "abcde").map(e => e.code), ("pattern",))
 
 #assert.eq(
-  validate(
-    (
-      name: "Aoife",
-      email: "aoife@example.com",
-      code: "ABC",
-      age: 30,
-      rating: 4.5,
-      tags: ("a", "b"),
-      phone: "555",
-    ),
-    schema: member,
-  ),
+  validate(member, (
+    name: "Aoife",
+    email: "aoife@example.com",
+    code: "ABC",
+    age: 30,
+    rating: 4.5,
+    tags: ("a", "b"),
+    phone: "555",
+  )),
   (),
 )
 #assert.eq(
-  validate(
-    (
-      name: "",
-      code: "abc",
-      age: 1.5,
-      rating: 4.2,
-      tags: ("a", "a"),
-      phone: "555",
-    ),
-    schema: member,
-  )
+  validate(member, (
+    name: "",
+    code: "abc",
+    age: 1.5,
+    rating: 4.2,
+    tags: ("a", "a"),
+    phone: "555",
+  ))
     .map(e => (e.path, e.code))
     .sorted(),
   (
     (("age",), "integer"),
     (("code",), "pattern"),
-    ((), "dependent"),
+    (("email",), "dependent"),
     (("email",), "required"),
     (("name",), "length"),
     (("rating",), "multiple"),

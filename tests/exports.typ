@@ -1,11 +1,9 @@
 // The public surface: adding or removing an export must be a deliberate
-// change to this list. Underscore names are module aliases for internals,
-// never values.
+// change to this list. lib.typ only re-exports public names, so a `*`
+// import brings in nothing else.
 #import "../lib.typ"
 
-#let public = (
-  dictionary(lib).keys().filter(k => not k.starts-with("_")).sorted()
-)
+#let public = dictionary(lib).keys().sorted()
 #assert.eq(public, (
   "add-field",
   "any-of",
@@ -42,11 +40,6 @@
   "validate",
 ))
 
-#for (k, v) in dictionary(lib) {
-  if k.starts-with("_") {
-    assert.eq(type(v), module, message: k + " leaks a private value")
-  }
-}
 
 // Every export is documented: the README covers the run functions and
 // REFERENCE.md the rest, each as a whole name in backticks (`name`, or

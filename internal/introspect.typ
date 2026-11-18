@@ -11,8 +11,9 @@
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
-#import "core/error.typ": _bail
+#import "core/error.typ": _a, _fail, _problem
 #import "kinds/registry.typ": _kinds, _descriptor
+#import "kinds/structure.typ": _kind-label, _require-schema
 #import "kinds/traverse.typ": _children, _paths-where
 #import "kinds/constraint.typ": _constraint-rows
 
@@ -24,7 +25,10 @@
 #let _leaf(s) = _descriptor(s).with-child == none
 #let _suffix(s) = (_descriptor(s).suffix)(s)
 
-#let _pad-right(s, width) = s + " " * (width - s.len())
+// Widths count grapheme clusters, as a reader sees them: `seán` is four
+// wide, not five bytes.
+#let _width(s) = s.clusters().len()
+#let _pad-right(s, width) = s + " " * (width - _width(s))
 
 // What a node sets beyond its kind, in one shared list: every
 // constraint row it sets, in row order, by the row's field name (as the
@@ -109,7 +113,7 @@
   }
   let aligned = rows.filter(r => "text" in r or r.head != none)
   let col = if aligned == () { 0 } else {
-    calc.max(..aligned.map(r => r.label.len())) + 2
+    calc.max(..aligned.map(r => _width(r.label))) + 2
   }
   let lines = rows.map(r => if "text" in r {
     indent + _pad-right(r.label, col) + r.text
@@ -139,61 +143,71 @@
 ///
 /// - schema (dictionary): The schema to draw.
 /// -> str
-#let describe-schema(schema) = _describe(schema, "", alone: true)
+#let describe-schema(schema) = {
+  _require-schema(schema, "describe-schema schema")
+  _describe(schema, "", alone: true)
+}
 
-// What paths-of-kind looks for, as a node: a schema node as given, a
-// constructor as the bare node of the kind it builds, and anything else
-// as a node of no kind, which no search takes.
-#let _query(kind) = if type(kind) == dictionary and "kind" in kind {
-  kind
-} else if type(kind) == function {
-  (kind: _kinds.keys().find(k => kind in _kinds.at(k).constructors))
-} else { (kind: none) }
-
-// A node matches a query when it is of the query's kind and has every
-// other field the query sets, with the same value. So `string()` finds
-// every string, `string(format: "date")` the date strings, with a
-// pattern or without, and `number(minimum: 0)` the numbers whose
-// minimum is 0.
+// A node matches a schema-node query when it is of the query's kind and
+// has every other field the query sets, with the same value. So
+// `string()` finds every string, `string(format: "date")` the date
+// strings, with a pattern or without, and `number(minimum: 0)` the
+// numbers whose minimum is 0.
 #let _matches(query, node) = (
-  node.kind == query.kind
-    and query
-      .pairs()
-      .all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
+  query.pairs().all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
 )
+
+// What paths-of-kind looks for, as (kind, test, name): a schema node
+// finds the nodes of its kind it _matches, a constructor the nodes its
+// descriptor's test holds for (registry.typ), and anything else is of
+// no kind, which no search takes. `name` says what the query was, for
+// the panic: a whole node's repr can run to pages.
+#let _query(kind) = if type(kind) == dictionary and "kind" in kind {
+  (
+    kind: kind.kind,
+    test: n => _matches(kind, n),
+    name: _a(_kind-label(kind)) + " schema",
+  )
+} else if type(kind) == function {
+  for (name, d) in _kinds {
+    let hit = d.constructors.find(((f, _)) => f == kind)
+    if hit != none { return (kind: name, test: hit.at(1), name: repr(kind)) }
+  }
+  (kind: none, name: repr(kind))
+} else { (kind: none, name: repr(kind)) }
 
 // Container kinds (`object`, `array`) are deliberately rejected — the
 // walker descends through them, and a search for one is more likely a
 // typo for a leaf than a question.
-/// Lists the lens path of every node in `schema` that has the given
-/// kind, including inside union and `not` members and a conditional's
+/// Lists the lens path of every node in `schema` that matches `kind`,
+/// including inside union and `not` members and a conditional's
 /// condition and branches. The paths work wherever a location does.
 /// Panics for `object` and `array`, which the search walks through, and
-/// for kinds it does not know.
+/// for anything that is not a schema or a constructor.
 ///
 /// - schema (dictionary): The schema to search.
-/// - kind (dictionary, function): The kind to find: a schema node
-///   such as `string(format: "date")`, or a constructor such as
-///   `string`, `enum-of`, `const-of`, `any-of`, `one-of`, `not-of` or
-///   `if-of`. A node finds the nodes of its kind that also have every
-///   field it sets, with the same value: `string()` finds every string,
-///   `string(format: "date")` only the date strings, `number()` numbers
-///   but not integers, and `number(minimum: 0)` only the numbers with
-///   minimum 0. A constructor finds every node of the kind it builds.
+/// - kind (dictionary, function): What to find: a schema node such as
+///   `string(format: "date")`, or a constructor such as `string`,
+///   `enum-of`, `any-of` or `if-of`. A node finds the nodes of its kind
+///   that also have every field it sets, with the same value:
+///   `string()` finds every string, `string(format: "date")` only the
+///   date strings, `number()` numbers but not integers, and
+///   `number(minimum: 0)` only the numbers with minimum 0. A
+///   constructor finds the nodes it builds: `enum-of` every enum,
+///   `const-of` the single-value ones, `any-of` and `one-of` their own
+///   unions, and `nullable` the nullable ones.
 /// -> array
 #let paths-of-kind(schema, kind) = {
+  _require-schema(schema, "paths-of-kind schema")
   let q = _query(kind)
   if q.kind not in _searchable-kinds {
-    _bail(
-      "paths-of-kind",
-      "kind "
-        + repr(kind)
-        + " is not a recognised leaf kind. Pass a leaf schema "
-        + "(e.g. string(format: \"date\")) or a constructor (e.g. enum-of) "
-        + "of one of: "
+    _fail("paths-of-kind", _problem(
+      "kind",
+      "a schema node or a constructor of a kind it can find ("
         + _searchable-kinds.join(", ")
-        + ".",
-    )
+        + "); object and array are walked through, not searched for",
+      q.name,
+    ))
   }
-  _paths-where(schema, n => _matches(q, n))
+  _paths-where(schema, n => n.kind == q.kind and (q.test)(n))
 }

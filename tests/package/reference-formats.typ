@@ -6,13 +6,10 @@
 #import "readme-json-resume.typ": resume-schema-strict
 
 #assert.eq(
-  validate(
-    (
-      basics: (email: "name", url: "example.com"),
-      certificates: ((date: "2024/01/15"),),
-    ),
-    schema: resume-schema-strict,
-  ).map(e => (e.path, e.message)),
+  validate(resume-schema-strict, (
+    basics: (email: "name", url: "example.com"),
+    certificates: ((date: "2024/01/15"),),
+  )).map(e => (e.path, e.message)),
   (
     (("basics", "email"), "expected an email (e.g. \"name@example.com\")."),
     (("basics", "url"), "expected a URI (e.g. \"https://example.com\")."),
@@ -32,10 +29,10 @@
   minute: 3,
   second: 7,
 )
-#assert.eq(coerce(date, schema: string(format: "date")), "2024-01-05")
+#assert.eq(coerce(string(format: "date"), date), "2024-01-05")
 #assert.eq(
-  coerce(date-time, schema: string(format: "date-time")),
+  coerce(string(format: "date-time"), date-time),
   "2024-01-05T09:03:07",
 )
-#assert.eq(validate(date-time, schema: string(format: "date")).len(), 1)
-#assert.eq(validate(date, schema: string(format: "date-time")).len(), 1)
+#assert.eq(validate(string(format: "date"), date-time).len(), 1)
+#assert.eq(validate(string(format: "date-time"), date).len(), 1)

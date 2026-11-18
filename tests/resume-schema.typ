@@ -17,7 +17,7 @@
   resume-schema,
 )
 #assert.eq(
-  validate(json("fixtures/resume-full.json"), schema: resume-schema),
+  validate(resume-schema, json("fixtures/resume-full.json")),
   (),
 )
 

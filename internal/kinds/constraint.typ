@@ -12,10 +12,15 @@
 // Which raw values a keyword takes, as checks run in order; the first
 // that fails names what the value must be. A count may be a float with
 // no fractional part (`2.0`), as draft 7's `integer` allows; its row's
-// `read` stores it as an int.
+// `read` stores it as an int, so it must fit one (below 2^63).
 #let _whole(v) = (
   type(v) == int
-    or (type(v) == float and not v.is-infinite() and calc.fract(v) == 0)
+    or (
+      type(v) == float
+        and not v.is-infinite()
+        and calc.fract(v) == 0
+        and calc.abs(v) < 9.2e18
+    )
 )
 #let _count = (
   (ok: v => _whole(v) and v >= 0, must: "a non-negative integer"),
@@ -50,7 +55,7 @@
   // A schema bug, not a data error: the translator rejects it, but a
   // hand-built node can carry it.
   if mult <= 0 {
-    _bail(none, "multiple-of must be positive, got " + str(mult) + ".")
+    _bail(none, "multiple-of must be positive, got: " + str(mult) + ".")
   }
   let off = if type(value) == int and type(mult) == int {
     calc.rem(value, mult) != 0
@@ -73,24 +78,23 @@
 // items coerced, and free-form objects kept as given.
 #let _unique-test(on, kept) = {
   if not on { return none }
-  for i in range(kept.len()) {
-    for j in range(i + 1, kept.len()) {
-      if kept.at(i).at(1) == kept.at(j).at(1) {
-        let orig-i = kept.at(i).at(0)
-        let orig-j = kept.at(j).at(0)
-        return (
-          message: "expected unique items, duplicate at indices "
-            + str(orig-i)
-            + " and "
-            + str(orig-j)
-            + ".",
-          expected: none,
-          got: (orig-i, orig-j),
-        )
-      }
-    }
-  }
-  none
+  // `contains` and `position` run natively and compare with `==` (`1`
+  // equals `1.0`), so only the scan for the first duplicated item is
+  // interpreted.
+  let vals = kept.map(((_, v)) => v)
+  let i = range(vals.len()).find(i => vals.slice(i + 1).contains(vals.at(i)))
+  if i == none { return none }
+  let j = i + 1 + vals.slice(i + 1).position(v => v == vals.at(i))
+  let (orig-i, orig-j) = (kept.at(i).at(0), kept.at(j).at(0))
+  (
+    message: "expected unique items, duplicate at indices "
+      + str(orig-i)
+      + " and "
+      + str(orig-j)
+      + ".",
+    expected: none,
+    got: (orig-i, orig-j),
+  )
 }
 
 // Within a family, rows run in this order, so errors and translator
@@ -210,6 +214,38 @@
   if failed != none { failed.must }
 }
 
+// Whole-number rounding, float-safe, so a bound past the int range
+// needs no conversion.
+#let _trunc(v) = v - calc.fract(v)
+#let _ceil(v) = _trunc(v) + if calc.fract(v) > 0 { 1 } else { 0 }
+#let _floor(v) = _trunc(v) - if calc.fract(v) < 0 { 1 } else { 0 }
+
+// The nearest whole number a bound of each `op` lets through.
+#let _whole-bound = (
+  "≥": _ceil,
+  ">": v => _floor(v) + 1,
+  "≤": _floor,
+  "<": v => _ceil(v) - 1,
+)
+
+/// The tightest lower and upper bound on an integer node, as
+/// `(lower, upper)` field names, when they leave no whole number
+/// between them (`minimum: 1.5, maximum: 1.7`); none otherwise.
+#let _integer-gap(node) = {
+  if node.at("kind", default: none) != "integer" { return none }
+  let tightest(ops, pick) = {
+    let found = _constraint-rows
+      .filter(row => row.at("op", default: none) in ops and row.field in node)
+      .map(row => (row.field, _whole-bound.at(row.op)(node.at(row.field))))
+    if found != () { found.sorted(key: p => p.at(1)).at(pick) }
+  }
+  let lower = tightest(("≥", ">"), -1)
+  let upper = tightest(("≤", "<"), 0)
+  if lower != none and upper != none and lower.at(1) > upper.at(1) {
+    (lower: lower.at(0), upper: upper.at(0))
+  }
+}
+
 /// The first pair on `node` that no value can satisfy, or none. Callers
 /// word the diagnostic themselves.
 #let _bounds-conflict(node) = _bound-pairs.find(pair => {
@@ -243,18 +279,24 @@
       result.insert(row.field, row.at("read", default: x => x)(v))
     }
   }
-  let clash = _bounds-conflict(result)
-  if clash == none { return (node: result, problem: none) }
-  let (lower, upper) = (clash.lower, clash.upper).map(field => (
+  let named(field) = (
     key(_constraint-rows.find(row => row.field == field))
       + " ("
       + repr(result.at(field))
       + ")"
-  ))
-  let message = if clash.strict {
-    lower + " and " + upper + " leave no satisfying value."
-  } else { lower + " > " + upper + " is unsatisfiable." }
-  (node: result, problem: (message: message))
+  )
+  let clash = _bounds-conflict(result)
+  // Bounds a number satisfies can still hold no integer.
+  let gap = if clash == none { _integer-gap(result) }
+  let message = if clash != none {
+    let (lower, upper) = (clash.lower, clash.upper).map(named)
+    if clash.strict {
+      lower + " and " + upper + " leave no satisfying value."
+    } else { lower + " > " + upper + " is unsatisfiable." }
+  } else if gap != none {
+    named(gap.lower) + " and " + named(gap.upper) + " leave no integer."
+  }
+  (node: result, problem: if message != none { (message: message) })
 }
 
 /// `node` with a constructor's constraint arguments of `family` set.
