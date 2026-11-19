@@ -2,11 +2,12 @@
 
 The [README](README.md) is the guide: quick start, input forms, errors,
 null handling and validating a JSON Resume. This file is the reference
-for every export, and says each thing once. Examples on JSON Resume use the `resume-schema` and
-`resume-schema-strict` that the README's
-[Validating a JSON Resume](README.md#validating-a-json-resume) builds.
+for every export, and says each thing once. Its examples build on the
+`member` schema under [Constructors](#constructors) and the `team`
+schema under [Lenses and edits](#lenses-and-edits).
 
 - [Running](#running)
+  - [Error records](#error-records)
   - [The model](#the-model)
 - [Constructors](#constructors)
 - [Formats](#formats)
@@ -41,6 +42,19 @@ The examples assume the whole package is imported:
 whether JSON `null` is an absent key (off) or a value (on); see
 [Null handling](README.md#null-handling).
 
+Each call checks the whole schema before it reads the data: an argument
+that is not a schema, or a hand-built node anywhere in it that is
+missing a field or holds one of the wrong shape, panics naming the path
+to that node. So does a `null` document. A string is checked as data;
+only when it ends in `.json` and the schema's root rejects its type does
+the call panic, with a hint to read the file with `path(..)`.
+
+A document may nest about 37 levels deep. Typst caps how deeply calls
+nest, and each level of the document costs two; past the cap, Typst
+fails with `maximum function call depth exceeded`.
+
+### Error records
+
 An error record is `(path, code, message, expected, got)`:
 
 - `path` is where in the document the problem is, as keys and array
@@ -49,22 +63,36 @@ An error record is `(path, code, message, expected, got)`:
   missing key the object requires is reported once, as `required`, and
   never also as `dependent`; one it doesn't require gets a `dependent`
   record for each present key that requires it;
-- `code` says what kind of problem it is;
-  [Errors](README.md#errors) lists the codes and what `expected` and `got`
-  hold for each;
+- `code` says what kind of problem it is, from the table below;
 - `message` says it in words, without the path: `expected string, got
-  integer.`
+  integer.`;
+- `expected` and `got` hold the data behind the message, or `none` where
+  a code has nothing to put there.
+
+Branch on `code`, not on the message:
+
+| `code` | Meaning | `expected` | `got` |
+|---|---|---|---|
+| `type` | Wrong JSON type (also: an enum or union none of whose members takes that type) | The type name, or for an enum or union the names it takes joined by "or" (`"string or number"`) | The value's type name |
+| `required` | A required key is missing | | |
+| `unknown-key` | A key the object does not declare | The valid keys | The key |
+| `dependent` | A key required by another key's presence is missing | The missing key | The key that requires it |
+| `enum` | Not one of the enum's values | The values | The value |
+| `format` | Not in the format's shape (date, email, …) | The format's description | The value |
+| `pattern` | Does not match the pattern | The pattern's description | The value |
+| `length` | String too short or too long | The bound broken: `(min-length: 3)` or `(max-length: 80)` | The length |
+| `range` | Number out of range | The bound broken: `(minimum: 1)`, `(exclusive-minimum: 1)`, `(maximum: 10)` or `(exclusive-maximum: 10)` | The number |
+| `multiple` | Not a multiple of `multiple-of` | `(multiple-of: 0.1)` | The number |
+| `integer` | A fractional number where an integer is expected | | The number |
+| `items` | Too few or too many array items | The bound broken: `(min-items: 1)` or `(max-items: 5)` | The item count |
+| `unique` | Duplicate array items | | The two duplicate indices |
+| `union` | Several alternatives take the value's type but none matches, or more than one `one-of` member matches | The members' kinds, as an array (`("string (date)", "integer")`) | |
+| `not` | The value matches a `not-of` schema | | |
 
 `path-to-pointer(record.path)` gives the record's location as a JSON
-Pointer. Each call checks the whole schema before it reads the data: an
-argument that is not a schema, or a hand-built node anywhere in it that
-is missing a field or holds one of the wrong shape, panics naming the
-path to that node. So does a `null` document. `format-errors` and
-`parse`'s report write a path as `work[0].url`, quoting a key that is not
-a plain name in brackets (`["a.b"].c`, `[""]`), so no two paths read
-alike. A string is checked as data; only when it
-ends in `.json` and the schema's root rejects its type does the call
-panic, with a hint to read the file with `path(..)`.
+Pointer. `format-errors` and `parse`'s report write a path as `work[0].url`,
+quoting a key that is not a plain name in brackets (`["a.b"].c`,
+`[""]`), so no two paths read alike.
 
 ### The model
 
@@ -144,6 +172,8 @@ through unchanged).
   (
     name: string(min-length: 1, max-length: 80),
     email: string(format: "email"),
+    homepage: string(format: "uri"),
+    joined: string(format: "date"),
     code: string(pattern: "^[A-Z]{3}$", expected: "a three-letter code"),
     age: integer(minimum: 0),
     rating: number(minimum: 0, maximum: 5, multiple-of: 0.5),
@@ -177,20 +207,28 @@ As in RFC 3339, `date-time` and `time` take `T` and `Z` in either case and
 a leap second (`23:59:60Z`: second 60 at minute 59, or at any minute under
 an offset with minutes).
 
-A miss reports `expected <hint>.` at the field's path. Under
-`resume-schema-strict`:
+A miss reports `expected <hint>.` at the field's path. For `member`:
+
+```typst
+#validate(member, (
+  name: "Ada",
+  email: "ada",
+  homepage: "example.com",
+  joined: "2024/01/15",
+))
+```
 
 ```text
-basics.email:           expected an email (e.g. "name@example.com").
-basics.url:             expected a URI (e.g. "https://example.com").
-certificates[0].date:   expected an ISO-8601 date (e.g. "2024-01-15").
+email:     expected an email (e.g. "name@example.com").
+homepage:  expected a URI (e.g. "https://example.com").
+joined:    expected an ISO-8601 date (e.g. "2024-01-15").
 ```
 
 Data written in Typst can give a `date` field a `datetime` with a date and
 no time, and a `date-time` field one with both; it is checked and returned
 as the ISO string (`"2024-01-05"`, `"2024-01-05T09:03:07"`). A `datetime`
-of the other shape is rejected rather than truncated. Otherwise coercion is
-pass-through: a formatted value reaches the model as the same string.
+of the other shape is rejected rather than truncated. Otherwise coercion
+is pass-through: a formatted value reaches the model as the same string.
 
 A `pattern` is a Typst regex, and matches anywhere in the string: anchor it
 with `^…$` for a full-string match.
@@ -218,8 +256,8 @@ wins over the keyword; reach the additional schema in that case with
 | `lens-get(schema, at)` | the node at `at` |
 | `lens-put(schema, at, value)` | the schema with the node at `at` replaced by `value` |
 | `lens-over(schema, at, fn)` | the schema with the node at `at` replaced by `fn(node)` |
-| `add-field(schema, at, name, field, required: false)` | the object at `at` with a new field, required if `required: true` |
-| `remove-field(schema, at, name)` | the object at `at` without the field, and without it in `required-keys` and `dependent-required` |
+| `add-field(schema, at, key, sub-schema, required: false)` | the object at `at` with a new field `key`, required if `required: true` |
+| `remove-field(schema, at, key)` | the object at `at` without the field, and without it in `required-keys` and `dependent-required` |
 | `set-required(schema, at, keys)` | the object at `at` requiring exactly `keys` |
 | `unset-required(schema, at, keys)` | the object at `at` no longer requiring `keys` |
 
@@ -230,38 +268,63 @@ an edit touches is rebuilt through `object()`, so an edit cannot break its
 invariants. A missing path, a missing field, or adding a field that exists
 panics, naming the function and the segment that failed.
 
+The examples edit `team`, a schema built on `member` from
+[Constructors](#constructors):
+
 ```typst
-// A renderer-specific top-level field.
-#let altacv-schema = add-field(
-  resume-schema, (), "focusAreas", array-of(content-type),
+#let team = object(
+  (
+    name: string(),
+    lead: nullable(string()),
+    members: array-of(member),
+    contact: one-of(
+      string(format: "email"),
+      object((phone: string()), required-keys: ("phone",)),
+    ),
+  ),
+  required-keys: ("name", "members"),
 )
 
-// A numeric rating on every language entry.
-#let with-rating = add-field(
-  resume-schema, ("languages", "items"), "rating", number(),
+// A field a renderer adds.
+#let with-logo = add-field(team, (), "logo", string(format: "uri"))
+
+// A role on every member, required.
+#let with-role = add-field(
+  team,
+  ("members", "items"),
+  "role",
+  enum-of(("lead", "dev")),
+  required: true,
 )
 
-// Back to a plain-string summary in the strict schema.
-#let plain-summary = lens-put(
-  resume-schema-strict, ("basics", "summary"), string(),
+// Members' names as content, so they splice into markup.
+#let content-names = lens-put(
+  team,
+  ("members", "items", "name"),
+  content-type,
 )
 
-// Spreading `meta` keeps its `additional` and `required-keys`.
-#let with-extra-meta = lens-over(
-  resume-schema,
-  ("meta",),
-  meta => (..meta, shape: (..meta.shape, source: string())),
+// Spreading a member keeps everything it doesn't change.
+#let open-members = lens-over(
+  team,
+  ("members", "items"),
+  m => (..m, additional: true),
 )
 
-// Require basics.name and basics.email, then relax email again.
-#let strict-basics = set-required(resume-schema, ("basics",), ("name", "email"))
-#let name-only = unset-required(strict-basics, ("basics",), ("email",))
+// Require a member's joining date, then relax it again.
+#let dated = set-required(
+  team,
+  ("members", "items"),
+  ("name", "email", "joined"),
+)
+#let undated = unset-required(dated, ("members", "items"), ("joined",))
 ```
 
-`add-field` keeps everything else about the object, including upstream's
-`additionalProperties: true`. Splicing the shape into a new object,
-`object((..resume-schema.shape, focusAreas: …))`, does not: `object()`
-rejects undeclared keys by default, so it silently closes the top level.
+`add-field` keeps everything else about the object, its `additional` and
+`required-keys` included. Splicing the shape into a new object,
+`object((..team.shape, logo: …))`, does not: the new object requires
+nothing, and `object()` rejects undeclared keys by default, so it would
+also close an object that was open.
 
 Folding `find-paths` into `lens-put` edits every node of a kind at once,
 and covers fields a future schema adds:
@@ -271,8 +334,8 @@ and covers fields a future schema adds:
   pattern: "^https://(corp|docs)\.example\.com/",
   expected: "a corporate URL",
 )
-#let corporate-schema = find-paths(resume-schema, string(format: "uri")).fold(
-  resume-schema,
+#let corporate-schema = find-paths(team, string(format: "uri")).fold(
+  team,
   (schema, path) => lens-put(schema, path, corporate-uri),
 )
 ```
@@ -297,44 +360,33 @@ field with its kind:
 For `member` from [Constructors](#constructors):
 
 ```text
-age     integer (minimum 0)
-code    string + pattern
-email*  string (email)
-name*   string (min-length 1, max-length 80)
-phone   string
-rating  number (minimum 0, maximum 5, multiple-of 0.5)
-tags[]  string (min-items 1, unique-items)
+age       integer (minimum 0)
+code      string + pattern
+email*    string (email)
+homepage  string (uri)
+joined    string (date)
+name*     string (min-length 1, max-length 80)
+phone     string
+rating    number (minimum 0, maximum 5, multiple-of 0.5)
+tags[]    string (min-items 1, unique-items)
 phone → email
 ```
 
-An excerpt of `describe-schema(resume-schema-strict)`:
+And `team` from [Lenses and edits](#lenses-and-edits), with `member`
+nested under `members[]`:
 
 ```text
-basics:
+contact  one of:
+  [0]  string (email)
+  [1]:
+    phone*  string
+lead     string?
+members*[]:
+  age       integer (minimum 0)
   …
-  email     string (email)
-  …
-  name      string
-  …
-  summary   content
-  url       string (uri)
-…
-meta:
-  canonical     string (uri)
-  lastModified  any of:
-    [0]  string (date-time)
-    [1]  string (date)
-  version       string
-…
-work[]:
-  …
-  highlights[]  content
-  keywords[]    string
-  location      one of:
-    [0]  string
-    [1]:
-      address      string
-      …
+  tags[]    string (min-items 1, unique-items)
+  phone → email
+name*    string
 ```
 
 A conditional, `if-of(string(min-length: 5), then: string(pattern: "^x"),
@@ -368,12 +420,12 @@ query. An `additional` schema shadowed by a field literally named
 with `lens-over` on its object.
 
 ```typst
-#find-paths(resume-schema-strict, string(format: "date"))
-// → (("awards", "items", "date"), …, ("meta", "lastModified", 1), …)
+#find-paths(team, string(format: "email"))
+// → (("contact", 0), ("members", "items", "email"))
 #find-paths(member, number())
 // → (("rating",),)
-#lens-get(resume-schema-strict, ("meta", "lastModified", 0)).kind
-// → "string"
+#lens-get(team, ("contact", 0)).format
+// → "email"
 ```
 
 ## JSON Pointer
@@ -416,8 +468,8 @@ draft 7, and panics, naming the keyword, on anything it would otherwise
 have to drop.
 
 ```typst
-#let canonical = schema-from-json-schema(path("resume.schema.json"))
-#let model = coerce(canonical, json("resume.json"))
+#let book-schema = schema-from-json-schema(path("book-schema.json"))
+#let book = coerce(book-schema, json("book.json"))
 ```
 
 The constraint keywords become the fields the constructor arguments set,
@@ -491,7 +543,7 @@ Each of these panics with a message naming it:
   anchor, or one that refers back to itself: a translated schema is a
   finite tree, so a recursive schema (a tree of nodes, a list of lists)
   cannot be translated;
-- formats other than the nine;
+- formats other than the nine (see below for a way to drop them);
 - `allOf` with non-object members or with closed members that declare
   different properties, and the same of `if` / `then` / `else` beside
   other keywords (move those keywords into `then` and `else`);
@@ -510,6 +562,26 @@ Each of these panics with a message naming it:
 
 An invalid regex in `pattern` fails with Typst's own regex error, which
 the translator cannot catch.
+
+Real-world schemas often use formats outside the nine (`uri-reference`,
+`regex`, `idn-email`, …). Draft 7 lets a validator skip a format it
+does not check, so dropping them before translating keeps every other
+constraint:
+
+```typst
+#let checked = ("date", "date-time", "time", "uri", "email", "uuid",
+  "hostname", "ipv4", "ipv6")
+// Every `format` outside the nine, removed. A property that happens to
+// be named "format" holds a schema, not a string, so it stays.
+#let drop-formats(js) = if type(js) == dictionary {
+  let js = js.pairs().map(((k, v)) => (k, drop-formats(v))).to-dict()
+  let f = js.at("format", default: none)
+  if type(f) == str and f not in checked { let _ = js.remove("format") }
+  js
+} else if type(js) == array { js.map(drop-formats) } else { js }
+
+#let schema = schema-from-json-schema(drop-formats(json("schema.json")))
+```
 
 ### Deviations from draft 7
 

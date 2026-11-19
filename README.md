@@ -174,26 +174,9 @@ message: "expected string, got integer.", expected: "string", got:
 for a missing key, `required` or `dependent`, it is the key that is
 missing.
 
-Branch on `code`, not on the message. `expected` and `got` hold the data
-behind the message, or `none` where a code has nothing to put there:
-
-| `code` | Meaning | `expected` | `got` |
-|---|---|---|---|
-| `type` | Wrong JSON type (also: an enum or union none of whose members takes that type) | The type name, or for an enum or union the names it takes joined by "or" (`"string or number"`) | The value's type name |
-| `required` | A required key is missing | | |
-| `unknown-key` | A key the object does not declare | The valid keys | The key |
-| `dependent` | A key required by another key's presence is missing | The missing key | The key that requires it |
-| `enum` | Not one of the enum's values | The values | The value |
-| `format` | Not in the format's shape (date, email, …) | The format's description | The value |
-| `pattern` | Does not match the pattern | The pattern's description | The value |
-| `length` | String too short or too long | The bound broken: `(min-length: 3)` or `(max-length: 80)` | The length |
-| `range` | Number out of range | The bound broken: `(minimum: 1)`, `(exclusive-minimum: 1)`, `(maximum: 10)` or `(exclusive-maximum: 10)` | The number |
-| `multiple` | Not a multiple of `multiple-of` | `(multiple-of: 0.1)` | The number |
-| `integer` | A fractional number where an integer is expected | | The number |
-| `items` | Too few or too many array items | The bound broken: `(min-items: 1)` or `(max-items: 5)` | The item count |
-| `unique` | Duplicate array items | | The two duplicate indices |
-| `union` | Several alternatives take the value's type but none matches, or more than one `one-of` member matches | The members' kinds, as an array (`("string (date)", "integer")`) | |
-| `not` | The value matches a `not-of` schema | | |
+Branch on `code`, not on the message;
+[REFERENCE.md](REFERENCE.md#error-records) lists every code and what
+`expected` and `got` hold for each.
 
 `format-errors(errors)` turns the records into `parse`'s report, reading
 only `path` and `message`:
@@ -251,10 +234,6 @@ value exactly as `X` does:
 // → (name: "Ada", nickname: none)
 ```
 <!-- x-release-please-end -->
-
-The JSON Resume schema declares no nullable fields, so with
-`strict-null: true` it rejects a `null` in any declared field. The
-free-form `custom` objects check nothing, so a `null` there is kept.
 
 ## Validating a JSON Resume
 
@@ -316,6 +295,10 @@ renderer that takes JSON Resume data, such as
 #alta(parse(resume-schema, path("resume.json")))
 ```
 <!-- x-release-please-end -->
+
+The schema declares no nullable fields, so with `strict-null: true` it
+rejects a `null` in any declared field. The free-form `custom` objects
+check nothing, so a `null` there is kept.
 
 Upstream sets `additionalProperties: true` at the top level and on every
 section's items, so undeclared keys pass: a misspelt `positon` is kept
