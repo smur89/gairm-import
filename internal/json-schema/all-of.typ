@@ -1,6 +1,7 @@
 // allOf: the object-merge subset. Each member translates on its own and
 // the objects merge into one; what the merge can't express bails here.
 
+#import "../kinds/registry.typ": _nullable-member
 #import "../kinds/structure.typ": object, nullable, _is-object
 #import "../kinds/walk.typ": _kind-label
 #import "../core/error.typ": _a
@@ -25,7 +26,7 @@
       return js.at(keyword).any(m => _restricts-extras(m, ctx))
     }
   }
-  let ap = js.at("additionalProperties", default: true)
+  let ap = _follow-refs(js.at("additionalProperties", default: true), ctx)
   (
     ap != true
       and not (
@@ -140,20 +141,12 @@
   )
 }
 
-// X when `node` is nullable(X), else none.
-#let _nullable-of(node) = {
-  let members = node.at("members", default: ())
-  if members != () and node == nullable(members.first()) {
-    members.first()
-  }
-}
-
 // The merge of already translated `members` (see _merge-all-of). A
-// member translated from `type: ["object", "null"]` is
-// nullable(object): its object merges. A null meets allOf only when
+// member translated from `type: ["object", "null"]`, or an anyOf of an
+// object and a null in either order, is nullable: its object merges. A null meets allOf only when
 // every member takes it, so the merge is nullable only then.
 #let _join(members, restricts, raws, ctxs, ctx, who: "allOf members") = {
-  let inner = members.map(m => _nullable-of(m))
+  let inner = members.map(m => _nullable-member(m))
   let merged = _merge-all-of(
     members.zip(inner).map(((m, x)) => if x == none { m } else { x }),
     restricts,

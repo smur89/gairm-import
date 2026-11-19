@@ -7,52 +7,10 @@
 // one entry here plus the code that consumes it.
 
 #import "../core/error.typ": (
-  _bail as _core-bail, _worded, _num, _type-name-of, _json-type-name,
+  _bail as _core-bail, _worded, _json, _type-name-of, _json-type-name,
 )
 #import "../core/pointer.typ": _escape-token
 #import "../kinds/constraint.typ": _constraint-rows
-
-// A control character, as a JSON string escapes it.
-#let _json-escapes = (
-  "\n": "\\n",
-  "\r": "\\r",
-  "\t": "\\t",
-  "\u{8}": "\\b",
-  "\u{c}": "\\f",
-)
-#let _json-escape(c) = _json-escapes.at(c, default: {
-  let hex = str(c.to-unicode(), base: 16)
-  "\\u" + "0" * (4 - hex.len()) + hex
-})
-
-// `v` as JSON writes it, so a message quotes the schema in its own
-// syntax: `[1]`, `null`, `{"type": "string"}`. A value JSON has no
-// syntax for (a regex, from a Typst-built schema) keeps its repr.
-#let _json(v) = if v == none { "null" } else if type(v) == bool {
-  if v { "true" } else { "false" }
-} else if type(v) in (int, float, decimal) { _num(v) } else if (
-  type(v) == str
-) {
-  (
-    "\""
-      + v
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace(regex("[\u{0}-\u{1f}]"), m => _json-escape(m.text))
-      + "\""
-  )
-} else if type(v) == array {
-  "[" + v.map(_json).join(", ", default: "") + "]"
-} else if type(v) == dictionary {
-  (
-    "{"
-      + v
-        .pairs()
-        .map(((k, x)) => _json(k) + ": " + _json(x))
-        .join(", ", default: "")
-      + "}"
-  )
-} else { repr(v) }
 
 // `ctx` one node further in: its JSON Pointer `at` with `segments`
 // (keys, or member indices) appended.
@@ -224,6 +182,24 @@
   ref: ". Draft 7 ignores them; move them into the referenced definition.",
 )
 
+// The `$id` on `js` that sets the base its `$ref`s resolve against, or
+// none. The translator resolves every `$ref` against the root
+// document, so below the root one would quietly pick another schema. A
+// fragment-only one names the node and changes no base.
+#let _base-id(js) = {
+  let id = if type(js) == dictionary { js.at("$id", default: none) }
+  if type(id) == str and not id.starts-with("#") { id }
+}
+
+// Bails on an embedded `$id`, `id`, found at JSON Pointer `where`.
+#let _bail-embedded-id(ctx, id, where) = _bail(
+  ctx,
+  "an embedded \"$id\" ("
+    + _json(id)
+    + if where != ctx.at { ", at " + where }
+    + ") is not supported: it changes the base of the $refs below it, which resolve against the root document here. Move the schema under the root's \"$defs\" without its \"$id\".",
+)
+
 // Bails on a keyword the translator cannot honour: a sibling beside a
 // composition keyword or `$ref` (checked before the `$ref` is resolved,
 // which would drop it), an unsupported keyword with a reason of its
@@ -272,6 +248,10 @@
           + " (draft 7 ignores it), so translating would silently drop its constraints.",
       )
     }
+  }
+  // The root's `$id` is the document's own; one below it is embedded.
+  if ctx.at != "" and _base-id(js) != none {
+    _bail-embedded-id(ctx, _base-id(js), ctx.at)
   }
   let unknown = js.keys().filter(k => _role-of(k) == "unsupported")
   if unknown.len() > 0 {

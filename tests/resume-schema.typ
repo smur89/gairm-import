@@ -1,6 +1,7 @@
-// The JSON Resume schema (fixtures/jsonresume-schema.json, v1.7.0)
-// as a large real-world translation: the translator handles every
-// keyword the document uses, and types each field as upstream does.
+// The JSON Resume schema (fixtures/jsonresume-schema.json, npm
+// @jsonresume/schema 1.7.1, the file README.md links) as a large
+// real-world translation: the translator handles every keyword the
+// document uses, and types each field as upstream does.
 
 #import "../lib.typ": (
   schema-get, schema-from-json-schema, validate, object, describe-schema,

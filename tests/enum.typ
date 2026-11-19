@@ -51,3 +51,22 @@
     for t in texts { assert(errs.at(0).message.contains(t), message: t) }
   }
 }
+
+// A float meets a decimal as the decimal it is written as, as bounds
+// compare them; messages write values as JSON.
+#import "../lib.typ": array-of, number
+#assert.eq(validate(const-of(decimal("1.5")), 1.5), ())
+#assert.eq(validate(enum-of(1.5), decimal("1.5")), ())
+#assert.eq(
+  validate(array-of(number(), unique-items: true), (decimal("1.5"), 1.5)).map(
+    e => e.got,
+  ),
+  ((0, 1),),
+)
+#assert.eq(
+  validate(enum-of(none, (k: (1, 2))), 5).first().message,
+  "expected one of null, {\"k\": [1, 2]}, got 5.",
+)
+// `expected` names the types a non-null value could have, as a
+// nullable union's does.
+#assert.eq(validate(enum-of("x", none), 5).first().expected, "string")

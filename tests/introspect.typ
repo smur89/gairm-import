@@ -166,25 +166,18 @@ work[]:
 
 // --- describe-schema: nested array-of-array -------------------------
 
-// `array-of-array` (e.g. a 2D string matrix) was previously rendered
-// inline as `key[]  array`, hiding the inner element kind. Now treated
-// as structural so the recursive walk shows the deeper level.
+// An array of arrays (a 2D string matrix) extends the label once per
+// level, so the element kind stays on the field's row.
 #let matrix-schema = object((
   grid: array-of(array-of(string())),
 ))
-#assert.eq(
-  describe-schema(matrix-schema),
-  "grid[]:\n  [] string",
-)
+#assert.eq(describe-schema(matrix-schema), "grid[][]  string")
 
 // Three levels deep with markup() at the leaf.
 #let cube-schema = object((
   cube: array-of(array-of(array-of(markup()))),
 ))
-#assert.eq(
-  describe-schema(cube-schema),
-  "cube[]:\n  []:\n    [] markup",
-)
+#assert.eq(describe-schema(cube-schema), "cube[][][]  markup")
 
 // --- the kind at a location ----------------------------------------
 
@@ -549,3 +542,10 @@ phone → email",
 // (tests/engine-walk.typ).
 #let deep = range(37).fold(string(), (s, _) => object((a: s)))
 #assert(describe-schema(deep).ends-with("a  string"))
+
+// Numbers read as they do in messages: an ASCII minus, a float in its
+// shortest form.
+#assert.eq(
+  describe-schema(object((t: number(minimum: -5, maximum: 1e300)))),
+  "t  number (minimum -5, maximum 1e300)",
+)

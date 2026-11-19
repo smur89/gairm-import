@@ -5,15 +5,18 @@
 
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": (
-  _error, _type-miss, _type-name-of, _closest-match, _shown,
+  _error, _type-miss, _type-name-of, _closest-match, _shown, _json, _key-label,
 )
 #import "constraint.typ": _constraint-errors
 
 // A node's kind as messages and describe-schema name it: the kind, then
-// a string's format, if it has one, in parentheses (`string (date)`).
+// a string's format, if it has one, in parentheses (`string (date)`),
+// or an enum's values, as JSON writes them (`enum ("a", "b")`).
 #let _kind-label(node) = {
   if node.kind == "string" and "format" in node {
     "string (" + node.format + ")"
+  } else if node.kind == "enum" {
+    "enum (" + node.values.map(_json).join(", ") + ")"
   } else { node.kind }
 }
 
@@ -116,7 +119,7 @@
       } else if schema.shape.len() == 0 {
         "The object takes no keys."
       } else {
-        "Valid keys: " + schema.shape.keys().join(", ") + "."
+        "Valid keys: " + schema.shape.keys().map(_key-label).join(", ") + "."
       }
       errors += _error(
         ctx.path + (key,),
@@ -215,18 +218,26 @@
   // union's: its own errors say what is wrong (the generic summary would
   // read like a type error for a right-typed value that merely broke a
   // constraint), and coerce models the value as that member would alone.
+  // When several claim it, the summary below reports it, and coerce
+  // models it as the first claimant that leaves a model, as for a match.
   let type-misses(r) = r.errors.filter(e => (
     e.code == "type" and e.path == ctx.path
   ))
   let claimed = results.filter(r => type-misses(r) == ())
   if claimed.len() == 1 { return claimed.first() }
+  let modelled = claimed.find(r => r.fatal == none)
   // When members take the value's type, coerce names the value, not it.
-  let fatal = (
-    path: ctx.path,
-    expected: "a value matching one of the union alternatives",
-    got: value,
-    shown: if claimed != () { _shown(value) },
-  )
+  let (model, fatal) = if modelled != none { (modelled.value, none) } else {
+    (
+      value,
+      (
+        path: ctx.path,
+        expected: "a value matching one of the union alternatives",
+        got: value,
+        shown: if claimed != () { _shown(value) },
+      ),
+    )
+  }
   let quantifier = if schema.exclusive { "exactly one" } else { "one" }
   let message = (
     "expected a value matching "
@@ -254,7 +265,7 @@
   } else {
     _error(ctx.path, "union", message, expected: kinds)
   }
-  (errors: errors, value: value, fatal: fatal)
+  (errors: errors, value: model, fatal: fatal)
 }
 
 // `not` inverts the member verdict; the member's own errors are

@@ -405,3 +405,13 @@
   )),
   ab,
 )
+
+// Several members take the value's type and none matches: validate
+// reports the union, and coerce models it as the first claimant that
+// leaves a model, as one claimant alone would.
+#let partial-date = any-of(
+  string(format: "date"),
+  string(pattern: "^[0-9]{4}(-[0-9]{2})?$"),
+)
+#assert.eq(validate(partial-date, "2024/01").map(e => e.code), ("union",))
+#assert.eq(coerce(partial-date, "2024/01"), "2024/01")

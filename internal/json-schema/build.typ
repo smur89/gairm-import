@@ -94,7 +94,7 @@
   if type(props) != dictionary {
     _bail-problem(
       ctx,
-      _problem("properties", "an object", _json-type-name(props)),
+      _problem("properties", "an object", _json(props)),
     )
   }
   let additional = if not has-ap {
@@ -188,7 +188,9 @@
 // `enum` and `const`, only the enum values equal to the const survive.
 // Type-specific keywords ignore other types (JSON Schema semantics), so
 // a value of a type no keyword applies to — a bool, null, object, or a
-// string beside only `minimum` — survives.
+// string beside only `minimum` — survives. A value is literal JSON,
+// judged as written whatever mode the data is later validated in, so
+// a null item in an array value counts toward its length.
 #let _fold-membership(js, ctx, names, recur) = {
   for keyword in _membership-structural {
     if keyword in js {
@@ -204,7 +206,7 @@
     _bail-problem(ctx, _problem(
       "enum",
       "a non-empty array of values",
-      if values == () { "[]" } else { _json-type-name(values) },
+      _json(values),
     ))
   }
   if "enum" in js and "const" in js {
@@ -234,7 +236,8 @@
       allowed
         and (
           kind not in by-type
-            or _walk(by-type.at(kind), v, _ctx()).errors.len() == 0
+            or _walk(by-type.at(kind), v, _ctx(strict-null: true)).errors.len()
+              == 0
         )
     )
   })

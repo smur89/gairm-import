@@ -30,6 +30,9 @@
 //                 is none for a sub-schema, which is checked as a schema
 //                 of its own; `must` says what the value must be
 //   rows          the constraint rows (constraint.typ) its fields may set
+//   own           every field the kind reads: `fields`, the rows', and
+//                 the others its walk reads (`reads`), so a field only
+//                 another kind reads is refused (_foreign-fields)
 //   problem       none, or schema => the problem (error.typ) with the
 //                 node's fields that `fields` can't state, or none.
 //                 structure.typ's _schema-problem reads all three
@@ -50,12 +53,27 @@
   _array-walk, _object-walk, _union-walk, _not-walk, _if-walk, _kind-label,
 )
 
-// `nullable(X)`'s shape: an any-of of exactly X then a null, read off
-// the node, since nullable() sits above this registry. The null is
-// known by its kind, so an annotated one counts too.
+// X when `s` is an any-of of exactly X and a null, in either order,
+// else none. The null is known by its kind, so an annotated one counts
+// too. Any node may be asked.
+#let _nullable-member(s) = if (
+  s.kind == "union" and not s.exclusive and s.members.len() == 2
+) {
+  let (a, b) = s.members
+  if b.kind == "null" { a } else if a.kind == "null" { b }
+}
+
+// `nullable(X)`'s shape: X then the null, read off the node, since
+// nullable() sits above this registry.
 #let _is-nullable(s) = (
-  not s.exclusive and s.members.len() == 2 and s.members.last().kind == "null"
+  _nullable-member(s) != none and s.members.last().kind == "null"
 )
+
+// The hint for a path that missed a nullable's one step: its schema is
+// member 0.
+#let _nullable-hint(s) = if _is-nullable(s) {
+  " Insert 0 to step into nullable(" + _kind-label(s.members.first()) + ")."
+}
 
 // A conditional's children, as (segment, field): the path segments are
 // the JSON Schema keywords, the fields if-of()'s arguments (`else` is a
@@ -157,22 +175,30 @@
   family: none,
   model: v => v,
   fields: (),
+  reads: (),
   problem: none,
-) = (
-  walk: if check != none { _leaf-walk(check, family, model) } else { walk },
-  fields: fields,
-  rows: _constraint-rows.filter(row => row.family == family),
-  problem: problem,
-  searchable: searchable,
-  children: children,
-  with-child: with-child,
-  suffix: if suffix != auto { suffix } else if with-child == none {
-    s => s.kind
-  } else { s => none },
-  inline: inline,
-  shorthand: shorthand,
-  bad-segment: bad-segment,
-)
+) = {
+  let rows = _constraint-rows.filter(row => row.family == family)
+  (
+    walk: if check != none { _leaf-walk(check, family, model) } else { walk },
+    fields: fields,
+    rows: rows,
+    own: ("kind",)
+      + fields.map(f => f.first())
+      + rows.map(row => row.field)
+      + reads,
+    problem: problem,
+    searchable: searchable,
+    children: children,
+    with-child: with-child,
+    suffix: if suffix != auto { suffix } else if with-child == none {
+      s => s.kind
+    } else { s => none },
+    inline: inline,
+    shorthand: shorthand,
+    bad-segment: bad-segment,
+  )
+}
 
 #let _kinds = (
   // A format and a pattern are fields on the node. The suffix names
@@ -194,6 +220,7 @@
       ),
       ("expected", false, v => type(v) == str, "a string"),
     ),
+    reads: ("format",),
     problem: s => _as-field(_string-problem(
       format: s.at("format", default: none),
       pattern: s.at("pattern", default: none),
@@ -204,22 +231,12 @@
     ),
   ),
   // The model wraps the string so it splices into markup. Its check
-  // reads no pattern or format, so a hand-built one is refused rather
-  // than silently ignored.
+  // reads no pattern or format, so a hand-built one is refused, as any
+  // field another kind reads is (_foreign-fields).
   markup: _kind(
     check: _string-check,
     family: "string",
     model: v => [#v],
-    problem: s => {
-      let field = ("pattern", "format").find(f => f in s)
-      if field != none {
-        (
-          message: "field "
-            + repr(field)
-            + " does nothing on markup, which takes no pattern or format; use string() for one.",
-        )
-      }
-    },
   ),
   number: _kind(check: _number-check, family: "number"),
   // A number with the integral gate; the number rows apply.
@@ -241,7 +258,7 @@
         "a non-empty array of values",
       ),
     ),
-    suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
+    suffix: _kind-label,
   ),
   // find-paths only walks through the two plain containers: every
   // schema is full of them, so asking for one is more likely a slip
@@ -276,6 +293,7 @@
         "a dictionary of field name to schema",
       ),
     ),
+    reads: ("required-keys", "dependent-required", "additional"),
     // object() reads `additional: false` as none and stores neither, so
     // a node never holds false, which the walk would take for a schema.
     problem: s => if s.at("additional", default: none) == false {
@@ -371,10 +389,7 @@
         + ", for a union schema",
       repr(seg),
       // A nullable's schema is member 0, a step a path can easily miss.
-      hint: if type(seg) == str and _is-nullable(s) {
-        let of = _kind-label(s.members.first())
-        " Insert 0 to step into nullable(" + of + ")."
-      },
+      hint: if type(seg) == str { _nullable-hint(s) },
     ),
     // The header says which union; the members are listed below it.
     suffix: s => if s.exclusive { "one of" } else { "any of" },
@@ -398,6 +413,7 @@
   "if": _kind(
     walk: _if-walk,
     fields: (("cond", true, none, "a schema"),),
+    reads: ("then", "otherwise"),
     problem: _if-problem,
     children: s => _if-present(s).map(((seg, field)) => (
       seg,
@@ -417,6 +433,24 @@
     ),
   ),
 )
+
+// Per kind, the fields it would ignore, as a set (field → true): those
+// another kind reads (an array's `min-length`, a number's `format`), and
+// two no kind reads, 0.x's `integer: true` flag and `else`, which
+// if-of() stores as `otherwise`. The schema check refuses them; any
+// other field is an annotation and rides along.
+#let _foreign-fields = {
+  let read = ("integer", "else")
+  for d in _kinds.values() { read += d.own }
+  let read = read.dedup()
+  _kinds
+    .pairs()
+    .map(((kind, d)) => (
+      kind,
+      read.filter(f => f not in d.own).map(f => (f, true)).to-dict(),
+    ))
+    .to-dict()
+}
 
 // The descriptor of schema node `s`, which the entry points have checked
 // (structure.typ's _require-schema), so its kind is registered.

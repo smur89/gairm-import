@@ -221,3 +221,12 @@
   add-field(undated, ("jobs", "end"), string(format: "date")).shape.jobs,
   dated.shape.jobs,
 )
+
+// `additional: false` closes an object, as object() reads it.
+#assert.eq(
+  schema-update(object((a: string()), additional: true), (), o => (
+    ..o,
+    additional: false,
+  )),
+  object((a: string())),
+)

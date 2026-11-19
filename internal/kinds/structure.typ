@@ -5,10 +5,10 @@
 // descriptor for every kind. This module sits above the registry, so
 // the schema check reads the registered kinds from it.
 
-#import "../core/error.typ": _bail, _problem, _fail
+#import "../core/error.typ": _a, _bail, _problem, _fail
 #import "constraint.typ": _constrain, _value-problem, _bounds-problems
 #import "leaf.typ": null
-#import "registry.typ": _kinds, _object-problem, _if-problem
+#import "registry.typ": _kinds, _object-problem, _if-problem, _foreign-fields
 
 // Whether `node` is a dictionary of a registered kind. Never panics, so
 // a search can ask it of any node it meets.
@@ -21,6 +21,30 @@
 // What a schema check suggests to a caller who passed something else.
 #let _schema-hint = " Build schemas with the constructors."
 
+// What to add when a node carries a field its kind would ignore
+// (registry.typ's _foreign-fields), for the slips that have a fix.
+#let _foreign-hints = (
+  integer: " Use integer() for a whole number.",
+  "else": " The else branch is the field otherwise.",
+  pattern: " Use string() for one.",
+  format: " Use string() for one.",
+)
+
+// Keys that mark a dictionary as a JSON Schema document, which the
+// translator, not the schema check, takes.
+#let _json-schema-keys = (
+  "$schema",
+  "$ref",
+  "type",
+  "properties",
+  "items",
+  "enum",
+  "const",
+  "allOf",
+  "anyOf",
+  "oneOf",
+)
+
 // The first malformed node in `node`, pre-order, as (path, problem), or
 // none: a node that is not a dictionary of a registered kind, or one
 // whose own fields its descriptor rejects (registry.typ). `path` is the
@@ -28,18 +52,34 @@
 // any value.
 //
 // Typst memoizes a call by hashing its arguments, which visits the whole
-// subtree, so this calls nothing else with the node: the descriptor's
-// fields and rows are checked inline. It takes the node alone and builds
+// subtree, so this passes the node to nothing but the descriptor's own
+// checks: the fields and rows are checked inline. It takes the node alone and builds
 // the path on the way back up, so each subtree's verdict is memoized: a
 // subtree a constructor already checked, or one shared by several
 // parents (a union that repeats a member), is checked once.
 #let _schema-problem(node) = {
   let kind = if type(node) == dictionary { node.at("kind", default: none) }
   if type(kind) != str or kind not in _kinds {
-    return (
-      path: (),
-      problem: _problem(none, "a schema", repr(node), hint: _schema-hint),
-    )
+    // A JSON Schema document, or a file, is named rather than shown: its
+    // repr runs to pages. A constructor left uncalled gets the call.
+    let (got, hint) = if (
+      type(node) == dictionary
+        and kind == none
+        and _json-schema-keys.any(k => k in node)
+    ) {
+      (
+        "a JSON Schema document",
+        " Translate it with schema-from-json-schema(..) first.",
+      )
+    } else if type(node) in (path, bytes) {
+      (
+        _a(str(type(node))),
+        " Read a JSON Schema file with schema-from-json-schema(..).",
+      )
+    } else if type(node) == function {
+      (repr(node), " Call it: " + repr(node) + "().")
+    } else { (repr(node), _schema-hint) }
+    return (path: (), problem: _problem(none, "a schema", got, hint: hint))
   }
   let d = _kinds.at(kind)
   let p = none
@@ -52,6 +92,24 @@
     if p != none { break }
   }
   if p == none and d.problem != none { p = (d.problem)(node) }
+  // A field another kind reads would be ignored here; any other field is
+  // an annotation and rides along.
+  if p == none {
+    let foreign = _foreign-fields.at(kind)
+    for k in node.keys() {
+      if k in foreign {
+        p = (
+          message: "field "
+            + repr(k)
+            + " does nothing on "
+            + _a(kind)
+            + " schema."
+            + _foreign-hints.at(k, default: ""),
+        )
+        break
+      }
+    }
+  }
   for row in d.rows {
     if p != none { break }
     if row.field in node {

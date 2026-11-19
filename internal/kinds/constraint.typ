@@ -92,17 +92,36 @@
 }
 
 // `a op b` for any two of int, float and decimal, none of them NaN. A
-// decimal compares with an int, but not with a float: the pair compares
-// as _decimal-against reads it, the float on the right.
+// decimal compares with an int, but not with a float, and an int past
+// 2^53 compares with a float only after rounding to one: either pair
+// compares as _decimal-against reads it, as decimals, the float on the
+// right. Any other pair compares natively.
 #let _mirror = ("≥": "≤", ">": "<", "≤": "≥", "<": ">")
+#let _float-exact = calc.pow(2, 53)
+// An int or decimal a float can't stand in for exactly, as a decimal,
+// or none: a decimal always, an int only past 2^53.
+#let _unfloatable(v) = if type(v) == decimal { v } else if (
+  type(v) == int and (v > _float-exact or v < -_float-exact)
+) { decimal(v) }
 #let _compare(a, op, b) = {
-  let (m, o, c) = if type(a) == decimal and type(b) == float {
-    _decimal-against(a, op, b)
-  } else if type(a) == float and type(b) == decimal {
-    _decimal-against(b, _mirror.at(op), a)
+  let (m, o, c) = if type(b) == float and _unfloatable(a) != none {
+    _decimal-against(_unfloatable(a), op, b)
+  } else if type(a) == float and _unfloatable(b) != none {
+    _decimal-against(_unfloatable(b), _mirror.at(op), a)
   } else { (a, op, b) }
   (_holds.at(o))(m, c)
 }
+
+/// `v` with every float in it, nested ones too, as the decimal it is
+/// written as (`1.5` as `decimal("1.5")`), so `==` compares a float and
+/// a decimal as the bounds do; it already takes `1` for `1.0`. A float
+/// no decimal can hold stays a float.
+#let _comparable(v) = if type(v) == float {
+  let d = _as-decimal(v)
+  if d == none { v } else { d }
+} else if type(v) == array { v.map(_comparable) } else if (
+  type(v) == dictionary
+) { v.pairs().map(((k, x)) => (k, _comparable(x))).to-dict() } else { v }
 
 // A value and a multiple that are each an int, a decimal or a float a
 // decimal can hold compare exactly, as decimals: calc.rem(0.3, 0.1) is
@@ -140,8 +159,8 @@
   // The pair cited is the first item with a later duplicate, and that
   // duplicate's nearest copy. Strings key a dictionary, so one
   // right-to-left pass holding each string's nearest later index finds
-  // it. Other values compare with `==` (`1` equals `1.0`), natively in
-  // `contains` and `position`, over a copied suffix per item.
+  // it. Other values compare as _comparable writes them, with `==`
+  // natively in `contains` and `position`, over a copied suffix per item.
   let vals = kept.map(((_, v)) => v)
   let (i, j) = if vals.all(v => type(v) == str) {
     let later = (:)
@@ -152,6 +171,7 @@
     }
     pair
   } else {
+    let vals = vals.map(_comparable)
     let i = range(vals.len()).find(i => vals.slice(i + 1).contains(vals.at(i)))
     if i == none { (none, none) } else {
       (i, i + 1 + vals.slice(i + 1).position(v => v == vals.at(i)))

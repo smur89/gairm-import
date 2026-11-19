@@ -7,7 +7,8 @@
 
 #import "../kinds/structure.typ": if-of
 #import "keyword.typ": _role-of, _lone-hints, _into
-#import "all-of.typ": _join, _nullable-of, _restricts-extras
+#import "../kinds/registry.typ": _nullable-member
+#import "all-of.typ": _join, _restricts-extras
 
 // A branch read beside its siblings, as draft 7 reads it: a branch
 // with no `type` takes the siblings', since only a value of their type
@@ -85,7 +86,7 @@
     if base == none {
       // Only an object reaches the branch, so a nullable one is its
       // object, and the merge of one member checks it is an object.
-      let x = _nullable-of(node)
+      let x = _nullable-member(node)
       if x != none { node = x }
       node = _join((node,), (false,), (b,), (at,), ctx, who: _who)
     } else {

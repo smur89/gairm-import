@@ -10,10 +10,22 @@
 
 #let _children(s) = (_descriptor(s).children)(s)
 
-// Segments match by type as well as value, so `1.0` or `"0"` names no
-// union member. A bad segment panics naming `who`, the public function
-// that followed the path.
+// `seg` as a node of kind `kind` reads it. An object's fields are named
+// by strings, so a non-negative int names the field it spells, as a
+// JSON Pointer reads `/2024` as an int; an object has no int children
+// to confuse it with. A negative int is no pointer's, and stays a bad
+// segment. Given the kind alone, not the node, which a call would hash.
+#let _segment(kind, seg) = if (
+  type(seg) == int and seg >= 0 and kind == "object"
+) {
+  str(seg)
+} else { seg }
+
+// Past that, segments match by type as well as value, so `1.0` or `"0"`
+// names no union member. A bad segment panics naming `who`, the public
+// function that followed the path.
 #let _child(s, seg, who) = {
+  let seg = _segment(s.kind, seg)
   // A child with no segment (a shadowed additional schema) is never hit,
   // not even by a `none` segment.
   let hit = _children(s).find(((k, ..)) => (
@@ -32,6 +44,7 @@
 // panic there names `who`.
 #let _set-at(s, path, sub, who) = if path == () { sub } else {
   let (head, ..rest) = path
+  let head = _segment(s.kind, head)
   let child = _child(s, head, who)
   _rebuilt(
     (_descriptor(s).with-child)(s, head, _set-at(child, rest, sub, who)),

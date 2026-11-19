@@ -27,7 +27,7 @@
 #for (kind, hint, good, bad) in (
   (
     string(format: "date"),
-    "ISO-8601",
+    "RFC 3339",
     // RFC 3339's full-date: a year, month and day.
     ("2024-01-15", "1999-12-31", "2024-02-29"),
     (
@@ -50,7 +50,7 @@
   ),
   (
     string(format: "date-time"),
-    "ISO-8601 datetime",
+    "RFC 3339 date-time",
     (
       "2024-01-15T10:00:00Z",
       "2024-01-15T10:00:00.5Z",
@@ -239,7 +239,7 @@
   ),
   (
     string(format: "time"),
-    "an ISO-8601 time",
+    "an RFC 3339 time",
     (
       "10:00:00Z",
       "00:00:00.5Z",
@@ -397,7 +397,9 @@
 
 // ---- a datetime for a date format --------------------------------------
 //
-// Data written in Typst may give a date format a datetime (#134).
+// Data written in Typst may give a date field a datetime (#134). A
+// date-time field takes none: a Typst datetime has no offset, so its
+// string would fail the field's own format.
 
 #let schema = object((
   d: string(format: "date"),
@@ -413,24 +415,22 @@
   second: 7,
 )
 
-// The right shapes validate and coerce to ISO strings.
-#assert.eq(validate(schema, (d: day, dt: moment)), ())
-#assert.eq(
-  coerce(schema, (d: day, dt: moment)),
-  (d: "2024-01-05", dt: "2024-01-05T09:03:07"),
-)
+// A date validates and coerces to its ISO string.
+#assert.eq(validate(schema, (d: day)), ())
+#assert.eq(coerce(schema, (d: day)), (d: "2024-01-05"))
 
-// The wrong shapes are rejected, never truncated.
-#let errs = validate(schema, (d: moment, dt: day))
-#assert.eq(errs.map(e => e.path), (("d",), ("dt",)))
+// A time is never truncated to fit a date, and a date-time takes no
+// datetime at all.
+#let errs = validate(schema, (d: moment, dt: moment))
+#assert.eq(errs.map(e => (e.path, e.code)), (
+  (("d",), "format"),
+  (("dt",), "type"),
+))
 #assert.eq(
   errs.at(0).message,
   "expected a string or a datetime with a date and no time, got datetime.",
 )
-#assert.eq(
-  errs.at(1).message,
-  "expected a string or a datetime with a date and a time, got datetime.",
-)
+#assert.eq(errs.at(1).message, "expected string, got datetime.")
 #assert.eq(
   validate(schema, (d: datetime(hour: 9, minute: 3, second: 7))).len(),
   1,

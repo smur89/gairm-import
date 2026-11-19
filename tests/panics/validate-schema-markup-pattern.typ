@@ -1,3 +1,3 @@
-// expect: validate schema field "pattern" does nothing on markup, which takes no pattern or format; use string() for one.
+// expect: validate schema field "pattern" does nothing on a markup schema. Use string() for one.
 #import "../../lib.typ": validate
 #validate((kind: "markup", pattern: regex("^x")), "y")

@@ -10,6 +10,7 @@ schema under [Schema paths and edits](#schema-paths-and-edits).
   - [Error records](#error-records)
   - [The model](#the-model)
 - [Constructors](#constructors)
+  - [Schema nodes](#schema-nodes)
 - [Formats](#formats)
 - [Schema paths and edits](#schema-paths-and-edits)
 - [Introspection](#introspection)
@@ -47,8 +48,8 @@ Each call checks the whole schema before it reads the data: an argument
 that is not a schema, or a hand-built node anywhere in it that is
 missing a field, holds one of the wrong shape, or breaks a rule its
 constructor enforces (bounds no value meets, a closed object requiring a
-key it does not declare), panics naming the path to that node. So does a
-`null` document. A string is checked as data; only when it ends in
+key it does not declare), or carries a field only another kind reads,
+panics naming the path to that node. So does a `null` document. A string is checked as data; only when it ends in
 `.json` and the schema's root rejects its type does the call panic,
 with a hint to read the file with `path(..)`.
 
@@ -109,14 +110,14 @@ quoting a key that is not a plain name in brackets (`["a.b"].c`,
 
 | Schema | Model |
 |---|---|
-| `string(..)` | the string. A Typst `datetime` becomes its ISO string: one with a date and no time in a `date` field, one with both in a `date-time` field; any other `datetime` is a `format` error (see [Formats](#formats)) |
+| `string(..)` | the string. In a `date` field, a Typst `datetime` with a date and no time becomes its ISO string, and one with a time is a `format` error; in any other string field a `datetime` is a `type` error (see [Formats](#formats)) |
 | `markup()` | the string as Typst `content` |
 | `number(..)`, `integer(..)` | the number as given, an int, a float or a Typst `decimal`: an `integer` field keeps `1.0` as a float |
 | `boolean()`, `null()`, `enum-of(..)`, `const-of(..)` | the value as given |
 | `unknown()` | the value as given, nested values included |
 | `array-of(..)` | each item's model; absent (null) items dropped |
 | `object(..)` | each declared key's model, absent keys dropped. Undeclared keys are dropped, passed through as given (`additional: true`), or modelled by the `additional` schema. A free-form object (no fields, `additional: true`) is kept as given, nulls included |
-| `any-of(..)`, `one-of(..)` | the model of the first member that matches; when none matches but exactly one member takes the value's type, that member's model, as `coerce` would build it alone |
+| `any-of(..)`, `one-of(..)` | the model of the first member that matches; when none matches, the model of the first member that takes the value's type and leaves one, as `coerce` would build it alone |
 | `not-of(..)` | the value as given |
 | `if-of(..)` | the model of the branch the condition picks, or the value as given when that branch is left out |
 
@@ -202,6 +203,26 @@ end in `-of`, since `not` and `if` are Typst keywords.
 )
 ```
 
+### Schema nodes
+
+A schema is a dictionary: its `kind`, then a field per argument given,
+named as the argument is, plus the fields below. These names are part of
+the API, so hand-built nodes and `schema-update` functions may use them.
+
+| `kind` | Built by | Other fields |
+|---|---|---|
+| `string`, `number`, `integer`, `boolean`, `null`, `markup`, `unknown` | the constructor of that name | none; a `pattern` is stored as a `regex` |
+| `enum` | `enum-of`, `const-of` | `values`, an array |
+| `array` | `array-of` | `elem` |
+| `object` | `object`, `map` | `shape`; `required-keys` (always), `dependent-required` and `additional` only when set. `map(x)` is `shape: (:)`, `additional: x` |
+| `union` | `any-of`, `one-of`, `nullable` | `members`, and `exclusive`: true for `one-of`. `nullable(x)` is the members `(x, null())` |
+| `not` | `not-of` | `member` |
+| `if` | `if-of` | `cond`, and `then` / `otherwise` when set |
+
+A field another kind reads (`min-length` on an array) panics at the
+schema check. Any other field is an annotation and rides along
+unchecked, so a misspelt one (`formt`) checks nothing.
+
 ## Formats
 
 `string(format: …)` gates a string with a regex. `date`, `date-time` and
@@ -211,9 +232,9 @@ claiming full RFC compliance.
 
 | `format` | Accepts | Error hint |
 |---|---|---|
-| `date` | `YYYY-MM-DD`, month and day in range | `an ISO-8601 date (e.g. "2024-01-15")` |
-| `date-time` | `YYYY-MM-DDTHH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an ISO-8601 datetime (e.g. "2024-01-15T10:00:00Z")` |
-| `time` | `HH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an ISO-8601 time (e.g. "10:00:00Z")` |
+| `date` | `YYYY-MM-DD`, month and day in range | `an RFC 3339 date (e.g. "2024-01-15")` |
+| `date-time` | `YYYY-MM-DDTHH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an RFC 3339 date-time (e.g. "2024-01-15T10:00:00Z")` |
+| `time` | `HH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an RFC 3339 time (e.g. "10:00:00Z")` |
 | `uri` | any scheme, `:`, then no whitespace (`https://…`, `mailto:…`, `urn:…`) | `a URI (e.g. "https://example.com")` |
 | `email` | a local part (or a quoted one), `@`, a domain of one or more labels or an address literal (`name@[127.0.0.1]`) | `an email (e.g. "name@example.com")` |
 | `uuid` | 8-4-4-4-12 hex digits, any case | `a UUID (e.g. "123e4567-e89b-12d3-a456-426614174000")` |
@@ -241,15 +262,14 @@ A miss reports `expected <hint>.` at the field's path. For `member`:
 gairm-import: found 3 problems in the input:
   - email: expected an email (e.g. "name@example.com").
   - homepage: expected a URI (e.g. "https://example.com").
-  - joined: expected an ISO-8601 date (e.g. "2024-01-15").
+  - joined: expected an RFC 3339 date (e.g. "2024-01-15").
 ```
 
 Data written in Typst can give a `date` field a `datetime` with a date and
-no time, and a `date-time` field one with both; it is returned as the ISO
-string (`"2024-01-05"`, `"2024-01-05T09:03:07"`). A Typst `datetime` has
-no offset, so a `date-time` one is taken as it is and modelled without
-one. A `datetime` of the other shape, or with a year outside 0–9999, is
-rejected rather than truncated.
+no time; it is returned as the ISO string (`"2024-01-05"`). One with a
+time, or with a year outside 0–9999, is rejected rather than truncated. A
+`date-time` field takes no `datetime`: a Typst `datetime` has no offset,
+which the format requires.
 Otherwise coercion is pass-through: a formatted value reaches the model
 as the same string.
 
@@ -265,7 +285,7 @@ schema path. Its segments are:
 
 | Segment | Enters |
 |---|---|
-| a field name (`"basics"`) | that field of an object |
+| a field name (`"basics"`) | that field of an object; an int names the field it spells, as `pointer-to-path` reads `/2024` |
 | `"items"` | an array's item schema |
 | `"additionalProperties"` | an object's `additional` schema (only when it is a schema, not `true`) |
 | an int (`0`) | that member of an `any-of` or `one-of` |
@@ -374,13 +394,14 @@ field with its kind:
 
 - keys sort alphabetically, so diffs across schema versions stay stable,
   and a key that is not a plain name is quoted (`"a.b"`);
-- a required field is suffixed `*`, an array `[]`, and `*` as a key stands
-  for any other key (the `additional` schema);
+- a required field is suffixed `*`, an array `[]` (`[][]` for an array of
+  arrays), and `*` as a key stands for any other key (the `additional`
+  schema);
 - a required key the shape doesn't declare is listed as `key*` with the
   `additional` schema (`unknown` for `additional: true`);
 - an object with no fields that takes no other keys shows as `empty object`;
-- constraints follow the kind in brackets, a format in parentheses, and a
-  pattern as `+ pattern`;
+- constraints follow the kind in brackets, a format or an enum's values in
+  parentheses, and a pattern as `+ pattern`;
 - a union lists its members as `[0]`, `[1]`, … under `any of:` or
   `one of:`, `nullable(X)` draws as `X?`, a `not-of` member shows as
   `not`, and an `if-of`'s condition and branches as `if`, `then` and
@@ -653,11 +674,9 @@ Where a draft 7 validator and this package disagree on the same schema:
   null key is dropped, so under an object schema `{"a": 1, "b": null}` and
   `{"a": 1}` are duplicates. A free-form object (`additionalProperties:
   true` and nothing declared) keeps its nulls, so there they differ.
-- **`integer`** accepts `1.0`, as draft 7 does, and the model keeps it as
-  the float `1.0`.
-- **`$id` is ignored**: it sets no base URI, so `$ref` resolves against
-  the document root only. External, root, anchor and recursive `$ref`s
-  panic.
+- **`$id` sets no base URI**, so `$ref` resolves against the document
+  root only: the root's `$id` is ignored, and one below the root panics.
+  External, root, anchor and recursive `$ref`s panic.
 - **`$ref` and the composition keywords stand alone.** Draft 7 ignores a
   `$ref`'s siblings and applies a composition keyword's siblings as well;
   here a sibling that is not an annotation panics. `if` / `then` / `else`
@@ -671,6 +690,9 @@ Where a draft 7 validator and this package disagree on the same schema:
 - **`enum` and `const` are folded with their siblings** at translate time;
   an `enum` that no value survives panics instead of rejecting every
   value.
+- **Bounds no value meets panic** (`minLength` above `maxLength`), even
+  where another `type` in the list could still pass; only an `integer`
+  whose bounds hold no whole number is dropped from the list instead.
 - **Boolean schemas and the array form of `items` are not supported**,
   except `additionalProperties: true` / `false`.
 - **`dependentRequired`**, from draft 2019-09, is accepted alongside draft
