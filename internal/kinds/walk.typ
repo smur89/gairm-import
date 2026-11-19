@@ -199,29 +199,21 @@
     )
     return (errors: errors, value: clean.first().value, fatal: none)
   }
+  // A member claims the value when it has no `type` error at the
+  // union's own path. When exactly one claims, its result is the
+  // union's: its own errors say what is wrong (the generic summary would
+  // read like a type error for a right-typed value that merely broke a
+  // constraint), and coerce models the value as that member would alone.
+  let type-misses(r) = r.errors.filter(e => (
+    e.code == "type" and e.path == ctx.path
+  ))
+  let claimed = results.filter(r => type-misses(r) == ())
+  if claimed.len() == 1 { return claimed.first() }
   let fatal = (
     path: ctx.path,
     expected: "a value matching one of the union alternatives",
     got: value,
   )
-  // A member claims the value when it has no `type` error at the
-  // union's own path. When exactly one claims, its own errors say what
-  // is wrong; the generic summary would read like a type error for a
-  // right-typed value that merely broke a constraint.
-  let type-misses(r) = r.errors.filter(e => (
-    e.code == "type" and e.path == ctx.path
-  ))
-  let claimed = results.filter(r => type-misses(r) == ())
-  if claimed.len() == 1 {
-    // A claimant that can't be modelled says where itself (e.g. a nested
-    // field); one that only broke a constraint gets the union's message.
-    let own = claimed.first().fatal
-    return (
-      errors: claimed.first().errors,
-      value: value,
-      fatal: if own != none { own } else { fatal },
-    )
-  }
   let quantifier = if schema.exclusive { "exactly one" } else { "one" }
   let message = (
     "expected a value matching "

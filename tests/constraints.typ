@@ -285,3 +285,15 @@
   validate(string(), d).first().message,
   "expected string, got number.",
 )
+
+// ---- NaN -------------------------------------------------------------------
+
+// A NaN (Typst data only) meets no bound, and is reported, not compared.
+#for schema in (number(minimum: 0), integer(maximum: 3)) {
+  let codes = validate(schema, float.nan).map(e => e.code)
+  assert("range" in codes, message: repr(codes))
+}
+#assert.eq(
+  validate(number(multiple-of: 2), float.nan).map(e => e.code),
+  ("multiple",),
+)

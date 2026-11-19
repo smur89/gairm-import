@@ -107,7 +107,7 @@ quoting a key that is not a plain name in brackets (`["a.b"].c`,
 | `any-type` | the value as given, nested values included |
 | `array-of(..)` | each item's model; absent (null) items dropped |
 | `object(..)` | each declared key's model, absent keys dropped. Undeclared keys are dropped, passed through as given (`additional: true`), or modelled by the `additional` schema. A free-form object (no fields, `additional: true`) is kept as given, nulls included |
-| `any-of(..)`, `one-of(..)` | the model of the first member that matches |
+| `any-of(..)`, `one-of(..)` | the model of the first member that matches; when none matches but exactly one member takes the value's type, that member's model, as `coerce` would build it alone |
 | `not-of(..)` | the value as given |
 | `if-of(..)` | the model of the branch the condition picks, or the value as given when that branch is left out |
 
