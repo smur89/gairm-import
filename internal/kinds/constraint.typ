@@ -52,15 +52,31 @@
   "<": (n, bound) => n < bound,
 )
 
-// An int or a decimal over an int multiple stays exact; anything else
-// compares the float ratio with a tolerance, since calc.rem(0.3, 0.1)
-// is not 0. A ratio too large for a float (1e308 / 0.123...) is
-// infinite, and no finite multiple: report it rather than compare the
-// NaN its rounding leaves.
+// A float bound as the decimal it is written as, so a decimal value
+// compares at its own precision: `str(1.6)` is "1.6", where
+// `decimal(1.6)` is the float's binary value, 1.60000000000000008….
+// None for a bound a decimal can't hold (an infinity, 1e300, 1e-30),
+// which lies past every decimal value, so the value's float decides it
+// alike.
+#let _as-decimal(f) = {
+  if f.is-infinite() or calc.abs(f) >= 7e28 { return none }
+  let t = str(f)
+  if "e" in t or t.split(".").at(1, default: "").len() > 28 { return none }
+  decimal(t)
+}
+
+// An int or a decimal over an int or decimal multiple stays exact;
+// anything else compares the float ratio with a tolerance, since
+// calc.rem(0.3, 0.1) is not 0. A ratio too large for a float (1e308 /
+// 0.123...) is infinite, and no finite multiple: report it rather than
+// compare the NaN its rounding leaves.
 #let _multiple-test(mult, value) = {
-  let off = if type(value) in (int, decimal) and type(mult) == int {
-    calc.rem(value, mult) != 0
-  } else {
+  let exact = if type(value) in (int, decimal) and type(mult) == int {
+    mult
+  } else if type(value) == decimal and type(mult) == float {
+    _as-decimal(mult)
+  }
+  let off = if exact != none { calc.rem(value, exact) != 0 } else {
     let q = float(value) / mult
     q.is-infinite() or q.is-nan() or calc.abs(q - calc.round(q)) >= 1e-9
   }
@@ -372,11 +388,14 @@
   if "test" in row { return (row.test)(bound, value) }
   let measure = _measures.at(row.family)
   let n = (measure.of)(value)
-  // A decimal compares with an int, but not with a float.
-  let m = if type(n) == decimal and type(bound) == float { float(n) } else {
-    n
-  }
-  if not (_holds.at(row.op))(m, bound) {
+  // A decimal compares with an int, but not with a float: a float bound
+  // compares as a decimal where one can hold it, and the value as a float
+  // where not.
+  let (m, b) = if type(n) == decimal and type(bound) == float {
+    let d = _as-decimal(bound)
+    if d == none { (float(n), bound) } else { (n, d) }
+  } else { (n, bound) }
+  if not (_holds.at(row.op))(m, b) {
     (
       message: _expected-got(
         measure.label + row.op + " " + str(bound),

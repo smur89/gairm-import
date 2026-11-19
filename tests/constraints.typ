@@ -228,6 +228,24 @@
 ))
 #assert.eq(validate(number(multiple-of: 0.5), d), ())
 #assert.eq(validate(number(multiple-of: 1), d).map(e => e.code), ("multiple",))
+// A float bound compares as the decimal it is written as, so the
+// value's precision survives: past `maximum: 1.0` by 1e-20 is out, and
+// past `exclusive-minimum: 1.0` by as much is in. A bound no decimal can
+// hold still compares.
+#let past-one = decimal("1.00000000000000000001")
+#assert.eq(validate(number(maximum: 1.0), past-one).map(e => e.code), (
+  "range",
+))
+#assert.eq(validate(number(exclusive-minimum: 1.0), past-one), ())
+#assert.eq(validate(number(maximum: 1.6), decimal("1.6")), ())
+#assert.eq(validate(number(maximum: float.inf), d), ())
+#assert.eq(validate(number(minimum: 1e300), d).map(e => e.code), ("range",))
+// So does a float multiple: exact, where floats need a tolerance.
+#assert.eq(validate(number(multiple-of: 0.1), decimal("0.3")), ())
+#assert.eq(
+  validate(number(multiple-of: 0.1), decimal("0.30000000001")).map(e => e.code),
+  ("multiple",),
+)
 #assert.eq(validate(integer(), decimal("2.0")), ())
 #assert.eq(validate(integer(), d).map(e => e.code), ("integer",))
 #assert.eq(

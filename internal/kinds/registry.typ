@@ -146,6 +146,12 @@
   string: _kind(
     check: _string-kind-check,
     family: "string",
+    // Stored, a pattern and its message must be values: a null one
+    // would reach `match` (string() leaves an unset one out).
+    fields: (
+      ("pattern", false, v => type(v) in (regex, str), "a regex or a string"),
+      ("expected", false, v => type(v) == str, "a string"),
+    ),
     problem: s => _as-field(_string-problem(
       format: s.at("format", default: none),
       pattern: s.at("pattern", default: none),
