@@ -74,7 +74,7 @@ panic, with a hint to read the file with `path(..)`.
 |---|---|
 | `string(..)` | the string. A Typst `datetime` becomes its ISO string: one with a date and no time in a `date` field, one with both in a `date-time` field; any other `datetime` is a `format` error (see [Formats](#formats)) |
 | `content-type` | the string as Typst `content` |
-| `number(..)`, `integer(..)` | the number as given: an `integer` field keeps `1.0` as a float |
+| `number(..)`, `integer(..)` | the number as given, an int, a float or a Typst `decimal`: an `integer` field keeps `1.0` as a float |
 | `bool-type`, `null-type`, `enum-of(..)`, `const-of(..)` | the value as given |
 | `any-type` | the value as given, nested values included |
 | `array-of(..)` | each item's model; absent (null) items dropped |
@@ -96,7 +96,7 @@ built.
 | Constructor | Arguments | Accepts |
 |---|---|---|
 | `string(..)` | `min-length`, `max-length`, `format`, `pattern`, `expected` | a string |
-| `number(..)` | `minimum`, `maximum`, `exclusive-minimum`, `exclusive-maximum`, `multiple-of` | an int or a float |
+| `number(..)` | `minimum`, `maximum`, `exclusive-minimum`, `exclusive-maximum`, `multiple-of` | an int, a float or a Typst `decimal` |
 | `integer(..)` | the same as `number` | a number with no fractional part (`1.0` passes, `1.5` fails) |
 | `array-of(elem, ..)` | `min-items`, `max-items`, `unique-items` | an array whose every item matches `elem` |
 | `object(shape, ..)` | `required-keys`, `dependent-required`, `additional` | a dictionary with the fields in `shape` |

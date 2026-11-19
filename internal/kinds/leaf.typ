@@ -158,8 +158,10 @@
 
 #let _string-check = _typed-check((str,), "string")
 #let _bool-check = _typed-check((bool,), "boolean")
-#let _number-check = _typed-check((int, float), "number")
-#let _integer-gate = _typed-check((int, float), "integer")
+// A Typst `decimal` is a number too: JSON never gives one, but data
+// written in Typst may.
+#let _number-check = _typed-check((int, float, decimal), "number")
+#let _integer-gate = _typed-check((int, float, decimal), "integer")
 
 // The number gate, then the integral one: draft-7 semantics, so a
 // float with zero fractional part passes. The integral miss is

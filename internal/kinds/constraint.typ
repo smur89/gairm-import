@@ -52,15 +52,16 @@
   "<": (n, bound) => n < bound,
 )
 
-// Integers stay exact; floats compare the ratio with a tolerance, since
-// calc.rem(0.3, 0.1) is not 0. A ratio too large for a float (1e308 /
-// 0.123...) is infinite, and no finite multiple: report it rather than
-// compare the NaN its rounding leaves.
+// An int or a decimal over an int multiple stays exact; anything else
+// compares the float ratio with a tolerance, since calc.rem(0.3, 0.1)
+// is not 0. A ratio too large for a float (1e308 / 0.123...) is
+// infinite, and no finite multiple: report it rather than compare the
+// NaN its rounding leaves.
 #let _multiple-test(mult, value) = {
-  let off = if type(value) == int and type(mult) == int {
+  let off = if type(value) in (int, decimal) and type(mult) == int {
     calc.rem(value, mult) != 0
   } else {
-    let q = value / mult
+    let q = float(value) / mult
     q.is-infinite() or q.is-nan() or calc.abs(q - calc.round(q)) >= 1e-9
   }
   if off {
@@ -371,7 +372,11 @@
   if "test" in row { return (row.test)(bound, value) }
   let measure = _measures.at(row.family)
   let n = (measure.of)(value)
-  if not (_holds.at(row.op))(n, bound) {
+  // A decimal compares with an int, but not with a float.
+  let m = if type(n) == decimal and type(bound) == float { float(n) } else {
+    n
+  }
+  if not (_holds.at(row.op))(m, bound) {
     (
       message: _expected-got(
         measure.label + row.op + " " + str(bound),
