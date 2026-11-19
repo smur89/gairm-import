@@ -500,14 +500,19 @@ phone → email",
 }
 #assert.eq(find-paths(object((a: nullable(string()))), nullable), (("a",),))
 
-// A pattern's `expected` is only its message, not part of the match: a
-// custom one and the translator's `matching "^x"` are both found.
+// string(pattern:) sets no `expected`, so a query by pattern alone finds
+// a custom message and the translator's `matching "^x"` alike; one that
+// sets `expected` narrows by it, as any other field does.
 #let patterned = object((
   a: string(pattern: "^x", expected: "an x"),
   b: schema-from-json-schema((type: "string", pattern: "^x")),
   c: string(pattern: "^y"),
 ))
 #assert.eq(find-paths(patterned, string(pattern: "^x")), (("a",), ("b",)))
+#assert.eq(
+  find-paths(patterned, string(pattern: "^x", expected: "an x")),
+  (("a",),),
+)
 // An additional schema shadowed by a literal "additionalProperties"
 // field has no path, so none is returned for it.
 #let shadowed = object(

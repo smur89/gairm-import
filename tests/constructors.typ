@@ -40,15 +40,15 @@
   (kind: "if", cond: (kind: "string"), otherwise: (kind: "number")),
 )
 
-// A patterned string is the string kind with a `pattern` and the hint
-// its error shows.
+// A patterned string is the string kind with a `pattern`, and the hint
+// its error shows when one is given.
 #assert.eq(
   string(pattern: "^a", expected: "an a-word"),
   (kind: "string", pattern: regex("^a"), expected: "an a-word"),
 )
 #assert.eq(
   string(pattern: "^a"),
-  (kind: "string", pattern: regex("^a"), expected: "matching pattern"),
+  (kind: "string", pattern: regex("^a")),
 )
 
 // A formatted string is the string kind with a `format`, the JSON

@@ -350,8 +350,8 @@ they work wherever a location does. A query is:
   the query sets, with the same value: `string()` finds every string,
   `string(format: "date")` only the date strings, `number()` numbers but
   not integers, and `number(minimum: 0)` only numbers with that minimum.
-  A pattern's `expected` is only its message, so `string(pattern: p)`
-  finds every string with pattern `p`;
+  `string(pattern: p)` sets no `expected`, so it finds every string with
+  pattern `p`, whatever its message;
 - or a constructor, which matches the nodes it builds: `enum-of` every
   enum, `const-of` the single-value ones, `any-of` the inclusive unions
   (a nullable is one), `one-of` the exclusive ones, `nullable` the
