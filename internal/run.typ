@@ -46,7 +46,8 @@
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value its schema judges: `null()`, `nullable(..)`,
 ///   `unknown()` and an `enum-of(..)` or `const-of(..)` that lists
-///   `none` accept it, and the rest reject it. A `null` document panics
+///   `none` accept it, as can a `not-of(..)`, or an `if-of(..)` without
+///   the branch it picks; the rest reject it. A `null` document panics
 ///   either way.
 /// -> array
 #let validate(schema, data, strict-null: false) = {
@@ -67,7 +68,8 @@
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value its schema judges: `null()`, `nullable(..)`,
 ///   `unknown()` and an `enum-of(..)` or `const-of(..)` that lists
-///   `none` accept it, and the rest reject it. A `null` document panics
+///   `none` accept it, as can a `not-of(..)`, or an `if-of(..)` without
+///   the branch it picks; the rest reject it. A `null` document panics
 ///   either way.
 /// -> any
 #let coerce(schema, data, strict-null: false) = {
@@ -88,7 +90,8 @@
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value its schema judges: `null()`, `nullable(..)`,
 ///   `unknown()` and an `enum-of(..)` or `const-of(..)` that lists
-///   `none` accept it, and the rest reject it. A `null` document panics
+///   `none` accept it, as can a `not-of(..)`, or an `if-of(..)` without
+///   the branch it picks; the rest reject it. A `null` document panics
 ///   either way.
 /// -> any
 #let parse(schema, data, strict-null: false) = {

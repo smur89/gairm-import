@@ -5,7 +5,7 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, array-of, object, any-of, one-of, not-of, nullable,
-  string, number,
+  string, number, integer, schema-get, schema-put,
 )
 
 // ---- depth ---------------------------------------------------------------
@@ -57,6 +57,13 @@
   parse(deep-nullable, deep-nullable-value, strict-null: true),
   deep-nullable-value,
 )
+// An edit walks its path in two loops, so it reaches one level short of
+// validate: the schema check re-reads the nodes it rebuilt.
+#let edit-nullable = string()
+#for _ in range(35) { edit-nullable = nullable(object((a: edit-nullable))) }
+#let edit-path = range(35).map(_ => (0, "a")).flatten()
+#let edited = schema-put(edit-nullable, edit-path, integer())
+#assert.eq(schema-get(edited, edit-path), integer())
 
 // ---- overlapping unions -------------------------------------------------
 //

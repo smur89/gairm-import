@@ -12,7 +12,8 @@
 //     tool can dereference.
 //   - Schema paths address INTO a schema, in this
 //     package's own segments (`"items"`, `"additionalProperties"`,
-//     `"not"`, an int union index) and with no `properties` segment,
+//     `"not"`, `"if"` / `"then"` / `"else"`, an int union index) and
+//     with no `properties` segment,
 //     so they encode segment for segment: `("work", "items")` is
 //     `/work/items`. That is neither a data pointer nor a JSON Schema
 //     location (`/properties/work/items`).

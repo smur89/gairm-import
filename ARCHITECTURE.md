@@ -73,7 +73,7 @@ receives.
 `internal/json-schema/` turns a draft-7 subset into the same nodes.
 `keyword.typ`'s table gives each keyword a role, and the allow-list, the
 "unsupported keyword" panic and the stand-alone rules read it.
-`translate.typ` dispatches, `build.typ` has one builder per JSON type,
+`translate.typ` dispatches (following `$ref` through `ref.typ`), `build.typ` has one builder per JSON type,
 and `all-of.typ` / `conditional.typ` merge `allOf`, and `if` / `then` /
 `else` beside other keywords, into object nodes at translate time: the
 engine has no general intersection kind.

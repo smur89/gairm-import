@@ -36,19 +36,25 @@
   )
 }
 
-// What a member that is not an object schema is, for the message: a
-// node with no `type` (`{required: ["a"]}`) translates to any JSON type,
-// so it is named by what it lacks and the keywords it has, rather than
-// by the union it became; an `enum` or `const` one is named as the enum
-// it is.
+// What a member that is not an object schema is, for the message. A
+// composition or a `type` list is named as written (`"anyOf"`, `"type":
+// ["object", "string"]`), not by the internal kind it became; a node
+// with no `type` (`{required: ["a"]}`) translates to any JSON type, so
+// it is named by what it lacks and the keywords it has; any other by
+// its kind (`a string schema`, an enum with its values).
 #let _not-object(node, raw, ctx) = {
   let raw = _follow-refs(raw, ctx)
-  if (
-    type(raw) != dictionary
-      or "type" in raw
-      or raw.keys().any(k => _role-of(k) in _lone-hints)
-      or raw.keys().any(k => _role-of(k) == "membership")
-  ) { return "got: " + _a(_kind-label(node)) + " schema" }
+  if type(raw) != dictionary {
+    return "got: " + _a(_kind-label(node)) + " schema"
+  }
+  let applicator = raw.keys().find(k => _role-of(k) in _lone-hints)
+  if applicator != none { return "got one with " + _json(applicator) }
+  if type(raw.at("type", default: none)) == array {
+    return "got one with \"type\": " + _json(raw.type)
+  }
+  if "type" in raw or raw.keys().any(k => _role-of(k) == "membership") {
+    return "got: " + _a(_kind-label(node)) + " schema"
+  }
   let keys = raw.keys().filter(k => _role-of(k) != "annotation")
   (
     "got one with no "

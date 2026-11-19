@@ -145,9 +145,8 @@
 // path once, find the object at `at`, let `edit` check it and
 // return the fields to change (as object() names them), and write it
 // back rebuilt through object().
-#let _edit-object(schema, at, op, edit) = {
-  _require-schema(schema, op + " schema")
-  let path = _schema-path(at, op)
+#let _edit-object(schema, at, op, edit, hint: true) = {
+  let (schema, path) = _subject(schema, at, op)
   let parent = _get-at(schema, path, op)
   if not _is-object(parent) {
     _fail(op, _problem(
@@ -155,7 +154,7 @@
       "an object schema",
       _a(_kind-label(parent)) + " schema",
       // A nullable object's object is member 0, as for schema paths.
-      hint: _nullable-hint(parent),
+      hint: if hint { _nullable-hint(parent) },
     ))
   }
   // A hand-built object may leave `required-keys` out, as object() never
@@ -165,12 +164,16 @@
 }
 
 // A field's own schema path, as add-field and remove-field take it,
-// split into the object's path and the field's name. A non-negative int
-// names the field it spells, as in any schema path (traverse.typ).
-// Panics, naming `op`, unless it ends in a name.
-#let _field-path(at, op) = {
-  let at = _schema-path(at, op)
+// split into the object's path and the field's name, after the schema
+// it points into (the argument order checked as schema-get checks it).
+// A non-negative int names the field it spells, as in any schema path
+// (traverse.typ), but then likely meant a union member, so the object
+// check gives no nullable hint. Panics, naming `op`, unless the path
+// ends in a name.
+#let _field-path(schema, at, op) = {
+  let (_, at) = _subject(schema, at, op)
   let name = if at == () { none } else { at.last() }
+  let hint = type(name) != int
   if type(name) == int and name >= 0 { name = str(name) }
   if type(name) != str {
     _fail(op, _problem(
@@ -179,7 +182,7 @@
       repr(at),
     ))
   }
-  (at.slice(0, -1), name)
+  (at.slice(0, -1), name, hint)
 }
 
 // Collisions panic instead of overwriting silently — for the
@@ -198,8 +201,8 @@
 /// -> dictionary
 #let add-field(schema, at, sub-schema, required: false) = {
   _require-bool(required, "add-field", "required")
-  let (at, key) = _field-path(at, "add-field")
-  _edit-object(schema, at, "add-field", parent => {
+  let (at, key, hint) = _field-path(schema, at, "add-field")
+  _edit-object(schema, at, "add-field", hint: hint, parent => {
     if key in parent.shape {
       _bail(
         "add-field",
@@ -287,15 +290,25 @@
 /// - at (array): The field's schema path, ending in its name.
 /// -> dictionary
 #let remove-field(schema, at) = {
-  let (at, key) = _field-path(at, "remove-field")
-  _edit-object(schema, at, "remove-field", parent => {
+  let (at, key, hint) = _field-path(schema, at, "remove-field")
+  _edit-object(schema, at, "remove-field", hint: hint, parent => {
     if key not in parent.shape {
-      _bail("remove-field", _not-in(
-        "key " + repr(key),
-        "object shape",
-        "Valid keys",
-        parent.shape.keys(),
-      ))
+      _bail(
+        "remove-field",
+        _not-in(
+          "key " + repr(key),
+          "object shape",
+          "Valid keys",
+          parent.shape.keys(),
+        )
+          // A map's value schema is no field: its object drops it.
+          + if (
+            key == "additionalProperties"
+              and type(parent.at("additional", default: none)) == dictionary
+          ) {
+            " To drop the additional schema, use schema-update on the object: o => (..o, additional: none)."
+          } else { "" },
+      )
     }
     let shape = parent.shape
     let _ = shape.remove(key)

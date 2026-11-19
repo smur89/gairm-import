@@ -8,8 +8,10 @@
 #import "keyword.typ": _bail, _json, _base-id, _bail-embedded-id
 
 // The target of `ref`, a `$ref` on the node at `ctx`, as `(value, at)`:
-// `at` is the target's JSON Pointer, where the translation continues.
-// `ctx.seen` is the chain of refs traversed so far; a repeat means the
+// `at` is the target's JSON Pointer, where the translation continues,
+// and `path` its segments, decoded. `ctx.seen` is the chain of
+// (ref, path) traversed so far: a repeated target, however its ref
+// spells it (`%61` is `a`), means the
 // schema contains itself — a tree that nests a tree, or an alias of an
 // alias. A translated schema is a finite tree, so it can't, and the
 // translator panics before Typst's recursion limit fires deep in the
@@ -25,14 +27,6 @@
       "only internal $ref (starting with \"#/\") is supported, got: "
         + _json(ref)
         + ".",
-    )
-  }
-  if ref in ctx.seen {
-    _bail(
-      ctx,
-      "recursive $ref: "
-        + (ctx.seen + (ref,)).map(_json).join(" → ")
-        + " refers back to itself. A translated schema is a finite tree, so a schema that contains itself (a tree of trees, a list of lists) cannot be translated.",
     )
   }
   // The fragment is a URI's, so it is percent-decoded into the pointer
@@ -53,6 +47,14 @@
       "$ref "
         + _json(ref)
         + " has an invalid escape; RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
+    )
+  }
+  if ctx.seen.any(((_, p)) => p == read.path) {
+    _bail(
+      ctx,
+      "recursive $ref: "
+        + (ctx.seen.map(((r, _)) => r) + (ref,)).map(_json).join(" → ")
+        + " refers back to itself. A translated schema is a finite tree, so a schema that contains itself (a tree of trees, a list of lists) cannot be translated.",
     )
   }
   // RFC 6901: `~1` / `~0` unescape, empty segments are the "" key, and
@@ -83,7 +85,7 @@
       _bail-embedded-id(ctx, _base-id(above), where)
     }
   }
-  (value: found.value, at: pointer)
+  (value: found.value, at: pointer, path: read.path)
 }
 
 // A raw node with its `$ref`s followed, for the merges, which read a

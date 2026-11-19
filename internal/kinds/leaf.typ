@@ -107,8 +107,8 @@
 /// -> dictionary
 #let null() = (kind: "null")
 
-// Mixed-type members allowed — the validator's `in` check gates on
-// equality, not type. `const` is a singleton enum. The values come as
+// Mixed-type members allowed: membership is by value (_enum-check),
+// whatever the type. `const` is a singleton enum. The values come as
 // any-of's members do (structure.typ's _members): a lone array argument
 // is the list, so an enum whose one value is an array wraps it.
 /// One of a fixed list of values. The values may be of mixed types.
@@ -185,9 +185,16 @@
 #let _string-check = _typed-check((str,), "string")
 #let _bool-check = _typed-check((bool,), "boolean")
 // A Typst `decimal` is a number too: JSON never gives one, but data
-// written in Typst may.
-#let _number-check = _typed-check((int, float, decimal), "number")
-#let _integer-gate = _typed-check((int, float, decimal), "integer")
+// written in Typst may. A NaN or an infinite float is not: JSON has no
+// syntax for one, and no bound or multiple could judge it.
+#let _numeric-check(expected) = (schema, value, ctx) => {
+  if type(value) == float and (value.is-nan() or value.is-infinite()) {
+    return _type-miss(ctx.path, expected, value)
+  }
+  _typed-check((int, float, decimal), expected)(schema, value, ctx)
+}
+#let _number-check = _numeric-check("number")
+#let _integer-gate = _numeric-check("integer")
 
 // The number gate, then the integral one: draft-7 semantics, so a
 // float with zero fractional part passes. The integral miss is
@@ -250,16 +257,17 @@
 // `==` is exact for it. Messages write values as JSON, the syntax of
 // the data they came from.
 #let _enum-check(schema, value, ctx) = {
-  if type(value) in (str, bool) and value in schema.values {
-    return _pass(value)
+  if type(value) in (str, bool) {
+    if value in schema.values { return _pass(value) }
+  } else {
+    let v = _comparable(value)
+    if schema.values.any(x => _comparable(x) == v) { return _pass(value) }
   }
-  let v = _comparable(value)
-  if schema.values.any(x => _comparable(x) == v) { return _pass(value) }
   let listed = schema.values.map(_json).join(", ")
   let message = _expected-got("one of " + listed, _json(value))
   // `type` when no value shares the value's JSON type, so a union
   // doesn't count this member as claiming it; `enum` otherwise. A null
-  // never reaches here unless it is listed or the mode is strict, and
+  // reaches here only in strict-null mode, and
   // `null` is named only when it is the one value: `expected` lists the
   // types a non-null value could have, as a nullable union's does.
   let names = schema.values.filter(v => v != none).map(_json-type-name).dedup()

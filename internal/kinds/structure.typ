@@ -30,6 +30,10 @@
   format: " Use string() for one.",
 )
 
+// What a field set to none gets: a node has no null value for a field
+// it may leave out (object()'s `additional: none` is its own value).
+#let _none-hint(v) = if v == none { " Leave the field out to unset it." }
+
 // Keys that mark a dictionary as a JSON Schema document, which the
 // translator, not the schema check, takes.
 #let _json-schema-keys = (
@@ -73,7 +77,8 @@
       )
     } else if type(node) in (path, bytes) {
       (
-        _a(str(type(node))),
+        // Uncountable: "bytes", not "a bytes".
+        if type(node) == bytes { "bytes" } else { _a(str(type(node))) },
         " Read a JSON Schema file with schema-from-json-schema(..).",
       )
     } else if type(node) == function {
@@ -87,7 +92,8 @@
     if field not in node {
       if required { p = _problem("field " + repr(field), must, "missing") }
     } else if ok != none and not ok(node.at(field)) {
-      p = _problem("field " + repr(field), must, repr(node.at(field)))
+      let v = node.at(field)
+      p = _problem("field " + repr(field), must, repr(v), hint: _none-hint(v))
     }
     if p != none { break }
   }
@@ -113,9 +119,17 @@
   for row in d.rows {
     if p != none { break }
     if row.field in node {
-      let must = _value-problem(row, node.at(row.field))
+      let v = node.at(row.field)
+      let must = _value-problem(row, v)
       if must != none {
-        p = _problem("field " + repr(row.field), must, repr(node.at(row.field)))
+        p = _problem(
+          "field " + repr(row.field),
+          must,
+          repr(v),
+          hint: _none-hint(
+            v,
+          ),
+        )
       }
     }
   }

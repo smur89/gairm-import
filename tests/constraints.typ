@@ -308,9 +308,7 @@
 )
 #assert.eq(
   validate(number(maximum: decimal("1000")), float.inf).map(e => e.code),
-  (
-    "range",
-  ),
+  ("type",),
 )
 #assert.eq(validate(number(multiple-of: decimal("0.1")), 0.3), ())
 #assert.eq(validate(integer(multiple-of: decimal("0.5")), 2), ())
@@ -328,16 +326,28 @@
   "expected string, got number.",
 )
 
-// ---- NaN -------------------------------------------------------------------
+// ---- NaN and infinity ----------------------------------------------------------
 
-// A NaN (Typst data only) meets no bound, and is reported, not compared.
-#for schema in (number(minimum: 0), integer(maximum: 3)) {
-  let codes = validate(schema, float.nan).map(e => e.code)
-  assert("range" in codes, message: repr(codes))
+// No JSON number is a NaN or an infinity (Typst data only): each is a
+// type miss, named as JavaScript writes it, with or without bounds.
+#for schema in (
+  number(),
+  integer(),
+  number(minimum: 0),
+  number(multiple-of: 2),
+) {
+  for (v, got) in (
+    (float.nan, "NaN"),
+    (float.inf, "Infinity"),
+    (-float.inf, "-Infinity"),
+  ) {
+    let errors = validate(schema, v)
+    assert.eq(errors.map(e => (e.code, e.got)), (("type", got),))
+  }
 }
 #assert.eq(
-  validate(number(multiple-of: 2), float.nan).map(e => e.code),
-  ("multiple",),
+  validate(number(), float.nan).first().message,
+  "expected number, got NaN.",
 )
 
 // ---- numbers in messages -----------------------------------------------------

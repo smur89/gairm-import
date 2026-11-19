@@ -51,8 +51,13 @@
 }
 
 /// A number as a message writes it: an ASCII minus, where `str` writes
-/// U+2212, and a float in its shortest form (`1e300`, not 301 digits).
-#let _num(v) = if type(v) == float { repr(v) } else {
+/// U+2212, a float in its shortest form (`1e300`, not 301 digits), and
+/// a NaN or an infinity as JavaScript writes it, not as `float.nan`.
+#let _num(v) = if type(v) == float {
+  if v.is-nan() { "NaN" } else if v.is-infinite() {
+    if v > 0 { "Infinity" } else { "-Infinity" }
+  } else { repr(v) }
+} else {
   str(v).replace("\u{2212}", "-")
 }
 
@@ -155,9 +160,13 @@
 )
 
 // A null reaches a type check only in strict-null mode, where every
-// kind but null() rejects it ("got null").
+// kind but null() rejects it ("got null"). A NaN or an infinity is no
+// JSON number, so it is named as itself.
 #let _type-name-of(value) = {
   if value == none { return "null" }
+  if type(value) == float and (value.is-nan() or value.is-infinite()) {
+    return _num(value)
+  }
   let raw = repr(type(value))
   _type-names.at(raw, default: raw)
 }

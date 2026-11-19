@@ -1,7 +1,6 @@
 # gairm-import reference
 
-The [README](README.md) is the guide: quick start, input forms, errors,
-null handling and validating a JSON Resume. This file is the reference
+The [README](README.md) is the guide. This file is the reference
 for every export, and says each thing once. Its examples build on the
 `member` schema under [Constructors](#constructors) and the `team`
 schema under [Schema paths and edits](#schema-paths-and-edits).
@@ -173,6 +172,8 @@ end in `-of`, since `not` and `if` are Typst keywords.
   `otherwise` or both; a branch left out accepts the value as it is. Only
   whether the value matches `cond` counts: `cond`'s errors are never
   reported, and the branch it picks gives the errors and the model.
+  An `object()` condition, or `not-of` member, is closed like any other:
+  pass `additional: true` to match objects with more keys.
   `if-of(string(min-length: 5), then: string(pattern: "^x"))` accepts
   `"abc"` and `"xyzzy"`, and rejects `"abcde"`.
 - `number` and `integer` take each bound and `multiple-of` as an int, a float or a Typst `decimal`.
@@ -220,9 +221,11 @@ the API, so hand-built nodes and `schema-update` functions may use them.
 | `not` | `not-of` | `member` |
 | `if` | `if-of` | `cond`, and `then` / `otherwise` when set |
 
-A field another kind reads (`min-length` on an array) panics at the
-schema check. Any other field is an annotation and rides along
-unchecked, so a misspelt one (`formt`) checks nothing.
+A field another kind reads (`min-length` on an array), 0.x's `integer`
+on a number, `else` on an `if`, or any field set to `none`, panics at
+the schema check: leave a field out to unset it. Any other field is an
+annotation and rides along unchecked, so a misspelt one (`formt`)
+checks nothing.
 
 ## Formats
 
@@ -375,7 +378,9 @@ nothing, and `object()` rejects undeclared keys by default, so it would
 also close an object that was open.
 
 Folding `find-paths` into `schema-put` edits every node of a kind at once,
-and covers fields a future schema adds:
+and covers fields a future schema adds. Paths come parents first, so
+fold over `.rev()` when an edit changes what is below the node (stripping
+nested `nullable`s):
 
 ```typst
 #let corporate-uri = string(
@@ -563,8 +568,8 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
 - `allOf` of object schemas is merged at translate time: the properties
   and `required` lists union, a key in two members must have the same
   schema, `additionalProperties` must agree (a member without it counts as
-  closed), and members that are closed or typed must declare the same
-  properties. A `type: ["object", "null"]` member merges as its object;
+  closed), and members that set it to `false` or a schema must declare
+  the same properties. A `type: ["object", "null"]` member merges as its object;
   the result is nullable only if every member is.
 - `if`, `then` and `else` become `if-of`. With no other keywords on the
   node, the branches are `then` and `else` as written, of any kind. Beside
@@ -686,7 +691,8 @@ Where a draft 7 validator and this package disagree on the same schema:
   take plain siblings (below), but not a `$ref` or a composition keyword.
 - **`allOf`, and `if` / `then` / `else` beside other keywords, are merged
   at translate time**, so only object members are supported, members that
-  are closed or typed must declare the same properties, and a branch
+  set `additionalProperties` to `false` or a schema must declare the same
+  properties, and a branch
   cannot narrow a property its node already declares. Alone on a node, the
   branches may be any schema.
 - **`then` and `else` without `if` panic**; draft 7 ignores them.
