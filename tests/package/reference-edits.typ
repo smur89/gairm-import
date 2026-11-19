@@ -5,7 +5,7 @@
 #import "reference-schemas.typ": member, team
 
 // A field a renderer adds.
-#let with-logo = add-field(team, (), "logo", string(format: "uri"))
+#let with-logo = add-field(team, ("logo",), string(format: "uri"))
 #assert.eq(schema-get(with-logo, ("logo",)), string(format: "uri"))
 #assert.eq(with-logo.required-keys, team.required-keys)
 // Splicing the shape into a new object drops the required keys.
@@ -17,8 +17,7 @@
 // A role on every member, required.
 #let with-role = add-field(
   team,
-  ("members", "items"),
-  "role",
+  ("members", "items", "role"),
   enum-of(("lead", "dev")),
   required: true,
 )

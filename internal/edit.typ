@@ -53,14 +53,6 @@
   _rebuilt(node, who)
 }
 
-// A field name an edit takes: panics, naming `op`, unless `key` is a
-// string.
-#let _require-key(key, op) = {
-  if type(key) != str {
-    _fail(op, _problem("key", "a string", repr(key)))
-  }
-}
-
 // What an argument is, for the order panic below.
 #let _what(x) = if _has-kind(x) { "a schema" } else if _is-path(x) {
   "a path"
@@ -158,24 +150,38 @@
   _set-at(schema, path, _object-with(parent, who: op, ..edit(parent)), op)
 }
 
+// A field's own schema path, as add-field and remove-field take it,
+// split into the object's path and the field's name. Panics, naming
+// `op`, unless it ends in a name.
+#let _field-path(at, op) = {
+  let at = _schema-path(at, op)
+  if at == () or type(at.last()) != str {
+    _fail(op, _problem(
+      "path",
+      "a field's path, ending in its name (a string)",
+      repr(at),
+    ))
+  }
+  (at.slice(0, -1), at.last())
+}
+
 // Collisions panic instead of overwriting silently — for the
 // overwrite-an-existing-key case, callers can reach for schema-put /
-// schema-update.
-// `required: true` adds the key to required-keys in the same edit, so
-// the object is rebuilt, and checked, once.
-/// Returns a new schema with `key` added to the object at `at`. Panics
-/// if the target is not an object or already has that key; use
-/// `schema-put` to replace a field.
+// schema-update. `required: true` adds the key to required-keys in the
+// same edit, so the object is rebuilt, and checked, once.
+/// Returns a new schema with a field added at `at`, whose last segment
+/// names it and whose rest is the object that gets it. Panics if that
+/// is not an object or already has the key; use `schema-put` to replace
+/// a field.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - at (array): The object that gets the field, as a schema path.
-/// - key (str): The new field's name.
+/// - at (array): The new field's schema path, ending in its name.
 /// - sub-schema (dictionary): The schema for the field.
 /// - required (bool): Whether the object also requires the field.
 /// -> dictionary
-#let add-field(schema, at, key, sub-schema, required: false) = {
+#let add-field(schema, at, sub-schema, required: false) = {
   _require-bool(required, "add-field", "required")
-  _require-key(key, "add-field")
+  let (at, key) = _field-path(at, "add-field")
   _edit-object(schema, at, "add-field", parent => {
     if key in parent.shape {
       _bail(
@@ -251,16 +257,17 @@
 }
 
 // Absent-key panics rather than being a silent no-op so caller typos surface.
-/// Returns a new schema with `key` removed from the object at `at`, and
-/// from its required keys and dependent-required entries. Panics if the
-/// target is not an object or has no such key.
+/// Returns a new schema without the field at `at`, whose last segment
+/// names it and whose rest is its object; the key also leaves the
+/// object's required keys and dependent-required entries. Panics if
+/// that is not an object or has no such key. A path from `find-paths`
+/// that ends in a field name works as it is.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - at (array): The object, as a schema path.
-/// - key (str): The field to remove.
+/// - at (array): The field's schema path, ending in its name.
 /// -> dictionary
-#let remove-field(schema, at, key) = {
-  _require-key(key, "remove-field")
+#let remove-field(schema, at) = {
+  let (at, key) = _field-path(at, "remove-field")
   _edit-object(schema, at, "remove-field", parent => {
     if key not in parent.shape {
       _bail("remove-field", _not-in(

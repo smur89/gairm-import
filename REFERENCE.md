@@ -278,8 +278,8 @@ wins over the keyword; reach the additional schema in that case with
 | `schema-get(schema, at)` | the node at `at` |
 | `schema-put(schema, at, value)` | the schema with the node at `at` replaced by `value` |
 | `schema-update(schema, at, fn)` | the schema with the node at `at` replaced by `fn(node)` |
-| `add-field(schema, at, key, sub-schema, required: false)` | the object at `at` with a new field `key`, required if `required: true` |
-| `remove-field(schema, at, key)` | the object at `at` without the field, and without it in `required-keys` and `dependent-required` |
+| `add-field(schema, at, sub-schema, required: false)` | the schema with a new field at `at`, required if `required: true` |
+| `remove-field(schema, at)` | the schema without the field at `at`, which also leaves `required-keys` and `dependent-required` |
 | `set-required(schema, at, keys)` | the object at `at` also requiring `keys`, after those it already requires |
 | `unset-required(schema, at, keys)` | the object at `at` no longer requiring `keys` |
 
@@ -290,8 +290,11 @@ an edit touches is rebuilt through `object()`, so an edit cannot break its
 invariants. A missing path or field, adding a field that exists,
 requiring a key a closed object does not declare, or unsetting one it
 does not require panics, naming the function and what failed.
-To replace the whole list, use
-`schema-update(s, at, o => (..o, required-keys: keys))`.
+
+`add-field` and `remove-field` take the field's own path, its object's
+path plus its name, so a `find-paths` result folds straight into
+`remove-field`. `set-required` adds to `required-keys`; to replace the
+list, use `schema-update(s, at, o => (..o, required-keys: keys))`.
 
 The examples edit `team`, a schema built on `member` from
 [Constructors](#constructors):
@@ -311,13 +314,12 @@ The examples edit `team`, a schema built on `member` from
 )
 
 // A field a renderer adds.
-#let with-logo = add-field(team, (), "logo", string(format: "uri"))
+#let with-logo = add-field(team, ("logo",), string(format: "uri"))
 
 // A role on every member, required.
 #let with-role = add-field(
   team,
-  ("members", "items"),
-  "role",
+  ("members", "items", "role"),
   enum-of(("lead", "dev")),
   required: true,
 )
