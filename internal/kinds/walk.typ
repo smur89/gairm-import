@@ -43,7 +43,9 @@
 // imports the engine. `value` is the model; `fatal` is none, or the
 // first place in walk order where the value leaves no sound model, as
 // (path, expected, got) for coerce's panic text. Every fatal walk also has
-// errors, so a walk with no errors has no fatal.
+// errors, so a walk with no errors has no fatal. A walk whose result is
+// one sub-schema's over the same value returns `(tail: sub-schema)`
+// instead of calling `recur`, and the engine walks it in its own frame.
 //
 // Hot recursive paths use `for` loops, not `.map(x => …)`: each closure
 // is a stack frame, and Typst caps the call depth.
@@ -179,8 +181,8 @@
     if m.kind != "null" { others.push(m) }
   }
   if value != none and others != () and others != schema.members {
-    if others.len() == 1 { return recur(others.first(), value, ctx) }
-    return _union-walk((..schema, members: others), value, ctx, recur)
+    if others.len() == 1 { return (tail: others.first()) }
+    return (tail: (..schema, members: others))
   }
   let results = ()
   for member in schema.members {
@@ -283,5 +285,5 @@
     default: none,
   )
   if branch == none { return (errors: (), value: value, fatal: none) }
-  recur(branch, value, ctx)
+  (tail: branch)
 }

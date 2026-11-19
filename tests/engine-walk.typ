@@ -4,15 +4,17 @@
 // compares, and where coerce still panics or doesn't.
 
 #import "../lib.typ": (
-  validate, coerce, parse, array-of, object, any-of, one-of, not-of, string,
-  number,
+  validate, coerce, parse, array-of, object, any-of, one-of, not-of, nullable,
+  string, number,
 )
 
 // ---- depth ---------------------------------------------------------------
 //
 // Each nesting level costs two call frames against Typst's limit (the
 // walk, then the kind's walk), so 37 levels fit when a run function is
-// called at the top level. Real documents nest under 10, but the pin is
+// called at the top level. A nullable hands its value on to its member
+// in the walk's own frame, so it costs none of its own: 36 levels of
+// nullable objects fit. Real documents nest under 10, but the pin is
 // the limit itself, so a frame added between the entry point and the
 // walk fails here rather than costing a level unnoticed.
 
@@ -41,6 +43,20 @@
 #let (deep-object, deep-object-value) = nested-objects(37)
 #assert.eq(validate(deep-object, deep-object-value), ())
 #assert.eq(parse(deep-object, deep-object-value), deep-object-value)
+// Built at the top level: inside a function, the constructors' schema
+// checks run out of call depth first.
+#let deep-nullable = string()
+#let deep-nullable-value = "x"
+#for _ in range(36) {
+  deep-nullable = nullable(object((a: deep-nullable)))
+  deep-nullable-value = (a: deep-nullable-value)
+}
+#assert.eq(validate(deep-nullable, deep-nullable-value), ())
+#assert.eq(coerce(deep-nullable, deep-nullable-value), deep-nullable-value)
+#assert.eq(
+  parse(deep-nullable, deep-nullable-value, strict-null: true),
+  deep-nullable-value,
+)
 
 // ---- overlapping unions -------------------------------------------------
 //

@@ -50,11 +50,12 @@ key it does not declare), panics naming the path to that node. So does a `null` 
 only when it ends in `.json` and the schema's root rejects its type does
 the call panic, with a hint to read the file with `path(..)`.
 
-A document may nest about 37 levels deep, or about 18 when every level
-is a union, a `nullable(..)` or a conditional (the translator builds
-`type: ["object", "null"]` as a `nullable`). Typst caps how deeply calls
-nest, and each level costs two calls, or four through a union; past the
-cap, Typst fails with `maximum function call depth exceeded`.
+A document may nest about 37 levels deep, about 36 when every level is
+a `nullable(..)` or a conditional (the translator builds
+`type: ["object", "null"]` as a `nullable`), or about 18 when every
+level is an `any-of` or `one-of`. Typst caps how deeply calls nest, and
+each level costs two calls, or four through an `any-of` or `one-of`;
+past the cap, Typst fails with `maximum function call depth exceeded`.
 `schema-from-json-schema` reads about 35 levels of nested `properties`
 or `items`, and about 17 when every level is an `anyOf`.
 

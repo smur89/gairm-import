@@ -2,9 +2,10 @@
 // introspection ask the registry instead of keeping their own `kind ==`
 // ladders. A descriptor holds:
 //
-//   walk          (schema, value, ctx, recur) => (errors, value, fatal):
-//                 what the engine runs (walk.typ; a leaf's is built from
-//                 its check by _leaf-walk, leaf.typ)
+//   walk          (schema, value, ctx, recur) => (errors, value, fatal),
+//                 or (tail: sub-schema) to hand the value on: what the
+//                 engine runs (walk.typ; a leaf's is built from its check
+//                 by _leaf-walk, leaf.typ)
 //   searchable    find-paths finds it, rather than only walking
 //                 through it
 //   children      schema => ((segment, sub-schema, label), ..): segments

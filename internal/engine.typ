@@ -19,9 +19,16 @@
 #import "core/error.typ": _bail, _coerce-message, _panic-report
 #import "kinds/registry.typ": _kinds
 
+// A kind's walk that hands the whole value on to one sub-schema returns
+// `(tail: sub-schema)`, and the loop walks that here, in this frame: a
+// nullable or a conditional then costs no call depth of its own.
 #let _walk(schema, value, ctx) = {
   if _absent(value, ctx) { return (errors: (), value: none, fatal: none) }
-  (_kinds.at(schema.kind).walk)(schema, value, ctx, _walk)
+  let r = (_kinds.at(schema.kind).walk)(schema, value, ctx, _walk)
+  while "tail" in r {
+    r = (_kinds.at(r.tail.kind).walk)(r.tail, value, ctx, _walk)
+  }
+  r
 }
 
 // The entry points, each over a finished walk result, so lib.typ can
