@@ -70,7 +70,6 @@
   ((enum: ("a", "b", "c")), enum-of(("a", "b", "c"))),
   ((type: "string", enum: ("a", "b")), enum-of(("a", "b"))),
   ((enum: (1, "two", 3.0)), enum-of((1, "two", 3.0))),
-  ((enum: ()), enum-of(())),
   ((const: "v1.0.0"), const-of("v1.0.0")),
   ((type: "string", const: "fixed"), const-of("fixed")),
   // A null is a value where null means something: `const: null`, an

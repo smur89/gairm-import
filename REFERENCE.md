@@ -154,7 +154,8 @@ end in `-of`, since `not` and `if` are Typst keywords.
 
 - `min-length` and `max-length` count characters as grapheme clusters.
 - `format` takes one of the nine names under [Formats](#formats).
-- `pattern` takes a `regex` or a pattern string; `expected` says what a
+- `pattern` takes a `regex` or a pattern string (an invalid one fails
+  with Typst's regex error); `expected` says what a
   match looks like, for the error message (default `"matching pattern"`),
   and is only allowed with a `pattern`. With a `format` as well, the
   string must have the format and match the pattern.
@@ -240,7 +241,8 @@ Data written in Typst can give a `date` field a `datetime` with a date and
 no time, and a `date-time` field one with both; it is returned as the ISO
 string (`"2024-01-05"`, `"2024-01-05T09:03:07"`). A Typst `datetime` has
 no offset, so a `date-time` one is taken as it is and modelled without
-one. A `datetime` of the other shape is rejected rather than truncated.
+one. A `datetime` of the other shape, or with a year outside 0–9999, is
+rejected rather than truncated.
 Otherwise coercion is pass-through: a formatted value reaches the model
 as the same string.
 

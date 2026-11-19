@@ -40,7 +40,9 @@
   null, _leaf-walk, _string-check, _number-check, _integer-check, _bool-check,
   _null-check, _any-check, _enum-check,
 )
-#import "../core/error.typ": _a, _not-in, _problem, _key-names-problem
+#import "../core/error.typ": (
+  _a, _not-in, _problem, _key-names-problem, _key-label,
+)
 #import "constraint.typ": _constraint-rows
 #import "format.typ": _string-kind-check, _string-problem
 #import "walk.typ": (
@@ -205,7 +207,14 @@
   // The values inline, for at-a-glance debugging.
   enum: _kind(
     check: _enum-check,
-    fields: (("values", true, v => type(v) == array, "an array of values"),),
+    fields: (
+      (
+        "values",
+        true,
+        v => type(v) == array and v != (),
+        "a non-empty array of values",
+      ),
+    ),
     suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
   ),
   // find-paths only walks through the two plain containers: every
@@ -264,7 +273,11 @@
         .shape
         .pairs()
         .sorted(key: p => p.at(0))
-        .map(((k, sub)) => (k, sub, if k in required { k + "*" } else { k }))
+        .map(((k, sub)) => (
+          k,
+          sub,
+          _key-label(k) + if k in required { "*" } else { "" },
+        ))
       let additional = s.at("additional", default: none)
       // Shadowed by a literal "additionalProperties" field, the
       // additional schema has no lens segment (none): describe-schema

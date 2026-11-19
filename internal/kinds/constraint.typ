@@ -7,7 +7,7 @@
 // engine, the translator's reader, its allow-list and its enum/const
 // fold all read these rows, so a new keyword is one row.
 
-#import "../core/error.typ": _error, _expected-got, _problem, _fail
+#import "../core/error.typ": _error, _expected-got, _problem, _fail, _num
 
 // Which raw values a keyword takes, as checks run in order; the first
 // that fails names what the value must be. A count may be a float with
@@ -15,15 +15,11 @@
 // `read` stores it as an int, so it must fit one (below 2^63).
 #let _whole(v) = (
   type(v) == int
-    or (
-      type(v) == float
-        and not v.is-infinite()
-        and calc.fract(v) == 0
-        and calc.abs(v) < calc.pow(2.0, 63)
-    )
+    or (type(v) == float and not v.is-infinite() and calc.fract(v) == 0)
 )
 #let _count = (
   (ok: v => _whole(v) and v >= 0, must: "a non-negative integer"),
+  (ok: v => type(v) == int or v < calc.pow(2.0, 63), must: "below 2^63"),
 )
 #let _number = (
   (
@@ -31,7 +27,14 @@
     must: "a number",
   ),
 )
-#let _positive = _number + ((ok: v => v > 0, must: "> 0"),)
+// A multiple of ∞ would take every finite value (their ratio is 0).
+#let _positive = (
+  _number
+    + (
+      (ok: v => v > 0, must: "> 0"),
+      (ok: v => type(v) != float or not v.is-infinite(), must: "finite"),
+    )
+)
 #let _flag = ((ok: v => type(v) == bool, must: "a boolean"),)
 
 // What a bound measures in each family, and how a message names it.
@@ -101,7 +104,7 @@
   }
   if off {
     (
-      message: _expected-got("multiple of " + str(mult), str(value)),
+      message: _expected-got("multiple of " + _num(mult), _num(value)),
       expected: (multiple-of: mult),
       got: value,
     )
@@ -346,12 +349,25 @@
       + ")"
   )
   let clash = _bounds-conflict(node)
+  // A number's lower bound of +∞ or upper bound of -∞ leaves only an
+  // infinity, which no JSON number is. (An integer's says so as a gap.)
+  let past = if node.at("kind", default: none) == "number" {
+    _constraint-rows.find(row => {
+      let v = node.at(row.field, default: none)
+      let op = row.at("op", default: none)
+      (
+        type(v) == float
+          and v.is-infinite()
+          and ((op in ("≥", ">") and v > 0) or (op in ("≤", "<") and v < 0))
+      )
+    })
+  }
   let message = if clash != none {
     let (lower, upper) = (clash.lower, clash.upper).map(named)
     if clash.strict {
       lower + " and " + upper + " leave no satisfying value."
     } else { lower + " > " + upper + " is unsatisfiable." }
-  }
+  } else if past != none { named(past.field) + " leaves no finite number." }
   let gap = if clash == none { _integer-gap(node) }
   (
     problem: if message != none { (message: message) },
@@ -424,8 +440,8 @@
   if nan or not (_holds.at(op))(m, b) {
     (
       message: _expected-got(
-        measure.label + row.op + " " + str(bound),
-        str(n),
+        measure.label + row.op + " " + _num(bound),
+        _num(n),
       ),
       expected: ((row.field): bound),
       got: n,

@@ -11,7 +11,7 @@
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
-#import "core/error.typ": _a, _fail, _problem
+#import "core/error.typ": _a, _fail, _problem, _key-label
 #import "kinds/registry.typ": _kinds, _descriptor
 #import "kinds/catalog.typ": _constructor
 #import "kinds/structure.typ": _require-schema
@@ -55,7 +55,11 @@
 // with no mark.
 #let _shown(s) = {
   let short = (_descriptor(s).shorthand)(s)
-  if short == none { (s, "") } else { (short.of, short.mark) }
+  if short == none { return (s, "") }
+  // A shorthand of a shorthand (`nullable(nullable(X))`) draws as one:
+  // `X?`, not a union header marked `?`.
+  let (of, mark) = _shown(short.of)
+  (of, if mark == "" { short.mark } else { mark })
 }
 
 // A leaf's text: its kind, its mark, then what it sets beyond it.
@@ -131,7 +135,9 @@
     .at("dependent-required", default: (:))
     .pairs()
     .sorted(key: p => p.at(0)) {
-    lines.push(indent + trigger + " → " + deps.join(", "))
+    lines.push(
+      indent + _key-label(trigger) + " → " + deps.map(_key-label).join(", "),
+    )
   }
   lines.join("\n", default: "")
 }

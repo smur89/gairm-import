@@ -277,8 +277,10 @@
   }
   // A key listed twice is required once, so it is missing once.
   let required-keys = required-keys.dedup()
+  // A trigger with no dependents requires nothing, so it is dropped.
   let dependent-required = dependent-required
     .pairs()
+    .filter(((_, dependents)) => dependents != ())
     .map(((trigger, dependents)) => (trigger, dependents.dedup()))
     .to-dict()
   // false ≡ none in our model; normalise so the constructor and the
