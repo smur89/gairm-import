@@ -6,9 +6,9 @@
 
 #import "../core/error.typ": (
   _error, _expected-got, _type-miss, _type-name-of, _json-type-name, _bail,
-  _fail, _num, _problem, _shown,
+  _fail, _num, _problem, _shown, _json,
 )
-#import "constraint.typ": _constraint-errors, _constrain
+#import "constraint.typ": _constraint-errors, _constrain, _comparable
 
 /// A string that the model returns as Typst `content`, so it splices into
 /// markup.
@@ -101,7 +101,8 @@
 
 // By default a null is absent before any kind sees it; in strict-null
 // mode it reaches the check, which takes it.
-/// `null` or an absent key. Any other value is an error.
+/// `null`, under `strict-null: true`; by default a `null` key counts as
+/// absent. Any other value is an error.
 ///
 /// -> dictionary
 #let null() = (kind: "null")
@@ -146,8 +147,9 @@
 // A leaf check is (schema, value, ctx) -> (errors, value, fatal). It
 // judges the JSON-level value and may normalise it (a datetime becomes
 // its ISO string), but never wraps it: the kind's `model` does that.
-// When the check passes, the walk adds the constraint errors of the
-// kind's `family` (none: no rows).
+// Unless the check is fatal, the walk adds the constraint errors of the
+// kind's `family` (none: no rows), so a pattern miss still reports a
+// length miss beside it, as JSON Schema reports every failing keyword.
 //
 // `fatal` is none, or (path, expected, got) when the value leaves no
 // model at all; coerce panics with it ("coerce at <path>: expected
@@ -164,9 +166,10 @@
 #let _leaf-walk(check, family, model) = (schema, value, ctx, recur) => {
   let r = check(schema, value, ctx)
   if r.fatal != none { return r }
-  let errors = if r.errors == () and family != none {
-    _constraint-errors(schema, family, r.value, ctx.path)
-  } else { r.errors }
+  let errors = r.errors
+  if family != none {
+    errors += _constraint-errors(schema, family, r.value, ctx.path)
+  }
   (errors: errors, value: model(r.value), fatal: none)
 }
 
@@ -193,23 +196,17 @@
 // still judge the value alongside it.
 #let _integer-check(schema, value, ctx) = {
   let r = _integer-gate(schema, value, ctx)
-  if r.fatal != none { return r }
-  if calc.fract(value) != 0 {
-    let errors = _error(
+  if r.fatal != none or calc.fract(value) == 0 { return r }
+  (
+    errors: _error(
       ctx.path,
       "integer",
       _expected-got("an integer", _num(value)),
       got: value,
-    )
-    let constraint-errors = _constraint-errors(
-      schema,
-      "number",
-      value,
-      ctx.path,
-    )
-    return (errors: errors + constraint-errors, value: value, fatal: none)
-  }
-  _pass(value)
+    ),
+    value: value,
+    fatal: none,
+  )
 }
 
 #let _any-check(schema, value, ctx) = _pass(value)
@@ -247,13 +244,22 @@
   (errors: _pattern-errors(schema, value, ctx.path), value: value, fatal: none)
 }
 
+// Values compare as `==` does, then, on a miss, as _comparable writes
+// them, so a float meets a decimal as the bounds compare them. Messages
+// write them as JSON, the syntax of the data they came from.
 #let _enum-check(schema, value, ctx) = {
   if value in schema.values { return _pass(value) }
-  let listed = schema.values.map(repr).join(", ")
-  let message = _expected-got("one of " + listed, repr(value))
+  let v = _comparable(value)
+  if schema.values.any(x => _comparable(x) == v) { return _pass(value) }
+  let listed = schema.values.map(_json).join(", ")
+  let message = _expected-got("one of " + listed, _json(value))
   // `type` when no value shares the value's JSON type, so a union
-  // doesn't count this member as claiming it; `enum` otherwise.
-  let names = schema.values.map(_json-type-name).dedup()
+  // doesn't count this member as claiming it; `enum` otherwise. A null
+  // never reaches here unless it is listed or the mode is strict, and
+  // `null` is named only when it is the one value: `expected` lists the
+  // types a non-null value could have, as a nullable union's does.
+  let names = schema.values.filter(v => v != none).map(_json-type-name).dedup()
+  if names == () { names = ("null",) }
   let errors = if _json-type-name(value) not in names {
     _error(
       ctx.path,

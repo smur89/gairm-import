@@ -27,9 +27,9 @@
 // both a literal property in `shape` and the additionalProperties
 // keyword name, the literal property wins (meta-schemas are the
 // realistic case where this collision arises). Reach the
-// additional-schema in that rare collision case via schema-update on the
-// parent — `p => p.additional` to read, `p => (..p, additional: new)`
-// to write.
+// additional-schema in that rare collision case through the parent:
+// `schema-get(s, parent).additional` to read, and schema-update on the
+// parent, `p => (..p, additional: new)`, to write.
 //
 // Every edit keeps the constructors' invariants. The node `schema-put`
 // writes, or `schema-update`'s function returns, must be a schema (checked
@@ -42,13 +42,24 @@
   _require-schema, _has-kind, _is-object, _object-with, _rebuilt,
 )
 #import "kinds/walk.typ": _kind-label
+#import "kinds/registry.typ": _nullable-hint
 #import "core/error.typ": (
   _a, _bail, _fail, _problem, _not-in, _require-bool, _require-key-names,
 )
 
 // A node entering from user code: a schema, and an object one rebuilt
-// through object() so it can't break the constructor's invariants.
+// through object() so it can't break the constructor's invariants. An
+// object's `additional: false` is read as object() reads it, as none,
+// so `o => (..o, additional: false)` closes an object.
 #let _checked(node, who) = {
+  let node = if (
+    _has-kind(node)
+      and _is-object(node)
+      and node.at("additional", default: none) == false
+  ) {
+    let (additional: _, ..rest) = node
+    rest
+  } else { node }
   _require-schema(node, who)
   _rebuilt(node, who)
 }
@@ -60,10 +71,11 @@
 
 // The schema and the path of a schema-get / schema-put / schema-update
 // call. Given a schema first, the path is checked as the edits check
-// theirs; anything else panics naming what came in which order. A
-// malformed schema names the node at fault.
+// theirs; given a path second, the first argument is checked as a
+// schema, so a malformed one names the node at fault; anything else
+// panics naming what came in which order.
 #let _subject(a, b, op) = {
-  if _has-kind(a) {
+  if _has-kind(a) or (_is-path(b) and not _is-path(a)) {
     _require-schema(a, op + " schema")
     return (a, _schema-path(b, op))
   }
@@ -142,6 +154,8 @@
       "the node at " + repr(path),
       "an object schema",
       _a(_kind-label(parent)) + " schema",
+      // A nullable object's object is member 0, as for schema paths.
+      hint: _nullable-hint(parent),
     ))
   }
   // A hand-built object may leave `required-keys` out, as object() never

@@ -187,7 +187,7 @@ an ordinary value that a schema accepts or rejects.
 |---|---|---|
 | required key missing | `required` | `required` |
 | key holding `null`, field not nullable | `required` if required, else dropped from the model | `type`, "got null" |
-| key holding `null`, field `nullable(X)` | dropped | accepted, kept as `none` |
+| key holding `null`, field `nullable(X)` | `required` if required, else dropped | accepted, kept as `none` |
 | unknown key holding `null` | `unknown-key` | `unknown-key` |
 | `null` array element | dropped | `type`, or kept if the element is `nullable(X)` (and counted by `min-items` / `unique-items`) |
 | dependent-required trigger holding `null` | does not fire | fires |
@@ -215,7 +215,7 @@ value exactly as `X` does:
 
 [JSON Resume](https://jsonresume.org/schema) publishes its schema as a JSON
 Schema document. Download
-[`schema.json`](https://raw.githubusercontent.com/jsonresume/resume-schema/v1.2.1/schema.json)
+[`schema.json`](https://cdn.jsdelivr.net/npm/@jsonresume/schema@1.7.1/schema.json)
 beside your file as `resume.schema.json`, and translate it:
 
 <!-- x-release-please-start-version -->
@@ -288,10 +288,12 @@ the objects, check full dates and make the free-text fields `content`.
 | `resume-schema`, `resume-schema-strict` | your own copy, translated: [Validating a JSON Resume](#validating-a-json-resume) |
 | `str-type`, `number-type`, `integer-type` | `string()`, `number()`, `integer()` |
 | `bool-type`, `null-type`, `any-type`, `content-type` | `boolean()`, `null()`, `unknown()`, `markup()` |
-| `date-string`, `uri-string`, … | `string(format: "date")`, `string(format: "uri")`, … |
+| `date-string`, `datetime-string`, `uri-string`, … | `string(format: "date")`, `string(format: "date-time")`, `string(format: "uri")`, … |
 | `pattern-string(re)` | `string(pattern: re)` |
 | `paths-of-kind`, and its kind-name query (`"date-string"`) | `find-paths`, with a constructor or node: `string(format: "date")` |
-| hand-built `(kind: "str")`, `"bool"`, `"any"`, `"content"` | `string()`, `boolean()`, `unknown()`, `markup()` |
+| `paths-of-kind(s, any-of)` or `one-of` (every union), `const-of` (every enum) | `find-paths` with `any-of` (inclusive unions), `one-of` (exclusive), `enum-of` (every enum) |
+| hand-built `(kind: "str")`, `"bool"`, `"any"`, `"content"`, `"pattern-string"`, `"date-string"`, … | `string()`, `boolean()`, `unknown()`, `markup()`, `string()` with `pattern:` / `format:` |
+| hand-built `(kind: "number", integer: true)` | `integer()` |
 | `lens(p)`, `(lens: p)`, `lens-then(a, b)` | the path `p`, `a + b` |
 | `kind-at(s, at)` | `schema-get(s, at).kind` |
 | `lens-get(at, s)`, `lens-put`, `lens-over` | `schema-get(s, at)`, `schema-put`, `schema-update`: the schema first |
@@ -300,19 +302,18 @@ the objects, check full dates and make the free-text fields `content`.
 | `remove-field(s, at, key)` | `remove-field(s, at + (key,))` |
 | `set-required(s, at, keys)` replacing the list | `set-required` adds `keys`; replace with `schema-update(s, at, o => (..o, required-keys: keys))` |
 
-Validation is stricter in places: `date` takes only `YYYY-MM-DD`, and
-`date-time` and `time` need an offset. Error records changed too: a
-`dependent` record's `path` is the missing key and its `expected` the
-rule broken, and a union's `type` record names types (`"string or
-integer"`). The
+Validation is stricter in places: `date` takes only `YYYY-MM-DD`,
+`date-time` and `time` need an offset, and a `date-time` takes no Typst
+`datetime`. Error records changed too: a `dependent` record's `path` is
+the missing key and its `expected` the rule broken, a union's `type`
+record names types (`"string or integer"`), and messages write values
+as JSON. The
 [release notes](https://github.com/smur89/gairm-import/releases) list
 every change.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Releases are cut by
-[release-please](https://github.com/googleapis/release-please) from
-conventional-commit titles on `main`.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

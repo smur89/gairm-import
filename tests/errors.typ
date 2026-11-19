@@ -159,7 +159,7 @@
     "union",
     (),
     (
-      "enum",
+      "enum (\"a\")",
       "string (email)",
     ),
     none,
@@ -171,7 +171,7 @@
     (),
     (
       "number",
-      "enum",
+      "enum (1, 2)",
     ),
     none,
   ),

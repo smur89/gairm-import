@@ -1,8 +1,8 @@
 // The string formats, one row each. A row is everything the package
 // knows about a format: its JSON Schema `format` name, which a string
 // node carries as its `format` field, the regex that gates it, the
-// hint an error shows, and whether a Typst `datetime` is accepted for
-// it (none: no; false: a date with no time; true: a date and a time).
+// hint an error shows. Only `date` also takes a Typst `datetime`
+// (below): a datetime has no offset, so it can't be a `date-time`.
 // The engine's string check, string() and the translator all read this
 // table, so adding a format is one row.
 
@@ -72,23 +72,20 @@
 #let _format-rows = (
   (
     format: "date",
-    datetime: false,
     pattern: regex(
       "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
     ),
-    expected: "an ISO-8601 date (e.g. \"2024-01-15\")",
+    expected: "an RFC 3339 date (e.g. \"2024-01-15\")",
   ),
   (
     format: "date-time",
-    datetime: true,
     pattern: regex(
       "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])[Tt]" + _clock + "$",
     ),
-    expected: "an ISO-8601 datetime (e.g. \"2024-01-15T10:00:00Z\")",
+    expected: "an RFC 3339 date-time (e.g. \"2024-01-15T10:00:00Z\")",
   ),
   (
     format: "uri",
-    datetime: none,
     // Any scheme, then no whitespace; a `//` authority must not be
     // empty, so `https://` alone still fails.
     pattern: regex("^[A-Za-z][A-Za-z0-9+.\-]*:(//\S+|/?[^/\s]\S*)$"),
@@ -96,7 +93,6 @@
   ),
   (
     format: "email",
-    datetime: none,
     // An unquoted local part without whitespace, or a quoted one; a
     // domain of one or more labels, or an address literal in brackets
     // (`[127.0.0.1]`, `[IPv6:::1]`).
@@ -107,7 +103,6 @@
   ),
   (
     format: "uuid",
-    datetime: none,
     pattern: regex(
       "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$",
     ),
@@ -115,27 +110,23 @@
   ),
   (
     format: "hostname",
-    datetime: none,
     pattern: regex("^" + _label + "(\." + _label + ")*$"),
     expected: "a hostname (e.g. \"example.com\")",
   ),
   (
     format: "ipv4",
-    datetime: none,
     pattern: regex("^" + _octet + "(\." + _octet + "){3}$"),
     expected: "an IPv4 address (e.g. \"192.0.2.1\")",
   ),
   (
     format: "ipv6",
-    datetime: none,
     pattern: regex(_ipv6-pattern),
     expected: "an IPv6 address (e.g. \"2001:db8::1\")",
   ),
   (
     format: "time",
-    datetime: none,
     pattern: regex("^" + _clock + "$"),
-    expected: "an ISO-8601 time (e.g. \"10:00:00Z\")",
+    expected: "an RFC 3339 time (e.g. \"10:00:00Z\")",
   ),
 )
 
@@ -222,29 +213,18 @@
   ))
 }
 
-// Typst-native input for the date formats (#134): a datetime of the
-// right shape converts to the ISO string the row's regex checks, so
-// validate and coerce treat it exactly like the JSON string. Wrong
-// shape returns none — a time is never dropped to make a date fit —
-// and so does a year outside RFC 3339's four digits, which the regex
-// the conversion skips would refuse.
-#let _datetime-expected(row) = (
-  "a string or a datetime with a date and "
-    + if row.datetime { "a time" } else { "no time" }
-)
+// Typst-native input for a `date` field (#134): a datetime with a date
+// and no time converts to the ISO string the row's regex checks, so
+// validate and coerce treat it exactly like the JSON string. One with a
+// time returns none — a time is never dropped to make a date fit — and
+// so does a year outside RFC 3339's four digits, which the regex the
+// conversion skips would refuse.
+#let _datetime-expected = "a string or a datetime with a date and no time"
 
-#let _from-datetime(row, value) = {
+#let _from-datetime(value) = {
   let year = value.year()
-  if (
-    year != none
-      and year >= 0
-      and year <= 9999
-      and (value.hour() != none) == row.datetime
-  ) {
-    value.display(
-      "[year]-[month]-[day]"
-        + if row.datetime { "T[hour]:[minute]:[second]" } else { "" },
-    )
+  if year != none and year >= 0 and year <= 9999 and value.hour() == none {
+    value.display("[year]-[month]-[day]")
   }
 }
 
@@ -252,23 +232,21 @@
 // the node's own extra pattern, each a gate. A datetime of the wrong
 // shape is a `format` miss that leaves no string to model; a regex or
 // pattern miss still leaves the string. A converted datetime skips the
-// regex: it is a real date by construction, and a Typst datetime has no
-// offset, so a `date-time` one models as a local time with none.
+// regex: it is a real date by construction.
 #let _format-check(row, schema, value, ctx) = {
-  if type(value) == datetime and row.datetime != none {
-    let s = _from-datetime(row, value)
+  if type(value) == datetime and row.format == "date" {
+    let s = _from-datetime(value)
     if s == none {
-      let expected = _datetime-expected(row)
       return (
         errors: _error(
           ctx.path,
           "format",
-          _expected-got(expected, "datetime"),
-          expected: expected,
+          _expected-got(_datetime-expected, "datetime"),
+          expected: _datetime-expected,
           got: value,
         ),
         value: value,
-        fatal: (path: ctx.path, expected: expected, got: value),
+        fatal: (path: ctx.path, expected: _datetime-expected, got: value),
       )
     }
     return (errors: _pattern-errors(schema, s, ctx.path), value: s, fatal: none)

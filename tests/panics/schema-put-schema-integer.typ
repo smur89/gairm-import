@@ -1,3 +1,4 @@
-// expect: schema-put takes a schema, then a path (an array of segments); got an integer and a path.
+// expect: schema-put schema must be a schema, got: 5. Build schemas with the constructors.
+// Given a path second, the first argument is checked as a schema.
 #import "../../lib.typ": schema-put, string
 #schema-put(5, ("a",), string())

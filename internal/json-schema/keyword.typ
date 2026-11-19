@@ -7,52 +7,10 @@
 // one entry here plus the code that consumes it.
 
 #import "../core/error.typ": (
-  _bail as _core-bail, _worded, _num, _type-name-of, _json-type-name,
+  _bail as _core-bail, _worded, _json, _type-name-of, _json-type-name,
 )
 #import "../core/pointer.typ": _escape-token
 #import "../kinds/constraint.typ": _constraint-rows
-
-// A control character, as a JSON string escapes it.
-#let _json-escapes = (
-  "\n": "\\n",
-  "\r": "\\r",
-  "\t": "\\t",
-  "\u{8}": "\\b",
-  "\u{c}": "\\f",
-)
-#let _json-escape(c) = _json-escapes.at(c, default: {
-  let hex = str(c.to-unicode(), base: 16)
-  "\\u" + "0" * (4 - hex.len()) + hex
-})
-
-// `v` as JSON writes it, so a message quotes the schema in its own
-// syntax: `[1]`, `null`, `{"type": "string"}`. A value JSON has no
-// syntax for (a regex, from a Typst-built schema) keeps its repr.
-#let _json(v) = if v == none { "null" } else if type(v) == bool {
-  if v { "true" } else { "false" }
-} else if type(v) in (int, float, decimal) { _num(v) } else if (
-  type(v) == str
-) {
-  (
-    "\""
-      + v
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace(regex("[\u{0}-\u{1f}]"), m => _json-escape(m.text))
-      + "\""
-  )
-} else if type(v) == array {
-  "[" + v.map(_json).join(", ", default: "") + "]"
-} else if type(v) == dictionary {
-  (
-    "{"
-      + v
-        .pairs()
-        .map(((k, x)) => _json(k) + ": " + _json(x))
-        .join(", ", default: "")
-      + "}"
-  )
-} else { repr(v) }
 
 // `ctx` one node further in: its JSON Pointer `at` with `segments`
 // (keys, or member indices) appended.
@@ -272,6 +230,19 @@
           + " (draft 7 ignores it), so translating would silently drop its constraints.",
       )
     }
+  }
+  // An embedded `$id` sets the base the `$ref`s under it resolve
+  // against, and the translator resolves every `$ref` against the root
+  // document, so it would quietly pick another schema. A fragment-only
+  // one names the node and changes no base.
+  let id = js.at("$id", default: none)
+  if ctx.at != "" and type(id) == str and not id.starts-with("#") {
+    _bail(
+      ctx,
+      "an embedded \"$id\" ("
+        + _json(id)
+        + ") is not supported: it changes the base of the $refs below it, which resolve against the root document here. Move the schema under the root's \"$defs\" without its \"$id\".",
+    )
   }
   let unknown = js.keys().filter(k => _role-of(k) == "unsupported")
   if unknown.len() > 0 {

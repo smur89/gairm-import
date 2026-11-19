@@ -37,21 +37,6 @@
   "expected " + expected + ", got " + got + "."
 )
 
-/// `"<what> not in <where>[: <names, …>]. <label>: <valid, …>."`, for
-/// names an edit or a schema path may not use: `what` names one, or
-/// introduces the list `names`.
-#let _not-in(what, where, label, valid, names: none) = (
-  what
-    + " not in "
-    + where
-    + if names != none { ": " + names.join(", ") }
-    + ". "
-    + label
-    + ": "
-    + valid.join(", ", default: "none")
-    + "."
-)
-
 /// `word` with its indefinite article: "a string", "an integer", "a
 /// union" (a vowel letter with a consonant sound).
 #let _a(word) = {
@@ -71,6 +56,49 @@
   str(v).replace("\u{2212}", "-")
 }
 
+// A control character, as a JSON string escapes it.
+#let _json-escapes = (
+  "\n": "\\n",
+  "\r": "\\r",
+  "\t": "\\t",
+  "\u{8}": "\\b",
+  "\u{c}": "\\f",
+)
+#let _control = regex("[\u{0}-\u{1f}]")
+#let _json-escape(c) = _json-escapes.at(c, default: {
+  let hex = str(c.to-unicode(), base: 16)
+  "\\u" + "0" * (4 - hex.len()) + hex
+})
+
+/// `v` as JSON writes it, so a message quotes a value in the syntax of
+/// the data it came from: `[1]`, `null`, `{"type": "string"}`. A value
+/// JSON has no syntax for (a regex, a datetime) keeps its repr.
+#let _json(v) = if v == none { "null" } else if type(v) == bool {
+  if v { "true" } else { "false" }
+} else if type(v) in (int, float, decimal) { _num(v) } else if (
+  type(v) == str
+) {
+  (
+    "\""
+      + v
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace(_control, m => _json-escape(m.text))
+      + "\""
+  )
+} else if type(v) == array {
+  "[" + v.map(_json).join(", ", default: "") + "]"
+} else if type(v) == dictionary {
+  (
+    "{"
+      + v
+        .pairs()
+        .map(((k, x)) => _json(k) + ": " + _json(x))
+        .join(", ", default: "")
+      + "}"
+  )
+} else { repr(v) }
+
 // A key that reads unambiguously after a dot: a letter or `_`, then
 // letters, digits, `_` and `-`.
 #let _plain-key = regex("^[\\p{L}_][\\p{L}\\p{N}_-]*$")
@@ -80,6 +108,22 @@
 #let _key-label(key) = if key.match(_plain-key) != none { key } else {
   repr(key)
 }
+
+/// `"<what> not in <where>[: <names, …>]. <label>: <valid, …>."`, for
+/// key names an edit or a schema path may not use: `what` names one, or
+/// introduces the list `names`. Each name is labelled as a path shows
+/// it, so an empty key or one holding `, ` still reads as one.
+#let _not-in(what, where, label, valid, names: none) = (
+  what
+    + " not in "
+    + where
+    + if names != none { ": " + names.map(_key-label).join(", ") }
+    + ". "
+    + label
+    + ": "
+    + valid.map(_key-label).join(", ", default: "none")
+    + "."
+)
 
 // A data path as a reader writes it: `work[0].name`. A key that is not
 // plain is quoted in brackets, `["a.b"].c`, so no two paths read the
@@ -146,12 +190,11 @@
 }
 
 /// `value` as a message shows it where its type is not the problem (an
-/// enum miss): a scalar as written, anything else by its type name.
-#let _shown(value) = if type(value) in (int, float, decimal) {
-  _num(value)
-} else if type(value) in (str, bool) { repr(value) } else {
-  _type-name-of(value)
-}
+/// enum miss): a scalar as JSON writes it, anything else by its type
+/// name.
+#let _shown(value) = if type(value) in (int, float, decimal, str, bool) {
+  _json(value)
+} else { _type-name-of(value) }
 
 /// What `coerce` panics with where a value leaves no sound model, at
 /// data path `path`. `expected` is the noun phrase ("a string", "an

@@ -38,3 +38,11 @@
   assert.eq(pointer-to-path(pointer), path, message: pointer)
   assert.eq(path-to-pointer(path), pointer, message: pointer)
 }
+
+// A numeric field name survives the round trip: a pointer reads it as
+// an int, which an object's path reads as the field it spells.
+#import "../lib.typ": object, string, find-paths, schema-get
+#let years = object(("2024": object((q1: string()))))
+#let at = pointer-to-path(path-to-pointer(find-paths(years, string()).first()))
+#assert.eq(at, (2024, "q1"))
+#assert.eq(schema-get(years, at), string())

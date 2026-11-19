@@ -351,3 +351,21 @@
   validate(number(maximum: 1e299), 1e300).first().message,
   "expected ≤ 1e299, got 1e300.",
 )
+
+// A pattern or format miss leaves the string, so its length is still
+// checked: every failing keyword is reported, as for an integer miss.
+#assert.eq(
+  validate(string(pattern: "^a", min-length: 5), "b").map(e => e.code),
+  ("pattern", "length"),
+)
+#assert.eq(
+  validate(string(format: "uuid", max-length: 2), "abc").map(e => e.code),
+  ("format", "length"),
+)
+// An int past 2^53 compares with a float bound exactly.
+#assert.eq(
+  validate(integer(maximum: 9007199254740992.0), 9007199254740993).map(
+    e => e.code,
+  ),
+  ("range",),
+)

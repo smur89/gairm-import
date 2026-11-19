@@ -666,3 +666,42 @@
   ),
 )
 #assert.eq(T(chain(30)).kind, "object")
+
+// An enum value is literal JSON: a null item in an array value counts
+// toward its length, whatever mode the data is validated in.
+#assert.eq(
+  validate(T((minItems: 2, enum: ((1, none), (1, 2)))), (1, none)),
+  (),
+)
+#assert.eq(
+  validate(T((maxItems: 1, enum: ((none, none), (1,)))), (none, none)).len(),
+  1,
+)
+
+// allOf reads a nullable written null first as a nullable, and an
+// additionalProperties that is a $ref to `{}` as open.
+#assert.eq(
+  T((
+    allOf: (
+      (anyOf: ((type: "null"), (type: "object", properties: (a: (:))))),
+    ),
+  )),
+  nullable(object((a: unknown()))),
+)
+#assert.eq(
+  validate(
+    T((
+      "$defs": (any: (:)),
+      allOf: (
+        (
+          type: "object",
+          properties: (a: (:)),
+          additionalProperties: ("$ref": "#/$defs/any"),
+        ),
+        (type: "object", properties: (b: (:)), additionalProperties: true),
+      ),
+    )),
+    (a: 1, b: 2),
+  ),
+  (),
+)

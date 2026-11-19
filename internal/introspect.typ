@@ -11,7 +11,7 @@
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
-#import "core/error.typ": _a, _fail, _problem, _key-label
+#import "core/error.typ": _a, _fail, _problem, _key-label, _num
 #import "kinds/registry.typ": _kinds, _descriptor
 #import "kinds/catalog.typ": _constructor, _constructors
 #import "kinds/structure.typ": _require-schema, _is-object
@@ -46,7 +46,7 @@
   for row in _constraint-rows {
     let v = s.at(row.field, default: none)
     if v == none or v == false { continue }
-    out.push(if v == true { row.field } else { row.field + " " + str(v) })
+    out.push(if v == true { row.field } else { row.field + " " + _num(v) })
   }
   out
 }
@@ -74,8 +74,9 @@
 
 // The tree layout is where an inline kind (an array) differs from the
 // rest: its one child extends its parent's row with the child's label
-// (`[]`, then the array's own constraints), while every other child
-// gets a row of its own.
+// (`[]`, then the array's own constraints), and an inline child of that
+// extends it again (`[][]`), while every other child gets a row of its
+// own.
 #let _inline(s) = _descriptor(s).inline
 
 // One child row. A leaf, or an array of leaves, is inline after its
@@ -87,11 +88,13 @@
 // a node drawn by its label alone (an object, an array, a `not`).
 #let _row(label, sub) = {
   let (sub, mark) = _shown(sub)
-  let (label, sub, mark, after) = if _inline(sub) {
+  let (label, after) = (label, "")
+  while _inline(sub) {
     let (_, elem, elem-label) = _children(sub).first()
-    let (elem, elem-mark) = _shown(elem)
-    (label + mark + elem-label, elem, elem-mark, _paren(sub))
-  } else { (label, sub, mark, "") }
+    label += mark + elem-label
+    after += _paren(sub)
+    (sub, mark) = _shown(elem)
+  }
   if _leaf(sub) or _empty(sub) {
     return (label: label, text: _text(sub, mark) + after)
   }

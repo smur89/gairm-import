@@ -60,9 +60,9 @@
   }
 }
 
-// Every kind listed here is registered, every exported schema value names a
-// registered kind, and every exported constructor is listed, so a new
-// kind can't miss its descriptor or its constructors.
+// Every kind listed here is registered, and every exported constructor
+// is listed, so a new kind can't miss its descriptor or its
+// constructors.
 // `dictionary(module)` lists a module's names.
 #let _check-coverage(kinds, constructors, modules) = {
   for kind in constructors.keys() {
@@ -76,15 +76,7 @@
   for mod in modules {
     for (name, v) in dictionary(mod) {
       if name.starts-with("_") { continue }
-      if type(v) == dictionary {
-        _internal(
-          v.at("kind", default: none) in kinds,
-          name
-            + " has kind "
-            + repr(v.at("kind", default: none))
-            + ", which has no descriptor.",
-        )
-      } else if type(v) == function {
+      if type(v) == function {
         _internal(
           _constructor(v, constructors: constructors) != none,
           "constructor " + name + " is listed for no kind.",

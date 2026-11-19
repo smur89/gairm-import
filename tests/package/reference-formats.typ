@@ -14,7 +14,7 @@
   "gairm-import: found 3 problems in the input:
   - email: expected an email (e.g. \"name@example.com\").
   - homepage: expected a URI (e.g. \"https://example.com\").
-  - joined: expected an ISO-8601 date (e.g. \"2024-01-15\").",
+  - joined: expected an RFC 3339 date (e.g. \"2024-01-15\").",
 )
 
 // A partial date, or a time with no offset, is not one of the formats.
@@ -31,9 +31,6 @@
   second: 7,
 )
 #assert.eq(coerce(string(format: "date"), date), "2024-01-05")
-#assert.eq(
-  coerce(string(format: "date-time"), date-time),
-  "2024-01-05T09:03:07",
-)
 #assert.eq(validate(string(format: "date"), date-time).len(), 1)
 #assert.eq(validate(string(format: "date-time"), date).len(), 1)
+#assert.eq(validate(string(format: "date-time"), date-time).len(), 1)
