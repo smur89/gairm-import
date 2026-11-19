@@ -6,7 +6,7 @@
 
 #import "../core/error.typ": (
   _error, _expected-got, _type-miss, _type-name-of, _json-type-name,
-  _array-problem, _fail, _num, _problem,
+  _array-problem, _fail, _num, _problem, _shown,
 )
 #import "constraint.typ": _constraint-errors, _constrain
 
@@ -252,10 +252,16 @@
   } else {
     _error(ctx.path, "enum", message, expected: schema.values, got: value)
   }
-  // Either way no listed value is left to model, and coerce names them.
+  // Either way no listed value is left to model, and coerce names them
+  // and the value.
   (
     errors: errors,
     value: value,
-    fatal: (path: ctx.path, expected: "one of " + listed, got: value),
+    fatal: (
+      path: ctx.path,
+      expected: "one of " + listed,
+      got: value,
+      shown: _shown(value),
+    ),
   )
 }

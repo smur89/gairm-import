@@ -9,7 +9,8 @@
 //           dropped, leaves through their kind's model
 //   fatal   none, or the first place in walk order where the value
 //           leaves no sound model, as (path, expected, got) for
-//           coerce's panic
+//           coerce's panic, with `shown`, the value as the panic names
+//           it, when its type is not what is wrong
 //
 // Only the public entry points panic on a result, and they check the
 // whole schema before the walk (structure.typ's _require-schema), so the
@@ -38,7 +39,12 @@
 /// sound model; every other error is the caller's to have checked.
 #let _coerce-result(r) = {
   if r.fatal != none {
-    _bail(none, _coerce-message(r.fatal.path, r.fatal.expected, r.fatal.got))
+    _bail(none, _coerce-message(
+      r.fatal.path,
+      r.fatal.expected,
+      r.fatal.got,
+      shown: r.fatal.at("shown", default: none),
+    ))
   }
   r.value
 }

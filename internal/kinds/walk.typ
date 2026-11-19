@@ -4,7 +4,9 @@
 // constructors that build these kinds are in structure.typ, above it.
 
 #import "../core/ctx.typ": _at, _absent, _has
-#import "../core/error.typ": _error, _type-miss, _type-name-of, _closest-match
+#import "../core/error.typ": (
+  _error, _type-miss, _type-name-of, _closest-match, _shown,
+)
 #import "constraint.typ": _constraint-errors
 
 // A node's kind as messages and describe-schema name it: the kind, then
@@ -218,10 +220,12 @@
   ))
   let claimed = results.filter(r => type-misses(r) == ())
   if claimed.len() == 1 { return claimed.first() }
+  // When members take the value's type, coerce names the value, not it.
   let fatal = (
     path: ctx.path,
     expected: "a value matching one of the union alternatives",
     got: value,
+    shown: if claimed != () { _shown(value) },
   )
   let quantifier = if schema.exclusive { "exactly one" } else { "one" }
   let message = (
