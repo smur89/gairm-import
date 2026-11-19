@@ -3,6 +3,10 @@
 // keywords and hands it to the builders (build.typ) or the composition
 // keywords. Anything not supported panics rather than silently dropping
 // the constraint; keyword.typ says which keywords those are.
+//
+// The recursion through these files (and build.typ, all-of.typ) runs in
+// `for` loops, not `.map` closures: each closure is a call frame, and
+// Typst caps how deeply calls nest, so a frame per level costs depth.
 
 #import "../core/error.typ": _json-type-name, _problem
 #import "../core/input.typ": _decode-input
@@ -129,9 +133,6 @@
 #let _resolver(ctx) = ref => _resolve-ref(ref, ctx.root, ())
 
 // A union keyword's applicator: its members translated, then `build`.
-// The members are translated in a `for` loop rather than a `.map`
-// closure, as everywhere on the translator's recursion: every closure is
-// a call frame, and Typst caps how deeply calls nest.
 #let _union-of(keyword, build) = (js, ctx, recur) => {
   let members = ()
   for m in _require-member-array(js, keyword) { members.push(recur(m, ctx)) }
@@ -211,8 +212,7 @@
   let js = if open { (..js, additionalProperties: true) } else { js }
   // An integer member whose bounds hold no integer takes no value, so a
   // `type` list drops it; with no other member the schema is
-  // unsatisfiable and bails. Built here rather than through _build, so a
-  // nested node costs only this call and its builder's.
+  // unsatisfiable and bails.
   let built = ()
   for t in types {
     built.push(_with-constraints(_builders.at(t)(js, ctx, _translate), js, t))
