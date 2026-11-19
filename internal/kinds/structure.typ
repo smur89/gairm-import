@@ -8,7 +8,7 @@
 #import "../core/error.typ": _bail, _problem, _fail, _key-names-problem
 #import "constraint.typ": _constrain, _value-problem, _bounds-problems
 #import "leaf.typ": null
-#import "registry.typ": _kinds, _object-problem
+#import "registry.typ": _kinds, _object-problem, _if-problem
 
 // Whether `node` is a dictionary of a registered kind. Never panics, so
 // a search can ask it of any node it meets.
@@ -232,12 +232,8 @@
       node.insert(name, branch)
     }
   }
-  if then == none and otherwise == none {
-    _bail(
-      "if-of()",
-      "needs a then or an otherwise branch; got neither. With no branch the condition checks nothing.",
-    )
-  }
+  let p = _if-problem(node)
+  if p != none { _fail("if-of()", p) }
   node
 }
 

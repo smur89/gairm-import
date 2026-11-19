@@ -62,6 +62,14 @@
 // The (segment, field) pairs of the parts `s` has.
 #let _if-present(s) = _if-parts.filter(((_, field)) => field in s)
 
+// The problem (error.typ) with a conditional that has neither branch,
+// or none: its condition would check nothing. if-of() words it too.
+#let _if-problem(s) = if "then" not in s and "otherwise" not in s {
+  (
+    message: "needs a then or an otherwise branch; got neither. With no branch the condition checks nothing.",
+  )
+}
+
 // `p` with its argument named as a node's field (`field "format"`), for
 // a problem a constructor's check words for its argument.
 #let _as-field(p) = if p != none and p.at("arg", default: none) != none {
@@ -367,6 +375,7 @@
   "if": _kind(
     walk: _if-walk,
     fields: (("cond", true, none, "a schema"),),
+    problem: _if-problem,
     children: s => _if-present(s).map(((seg, field)) => (
       seg,
       s.at(field),
