@@ -533,6 +533,7 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   other types alone (`minimum` ignores a string). With both, only the
   `enum` values equal to the `const` are kept.
 - `anyOf`, `oneOf` and `not` become `any-of`, `one-of` and `not-of`.
+  `not` is only a test, so its objects are open, as in `if` (below).
 - `allOf` of object schemas is merged at translate time: the properties
   and `required` lists union, a key in two members must have the same
   schema, `additionalProperties` must agree (a member without it counts as
@@ -626,7 +627,7 @@ Where a draft 7 validator and this package disagree on the same schema:
   keys through unless `additionalProperties` says otherwise; here they are
   rejected unless it is `true` or a schema. `type: "object"` with neither
   `properties` nor `additionalProperties` panics, and an `allOf` member
-  without `additionalProperties` counts as closed (except inside `if`;
+  without `additionalProperties` counts as closed (except inside `if` or `not`;
   see [Supported keywords](#supported-keywords)).
 - **Unknown keywords panic.** Draft 7 ignores a keyword it does not know;
   here it panics, so a typo cannot silently drop a constraint. So does a

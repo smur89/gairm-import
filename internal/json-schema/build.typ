@@ -74,10 +74,10 @@
   array-of(recur(items, _into(ctx, "items")))
 }
 
-// Under an `if` (`ctx.open-objects`, conditional.typ) an undeclared
-// `additionalProperties` is open, as draft 7 reads it: the condition is
-// only a test, and a closed one would fail on every key it doesn't
-// mention.
+// Under an `if` or a `not` (`ctx.open-objects`, conditional.typ,
+// translate.typ) an undeclared `additionalProperties` is open, as
+// draft 7 reads it: the condition is only a test, and a closed one
+// would fail on every key it doesn't mention.
 #let _object-base(js, ctx, recur) = {
   let has-props = "properties" in js
   let has-ap = "additionalProperties" in js

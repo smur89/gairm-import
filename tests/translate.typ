@@ -114,6 +114,12 @@
     one-of((string(), boolean())),
   ),
   (("not": (type: "string")), not-of(string())),
+  // `not` is only a test, like `if`: every object in it with no
+  // `additionalProperties` is open, as draft 7 reads it.
+  (
+    ("not": (type: "object", properties: (a: (type: "object")))),
+    not-of(object((a: object((:), additional: true)), additional: true)),
+  ),
   // if / then / else with no siblings: the branches as written, of any
   // kind; `if` with neither branch is dropped (draft 7 checks nothing).
   (
@@ -578,6 +584,20 @@
   )).then,
   object((a: string(), b: number()), additional: true),
 )
+
+// `not` reads its objects open, as draft 7 does: an object with more
+// keys than the ones it names still matches, so `not` rejects it.
+#let not-legacy = T((
+  "not": (
+    type: "object",
+    properties: (kind: (const: "legacy")),
+    required: ("kind",),
+  ),
+))
+#assert.eq(codes(validate(not-legacy, (kind: "legacy", id: 7))), (
+  ((), "not"),
+))
+#assert.eq(validate(not-legacy, (kind: "current", id: 7)), ())
 
 // Nesting: the translator's recursion spends as few call frames per level
 // as the walk does, so a schema it translates is one validate can walk.

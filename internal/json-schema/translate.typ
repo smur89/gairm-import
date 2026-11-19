@@ -70,7 +70,14 @@
   build(members)
 }
 
-#let _not(js, ctx, recur) = not-of(recur(js.at("not"), _into(ctx, "not")))
+// `not`'s member translates as draft 7 reads it, like `if`'s condition
+// (conditional.typ): every object in it with no `additionalProperties`
+// is open. A closed one would match fewer values, so `not` would
+// accept more.
+#let _not(js, ctx, recur) = not-of(recur(
+  js.at("not"),
+  (.._into(ctx, "not"), open-objects: true),
+))
 
 // The composition keywords (#108), each with its member schemas, and
 // `if`, which reads its node's other keywords too (conditional.typ).
@@ -86,8 +93,7 @@
 
 // `ctx` is the document `root`; `seen`, the chain of `$ref`s that led
 // here; `at`, the JSON Pointer of the node being translated, which
-// every panic names; and `open-objects`, set under an `if`
-// (conditional.typ).
+// every panic names; and `open-objects`, set under an `if` or a `not`.
 #let _translate(js, ctx) = {
   let (js, ctx) = (js, ctx)
   // A `$ref` is followed in this loop, so a chain of them costs no call
