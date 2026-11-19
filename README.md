@@ -393,8 +393,8 @@ with lenses; see [REFERENCE.md](REFERENCE.md#lenses-and-edits).
 
 Validation is stricter in places: `date` takes only `YYYY-MM-DD`, and
 `date-time` and `time` need an offset. The
-[changelog](https://github.com/smur89/gairm-import/blob/main/CHANGELOG.md)
-lists every change.
+[release notes](https://github.com/smur89/gairm-import/releases) list
+every change.
 
 ## Reference
 
