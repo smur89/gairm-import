@@ -9,7 +9,7 @@
 #import "../kinds/structure.typ": array-of, object
 #import "../kinds/registry.typ": _object-problem
 #import "../kinds/format.typ": string, _string-problem
-#import "../kinds/constraint.typ": _read-constraints
+#import "../kinds/constraint.typ": _read-constraints, _comparable
 #import "keyword.typ": (
   _bail, _bail-problem, _json, _into, _constraint-family,
   _membership-structural,
@@ -216,7 +216,9 @@
   }
   if "enum" in js and "const" in js {
     let c = js.at("const")
-    values = values.filter(v => v == c)
+    // As enum-of() compares: 2^53 + 1 is no float.
+    let cc = _comparable(c)
+    values = values.filter(v => _comparable(v) == cc)
     if values == () {
       _bail(
         ctx,

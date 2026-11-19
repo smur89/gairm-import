@@ -5,9 +5,10 @@
 #import "../core/pointer.typ": (
   _percent-decode, _read-pointer, _pointer-get, _escape-token,
 )
-#import "keyword.typ": _bail, _json, _base-id, _bail-embedded-id
+#import "keyword.typ": _bail, _json, _base-id, _bail-embedded-id, _into
 
-// The target of `ref`, a `$ref` on the node at `ctx`, as `(value, at)`:
+// The target of `ref`, a `$ref` on the node at `ctx`, as `(value, at,
+// path)`:
 // `at` is the target's JSON Pointer, where the translation continues,
 // and `path` its segments, decoded. `ctx.seen` is the chain of
 // (ref, path) traversed so far: a repeated target, however its ref
@@ -77,11 +78,7 @@
   for k in range(1, read.path.len()) {
     let above = _pointer-get(ctx.root, read.path.slice(0, k)).value
     if _base-id(above) != none {
-      let where = read
-        .path
-        .slice(0, k)
-        .map(s => "/" + _escape-token(str(s)))
-        .join()
+      let where = _into((at: ""), ..read.path.slice(0, k)).at
       _bail-embedded-id(ctx, _base-id(above), where)
     }
   }

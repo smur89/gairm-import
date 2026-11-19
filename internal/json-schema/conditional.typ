@@ -24,12 +24,15 @@
 // and so is one that is no object schema (an `enum`, a `type` without
 // `object`, a keyword for another type): the merge then names it as it
 // is, rather than by keywords it took from its siblings.
+#let _types(js) = {
+  let t = js.at("type", default: "object")
+  if type(t) == array { t } else { (t,) }
+}
 #let _objectish(b) = {
-  let types = b.at("type", default: "object")
   (
     "enum" not in b
       and "const" not in b
-      and "object" in (if type(types) == array { types } else { (types,) })
+      and "object" in _types(b)
       and b
         .keys()
         .all(k => (
@@ -46,7 +49,9 @@
   ) { return (branch, ()) }
   let b = branch
   let borrowed = ()
-  if "type" not in b and "type" in siblings {
+  // Only an object type: the merge names siblings of another type
+  // themselves, not a branch that never said it.
+  if "type" not in b and "type" in siblings and "object" in _types(siblings) {
     b.insert("type", siblings.type)
   }
   if "additionalProperties" not in b {
@@ -105,12 +110,10 @@
   let plain = siblings.keys().filter(k => _role-of(k) != "annotation")
   let lone = plain == ()
   let types = siblings.at("type", default: none)
+  let types = if type(types) == array { types } else { (types,) }
+  // Siblings that are only an object type, null allowed beside it.
   let typed = (
-    plain == ("type",)
-      and (
-        types == "object"
-          or (type(types) == array and types.dedup() == ("object",))
-      )
+    plain == ("type",) and types.filter(t => t != "null").dedup() == ("object",)
   )
   let base = if not lone and not typed { recur(siblings, ctx) }
   let base-restricts = if base != none { _restricts-extras(siblings, ctx) }
@@ -132,10 +135,11 @@
     let (b, borrowed) = _beside(js.at(k), siblings)
     let node = _lend(recur(b, at), base, borrowed)
     if base == none {
-      // Only an object reaches the branch, so a nullable one is its
-      // object, and the merge of one member checks it is an object.
+      // Only an object reaches the branch, unless the siblings take
+      // null too, so a nullable one is its object; the merge of one
+      // member checks it is an object.
       let x = _nullable-member(node)
-      if x != none { node = x }
+      if x != none and "null" not in types { node = x }
       node = _join((node,), (false,), (b,), (at,), ctx, who: _who)
     } else {
       node = _join(

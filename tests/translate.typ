@@ -740,6 +740,24 @@
 #assert.eq(typed-if(("object",)), typed-if("object"))
 #assert.eq(typed-if(("object", "object")), typed-if("object"))
 
+// With null beside the object type, a null passes a branch that takes
+// its type from the siblings, and fails one that says `object` itself.
+#let field(x) = T((type: "object", properties: (f: x), required: ("f",)))
+#let nullable-if(then) = field((
+  type: ("object", "null"),
+  "if": (required: ("a",)),
+  then: (properties: (a: (type: "string")), required: ("a",), ..then),
+  "else": (additionalProperties: true),
+))
+#assert.eq(validate(nullable-if((:)), (f: none), strict-null: true), ())
+#assert.eq(validate(nullable-if((:)), (f: (a: 1))).map(e => e.path), (
+  ("f", "a"),
+))
+#assert.eq(
+  validate(nullable-if((type: "object")), (f: none), strict-null: true).len(),
+  1,
+)
+
 // An empty `$id` changes no base, so it is no embedded `$id`.
 #assert.eq(
   T((definitions: (a: ("$id": "", type: "string")), "$ref": "#/definitions/a")),
@@ -751,4 +769,11 @@
 #assert.eq(
   validate(T((type: "string", pattern: "^\u{1}$")), "x").first().expected,
   "matching \"^\\u0001$\"",
+)
+
+// `enum` beside `const` compares as enum-of() does: an int past 2^53 is
+// not the float it rounds to.
+#assert.eq(
+  T(json(bytes("{\"enum\": [9007199254740993, 1], \"const\": 1.0}"))),
+  enum-of((1,)),
 )
