@@ -6,7 +6,8 @@
 #import "../core/error.typ": _json-type-name, _problem
 #import "../engine.typ": _walk
 #import "../kinds/leaf.typ": number, integer, bool-type, null-type
-#import "../kinds/structure.typ": array-of, object, _object-problem
+#import "../kinds/structure.typ": array-of, object
+#import "../kinds/registry.typ": _object-problem
 #import "../kinds/format.typ": string, _string-problem
 #import "../kinds/constraint.typ": _read-constraints
 #import "keyword.typ": (

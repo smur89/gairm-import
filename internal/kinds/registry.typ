@@ -24,10 +24,14 @@
 //                 the node as `of` with `mark` (a nullable as `X?`)
 //   bad-segment   (schema, segment) => the problem (error.typ) a lens
 //                 reports when the segment names no child
-//   problem       schema => the problem (error.typ) with the node's own
-//                 fields, or none: a missing field the walk reads, or a
-//                 value of the wrong shape. Children are checked as
-//                 schemas of their own (structure.typ's _schema-problem)
+//   fields        ((field, required, ok, must), ..): the node's own
+//                 fields the walk reads. `ok` judges a present value, or
+//                 is none for a sub-schema, which is checked as a schema
+//                 of its own; `must` says what the value must be
+//   rows          the constraint rows (constraint.typ) its fields may set
+//   problem       none, or schema => the problem (error.typ) with the
+//                 node's fields that `fields` can't state, or none.
+//                 structure.typ's _schema-problem reads all three
 //
 // The constructors that build each kind are listed in catalog.typ: they
 // sit above this registry, since their schema check reads its kinds.
@@ -37,7 +41,7 @@
   _bool-check, _null-check, _any-check, _enum-check,
 )
 #import "../core/error.typ": _a, _not-in, _problem, _key-names-problem
-#import "constraint.typ": _constraint-rows, _value-problem
+#import "constraint.typ": _constraint-rows
 #import "format.typ": _string-kind-check, _string-problem
 #import "walk.typ": (
   _array-walk, _object-walk, _union-walk, _not-walk, _if-walk, _kind-label,
@@ -56,35 +60,49 @@
 // The (segment, field) pairs of the parts `s` has.
 #let _if-present(s) = _if-parts.filter(((_, field)) => field in s)
 
-// The first field `spec` rejects on `s`, as a problem, or none. `spec`
-// lists (field, required, ok, must): `ok` judges a present field's
-// value, and `must` says what it must be.
-#let _fields-problem(s, spec) = {
-  for (field, required, ok, must) in spec {
-    if field not in s {
-      if required { return _problem("field " + repr(field), must, "missing") }
-    } else if not ok(s.at(field)) {
-      return _problem("field " + repr(field), must, repr(s.at(field)))
-    }
-  }
-}
+// `p` with its argument named as a node's field (`field "format"`), for
+// a problem a constructor's check words for its argument.
+#let _as-field(p) = if p != none and p.at("arg", default: none) != none {
+  (..p, arg: "field " + repr(p.arg))
+} else { p }
 
-// The first constraint field of `family` whose value its row does not
-// accept, as a problem, or none.
-#let _rows-problem(s, family) = {
-  for row in _constraint-rows {
-    if row.family != family or row.field not in s { continue }
-    let must = _value-problem(row, s.at(row.field))
-    if must != none {
-      return _problem("field " + repr(row.field), must, repr(s.at(row.field)))
-    }
+// The problem (error.typ) with object()'s `required-keys`,
+// `dependent-required` and `additional` arguments, or none, which
+// object() and the translator word in their own terms. Whether the
+// names are in `shape` is object()'s alone, and whether a dictionary
+// `additional` is a schema is the schema check's.
+#let _object-problem(required-keys, dependent-required, additional) = {
+  if not (additional in (none, false, true) or type(additional) == dictionary) {
+    return _problem(
+      "additional",
+      "none, false, true, or a schema dict (built with the constructors)",
+      repr(additional),
+    )
+  }
+  // Checked whatever `additional` is: an open object reads the names as
+  // keys too, so a non-string one would pass here and fail at validation.
+  let p = _key-names-problem(required-keys, "required-keys")
+  if p != none { return p }
+  if type(dependent-required) != dictionary {
+    return _problem(
+      "dependent-required",
+      "a dictionary of key to array of keys",
+      repr(dependent-required),
+    )
+  }
+  for (trigger, dependents) in dependent-required {
+    let p = _key-names-problem(
+      dependents,
+      "dependent-required",
+      entry: trigger,
+    )
+    if p != none { return p }
   }
 }
 
 // A leaf passes its `check`, constraint `family` and `model` (leaf.typ)
 // instead of a walk. A walked kind passes its `family` too, when it
-// takes constraint rows. `fields` is the spec of its own fields
-// (_fields-problem), and `problem` any check beyond it.
+// takes constraint rows.
 #let _kind(
   searchable: true,
   children: s => (),
@@ -104,15 +122,12 @@
   family: none,
   model: v => v,
   fields: (),
-  problem: s => none,
+  problem: none,
 ) = (
   walk: if check != none { _leaf-walk(check, family, model) } else { walk },
-  problem: s => {
-    let p = _fields-problem(s, fields)
-    if p == none { p = problem(s) }
-    if p == none and family != none { p = _rows-problem(s, family) }
-    p
-  },
+  fields: fields,
+  rows: _constraint-rows.filter(row => row.family == family),
+  problem: problem,
   searchable: searchable,
   children: children,
   with-child: with-child,
@@ -131,17 +146,11 @@
   string: _kind(
     check: _string-kind-check,
     family: "string",
-    problem: s => {
-      let p = _string-problem(
-        format: s.at("format", default: none),
-        pattern: s.at("pattern", default: none),
-        expected: s.at("expected", default: none),
-      )
-      // Named as the node's field, as the other field problems are.
-      if p != none and "arg" in p { (..p, arg: "field " + repr(p.arg)) } else {
-        p
-      }
-    },
+    problem: s => _as-field(_string-problem(
+      format: s.at("format", default: none),
+      pattern: s.at("pattern", default: none),
+      expected: s.at("expected", default: none),
+    )),
     suffix: s => (
       _kind-label(s) + if "pattern" in s { " + pattern" } else { "" }
     ),
@@ -169,7 +178,7 @@
   array: _kind(
     walk: _array-walk,
     family: "array",
-    fields: (("elem", true, _ => true, "a schema"),),
+    fields: (("elem", true, none, "a schema"),),
     searchable: false,
     inline: true,
     children: s => (("items", s.elem, "[]"),),
@@ -195,33 +204,21 @@
         v => type(v) == dictionary,
         "a dictionary of field name to schema",
       ),
-      (
-        "additional",
-        false,
-        v => v == none or v == true or type(v) == dictionary,
-        "true or a schema (leave it out to reject other keys)",
-      ),
-      (
-        "dependent-required",
-        false,
-        v => type(v) == dictionary,
-        "a dictionary of key to array of keys",
-      ),
     ),
-    problem: s => {
-      let p = _key-names-problem(
-        s.at("required-keys", default: ()),
-        "field \"required-keys\"",
+    // object() reads `additional: false` as none and stores neither, so
+    // a node never holds false, which the walk would take for a schema.
+    problem: s => if s.at("additional", default: none) == false {
+      _problem(
+        "field \"additional\"",
+        "true or a schema (leave it out to reject other keys)",
+        "false",
       )
-      if p != none { return p }
-      for (trigger, dependents) in s.at("dependent-required", default: (:)) {
-        let p = _key-names-problem(
-          dependents,
-          "field \"dependent-required\"",
-          entry: trigger,
-        )
-        if p != none { return p }
-      }
+    } else {
+      _as-field(_object-problem(
+        s.at("required-keys", default: ()),
+        s.at("dependent-required", default: (:)),
+        s.at("additional", default: none),
+      ))
     },
     searchable: false,
     children: s => {
@@ -305,7 +302,7 @@
   ),
   "not": _kind(
     walk: _not-walk,
-    fields: (("member", true, _ => true, "a schema"),),
+    fields: (("member", true, none, "a schema"),),
     // No header: the member's label, its lens segment, says it.
     children: s => (("not", s.member, "not"),),
     with-child: (s, _, sub) => (..s, member: sub),
@@ -319,7 +316,7 @@
   // the labels, the lens segments, say what each child is.
   "if": _kind(
     walk: _if-walk,
-    fields: (("cond", true, _ => true, "a schema"),),
+    fields: (("cond", true, none, "a schema"),),
     children: s => _if-present(s).map(((seg, field)) => (
       seg,
       s.at(field),
