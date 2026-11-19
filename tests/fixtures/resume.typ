@@ -1,8 +1,8 @@
 // The JSON Resume schema (https://jsonresume.org/schema, 1.7.0) as a
 // large real-world fixture: translated from jsonresume-schema.json, and
-// the stricter variant README.md's "Validating a JSON Resume" builds
-// from it (tests/package/readme-json-resume.typ asserts the README's
-// recipe builds these same two schemas).
+// the stricter variant REFERENCE.md's "A stricter JSON Resume" builds
+// from it (tests/package/readme-json-resume.typ and
+// reference-json-resume.typ assert the docs build these same schemas).
 // Not a test itself: the fixture tests import it.
 #import "../../lib.typ": schema-from-json-schema, schema-put, markup
 
