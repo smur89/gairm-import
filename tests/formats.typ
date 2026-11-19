@@ -29,7 +29,7 @@
     string(format: "date"),
     "RFC 3339",
     // RFC 3339's full-date: a year, month and day.
-    ("2024-01-15", "1999-12-31", "2024-02-29"),
+    ("2024-01-15", "1999-12-31", "2024-02-29", "2000-02-29", "2024-04-30"),
     (
       // A year, or a year and month, is not a full date.
       "2024",
@@ -46,6 +46,12 @@
       "2024-00-15",
       "2024-01-00",
       "2024-01-32",
+      // A day its month lacks: February has a 29th only in a leap
+      // year, which a century is only when divisible by 400.
+      "2024-02-30",
+      "2023-02-29",
+      "1900-02-29",
+      "2024-04-31",
     ),
   ),
   (
@@ -86,6 +92,8 @@
       "2024-00-15T10:00:00Z",
       "2024-01-00T10:00:00Z",
       "2024-01-32T10:00:00Z",
+      "2024-02-31T10:00:00Z",
+      "2023-02-29T10:00:00Z",
       "2024-01-15T24:00:00Z",
       "2024-01-15T10:60:00Z",
       "2024-01-15T10:00:60Z", // second 60 off a leap-second minute
@@ -362,8 +370,8 @@
 
 // ---- a format with a pattern -----------------------------------------
 //
-// JSON Schema `format` + `pattern` (#115): both gates apply, the format
-// first.
+// JSON Schema `format` + `pattern` (#115): both apply, and a miss of
+// each is reported, the format's first.
 
 #let example-email = schema-from-json-schema((
   type: "string",
@@ -377,8 +385,19 @@
 #assert(errs.first().message.contains("matching"))
 // Fails the format (the pattern alone would match): the format error.
 #let errs = validate(example-email, "@example.com")
-#assert.eq(errs.len(), 1)
-#assert(not errs.first().message.contains("matching"))
+#assert.eq(errs.map(e => e.code), ("format",))
+// Fails both: both errors, then the length row's.
+#assert.eq(
+  validate(
+    string(format: "email", pattern: "^x", min-length: 10),
+    "abc",
+  ).map(e => e.code),
+  ("format", "pattern", "length"),
+)
+#assert.eq(
+  validate(example-email, "nope").map(e => e.code),
+  ("format", "pattern"),
+)
 
 // A hand-built node may carry `pattern` without `expected`.
 #let bare = (kind: "string", format: "email", pattern: regex("@example\\.com$"))

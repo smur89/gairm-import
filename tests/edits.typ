@@ -6,6 +6,7 @@
 #import "../lib.typ": (
   schema-put, schema-update, add-field, remove-field, set-required,
   unset-required, find-paths, object, map, validate, string, number,
+  pointer-to-path,
 )
 #import "fixtures/resume.typ": resume-schema
 
@@ -44,6 +45,25 @@
 #assert.eq(
   add-field(open-s, ("c",), number(), required: true).required-keys,
   ("c",),
+)
+// A field's path may end in an int, which names the field it spells,
+// as in every schema path, so a path read back from a JSON Pointer
+// still folds into the edits.
+#let years = object(((str(2024)): string()))
+#assert.eq(remove-field(years, (2024,)), object((:)))
+#assert.eq(
+  add-field(years, pointer-to-path("/2025"), string()),
+  object(((str(2024)): string(), (str(2025)): string())),
+)
+// The new field's schema is checked as schema-put checks its node, so
+// `additional: false` closes an object field here too.
+#assert.eq(
+  add-field(s, ("c",), (..object((d: string())), additional: false)),
+  schema-put(
+    add-field(s, ("c",), object((d: string()))),
+    ("c",),
+    (..object((d: string())), additional: false),
+  ),
 )
 #let without-rating = remove-field(with-rating, language-items + ("rating",))
 #assert("rating" not in without-rating.shape.languages.elem.shape)

@@ -185,7 +185,9 @@
       none,
       "expected a parsed JSON Schema dict, path(...), or bytes, got: "
         + _json-type-name(parsed)
-        + ".",
+        + if type(parsed) == bool {
+          ". Boolean schemas (true / false) are out of scope."
+        } else { "." },
     )
   }
   _translate(parsed, (root: parsed, seen: (), at: "", open-objects: false))

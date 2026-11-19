@@ -450,8 +450,9 @@ phone → email",
     )),
     "d?[]:\n  c  string\ne[]?:\n  c  string\nu  one of?:\n  [0]  string\n  [1]  enum (1)",
   ),
-  (nullable(array-of(string())), "?[] string"),
-  (nullable(object((c: string()))), "?:\n  c  string"),
+  (nullable(array-of(string())), "array?[] string"),
+  (nullable(object((c: string()))), "object?:\n  c  string"),
+  (nullable(nullable(object((c: string())))), "object?:\n  c  string"),
   (any-of((null(), string())), "any of:\n  [0]  null\n  [1]  string"),
   (one-of((string(), null())), "one of:\n  [0]  string\n  [1]  null"),
 ) {
@@ -498,6 +499,11 @@ phone → email",
 )
 #assert.eq(find-paths(shadowed, one-of), ())
 #assert.eq(find-paths(shadowed, any-of), (("additionalProperties",),))
+// describe-schema still draws it, as `*`, after the fields.
+#assert.eq(
+  describe-schema(shadowed),
+  "additionalProperties  any of:\n  [0]  string\n  [1]  number\n*                     one of:\n  [0]  string\n  [1]  number",
+)
 
 // A key that doesn't read plainly is quoted, a nullable of a nullable
 // draws as one `?`, and a dependent-required trigger with no dependents

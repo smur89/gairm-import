@@ -6,7 +6,7 @@
 // schemas. With none, the branches are T and E as they are, of any kind.
 
 #import "../kinds/structure.typ": if-of
-#import "keyword.typ": _role-of, _lone-hints, _into
+#import "keyword.typ": _role-of, _lone-hints, _into, _keywords
 #import "../kinds/registry.typ": _nullable-member
 #import "all-of.typ": _join, _restricts-extras
 
@@ -17,11 +17,29 @@
 // `additionalProperties` and `properties` (its own properties win, and
 // the merge then bails on any that differ). Without them the merge
 // would read `then: {required: ["b"]}` as a closed object that has no
-// `b`. A branch that is a `$ref` or a composition is merged as written.
+// `b`. A branch that is a `$ref` or a composition is merged as written,
+// and so is one that is no object schema (an `enum`, a `type` without
+// `object`, a keyword for another type): the merge then names it as it
+// is, rather than by keywords it took from its siblings.
+#let _objectish(b) = {
+  let types = b.at("type", default: "object")
+  (
+    "enum" not in b
+      and "const" not in b
+      and "object" in (if type(types) == array { types } else { (types,) })
+      and b
+        .keys()
+        .all(k => (
+          "object"
+            in _keywords.at(k, default: (:)).at("types", default: ("object",))
+        ))
+  )
+}
 #let _beside(branch, siblings) = {
   if (
     type(branch) != dictionary
       or branch.keys().any(k => _role-of(k) in _lone-hints)
+      or not _objectish(branch)
   ) { return branch }
   let b = branch
   if "type" not in b and "type" in siblings {
@@ -63,7 +81,14 @@
   if "then" not in js and "else" not in js { return recur(siblings, ctx) }
   let plain = siblings.keys().filter(k => _role-of(k) != "annotation")
   let lone = plain == ()
-  let typed = plain == ("type",) and siblings.type == "object"
+  let types = siblings.at("type", default: none)
+  let typed = (
+    plain == ("type",)
+      and (
+        types == "object"
+          or (type(types) == array and types.dedup() == ("object",))
+      )
+  )
   let base = if not lone and not typed { recur(siblings, ctx) }
   let base-restricts = if base != none { _restricts-extras(siblings, ctx) }
   let parts = (:)

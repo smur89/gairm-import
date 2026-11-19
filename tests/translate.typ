@@ -705,3 +705,20 @@
   ),
   (),
 )
+
+// Siblings of `if` that are only an object `type` stand aside, however
+// the type is spelled: each branch is the object it says it is.
+#let typed-if(t) = T((
+  type: t,
+  "if": (properties: (a: (const: 1))),
+  then: (type: "object", properties: (a: (:)), additionalProperties: false),
+  "else": (type: "object", properties: (a: (:)), additionalProperties: true),
+))
+#assert.eq(typed-if(("object",)), typed-if("object"))
+#assert.eq(typed-if(("object", "object")), typed-if("object"))
+
+// An empty `$id` changes no base, so it is no embedded `$id`.
+#assert.eq(
+  T((definitions: (a: ("$id": "", type: "string")), "$ref": "#/definitions/a")),
+  string(),
+)

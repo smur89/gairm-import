@@ -185,10 +185,10 @@
 // The `$id` on `js` that sets the base its `$ref`s resolve against, or
 // none. The translator resolves every `$ref` against the root
 // document, so below the root one would quietly pick another schema. A
-// fragment-only one names the node and changes no base.
+// fragment-only or empty one changes no base.
 #let _base-id(js) = {
   let id = if type(js) == dictionary { js.at("$id", default: none) }
-  if type(id) == str and not id.starts-with("#") { id }
+  if type(id) == str and id != "" and not id.starts-with("#") { id }
 }
 
 // Bails on an embedded `$id`, `id`, found at JSON Pointer `where`.

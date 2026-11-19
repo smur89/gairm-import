@@ -56,6 +56,10 @@
     expected: if pattern != none { "matching " + repr(pattern) },
   )
   let p = _string-problem(..args)
+  // JSON has no regex: a pattern is a string there.
+  if p != none and p.at("arg", default: none) == "pattern" {
+    p.must = "a string"
+  }
   if p != none { _bail-problem(ctx, p, node: js) }
   string(..args)
 }

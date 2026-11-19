@@ -49,9 +49,10 @@ that is not a schema, or a hand-built node anywhere in it that is
 missing a field, holds one of the wrong shape, or breaks a rule its
 constructor enforces (bounds no value meets, a closed object requiring a
 key it does not declare), or carries a field only another kind reads,
-panics naming the path to that node. So does a `null` document. A string is checked as data; only when it ends in
-`.json` and the schema's root rejects its type does the call panic,
-with a hint to read the file with `path(..)`.
+panics naming the path to that node. So does a `null` document. A
+string is checked as data; only when it ends in `.json` and the
+schema's root rejects its type does the call panic, with a hint to read
+the file with `path(..)`.
 
 A document may nest about 37 levels deep, about 36 when every level is
 a `nullable(..)` or a conditional (the translator builds
@@ -232,8 +233,8 @@ claiming full RFC compliance.
 
 | `format` | Accepts | Error hint |
 |---|---|---|
-| `date` | `YYYY-MM-DD`, month and day in range | `an RFC 3339 date (e.g. "2024-01-15")` |
-| `date-time` | `YYYY-MM-DDTHH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an RFC 3339 date-time (e.g. "2024-01-15T10:00:00Z")` |
+| `date` | `YYYY-MM-DD`, a day its month has (`2024-02-29`, not `2023-02-29`) | `an RFC 3339 date (e.g. "2024-01-15")` |
+| `date-time` | a `date`, `T`, `HH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an RFC 3339 date-time (e.g. "2024-01-15T10:00:00Z")` |
 | `time` | `HH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an RFC 3339 time (e.g. "10:00:00Z")` |
 | `uri` | any scheme, `:`, then no whitespace (`https://…`, `mailto:…`, `urn:…`) | `a URI (e.g. "https://example.com")` |
 | `email` | a local part (or a quoted one), `@`, a domain of one or more labels or an address literal (`name@[127.0.0.1]`) | `an email (e.g. "name@example.com")` |
@@ -244,8 +245,9 @@ claiming full RFC compliance.
 
 As in RFC 3339, `date-time` and `time` take `T` and `Z` in either case and
 a leap second (`23:59:60Z`: second 60 at minute 59, or at any minute under
-an offset with minutes). A partial date (`2024`, `2024-01`) or a time
-with no offset is not one of these formats; check it with a `pattern`.
+an offset with minutes; the hour is not checked). A partial date (`2024`,
+`2024-01`) or a time with no offset is not one of these formats; check it
+with a `pattern`.
 
 A miss reports `expected <hint>.` at the field's path. For `member`:
 
@@ -269,8 +271,7 @@ Data written in Typst can give a `date` field a `datetime` with a date and
 no time; it is returned as the ISO string (`"2024-01-05"`). One with a
 time, or with a year outside 0–9999, is rejected rather than truncated. A
 `date-time` field takes no `datetime`: a Typst `datetime` has no offset,
-which the format requires.
-Otherwise coercion is pass-through: a formatted value reaches the model
+which the format requires. Otherwise coercion is pass-through: a formatted value reaches the model
 as the same string.
 
 A `pattern` is a Typst regex, and matches anywhere in the string: anchor it
@@ -584,7 +585,7 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   `deprecated`, `definitions`, `$defs`.
 
 `minLength`, `maxLength`, `minItems` and `maxItems` take a non-negative
-integer; a whole-number float (`2.0`) counts.
+integer below 2^63; a whole-number float (`2.0`) counts.
 
 ### Out of scope
 
@@ -654,7 +655,9 @@ Where a draft 7 validator and this package disagree on the same schema:
   rejected unless it is `true` or a schema. `type: "object"` with neither
   `properties` nor `additionalProperties` panics, and an `allOf` member
   without `additionalProperties` counts as closed (except inside `if` or `not`;
-  see [Supported keywords](#supported-keywords)).
+  see [Supported keywords](#supported-keywords)). So `required` or
+  `dependencies` naming a key a closed object doesn't declare panics:
+  declare it in `properties`.
 - **Unknown keywords panic.** Draft 7 ignores a keyword it does not know;
   here it panics, so a typo cannot silently drop a constraint. So does a
   keyword that applies to none of a node's `type`s, and one whose value is
