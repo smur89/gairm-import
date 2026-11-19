@@ -32,7 +32,7 @@
   r
 }
 
-// The entry points, each over a finished walk result, so lib.typ can
+// The entry points, each over a finished walk result, so run.typ can
 // call `_walk` itself and spend no extra call frame on the way in.
 
 /// The model from a walk result. Panics only where the value left no
