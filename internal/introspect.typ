@@ -154,35 +154,24 @@
 // has every other field the query sets, with the same value. So
 // `string()` finds every string, `string(format: "date")` the date
 // strings, with a pattern or without, and `number(minimum: 0)` the
-// numbers whose minimum is 0. A pattern's `expected` is only the text
-// its error shows, so it never decides a match: `string(pattern: p)`
-// finds every string with pattern `p`, whatever its message says.
+// numbers whose minimum is 0. string() stores an `expected` only when
+// given, so `string(pattern: p)` finds every string with pattern `p`,
+// whatever its message says.
 #let _matches(query, node) = (
-  query
-    .pairs()
-    .all(((k, v)) => (
-      k in ("kind", "expected") or (k in node and node.at(k) == v)
-    ))
+  query.pairs().all(((k, v)) => k == "kind" or (k in node and node.at(k) == v))
 )
 
-// What find-paths looks for, as (kind, test, name): a schema node
-// finds the nodes of its kind it _matches, a constructor the nodes its
-// test holds for (catalog.typ), and anything else is of no kind, which
-// no search takes. `name` says what the query was, for the panic: a
-// whole node's repr can run to pages.
-#let _query(query) = if type(query) == dictionary and "kind" in query {
+// What find-paths looks for, as (kind, test, name): a schema node,
+// checked as a schema before it gets here, finds the nodes of its kind
+// it _matches, a constructor the nodes its test holds for (catalog.typ),
+// and anything else is of no kind, which no search takes. `name` says
+// what the query was, for the panic: a whole node's repr can run to
+// pages.
+#let _query(query) = if type(query) == dictionary {
   (
     kind: query.kind,
     test: n => _matches(query, n),
-    // A kind the registry doesn't know may not even be a string, so it
-    // is named as given.
-    name: if (
-      type(query.kind) == str
-        and query.kind in _kinds
-        and type(query.at("format", default: "")) == str
-    ) {
-      _a(_kind-label(query)) + " schema"
-    } else { "a node of kind " + repr(query.kind) },
+    name: _a(_kind-label(query)) + " schema",
   )
 } else if type(query) == function {
   let c = _constructor(query)
@@ -204,14 +193,19 @@
 ///   that also have every field it sets, with the same value:
 ///   `string()` finds every string, `string(format: "date")` only the
 ///   date strings, `number()` numbers but not integers, and
-///   `number(minimum: 0)` only the numbers with minimum 0. A pattern's
-///   `expected` text is ignored. A constructor finds the nodes it
-///   builds: `enum-of` every enum, `const-of` the single-value ones,
+///   `number(minimum: 0)` only the numbers with minimum 0, and
+///   `string(pattern: p)` every string with pattern `p`, whatever its
+///   `expected`. A constructor finds the nodes it builds: `enum-of` every enum, `const-of` the single-value ones,
 ///   `any-of` and `one-of` their own unions, and `nullable` the
 ///   nullable ones.
 /// -> array
 #let find-paths(schema, query) = {
   _require-schema(schema, "find-paths schema")
+  // A node query is a schema like any other: a malformed one fails here,
+  // in the package's words.
+  if type(query) == dictionary {
+    _require-schema(query, "find-paths query")
+  }
   let q = _query(query)
   // Container kinds (`object`, `array`) are rejected: the search
   // descends through them, and a search for one is more likely a slip
@@ -224,11 +218,6 @@
         + "); object and array are walked through, not searched for",
       q.name,
     ))
-  }
-  // A node query is a schema like any other: a malformed field (a
-  // string's format) fails here, in the package's words.
-  if type(query) == dictionary {
-    _require-schema(query, "find-paths query")
   }
   _paths-where(schema, n => (
     n.at("kind", default: none) == q.kind and (q.test)(n)

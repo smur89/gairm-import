@@ -210,10 +210,11 @@
     base.pattern = if type(pattern) == regex { pattern } else {
       regex(pattern)
     }
-    base.expected = if expected == none { "matching pattern" } else {
-      expected
-    }
   }
+  // Stored only when given: a pattern miss falls back to "matching
+  // pattern" (leaf.typ), and a find-paths query that sets no `expected`
+  // then matches any.
+  if expected != none { base.expected = expected }
   _constrain("string()", base, "string", (
     min-length: min-length,
     max-length: max-length,
