@@ -238,10 +238,13 @@ jobs:
     steps:
       - name: Skip if a PR for this version is already open
         id: check
+        # `--head` takes the bare branch (no `owner:` form); `--author`
+        # keeps the match to our own fork's PRs.
         run: |
           existing=$(gh pr list \
             --repo "$UPSTREAM_REPO" \
-            --head "${FORK_REPO%%/*}:${PACKAGE_NAME}-${VERSION}" \
+            --head "${PACKAGE_NAME}-${VERSION}" \
+            --author "${FORK_REPO%%/*}" \
             --state open \
             --json url --jq '.[0].url // empty')
           if [ -n "$existing" ]; then
