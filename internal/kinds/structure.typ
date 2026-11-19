@@ -192,7 +192,7 @@
 /// - member (dictionary): The schema for a non-null value.
 /// -> dictionary
 #let nullable(member) = {
-  _require-schema(member, "nullable member")
+  _require-schema(member, "nullable() member")
   any-of((member, null()))
 }
 
@@ -204,7 +204,7 @@
 /// - member (dictionary): The schema the value must fail.
 /// -> dictionary
 #let not-of(member) = {
-  _require-schema(member, "not-of member")
+  _require-schema(member, "not-of() member")
   (kind: "not", member: member)
 }
 
