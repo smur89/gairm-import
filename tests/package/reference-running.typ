@@ -23,10 +23,10 @@
   coerce(string(format: "date"), datetime(year: 2024, month: 1, day: 5)),
   "2024-01-05",
 )
-#assert.eq(coerce(content-type, "hi"), [hi])
+#assert.eq(coerce(markup(), "hi"), [hi])
 #assert.eq(type(coerce(integer(), 1.0)), float)
 #assert.eq(coerce(enum-of((1, "a")), "a"), "a")
-#assert.eq(coerce(any-type, (a: (b: none))), (a: (b: none)))
+#assert.eq(coerce(unknown(), (a: (b: none))), (a: (b: none)))
 #assert.eq(coerce(array-of(string()), ("a", none, "b")), ("a", "b"))
 #assert.eq(coerce(object((a: string())), (a: "x", b: 1)), (a: "x"))
 #assert.eq(
@@ -34,17 +34,17 @@
   (a: "x", b: (c: none)),
 )
 #assert.eq(
-  coerce(object((:), additional: content-type), (a: "x")),
+  coerce(object((:), additional: markup()), (a: "x")),
   (a: [x]),
 )
 #assert.eq(coerce(object((:), additional: true), (a: none)), (a: none))
-#assert.eq(coerce(any-of(content-type, string()), "x"), [x])
+#assert.eq(coerce(any-of(markup(), string()), "x"), [x])
 #assert.eq(coerce(not-of(number()), "x"), "x")
 #assert.eq(
-  coerce(if-of(string(), then: content-type), "x"),
+  coerce(if-of(string(), then: markup()), "x"),
   [x],
 )
-#assert.eq(coerce(if-of(string(), then: content-type), 3), 3)
+#assert.eq(coerce(if-of(string(), then: markup()), 3), 3)
 
 // find-paths: a constructor finds the nodes it builds.
 #let u = object((

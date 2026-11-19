@@ -11,7 +11,7 @@
   schema-from-json-schema((type: ("string", "null"))),
   nullable(string()),
 )
-#assert.eq(schema-from-json-schema((title: "anything")), any-type)
+#assert.eq(schema-from-json-schema((title: "anything")), unknown())
 
 // A missing additionalProperties is closed.
 #let closed = schema-from-json-schema((

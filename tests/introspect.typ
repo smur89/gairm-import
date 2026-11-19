@@ -6,9 +6,9 @@
 // "then" and "else".
 
 #import "../lib.typ": (
-  describe-schema, find-paths, lens-get, object, array-of, map, content-type,
-  bool-type, null-type, enum-of, any-of, const-of, one-of, not-of, if-of,
-  nullable, string, number, integer, schema-from-json-schema,
+  describe-schema, find-paths, lens-get, object, array-of, map, markup, boolean,
+  null, enum-of, any-of, const-of, one-of, not-of, if-of, nullable, string,
+  number, integer, schema-from-json-schema,
 )
 #import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
@@ -19,7 +19,7 @@
 #let toy = object((
   basics: object((
     name: string(),
-    summary: content-type,
+    summary: markup(),
     email: string(format: "email"),
     url: string(format: "uri"),
   )),
@@ -33,7 +33,7 @@
 #let expected = "basics:
   email    string (email)
   name     string
-  summary  content
+  summary  markup
   url      string (uri)
 work[]:
   highlights[]  string
@@ -75,7 +75,7 @@ work[]:
 
 // The strict schema's content leaves are the fixture's content-paths
 // (14 entries). Alphabetical ordering means we can pin the exact list.
-#let content-paths = find-paths(resume-schema-strict, content-type)
+#let content-paths = find-paths(resume-schema-strict, markup())
 #assert.eq(content-paths.len(), 14)
 #assert.eq(content-paths, (
   ("awards", "items", "summary"),
@@ -95,7 +95,7 @@ work[]:
 ))
 
 // `items` segments are lens-compatible — feed one back in.
-#assert.eq(lens-get(resume-schema-strict, content-paths.at(0)), content-type)
+#assert.eq(lens-get(resume-schema-strict, content-paths.at(0)), markup())
 
 // Formats carry through to the strict schema from the faithful
 // base (translator-emitted `format: "uri"` / `format: "email"`).
@@ -180,13 +180,13 @@ work[]:
   "grid[]:\n  [] string",
 )
 
-// Three levels deep with content-type at the leaf.
+// Three levels deep with markup() at the leaf.
 #let cube-schema = object((
-  cube: array-of(array-of(array-of(content-type))),
+  cube: array-of(array-of(array-of(markup()))),
 ))
 #assert.eq(
   describe-schema(cube-schema),
-  "cube[]:\n  []:\n    [] content",
+  "cube[]:\n  []:\n    [] markup",
 )
 
 // --- the kind at a location ----------------------------------------
@@ -197,7 +197,7 @@ work[]:
 #assert.eq(lens-get(resume-schema, ("basics", "email")).format, "email")
 #assert.eq(
   lens-get(resume-schema-strict, ("basics", "summary")).kind,
-  "content",
+  "markup",
 )
 #assert.eq(lens-get(resume-schema, ("work", "items")).kind, "object")
 #assert.eq(lens-get(resume-schema, ("work",)).kind, "array")
@@ -209,7 +209,7 @@ work[]:
 // finds what its no-argument node does.
 #for (schema, ctor) in (
   (resume-schema, string),
-  (resume-schema, bool-type),
+  (resume-schema, boolean()),
   (resume-schema, one-of),
 ) {
   let found = find-paths(schema, ctor)
@@ -229,7 +229,7 @@ work[]:
   exactly: one-of((string(), number())),
   maybe: nullable(string()),
   other: not-of(string()),
-  cond: if-of(bool-type, then: number()),
+  cond: if-of(boolean(), then: number()),
 ))
 #assert.eq(find-paths(kinds-toy, enum-of), (("fixed",), ("level",)))
 // A constructor finds the nodes it builds, narrower than its kind:
@@ -242,10 +242,10 @@ work[]:
 #assert.eq(find-paths(kinds-toy, not-of), (("other",),))
 #assert.eq(find-paths(kinds-toy, if-of), (("cond",),))
 
-// bool-type and null-type are leaves like any other.
-#let flags = object((flag: bool-type, marker: null-type, name: string()))
-#assert.eq(find-paths(flags, bool-type), (("flag",),))
-#assert.eq(find-paths(flags, null-type), (("marker",),))
+// boolean() and null() are leaves like any other.
+#let flags = object((flag: boolean(), marker: null(), name: string()))
+#assert.eq(find-paths(flags, boolean()), (("flag",),))
+#assert.eq(find-paths(flags, null()), (("marker",),))
 
 // A node finds the strings that have every field it sets: string()
 // every string, formatted or patterned or not; string(format: "date")
@@ -439,7 +439,7 @@ phone → email",
 
 // A nullable node is marked `?` after a leaf's kind, a header, or the
 // label of a node drawn by its label alone, so a nullable array and an
-// array of nullables differ. Only the exact (X, null-type) any-of pair
+// array of nullables differ. Only the exact (X, null()) any-of pair
 // draws as X?.
 #for (schema, drawn) in (
   (nullable(string()), "string?"),
@@ -462,8 +462,8 @@ phone → email",
   ),
   (nullable(array-of(string())), "?[] string"),
   (nullable(object((c: string()))), "?:\n  c  string"),
-  (any-of((null-type, string())), "any of:\n  [0]  null\n  [1]  string"),
-  (one-of((string(), null-type)), "one of:\n  [0]  string\n  [1]  null"),
+  (any-of((null(), string())), "any of:\n  [0]  null\n  [1]  string"),
+  (one-of((string(), null())), "one of:\n  [0]  string\n  [1]  null"),
 ) {
   assert.eq(describe-schema(schema), drawn)
 }
@@ -479,7 +479,7 @@ phone → email",
 #assert.eq(
   find-paths(
     object((
-      a: (kind: "union", members: (string(), null-type), exclusive: false),
+      a: (kind: "union", members: (string(), null()), exclusive: false),
     )),
     nullable,
   ),

@@ -1,4 +1,4 @@
-// The leaf kinds' constants and constructors: the scalars and enums,
+// The leaf kinds' constructors: the scalars and enums,
 // and the checks the engine runs for them, the per-node regex gate
 // among them. string() and the format table live in format.typ,
 // the containers and combinators in structure.typ with their walks in
@@ -12,9 +12,13 @@
 
 /// A string that the model returns as Typst `content`, so it splices into
 /// markup.
-#let content-type = (kind: "content")
+///
+/// -> dictionary
+#let markup() = (kind: "markup")
 /// A boolean.
-#let bool-type = (kind: "bool")
+///
+/// -> dictionary
+#let boolean() = (kind: "boolean")
 
 // The constructors take their constraints as named arguments, as
 // Typst's own functions take their options (`text(size:)`,
@@ -91,12 +95,16 @@
 // JSON Schema `{}`. A leaf, so nested values are never walked.
 /// Any value, passed through to the model unchanged (nested values
 /// included). In `strict-null` mode it also accepts `null`.
-#let any-type = (kind: "any")
+///
+/// -> dictionary
+#let unknown() = (kind: "unknown")
 
 // By default a null is absent before any kind sees it; in strict-null
 // mode it reaches the check, which takes it.
 /// `null` or an absent key. Any other value is an error.
-#let null-type = (kind: "null")
+///
+/// -> dictionary
+#let null() = (kind: "null")
 
 // Mixed-type members allowed — the validator's `in` check gates on
 // equality, not type. `const` is a singleton enum.

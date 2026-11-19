@@ -31,7 +31,7 @@
 #let content-names = lens-put(
   team,
   ("members", "items", "name"),
-  content-type,
+  markup(),
 )
 #assert.eq(
   parse(content-names, (

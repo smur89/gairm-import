@@ -7,9 +7,8 @@
 // branches by "if", "then" and "else".
 
 #import "../lib.typ": (
-  lens-get, lens-put, lens-over, find-paths, validate, object, array-of,
-  content-type, any-of, one-of, not-of, if-of, schema-from-json-schema, string,
-  number,
+  lens-get, lens-put, lens-over, find-paths, validate, object, array-of, markup,
+  any-of, one-of, not-of, if-of, schema-from-json-schema, string, number,
 )
 #import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
@@ -44,12 +43,12 @@
 
 // ---- lens-put and lens-over ------------------------------------------------
 
-#let widened = lens-put(resume-schema, name, content-type)
-#assert.eq(lens-get(widened, name), content-type)
-#assert.eq(lens-put(resume-schema, ("basics", "name"), content-type), widened)
-#assert.eq(lens-over(resume-schema, name, _ => content-type), widened)
+#let widened = lens-put(resume-schema, name, markup())
+#assert.eq(lens-get(widened, name), markup())
+#assert.eq(lens-put(resume-schema, ("basics", "name"), markup()), widened)
+#assert.eq(lens-over(resume-schema, name, _ => markup()), widened)
 #assert.eq(
-  lens-over(resume-schema, ("basics", "name"), _ => content-type),
+  lens-over(resume-schema, ("basics", "name"), _ => markup()),
   widened,
 )
 // Siblings survive untouched, and the original is unchanged.
@@ -67,11 +66,11 @@
 #let rich = lens-put(
   resume-schema,
   ("work", "items", "highlights", "items"),
-  content-type,
+  markup(),
 )
 #assert.eq(rich.shape.work.kind, "array")
 #assert.eq(rich.shape.work.elem.kind, "object")
-#assert.eq(rich.shape.work.elem.shape.highlights, array-of(content-type))
+#assert.eq(rich.shape.work.elem.shape.highlights, array-of(markup()))
 
 // The extension use case from #26: add `rating` to every language entry,
 // a deep edit into languages' items. Only the lensed node changes.
@@ -116,10 +115,10 @@
 #for (at, value, field, node) in (
   (
     ("place", 0),
-    content-type,
+    markup(),
     "place",
     one-of((
-      content-type,
+      markup(),
       object((city: string())),
     )),
   ),
@@ -131,19 +130,19 @@
   ),
   (
     ("place", 1, "city"),
-    content-type,
+    markup(),
     "place",
     one-of((
       string(),
-      object((city: content-type)),
+      object((city: markup())),
     )),
   ),
   (("other", "not"), string(), "other", not-of(string())),
   (
     ("cond", "if"),
-    content-type,
+    markup(),
     "cond",
-    if-of(content-type, then: object((b: string())), otherwise: number()),
+    if-of(markup(), then: object((b: string())), otherwise: number()),
   ),
   (
     ("cond", "then"),
@@ -153,9 +152,9 @@
   ),
   (
     ("cond", "then", "b"),
-    content-type,
+    markup(),
     "cond",
-    if-of(string(), then: object((b: content-type)), otherwise: number()),
+    if-of(string(), then: object((b: markup())), otherwise: number()),
   ),
   (
     ("cond", "else"),
@@ -206,9 +205,9 @@
     lens-put(
       resume-schema-strict,
       ("work", "items", "location", 0),
-      content-type,
+      markup(),
     ),
     ("work", "items", "location", 0),
   ).kind,
-  "content",
+  "markup",
 )

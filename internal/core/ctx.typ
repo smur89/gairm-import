@@ -8,7 +8,7 @@
 // required key holding null is missing; a null dependent trigger does
 // not fire. With `strict-null` (the public option of the same name)
 // nothing is absent: null is an ordinary value that kinds accept
-// (null-type, and so `nullable(X)`) or reject with `type`, and only a
+// (null(), and so `nullable(X)`) or reject with `type`, and only a
 // missing key is missing.
 
 /// A fresh context at the root. Its `path` is the data path, as str /

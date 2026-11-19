@@ -7,7 +7,7 @@
 
 #import "../core/error.typ": _bail, _problem, _fail, _key-names-problem
 #import "constraint.typ": _constrain, _value-problem
-#import "leaf.typ": null-type
+#import "leaf.typ": null
 #import "registry.typ": _kinds, _object-problem
 
 // Whether `node` is a dictionary of a registered kind. Never panics, so
@@ -169,7 +169,7 @@
 )
 
 // JSON Schema `[X, "null"]`. An any-of, not a kind of its own: in
-// strict-null mode the union walk hands a null to null-type, and in
+// strict-null mode the union walk hands a null to null(), and in
 // default mode a null is absent before any kind sees it, so this is X.
 /// A value that matches `member` or is `null`. Without `strict-null`
 /// every field already treats `null` as absent, so this is `member`;
@@ -180,7 +180,7 @@
 /// -> dictionary
 #let nullable(member) = {
   _require-schema(member, "nullable member")
-  any-of((member, null-type))
+  any-of((member, null()))
 }
 
 // JSON Schema `not` — the value must NOT match the negated schema.

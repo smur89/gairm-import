@@ -101,8 +101,7 @@ number and `book.tags` an array of strings.
 |---|---|
 | Run | `parse`, `validate`, `coerce`, `format-errors` |
 | Schemas | `schema-from-json-schema` |
-| Constructors | `string`, `number`, `integer`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
-| Constants | `content-type`, `bool-type`, `null-type`, `any-type` |
+| Constructors | `string`, `number`, `integer`, `boolean`, `null`, `markup`, `unknown`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
 | Edit | `lens-get`, `lens-put`, `lens-over`, `add-field`, `remove-field`, `set-required`, `unset-required` |
 | Inspect | `describe-schema`, `find-paths` |
 | Pointers | `path-to-pointer`, `pointer-to-path` |
@@ -318,7 +317,7 @@ the document before translating it and the schema after:
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.13.0": (
-  parse, schema-from-json-schema, lens-put, content-type,
+  parse, schema-from-json-schema, lens-put, markup,
 )
 
 // Not for schemas with `not` or `if`: closing an object there loosens them.
@@ -361,7 +360,7 @@ the document before translating it and the schema after:
   ("projects", "items", "highlights", "items"),
 ).fold(
   schema-from-json-schema(strict-json),
-  (schema, at) => lens-put(schema, at, content-type),
+  (schema, at) => lens-put(schema, at, markup()),
 )
 
 #let resume = parse(resume-schema-strict, path("resume.json"))

@@ -4,8 +4,8 @@
 // the list into parse's report.
 
 #import "../lib.typ": (
-  validate, format-errors, bool-type, null-type, array-of, object, enum-of,
-  any-of, one-of, not-of, string, number, integer,
+  validate, format-errors, boolean, null, array-of, object, enum-of, any-of,
+  one-of, not-of, string, number, integer,
 )
 
 // ---- one record per code ---------------------------------------------
@@ -19,8 +19,8 @@
   // type
   ((a: 1), object((a: string())), "type", ("a",), "string", "integer"),
   ("x", number(), "type", (), "number", "string"),
-  (1, bool-type, "type", (), "boolean", "integer"),
-  (1, null-type, "type", (), "null", "integer"),
+  (1, boolean(), "type", (), "boolean", "integer"),
+  (1, null(), "type", (), "null", "integer"),
   (1, array-of(string()), "type", (), "array", "integer"),
   (1, object((:)), "type", (), "object", "integer"),
   (1, string(format: "email"), "type", (), "string", "integer"),
@@ -40,7 +40,7 @@
   ),
   (
     true,
-    any-of((integer(), enum-of((1, "a")), any-of((string(), null-type)))),
+    any-of((integer(), enum-of((1, "a")), any-of((string(), null())))),
     "type",
     (),
     "integer or number or string",

@@ -5,8 +5,8 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, schema-from-json-schema, describe-schema, find-paths,
-  lens-get, lens-put, content-type, null-type, array-of, object, enum-of,
-  any-of, one-of, not-of, if-of, nullable, string, bool-type, number, integer,
+  lens-get, lens-put, markup, null, array-of, object, enum-of, any-of, one-of,
+  not-of, if-of, nullable, string, boolean, number, integer,
 )
 
 #let T = schema-from-json-schema
@@ -138,7 +138,7 @@
   "expected starting with x.",
 ))
 // Coerce follows the branch validate judged by.
-#let rich-if-str = if-of(string(), then: content-type, otherwise: number())
+#let rich-if-str = if-of(string(), then: markup(), otherwise: number())
 #assert.eq(type(coerce(rich-if-str, "hi")), content)
 #assert.eq(coerce(rich-if-str, 3), 3)
 #assert.eq(validate(rich-if-str, true).map(e => e.code), ("type",))
@@ -151,7 +151,7 @@
   then: string(min-length: 2),
   otherwise: number(),
 )
-#let bool-or-cond = any-of(bool-type, short-str)
+#let bool-or-cond = any-of(boolean(), short-str)
 #assert.eq(validate(bool-or-cond, true), ())
 #assert.eq(validate(bool-or-cond, 1), ())
 #assert.eq(validate(bool-or-cond, "a").map(e => e.code), ("length",))
@@ -167,26 +167,26 @@
 #assert.eq(
   validate(
     any-of(
-      bool-type,
+      boolean(),
       if-of(string(), then: not-of(number()), otherwise: number()),
     ),
     (a: 1),
   ).map(e => (e.code, e.expected)),
   (("type", "boolean or number"),),
 )
-#assert(unclaimed.at(0).message.contains("bool | conditional"))
+#assert(unclaimed.at(0).message.contains("boolean | conditional"))
 // ...and by its branches' kind when they agree.
 #assert.eq(
   validate(
     any-of(
-      bool-type,
+      boolean(),
       if-of(string(), then: string(min-length: 2), otherwise: x-word),
     ),
     1,
   )
     .at(0)
     .message,
-  "expected a value matching one of: bool | string; none matched.",
+  "expected a value matching one of: boolean | string; none matched.",
 )
 #assert(
   validate(not-of(short-str), "ab")
@@ -206,7 +206,7 @@
 
 // A union models the value with the first matching member: content
 // wraps, the rest pass through, inside a document too.
-#let rich-or-num = any-of((content-type, number()))
+#let rich-or-num = any-of((markup(), number()))
 #assert.eq(type(coerce(rich-or-num, "hello")), content)
 #assert.eq(coerce(rich-or-num, 7), 7)
 #let doc-schema = object((x: any-of((string(), number()))))
@@ -225,7 +225,7 @@
 #assert.eq(su, any-of((string(), number())))
 #assert.eq(T((type: ("string", "string"))), string())
 #let with-null = T((type: ("string", "number", "null")))
-#assert.eq(with-null, any-of((string(), number(), null-type)))
+#assert.eq(with-null, any-of((string(), number(), null())))
 #assert.eq(T((type: ("null", "null"))), T((type: "null")))
 
 #let v(s) = T((type: "object", properties: (v: s)))
@@ -269,11 +269,11 @@
 
 // ---- nullable ------------------------------------------------------------
 //
-// `nullable(X)` is any-of((X, null-type)), and `type: [X, "null"]`
+// `nullable(X)` is any-of((X, null())), and `type: [X, "null"]`
 // translates to it. By default it validates and coerces exactly as X
 // does; with strict-null it accepts the null that plain X rejects.
 
-#assert.eq(nullable(string()), any-of((string(), null-type)))
+#assert.eq(nullable(string()), any-of((string(), null())))
 
 // Each case: the nullable JSON Schema, the same without "null", and
 // values to judge.

@@ -111,7 +111,7 @@
   // condition and branches. `additional: true` shows as `* any`.
   let rows = _children(schema).map(((_, sub, label)) => _row(label, sub))
   if schema.at("additional", default: none) == true {
-    rows.push((label: "*", text: "any"))
+    rows.push((label: "*", text: "unknown"))
   }
   let aligned = rows.filter(r => "text" in r or r.head != none)
   let col = if aligned == () { 0 } else {

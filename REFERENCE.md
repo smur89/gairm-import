@@ -105,10 +105,10 @@ quoting a key that is not a plain name in brackets (`["a.b"].c`,
 | Schema | Model |
 |---|---|
 | `string(..)` | the string. A Typst `datetime` becomes its ISO string: one with a date and no time in a `date` field, one with both in a `date-time` field; any other `datetime` is a `format` error (see [Formats](#formats)) |
-| `content-type` | the string as Typst `content` |
+| `markup()` | the string as Typst `content` |
 | `number(..)`, `integer(..)` | the number as given, an int, a float or a Typst `decimal`: an `integer` field keeps `1.0` as a float |
-| `bool-type`, `null-type`, `enum-of(..)`, `const-of(..)` | the value as given |
-| `any-type` | the value as given, nested values included |
+| `boolean()`, `null()`, `enum-of(..)`, `const-of(..)` | the value as given |
+| `unknown()` | the value as given, nested values included |
 | `array-of(..)` | each item's model; absent (null) items dropped |
 | `object(..)` | each declared key's model, absent keys dropped. Undeclared keys are dropped, passed through as given (`additional: true`), or modelled by the `additional` schema. A free-form object (no fields, `additional: true`) is kept as given, nulls included |
 | `any-of(..)`, `one-of(..)` | the model of the first member that matches; when none matches but exactly one member takes the value's type, that member's model, as `coerce` would build it alone |
@@ -140,6 +140,16 @@ built.
 | `nullable(member)` | | `null` or a value `member` accepts (see [Null handling](README.md#null-handling)) |
 | `enum-of(values)` | | one of `values`, which may mix types |
 | `const-of(value)` | | `value` only; the same as `enum-of((value,))` |
+| `boolean()` | | `true` or `false` |
+| `null()` | | `null`, or an absent key |
+| `markup()` | | a string, returned as Typst `content` so it splices into markup |
+| `unknown()` | | any value, passed through unchanged (JSON Schema `{}`) |
+
+Every schema is a function call, named after the JSON Schema type it
+checks where that name is free: `string()`, `boolean()`, `null()`. A name
+Typst already uses gets another: an array is `array-of(..)`, a string
+returned as content `markup()`, any value `unknown()`. The combinators
+end in `-of`, since `not` and `if` are Typst keywords.
 
 - `min-length` and `max-length` count characters as grapheme clusters.
 - `format` takes one of the nine names under [Formats](#formats).
@@ -165,11 +175,6 @@ built.
   keys that must be present whenever it is; a key listed twice counts
   once. A key holding `null` counts as absent for both unless
   `strict-null` is on.
-
-Four kinds take no arguments and are constants: `content-type` (a string,
-returned as Typst `content` so it splices into markup), `bool-type`,
-`null-type` (`null` or an absent key) and `any-type` (any value, passed
-through unchanged).
 
 ```typst
 #let member = object(
@@ -309,7 +314,7 @@ The examples edit `team`, a schema built on `member` from
 #let content-names = lens-put(
   team,
   ("members", "items", "name"),
-  content-type,
+  markup(),
 )
 
 // Spreading a member keeps everything it doesn't change.
@@ -491,7 +496,7 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   other array becomes an `any-of` with one member per type (`null` last),
   each type-specific keyword applying only to its own type's member.
 - No `type`: a node with no type-specific keyword (`{}`, or annotations
-  only) is `any-type`. With type-specific keywords (`{minLength: 2}`) it is
+  only) is `unknown()`. With type-specific keywords (`{minLength: 2}`) it is
   an `any-of` over boolean, object, array, number, string and null, each
   keyword narrowing only its own type's member; the object member is open
   unless the node has `properties` or `additionalProperties`.

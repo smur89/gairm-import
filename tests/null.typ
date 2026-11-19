@@ -2,13 +2,13 @@
 // value position counts as the key being absent: no type error, no
 // recursion, a required key holding it is missing, a null trigger does
 // not fire, and coerce drops it. With `strict-null: true` null is an
-// ordinary value: null-type and nullable(X) take it, every other kind
+// ordinary value: null() and nullable(X) take it, every other kind
 // rejects it with `type`, and only a missing key is missing. Unknown
 // keys are flagged either way, so a typo can't hide behind a null.
 
 #import "../lib.typ": (
-  validate, coerce, parse, content-type, null-type, array-of, object, nullable,
-  any-of, one-of, if-of, enum-of, string, number,
+  validate, coerce, parse, markup, null, array-of, object, nullable, any-of,
+  one-of, if-of, enum-of, string, number,
 )
 #import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
@@ -30,7 +30,7 @@
 #for (schema, value, default, strict) in (
   // Null at a leaf, an array or an object.
   (field(string()), (f: none), ((), (:)), (((("f",), "type"),), none)),
-  (field(content-type), (f: none), ((), (:)), (((("f",), "type"),), none)),
+  (field(markup()), (f: none), ((), (:)), (((("f",), "type"),), none)),
   (field(number()), (f: none), ((), (:)), (((("f",), "type"),), none)),
   (
     field(array-of(string())),
@@ -187,9 +187,9 @@
       none,
     ),
   ),
-  (field(null-type), (f: none), ((), (:)), ((), (f: none))),
+  (field(null()), (f: none), ((), (:)), ((), (f: none))),
   (
-    field(one-of((string(), null-type))),
+    field(one-of((string(), null()))),
     (f: none),
     ((), (:)),
     (
@@ -253,7 +253,7 @@
 // (tests/panics/).
 #assert.eq(validate(resume-schema, (:)), ())
 
-// ---- the union rule: null-type never competes for a non-null value ---
+// ---- the union rule: null() never competes for a non-null value ---
 
 #for strict in (false, true) {
   let wrapped = validate(
@@ -266,21 +266,21 @@
   // Several non-null members: the summary names only them.
   assert.eq(
     validate(
-      any-of((string(), enum-of((1,)), null-type)),
+      any-of((string(), enum-of((1,)), null())),
       true,
       strict-null: strict,
     ),
     validate(any-of((string(), enum-of((1,)))), true),
   )
-  // null-type rejects anything else.
+  // null() rejects anything else.
   assert.eq(
-    validate(null-type, 1, strict-null: strict).at(0).message,
+    validate(null(), 1, strict-null: strict).at(0).message,
     "expected null, got integer.",
   )
 }
-// A union of null-type alone still judges a non-null value.
+// A union of null() alone still judges a non-null value.
 #assert.eq(
-  codes(validate(any-of((null-type,)), 1, strict-null: true)),
+  codes(validate(any-of((null(),)), 1, strict-null: true)),
   (((), "type"),),
 )
 
@@ -291,8 +291,8 @@
 // the branch for it.
 
 #let null-or-word = field(if-of(
-  null-type,
-  then: null-type,
+  null(),
+  then: null(),
   otherwise: (..string(), min-length: 2),
 ))
 #let null-if-str = field(if-of(
@@ -326,7 +326,7 @@
 // are all unknown, is present: validate counts it, so the model keeps
 // an (empty) dict.
 
-#let section = object((name: string(), summary: content-type))
+#let section = object((name: string(), summary: markup()))
 #assert.eq(coerce(section, (name: none, summary: none)), (:))
 #assert.eq(coerce(section, (:)), (:))
 #assert.eq(coerce(section, (nickname: "Al", color: "blue")), (:))
@@ -350,7 +350,7 @@
 // Null content elements drop; the rest still wrap.
 #let chs = coerce(
   array-of(
-    content-type,
+    markup(),
   ),
   (none, "first", none, "second"),
 )
