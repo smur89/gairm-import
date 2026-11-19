@@ -252,6 +252,15 @@
   ).dependent-required,
   (a: ("b",)),
 )
+// So in a hand-built node, which object() never saw.
+#let twice-by-hand = (
+  kind: "object",
+  shape: (a: string(), b: string()),
+  required-keys: ("a", "a"),
+  dependent-required: (a: ("b", "b")),
+)
+#assert.eq(validate(twice-by-hand, (:)).map(e => e.code), ("required",))
+#assert.eq(validate(twice-by-hand, (a: "x")).map(e => e.code), ("dependent",))
 #assert.eq(
   schema-from-json-schema((
     type: "object",

@@ -121,8 +121,9 @@
       )
     }
   }
-  // A required key holding null counts as missing.
-  let required = schema.at("required-keys", default: ())
+  // A required key holding null counts as missing. A hand-built node
+  // may list a key twice, which object() keeps once: so does the walk.
+  let required = schema.at("required-keys", default: ()).dedup()
   for key in required {
     if not _has(value, key, ctx) {
       errors += _error(
@@ -139,7 +140,7 @@
   for (trigger, dependents) in schema.at("dependent-required", default: (:)) {
     if not _has(value, trigger, ctx) { continue }
     // A required key that is missing is already reported, once.
-    for dependent in dependents {
+    for dependent in dependents.dedup() {
       if not _has(value, dependent, ctx) and dependent not in required {
         errors += _error(
           ctx.path + (dependent,),
