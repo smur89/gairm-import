@@ -24,6 +24,10 @@
 //                 the node as `of` with `mark` (a nullable as `X?`)
 //   bad-segment   (schema, segment) => the problem (error.typ) a lens
 //                 reports when the segment names no child
+//   problem       schema => the problem (error.typ) with the node's own
+//                 fields, or none: a missing field the walk reads, or a
+//                 value of the wrong shape. Children are checked as
+//                 schemas of their own (structure.typ's _schema-problem)
 //
 // The constructors that build each kind are listed in catalog.typ: they
 // sit above this registry, since their schema check reads its kinds.
@@ -32,15 +36,15 @@
   null-type, _leaf-walk, _string-check, _number-check, _integer-check,
   _bool-check, _null-check, _any-check, _enum-check,
 )
-#import "../core/error.typ": _a, _not-in, _problem
-#import "format.typ": _string-kind-check
+#import "../core/error.typ": _a, _not-in, _problem, _key-names-problem
+#import "constraint.typ": _constraint-rows, _value-problem
+#import "format.typ": _string-kind-check, _string-problem
 #import "walk.typ": (
   _array-walk, _object-walk, _union-walk, _not-walk, _if-walk, _kind-label,
 )
 
-// `nullable(X)`'s shape: an any-of of exactly X then null. Read off the
-// node rather than by rebuilding nullable(X), which would panic on a
-// hand-built member.
+// `nullable(X)`'s shape: an any-of of exactly X then null, read off the
+// node, since nullable() sits above this registry.
 #let _is-nullable(s) = (
   not s.exclusive and s.members.len() == 2 and s.members.last() == null-type
 )
@@ -52,8 +56,35 @@
 // The (segment, field) pairs of the parts `s` has.
 #let _if-present(s) = _if-parts.filter(((_, field)) => field in s)
 
+// The first field `spec` rejects on `s`, as a problem, or none. `spec`
+// lists (field, required, ok, must): `ok` judges a present field's
+// value, and `must` says what it must be.
+#let _fields-problem(s, spec) = {
+  for (field, required, ok, must) in spec {
+    if field not in s {
+      if required { return _problem("field " + repr(field), must, "missing") }
+    } else if not ok(s.at(field)) {
+      return _problem("field " + repr(field), must, repr(s.at(field)))
+    }
+  }
+}
+
+// The first constraint field of `family` whose value its row does not
+// accept, as a problem, or none.
+#let _rows-problem(s, family) = {
+  for row in _constraint-rows {
+    if row.family != family or row.field not in s { continue }
+    let must = _value-problem(row, s.at(row.field))
+    if must != none {
+      return _problem("field " + repr(row.field), must, repr(s.at(row.field)))
+    }
+  }
+}
+
 // A leaf passes its `check`, constraint `family` and `model` (leaf.typ)
-// instead of a walk.
+// instead of a walk. A walked kind passes its `family` too, when it
+// takes constraint rows. `fields` is the spec of its own fields
+// (_fields-problem), and `problem` any check beyond it.
 #let _kind(
   searchable: true,
   children: s => (),
@@ -72,8 +103,16 @@
   check: none,
   family: none,
   model: v => v,
+  fields: (),
+  problem: s => none,
 ) = (
   walk: if check != none { _leaf-walk(check, family, model) } else { walk },
+  problem: s => {
+    let p = _fields-problem(s, fields)
+    if p == none { p = problem(s) }
+    if p == none and family != none { p = _rows-problem(s, family) }
+    p
+  },
   searchable: searchable,
   children: children,
   with-child: with-child,
@@ -92,6 +131,17 @@
   string: _kind(
     check: _string-kind-check,
     family: "string",
+    problem: s => {
+      let p = _string-problem(
+        format: s.at("format", default: none),
+        pattern: s.at("pattern", default: none),
+        expected: s.at("expected", default: none),
+      )
+      // Named as the node's field, as the other field problems are.
+      if p != none and "arg" in p { (..p, arg: "field " + repr(p.arg)) } else {
+        p
+      }
+    },
     suffix: s => (
       _kind-label(s) + if "pattern" in s { " + pattern" } else { "" }
     ),
@@ -110,6 +160,7 @@
   // The values inline, for at-a-glance debugging.
   enum: _kind(
     check: _enum-check,
+    fields: (("values", true, v => type(v) == array, "an array of values"),),
     suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
   ),
   // find-paths only walks through the two plain containers: every
@@ -117,6 +168,8 @@
   // than a question.
   array: _kind(
     walk: _array-walk,
+    family: "array",
+    fields: (("elem", true, _ => true, "a schema"),),
     searchable: false,
     inline: true,
     children: s => (("items", s.elem, "[]"),),
@@ -135,6 +188,41 @@
   // the display-only key for "any other key".
   object: _kind(
     walk: _object-walk,
+    fields: (
+      (
+        "shape",
+        true,
+        v => type(v) == dictionary,
+        "a dictionary of field name to schema",
+      ),
+      (
+        "additional",
+        false,
+        v => v == none or v == true or type(v) == dictionary,
+        "true or a schema (leave it out to reject other keys)",
+      ),
+      (
+        "dependent-required",
+        false,
+        v => type(v) == dictionary,
+        "a dictionary of key to array of keys",
+      ),
+    ),
+    problem: s => {
+      let p = _key-names-problem(
+        s.at("required-keys", default: ()),
+        "field \"required-keys\"",
+      )
+      if p != none { return p }
+      for (trigger, dependents) in s.at("dependent-required", default: (:)) {
+        let p = _key-names-problem(
+          dependents,
+          "field \"dependent-required\"",
+          entry: trigger,
+        )
+        if p != none { return p }
+      }
+    },
     searchable: false,
     children: s => {
       let required = s.at("required-keys", default: ())
@@ -184,6 +272,15 @@
   // went through any-of or one-of.
   union: _kind(
     walk: _union-walk,
+    fields: (
+      (
+        "members",
+        true,
+        v => type(v) == array and v != (),
+        "a non-empty array of schemas",
+      ),
+      ("exclusive", true, v => type(v) == bool, "true or false"),
+    ),
     children: s => s
       .members
       .enumerate()
@@ -208,6 +305,7 @@
   ),
   "not": _kind(
     walk: _not-walk,
+    fields: (("member", true, _ => true, "a schema"),),
     // No header: the member's label, its lens segment, says it.
     children: s => (("not", s.member, "not"),),
     with-child: (s, _, sub) => (..s, member: sub),
@@ -221,6 +319,7 @@
   // the labels, the lens segments, say what each child is.
   "if": _kind(
     walk: _if-walk,
+    fields: (("cond", true, _ => true, "a schema"),),
     children: s => _if-present(s).map(((seg, field)) => (
       seg,
       s.at(field),
@@ -240,9 +339,6 @@
   ),
 )
 
-// A node of a kind the registry doesn't know, or of no kind at all (both
-// hand-built), behaves as a leaf, as it did before the registry.
-#let _descriptor(s) = {
-  let kind = s.at("kind", default: none)
-  if type(kind) == str { _kinds.at(kind, default: _kind()) } else { _kind() }
-}
+// The descriptor of schema node `s`, which the entry points have checked
+// (structure.typ's _require-schema), so its kind is registered.
+#let _descriptor(s) = _kinds.at(s.kind)

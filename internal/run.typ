@@ -10,7 +10,7 @@
 #import "core/ctx.typ": _ctx
 #import "core/error.typ": _bail, _fail, _problem, _require-bool, _format-report
 #import "core/input.typ": _decode-input, _refuse-path
-#import "kinds/structure.typ": _is-schema, _require-schema
+#import "kinds/structure.typ": _has-kind, _require-schema
 #import "engine.typ": _walk, _coerce-result, _parse-result
 
 // A run function's checked arguments, as the (value, ctx) its walk
@@ -18,7 +18,7 @@
 // itself, so this helper adds no frame under the walk: Typst caps the
 // call depth, and every frame costs a level of document nesting.
 #let _prepare(fn-name, schema, data, strict-null) = {
-  if not _is-schema(schema) and _is-schema(data) {
+  if not _has-kind(schema) and _has-kind(data) {
     _bail(
       fn-name,
       "takes the schema first, then the data: " + fn-name + "(schema, data).",

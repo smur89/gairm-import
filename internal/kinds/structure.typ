@@ -8,7 +8,6 @@
 #import "../core/error.typ": _bail, _problem, _fail, _key-names-problem
 #import "constraint.typ": _constrain
 #import "leaf.typ": null-type
-#import "format.typ": _string-problem
 #import "registry.typ": _kinds
 
 // Whether `node` is a dictionary of a registered kind. Never panics, so
@@ -19,37 +18,54 @@
     and node.kind in _kinds
 )
 
-// A schema node: a dictionary whose `kind` is registered. Shallow, as
-// its children were checked when they were built. A string node whose
-// `format` the format table doesn't know, which only a hand-built node
-// can carry, panics here.
-#let _is-schema(node) = {
-  if type(node) == dictionary and node.at("kind", default: none) == "string" {
-    let p = _string-problem(format: node.at("format", default: none))
-    if p != none { _fail("string schema", p) }
+// What a schema check suggests to a caller who passed something else.
+#let _schema-hint = " Build schemas with the constructors."
+
+// The first malformed node in `node`, pre-order, as (path, problem), or
+// none: a node that is not a dictionary of a registered kind, or one
+// whose own fields its descriptor rejects (registry.typ). `path` is the
+// lens path to it from `node`. Never panics, so a search can ask it of
+// any value. It takes the node alone, and builds the path on the way
+// back up, so Typst memoizes each subtree's verdict: a subtree a
+// constructor already checked, or one shared by several parents (a
+// union that repeats a member), is checked once.
+#let _schema-problem(node) = {
+  if not _has-kind(node) {
+    return (
+      path: (),
+      problem: _problem(none, "a schema", repr(node), hint: _schema-hint),
+    )
   }
-  _has-kind(node)
+  let d = _kinds.at(node.kind)
+  let p = (d.problem)(node)
+  if p != none { return (path: (), problem: p) }
+  for (seg, sub, _) in (d.children)(node) {
+    let found = _schema-problem(sub)
+    if found != none {
+      // A shadowed additional schema has no lens segment of its own.
+      let seg = if seg == none { "additionalProperties" } else { seg }
+      return (path: (seg,) + found.path, problem: found.problem)
+    }
+  }
 }
+
+// A schema: a dictionary of a registered kind, every node in it well
+// formed. Never panics.
+#let _is-schema(node) = _schema-problem(node) == none
 
 // Whether `node` is an object schema: for the operations only an
 // object supports (the field edits, the allOf merge).
 #let _is-object(node) = node.kind == "object"
 
-// What a schema check suggests to a caller who passed something else.
-#let _schema-hint = " Build schemas with the constructors."
-
-// The one gate for a node entering from user code: a lens-put value, a
-// lens-over result, a constructor's sub-schema. A malformed node fails
-// here, naming what took it, not later as an unknown kind mid-walk.
+// The one gate for a node entering from user code: a run function's
+// schema, a lens-put value, a lens-over result, a constructor's
+// sub-schema. A malformed node fails here, naming what took it and
+// where in it the problem is, not later as a raw error mid-walk.
 #let _require-schema(node, who) = {
-  if not _is-schema(node) {
-    _fail(who, _problem(
-      none,
-      "a schema",
-      repr(node),
-      hint: _schema-hint,
-    ))
-  }
+  let found = _schema-problem(node)
+  if found == none { return }
+  let at = if found.path != () { " at " + repr(found.path) }
+  _fail(who + at, found.problem)
 }
 
 // The named parameters are the array rows' fields (constraint.typ),
@@ -95,13 +111,16 @@
   let members = if pos.len() == 1 and type(pos.first()) == array {
     pos.first()
   } else { pos }
-  if members.len() == 0 or not members.all(_is-schema) {
+  if members.len() == 0 or not members.all(_has-kind) {
     _fail(fn-name, _problem(
       "members",
       "a non-empty array of schemas",
       repr(members),
       hint: _schema-hint,
     ))
+  }
+  for (i, m) in members.enumerate() {
+    _require-schema(m, fn-name + " member " + str(i))
   }
   members
 }
@@ -210,7 +229,7 @@
 // `shape` is object()'s alone.
 #let _object-problem(required-keys, dependent-required, additional) = {
   let additional-ok = (
-    additional in (none, false, true) or _is-schema(additional)
+    additional in (none, false, true) or _has-kind(additional)
   )
   if not additional-ok {
     return _problem(
@@ -254,6 +273,9 @@
   }
   let p = _object-problem(required-keys, dependent-required, additional)
   if p != none { _fail(who, p) }
+  if type(additional) == dictionary {
+    _require-schema(additional, who + " additional")
+  }
   // A key listed twice is required once, so it is missing once.
   let required-keys = required-keys.dedup()
   let dependent-required = dependent-required

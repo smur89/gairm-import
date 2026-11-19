@@ -230,7 +230,5 @@
   if type(query) == dictionary {
     _require-schema(query, "find-paths query")
   }
-  _paths-where(schema, n => (
-    n.at("kind", default: none) == q.kind and (q.test)(n)
-  ))
+  _paths-where(schema, n => n.kind == q.kind and (q.test)(n))
 }
