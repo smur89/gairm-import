@@ -1,5 +1,4 @@
-// Lenses: a location in a schema, as `(lens: path)` or the bare path
-// array, read with lens-get, replaced with lens-put, mapped with
+// Lenses: a schema path, an array of segments, read with lens-get, replaced with lens-put, mapped with
 // lens-over. Each takes the schema first, so
 // edits pipe through `.fold`. A segment enters an object field, an
 // array's "items", an object's "additionalProperties", a union member
@@ -12,9 +11,9 @@
 )
 #import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
-// ---- the lens ----------------------------------------------------------
+// ---- the path ----------------------------------------------------------
 
-#let name = (lens: ("basics", "name"))
+#let name = ("basics", "name")
 
 // ---- lens-get --------------------------------------------------------------
 
@@ -25,7 +24,6 @@
 #assert("name" in basics.shape)
 // The empty path is the identity.
 #assert.eq(lens-get(resume-schema, ()), resume-schema)
-#assert.eq(lens-get(resume-schema, (lens: ())), resume-schema)
 
 // "items" enters an array's elements: ("work", "items", "highlights")
 // is the highlights field of each work entry.
@@ -59,7 +57,7 @@
 // The identity lens replaces the whole schema, for call sites that take
 // a lens generically but sometimes mean "the whole schema".
 #assert.eq(lens-put(resume-schema, (), string()), string())
-#assert.eq(lens-over(resume-schema, (lens: ()), _ => string()), string())
+#assert.eq(lens-over(resume-schema, (), _ => string()), string())
 
 // A put through an array replaces the element's field and keeps the
 // array and object wrappers.
@@ -74,7 +72,7 @@
 
 // The extension use case from #26: add `rating` to every language entry,
 // a deep edit into languages' items. Only the lensed node changes.
-#let language-items = (lens: ("languages", "items"))
+#let language-items = ("languages", "items")
 #let with-rating = lens-over(
   resume-schema,
   language-items,

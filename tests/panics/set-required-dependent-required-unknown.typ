@@ -6,4 +6,4 @@
   required-keys: (),
   dependent-required: (x: ("a",)),
 )
-#set-required(bad, (lens: ()), ("a",))
+#set-required(bad, (), ("a",))

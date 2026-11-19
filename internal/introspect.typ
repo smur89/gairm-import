@@ -182,7 +182,7 @@
 
 /// Lists the lens path of every node in `schema` that matches `query`,
 /// including inside union and `not` members and a conditional's
-/// condition and branches. The paths work wherever a location does.
+/// condition and branches. The paths work wherever a schema path does.
 /// Panics for `object` and `array`, which the search walks through, and
 /// for anything that is not a schema or a constructor.
 ///

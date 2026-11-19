@@ -1,3 +1,3 @@
-// expect: add-field location must be a lens or a path array, got: "basics".
+// expect: add-field path must be an array of path segments, got: "basics".
 #import "../../lib.typ": add-field, object, string
 #add-field(object((basics: object((:)))), "basics", "x", string())

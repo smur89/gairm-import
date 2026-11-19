@@ -66,9 +66,9 @@
 ))
 #assert.eq(undated, team)
 
-// A location is a path or `(lens: path)`, and paths join with `+`.
+// Paths join with `+`.
 #assert.eq(
-  lens-get(team, (lens: ("members",) + ("items", "tags"))),
+  lens-get(team, ("members",) + ("items", "tags")),
   lens-get(team, ("members", "items", "tags")),
 )
 

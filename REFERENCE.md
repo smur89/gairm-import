@@ -61,8 +61,8 @@ or `items`, and about 17 when every level is an `anyOf`.
 
 An error record is `(path, code, message, expected, got)`:
 
-- `path` is where in the document the problem is, as keys and array
-  indices (`("work", 0, "url")`); for a missing key (`required`,
+- `path` is where in the document the problem is, as a data path of keys
+  and array indices (`("work", 0, "url")`); for a missing key (`required`,
   `dependent`) it is the key that is missing, and `()` is the root. A
   missing key the object requires is reported once, as `required`, and
   never also as `dependent`; one it doesn't require gets a `dependent`
@@ -248,8 +248,10 @@ with `^…$` for a full-string match.
 
 ## Lenses and edits
 
-A *location* names one node in a schema: a path array, or `(lens: path)`.
-Every function below takes either. A path's segments are:
+A *schema path* names one node in a schema, as an array of segments.
+It is not a *data path*, the keys and indices an error record's `path`
+holds, which name a place in the document. Every function below takes a
+schema path. Its segments are:
 
 | Segment | Enters |
 |---|---|
@@ -414,7 +416,7 @@ else  number
 `find-paths(schema, query)` lists the path of every node matching
 `query`, inside union, `not-of` and `if-of` members too, sorted as above.
 The paths use the segments under [Lenses and edits](#lenses-and-edits), so
-they work wherever a location does. A query is:
+they work wherever a schema path does. A query is:
 
 - a schema node, which matches the nodes of its kind that have every field
   the query sets, with the same value: `string()` finds every string,
@@ -458,8 +460,8 @@ with `lens-over` on its object.
 ```
 
 An error record's `path` addresses the **data**, so its pointer is one any
-JSON Pointer tool can resolve against the document. A lens or
-`find-paths` path addresses the **schema**, in this package's own
+JSON Pointer tool can resolve against the document. A schema path, as
+the lenses and `find-paths` use, addresses the **schema**, in this package's own
 segments, and encodes segment for segment: `("basics", "email")` becomes
 `/basics/email` and `("work", "items")` becomes `/work/items`. That is
 neither a data pointer nor a JSON Schema location, which would read

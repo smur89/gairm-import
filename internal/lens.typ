@@ -6,8 +6,8 @@
 // `(lens.put)(args)` at every call site.
 //
 // The schema comes first everywhere, so edits pipe through `.fold`.
-// A location is a lens `(lens: path)` or the bare path array, and
-// every function here takes either.
+// Every function here points into the schema with a schema path, an
+// array of segments.
 //
 // Path segments borrow JSON Schema keyword names (not the engine field
 // names), but a lens path is not a JSON Schema location: a field is
@@ -36,7 +36,7 @@
 // written node or any object above it, is rebuilt through object().
 // Build replacements with the constructors.
 
-#import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
+#import "kinds/traverse.typ": _get-at, _set-at, _is-path, _schema-path
 #import "kinds/structure.typ": (
   _require-schema, _has-kind, _is-object, _object-with, _rebuilt,
 )
@@ -61,21 +61,21 @@
 }
 
 // What an argument is, for the order panic below.
-#let _what(x) = if _has-kind(x) { "a schema" } else if _is-location(x) {
-  "a location"
+#let _what(x) = if _has-kind(x) { "a schema" } else if _is-path(x) {
+  "a path"
 } else { "a " + str(type(x)) }
 
 // The schema and the path of a lens-get / lens-put / lens-over call.
 // Schema first: any other call panics naming what it got, and a
 // malformed schema names the node at fault.
 #let _subject(a, b, op) = {
-  if _has-kind(a) and _is-location(b) {
+  if _has-kind(a) and _is-path(b) {
     _require-schema(a, op + " schema")
-    return (a, _location-path(b, op))
+    return (a, _schema-path(b, op))
   }
   _bail(
     op,
-    "takes a schema, then a location (a lens or a path array); got "
+    "takes a schema, then a path (an array of segments); got "
       + _what(a)
       + " and "
       + _what(b)
@@ -86,7 +86,7 @@
 /// Reads the schema node at `at`. Panics if the path does not exist.
 ///
 /// - schema (dictionary): The schema to read from.
-/// - at (dictionary, array): Where: a lens or a path array.
+/// - at (array): Where: a schema path.
 /// -> dictionary
 #let lens-get(schema, at) = {
   let (schema, path) = _subject(schema, at, "lens-get")
@@ -99,7 +99,7 @@
 /// if the edit breaks an object's invariants (as `object` would).
 ///
 /// - schema (dictionary): The schema to edit.
-/// - at (dictionary, array): Where: a lens or a path array.
+/// - at (array): Where: a schema path.
 /// - value (dictionary): The replacement node.
 /// -> dictionary
 #let lens-put(schema, at, value) = {
@@ -112,7 +112,7 @@
 /// breaks an object's invariants (as `object` would).
 ///
 /// - schema (dictionary): The schema to edit.
-/// - at (dictionary, array): Where: a lens or a path array.
+/// - at (array): Where: a schema path.
 /// - fn (function): Takes the current node, returns the new one.
 /// -> dictionary
 #let lens-over(schema, at, fn) = {
@@ -126,16 +126,16 @@
 }
 
 // The skeleton the object edits share: check the schema and the
-// location once, find the object at `at`, let `edit` check it and
+// path once, find the object at `at`, let `edit` check it and
 // return the fields to change (as object() names them), and write it
 // back rebuilt through object().
 #let _edit-object(schema, at, op, edit) = {
   _require-schema(schema, op + " schema")
-  let path = _location-path(at, op)
+  let path = _schema-path(at, op)
   let parent = _get-at(schema, path, op)
   if not _is-object(parent) {
     _fail(op, _problem(
-      "location",
+      "path",
       "an object schema",
       _a(_kind-label(parent)) + " schema",
     ))
@@ -191,7 +191,7 @@
 /// rejects other keys.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - at (dictionary, array): The object: a lens or a path array.
+/// - at (array): The object, as a schema path.
 /// - keys (array): The fields to require.
 /// -> dictionary
 #let set-required(schema, at, keys) = {
@@ -219,7 +219,7 @@
 /// was not required.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - at (dictionary, array): The object: a lens or a path array.
+/// - at (array): The object, as a schema path.
 /// - keys (array): The fields to stop requiring.
 /// -> dictionary
 #let unset-required(schema, at, keys) = {
@@ -245,7 +245,7 @@
 /// target is not an object or has no such key.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - at (dictionary, array): The object: a lens or a path array.
+/// - at (array): The object, as a schema path.
 /// - key (str): The field to remove.
 /// -> dictionary
 #let remove-field(schema, at, key) = {
