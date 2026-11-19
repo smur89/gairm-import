@@ -47,11 +47,11 @@
 
 #let strict-json = {
   let js = close(json(schema-file))
-  js.definitions.iso8601 = (type: "string", format: "date")
-  js.properties.meta.properties.lastModified = (
+  // A full date, or the year and month JSON Resume also allows.
+  js.definitions.iso8601 = (
     anyOf: (
-      (type: "string", format: "date-time"),
       (type: "string", format: "date"),
+      (type: "string", pattern: "^[0-9]{4}(-(0[1-9]|1[0-2]))?$"),
     ),
   )
   js

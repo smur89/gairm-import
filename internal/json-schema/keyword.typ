@@ -3,8 +3,8 @@
 // (a keyword without `types` applies to every node). The allow-list,
 // the sibling rule beside a composition keyword or `$ref`, the
 // unsupported-keyword bails, the keyword-for-another-type bail and the
-// enum/const structural list all read this table, so a new keyword is one entry here plus the code
-// that consumes it.
+// enum/const structural list all read this table, so a new keyword is
+// one entry here plus the code that consumes it.
 
 #import "../core/error.typ": _bail as _core-bail, _worded
 #import "../kinds/constraint.typ": _constraint-rows

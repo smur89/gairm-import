@@ -6,6 +6,8 @@
   (
     name: string(min-length: 1, max-length: 80),
     email: string(format: "email"),
+    homepage: string(format: "uri"),
+    joined: string(format: "date"),
     code: string(pattern: "^[A-Z]{3}$", expected: "a three-letter code"),
     age: integer(minimum: 0),
     rating: number(minimum: 0, maximum: 5, multiple-of: 0.5),
@@ -15,6 +17,10 @@
   required-keys: ("name", "email"),
   dependent-required: (phone: ("email",)),
 )
+
+// The schema above must be the one the other mirrors import.
+#import "reference-schemas.typ" as shared
+#assert.eq(member, shared.member)
 
 #assert.eq(any-of(string(), number()), any-of((string(), number())))
 #assert.eq(const-of(1), enum-of((1,)))
@@ -29,6 +35,8 @@
   validate(member, (
     name: "Aoife",
     email: "aoife@example.com",
+    homepage: "https://aoife.example",
+    joined: "2024-01-15",
     code: "ABC",
     age: 30,
     rating: 4.5,

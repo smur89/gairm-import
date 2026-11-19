@@ -9,5 +9,7 @@ repository = "https://github.com/smur89/gairm-import"
 keywords = ["json", "json-schema", "schema", "validation", "loader"]
 categories = ["utility", "integration"]
 compiler = "0.15.0"
-# Ship for the README's links, but the package never reads them.
+# In the typst/packages submission, so the README's links to them work
+# on Universe, but left out of the bundle users download: the package
+# never reads them.
 exclude = ["/CONTRIBUTING.md", "/REFERENCE.md"]

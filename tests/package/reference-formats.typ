@@ -1,24 +1,26 @@
-// Mirrors REFERENCE.md, "Formats": the messages its block shows under
-// resume-schema-strict, and the datetime values it says a date format
-// takes. The documents are ours; the paths and messages must match the
-// block.
+// Mirrors REFERENCE.md, "Formats": the messages its block shows for
+// `member`, and the datetime values it says a date format takes. The
+// paths and messages must match the block.
 #import "@preview/gairm-import:0.0.0": validate, coerce, string
-#import "readme-json-resume.typ": resume-schema-strict
+#import "reference-schemas.typ": member
 
 #assert.eq(
-  validate(resume-schema-strict, (
-    basics: (email: "name", url: "example.com"),
-    certificates: ((date: "2024/01/15"),),
+  validate(member, (
+    name: "Ada",
+    email: "ada",
+    homepage: "example.com",
+    joined: "2024/01/15",
   )).map(e => (e.path, e.message)),
   (
-    (("basics", "email"), "expected an email (e.g. \"name@example.com\")."),
-    (("basics", "url"), "expected a URI (e.g. \"https://example.com\")."),
-    (
-      ("certificates", 0, "date"),
-      "expected an ISO-8601 date (e.g. \"2024-01-15\").",
-    ),
+    (("email",), "expected an email (e.g. \"name@example.com\")."),
+    (("homepage",), "expected a URI (e.g. \"https://example.com\")."),
+    (("joined",), "expected an ISO-8601 date (e.g. \"2024-01-15\")."),
   ),
 )
+
+// A partial date, or a time with no offset, is not one of the formats.
+#assert.eq(validate(string(format: "date"), "2024-01").len(), 1)
+#assert.eq(validate(string(format: "time"), "10:00:00").len(), 1)
 
 #let date = datetime(year: 2024, month: 1, day: 5)
 #let date-time = datetime(

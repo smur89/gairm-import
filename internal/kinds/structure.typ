@@ -348,9 +348,9 @@
 )
 
 // `node` with `changes` applied, rebuilt through object() so every
-// edit keeps the constructor's invariants; a panic names `who`. A change to `additional:
-// none` or `dependent-required: (:)` drops that field, as object()
-// does.
+// edit keeps the constructor's invariants; a panic names `who`. A
+// change to `additional: none` or `dependent-required: (:)` drops that
+// field, as object() does.
 #let _object-with(node, who: "object()", ..changes) = {
   let s = (:..node, ..changes.named())
   let out = _object(
