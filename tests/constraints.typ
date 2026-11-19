@@ -231,7 +231,8 @@
 // A float bound compares as the decimal it is written as, so the
 // value's precision survives: past `maximum: 1.0` by 1e-20 is out, and
 // past `exclusive-minimum: 1.0` by as much is in. A bound no decimal can
-// hold still compares.
+// be still compares exactly: past ±2^96, or between two points of the
+// 1e-28 grid.
 #let past-one = decimal("1.00000000000000000001")
 #assert.eq(validate(number(maximum: 1.0), past-one).map(e => e.code), (
   "range",
@@ -240,6 +241,38 @@
 #assert.eq(validate(number(maximum: 1.6), decimal("1.6")), ())
 #assert.eq(validate(number(maximum: float.inf), d), ())
 #assert.eq(validate(number(minimum: 1e300), d).map(e => e.code), ("range",))
+// Near the top of the decimal range: 7e28 + 1 is past `maximum: 7e28`,
+// though both are the same float.
+#let past-7e28 = decimal("70000000000000000000000000001")
+#assert.eq(validate(number(maximum: 7e28), past-7e28).map(e => e.code), (
+  "range",
+))
+#assert.eq(validate(number(exclusive-minimum: 7e28), past-7e28), ())
+// The largest decimal is below 2^96, the first float past every decimal.
+#let top = decimal("79228162514264337593543950335")
+#assert.eq(validate(number(exclusive-maximum: calc.pow(2.0, 96)), top), ())
+#assert.eq(
+  validate(number(minimum: -calc.pow(2.0, 96)), -top),
+  (),
+)
+// Between grid points: 1.5e-30 lies between 0 and 1e-28.
+#let tiny = decimal("0.0000000000000000000000000001")
+#for (bound, value, codes) in (
+  (number(minimum: 1.5e-30), tiny, ()),
+  (number(minimum: 1.5e-30), decimal("0"), ("range",)),
+  (number(exclusive-maximum: 1.5e-30), decimal("0"), ()),
+  (number(maximum: 1.5e-30), tiny, ("range",)),
+  (number(minimum: -1.5e-30), decimal("0"), ()),
+  (number(minimum: -1.5e-30), -tiny, ("range",)),
+  (number(maximum: -1.5e-30), -tiny, ()),
+  (number(exclusive-maximum: -1.5e-30), decimal("0"), ("range",)),
+) {
+  assert.eq(
+    validate(bound, value).map(e => e.code),
+    codes,
+    message: repr((bound, value)),
+  )
+}
 // So does a float multiple: exact, where floats need a tolerance.
 #assert.eq(validate(number(multiple-of: 0.1), decimal("0.3")), ())
 #assert.eq(

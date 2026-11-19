@@ -52,17 +52,36 @@
   "<": (n, bound) => n < bound,
 )
 
-// A float bound as the decimal it is written as, so a decimal value
-// compares at its own precision: `str(1.6)` is "1.6", where
-// `decimal(1.6)` is the float's binary value, 1.60000000000000008….
-// None for a bound a decimal can't hold (an infinity, 1e300, 1e-30),
-// which lies past every decimal value, so the value's float decides it
-// alike.
+// Every decimal lies strictly within ±2^96 and on a grid of 1e-28.
+#let _decimal-limit = calc.pow(2.0, 96)
+
+// A float as the decimal it is written as, so a decimal value compares
+// with it at its own precision: `str(1.6)` is "1.6", where `decimal(1.6)`
+// is the float's binary value, 1.60000000000000008…. None when no
+// decimal is that number: past ±2^96, or with more than 28 decimal
+// places. (`str` never writes an exponent.)
 #let _as-decimal(f) = {
-  if f.is-infinite() or calc.abs(f) >= 7e28 { return none }
+  if f.is-infinite() or calc.abs(f) >= _decimal-limit { return none }
   let t = str(f)
-  if "e" in t or t.split(".").at(1, default: "").len() > 28 { return none }
+  if t.split(".").at(1, default: "").len() > 28 { return none }
   decimal(t)
+}
+
+// A decimal `n` against a float bound under `op`, as the (n, op, bound)
+// to compare exactly. A bound a decimal is compares as one. One past
+// ±2^96 lies on the same side of every decimal as of 0, so 0 stands in
+// for `n`. One between two points of the 1e-28 grid moves to the point
+// below it, g: `n ≥ b` and `n > b` both read `n > g`, and `n ≤ b` and
+// `n < b` both read `n ≤ g`.
+#let _decimal-against(n, op, f) = {
+  let d = _as-decimal(f)
+  if d != none { return (n, op, d) }
+  if f.is-infinite() or calc.abs(f) >= _decimal-limit { return (0, op, f) }
+  // Its first 28 places, toward zero, then down one step if negative.
+  let (whole, places) = str(f).split(".")
+  let g = decimal(whole + "." + places.slice(0, 28))
+  if f < 0 { g -= decimal("0.0000000000000000000000000001") }
+  if op in ("≥", ">") { (n, ">", g) } else { (n, "≤", g) }
 }
 
 // An int or a decimal over an int or decimal multiple stays exact;
@@ -388,14 +407,11 @@
   if "test" in row { return (row.test)(bound, value) }
   let measure = _measures.at(row.family)
   let n = (measure.of)(value)
-  // A decimal compares with an int, but not with a float: a float bound
-  // compares as a decimal where one can hold it, and the value as a float
-  // where not.
-  let (m, b) = if type(n) == decimal and type(bound) == float {
-    let d = _as-decimal(bound)
-    if d == none { (float(n), bound) } else { (n, d) }
-  } else { (n, bound) }
-  if not (_holds.at(row.op))(m, b) {
+  // A decimal compares with an int, but not with a float.
+  let (m, op, b) = if type(n) == decimal and type(bound) == float {
+    _decimal-against(n, row.op, bound)
+  } else { (n, row.op, bound) }
+  if not (_holds.at(op))(m, b) {
     (
       message: _expected-got(
         measure.label + row.op + " " + str(bound),
