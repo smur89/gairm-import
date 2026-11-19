@@ -384,7 +384,13 @@
           "object shape",
           "Valid keys",
           s.shape.keys(),
-        ),
+        )
+          // The steps a JSON Schema user, or a map's, is likely missing.
+          + if seg == "properties" {
+            " A schema path enters a field by its bare name, with no \"properties\" segment."
+          } else if type(s.at("additional", default: none)) == dictionary {
+            " \"additionalProperties\" enters the schema for other keys."
+          } else { "" },
       )
     },
   ),

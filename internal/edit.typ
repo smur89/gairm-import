@@ -145,16 +145,28 @@
 // path once, find the object at `at`, let `edit` check it and
 // return the fields to change (as object() names them), and write it
 // back rebuilt through object().
-#let _edit-object(schema, at, op, edit, hint: true) = {
+#let _edit-object(schema, at, op, edit, hint: true, takes-object: false) = {
   let (schema, path) = _subject(schema, at, op)
   let parent = _get-at(schema, path, op)
   if not _is-object(parent) {
+    // An edit that takes the object's path, given a field's.
+    let up = if takes-object and path != () { path.slice(0, -1) }
+    let field-of = (
+      up != none
+        and {
+          let above = _get-at(schema, up, op)
+          _is-object(above) and path.last() in above.shape
+        }
+    )
     _fail(op, _problem(
       "the node at " + repr(path),
       "an object schema",
       _a(_kind-label(parent)) + " schema",
       // A nullable object's object is member 0, as for schema paths.
-      hint: if hint { _nullable-hint(parent) },
+      hint: if hint { _nullable-hint(parent) }
+        + if field-of {
+          " " + op + " takes the object's path: " + repr(up) + "."
+        },
     ))
   }
   // `required-keys` is left out when empty, as object() leaves it: the
@@ -212,6 +224,19 @@
           + "Use schema-put / schema-update to replace an existing field.",
       )
     }
+    // A field by that name would shadow the additional schema in every
+    // schema path (registry.typ).
+    if (
+      key == "additionalProperties"
+        and type(parent.at("additional", default: none)) == dictionary
+    ) {
+      _bail(
+        "add-field",
+        "key \"additionalProperties\" would hide the object's schema for other keys from schema paths. To replace that schema, use schema-put(s, "
+          + repr(at + (key,))
+          + ", x).",
+      )
+    }
     // Checked as schema-put checks its node, so `additional: false`
     // closes a new object field here too.
     let sub = _checked(sub-schema, "add-field field " + repr(key))
@@ -237,7 +262,7 @@
 /// -> dictionary
 #let set-required(schema, at, keys) = {
   _require-key-names(keys, "set-required", "keys")
-  _edit-object(schema, at, "set-required", parent => {
+  _edit-object(schema, at, "set-required", takes-object: true, parent => {
     let closed = parent.at("additional", default: none) == none
     let unknown = keys.filter(k => closed and k not in parent.shape)
     if unknown.len() > 0 {
@@ -264,7 +289,7 @@
 /// -> dictionary
 #let unset-required(schema, at, keys) = {
   _require-key-names(keys, "unset-required", "keys")
-  _edit-object(schema, at, "unset-required", parent => {
+  _edit-object(schema, at, "unset-required", takes-object: true, parent => {
     let absent = keys.filter(k => k not in parent.required-keys)
     if absent.len() > 0 {
       _bail("unset-required", _not-in(
@@ -301,8 +326,17 @@
           "Valid keys",
           parent.shape.keys(),
         )
-          // A map's value schema is no field: its object drops it.
-          + if (
+          // A key only required is no field: unset-required drops it.
+          + if key in parent.required-keys {
+            (
+              " It is only required: use unset-required(s, "
+                + repr(at)
+                + ", ("
+                + repr(key)
+                + ",))."
+            )
+          } else if (
+            // Nor is a map's value schema: its object drops it.
             key == "additionalProperties"
               and type(parent.at("additional", default: none)) == dictionary
           ) {
