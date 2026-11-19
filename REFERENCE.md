@@ -525,7 +525,7 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
 - Arrays: `items` (a single schema; no `items` takes any item),
   `minItems`, `maxItems`, `uniqueItems`.
 - Objects: `properties`, `required`, `additionalProperties` (a schema,
-  `true` or `false`), `dependentRequired`, and draft 7's array form of
+  `true` or `false`; `{}` is `true`), `dependentRequired`, and draft 7's array form of
   `dependencies`, which means the same.
 - `enum` and `const` become `enum-of` and `const-of`. `type` and
   constraint keywords beside them are folded in at translate time: only

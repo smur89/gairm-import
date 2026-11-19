@@ -4,7 +4,7 @@
 #import "../kinds/structure.typ": object, nullable, _is-object
 #import "../kinds/walk.typ": _kind-label
 #import "../core/error.typ": _a
-#import "keyword.typ": _bail, _json, _into, _require-member-array
+#import "keyword.typ": _bail, _json, _into, _require-member-array, _role-of
 #import "ref.typ": _follow-refs
 
 // Whether a raw allOf member declares `additionalProperties` false or a
@@ -22,7 +22,15 @@
       return js.at(keyword).any(m => _restricts-extras(m, ctx))
     }
   }
-  js.at("additionalProperties", default: true) != true
+  // A schema that takes any value (`{}`) restricts nothing.
+  let ap = js.at("additionalProperties", default: true)
+  (
+    ap != true
+      and not (
+        type(ap) == dictionary
+          and ap.keys().all(k => _role-of(k) == "annotation")
+      )
+  )
 }
 
 // Every member must translate to an object schema; shapes union (a

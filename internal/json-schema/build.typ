@@ -5,7 +5,7 @@
 #import "../core/ctx.typ": _ctx
 #import "../core/error.typ": _json-type-name, _problem
 #import "../engine.typ": _walk
-#import "../kinds/leaf.typ": number, integer, boolean, null
+#import "../kinds/leaf.typ": number, integer, boolean, null, unknown
 #import "../kinds/structure.typ": array-of, object
 #import "../kinds/registry.typ": _object-problem
 #import "../kinds/format.typ": string, _string-problem
@@ -103,7 +103,12 @@
     let ap = js.at("additionalProperties")
     if ap == false { none } else if ap == true { true } else if (
       type(ap) == dictionary
-    ) { recur(ap, _into(ctx, "additionalProperties")) } else {
+    ) {
+      // A schema that takes any value (`{}`) is `true`, so the two
+      // spellings build one node, and an allOf of both agrees.
+      let node = recur(ap, _into(ctx, "additionalProperties"))
+      if node == unknown() { true } else { node }
+    } else {
       _bail(
         ctx,
         "\"additionalProperties\" must be a schema, true, or false, got: "

@@ -336,6 +336,15 @@
     (:),
     object((a: string()), additional: number()),
   ),
+  // `additionalProperties: {}` takes any value, so it is `true`.
+  (
+    (
+      obj((a: (type: "string")), additionalProperties: (:)),
+      obj((b: (type: "number")), additionalProperties: true),
+    ),
+    (:),
+    object((a: string(), b: number()), additional: true),
+  ),
 ) {
   assert.eq(T((allOf: members, ..extra)), node, message: repr(members))
 }
