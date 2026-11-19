@@ -190,3 +190,16 @@
   (a: string()),
   required-keys: ("a",),
 ))
+
+// A hand-built object may leave `required-keys` out; every edit reads it
+// as empty and writes the object back through object().
+#let bare = (kind: "object", shape: (a: string()))
+#assert.eq(
+  add-field(bare, (), "b", number(), required: true),
+  object((a: string(), b: number()), required-keys: ("b",)),
+)
+#assert.eq(remove-field(bare, (), "a"), object((:)))
+#assert.eq(set-required(bare, (), ("a",)), object(
+  (a: string()),
+  required-keys: ("a",),
+))

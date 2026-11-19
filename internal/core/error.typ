@@ -48,7 +48,7 @@
     + ". "
     + label
     + ": "
-    + valid.join(", ")
+    + valid.join(", ", default: "none")
     + "."
 )
 
