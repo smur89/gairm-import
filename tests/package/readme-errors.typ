@@ -57,3 +57,15 @@
   )
   assert.eq(validate(typst-schema, doc), validate(book-schema, doc))
 }
+
+// The format-errors example, verbatim.
+#let book-schema = schema-from-json-schema(json("book-schema.json"))
+#let doc = json("book.json")
+#let errors = validate(book-schema, doc)
+#if errors.len() > 0 {
+  [Book has #errors.len() issue(s).]
+  raw(format-errors(errors))
+} else {
+  let book = coerce(book-schema, doc)
+  // render book …
+}
