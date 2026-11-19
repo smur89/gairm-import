@@ -2,9 +2,10 @@
 // introspection ask the registry instead of keeping their own `kind ==`
 // ladders. A descriptor holds:
 //
-//   walk          (schema, value, ctx, recur) => (errors, value, fatal):
-//                 what the engine runs (walk.typ; a leaf's is built from
-//                 its check by _leaf-walk, leaf.typ)
+//   walk          (schema, value, ctx, recur) => (errors, value, fatal),
+//                 or (tail: sub-schema) to hand the value on: what the
+//                 engine runs (walk.typ; a leaf's is built from its check
+//                 by _leaf-walk, leaf.typ)
 //   searchable    find-paths finds it, rather than only walking
 //                 through it
 //   children      schema => ((segment, sub-schema, label), ..): segments
@@ -37,7 +38,7 @@
 // sit above this registry, since their schema check reads its kinds.
 
 #import "leaf.typ": (
-  null, _leaf-walk, _string-check, _number-check, _integer-check, _bool-check,
+  _leaf-walk, _string-check, _number-check, _integer-check, _bool-check,
   _null-check, _any-check, _enum-check,
 )
 #import "../core/error.typ": (
@@ -49,10 +50,11 @@
   _array-walk, _object-walk, _union-walk, _not-walk, _if-walk, _kind-label,
 )
 
-// `nullable(X)`'s shape: an any-of of exactly X then null, read off the
-// node, since nullable() sits above this registry.
+// `nullable(X)`'s shape: an any-of of exactly X then a null, read off
+// the node, since nullable() sits above this registry. The null is
+// known by its kind, so an annotated one counts too.
 #let _is-nullable(s) = (
-  not s.exclusive and s.members.len() == 2 and s.members.last() == null()
+  not s.exclusive and s.members.len() == 2 and s.members.last().kind == "null"
 )
 
 // A conditional's children, as (segment, field): the lens segments are
@@ -61,6 +63,14 @@
 #let _if-parts = (("if", "cond"), ("then", "then"), ("else", "otherwise"))
 // The (segment, field) pairs of the parts `s` has.
 #let _if-present(s) = _if-parts.filter(((_, field)) => field in s)
+
+// The problem (error.typ) with a conditional that has neither branch,
+// or none: its condition would check nothing. if-of() words it too.
+#let _if-problem(s) = if "then" not in s and "otherwise" not in s {
+  (
+    message: "needs a then or an otherwise branch; got neither. With no branch the condition checks nothing.",
+  )
+}
 
 // `p` with its argument named as a node's field (`field "format"`), for
 // a problem a constructor's check words for its argument.
@@ -193,8 +203,24 @@
       _kind-label(s) + if "pattern" in s { " + pattern" } else { "" }
     ),
   ),
-  // The model wraps the string so it splices into markup.
-  markup: _kind(check: _string-check, family: "string", model: v => [#v]),
+  // The model wraps the string so it splices into markup. Its check
+  // reads no pattern or format, so a hand-built one is refused rather
+  // than silently ignored.
+  markup: _kind(
+    check: _string-check,
+    family: "string",
+    model: v => [#v],
+    problem: s => {
+      let field = ("pattern", "format").find(f => f in s)
+      if field != none {
+        (
+          message: "field "
+            + repr(field)
+            + " does nothing on markup, which takes no pattern or format; use string() for one.",
+        )
+      }
+    },
+  ),
   number: _kind(check: _number-check, family: "number"),
   // A number with the integral gate; the number rows apply.
   integer: _kind(
@@ -367,6 +393,7 @@
   "if": _kind(
     walk: _if-walk,
     fields: (("cond", true, none, "a schema"),),
+    problem: _if-problem,
     children: s => _if-present(s).map(((seg, field)) => (
       seg,
       s.at(field),

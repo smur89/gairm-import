@@ -6,9 +6,7 @@
 // The engine's string check, string() and the translator all read this
 // table, so adding a format is one row.
 
-#import "../core/error.typ": (
-  _error, _expected-got, _type-miss, _type-name-of, _problem, _fail,
-)
+#import "../core/error.typ": _error, _expected-got, _type-miss, _problem, _fail
 #import "leaf.typ": _pattern-errors, _pattern-check
 #import "constraint.typ": _constrain
 
@@ -170,7 +168,7 @@
     )
   }
   if pattern != none and type(pattern) not in (regex, str) {
-    return _problem("pattern", "a regex or a string", _type-name-of(pattern))
+    return _problem("pattern", "a regex or a string", repr(pattern))
   }
   if expected != none and type(expected) != str {
     return _problem("expected", "a string", repr(expected))

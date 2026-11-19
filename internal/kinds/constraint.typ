@@ -23,7 +23,9 @@
 )
 #let _number = (
   (
-    ok: v => type(v) == int or (type(v) == float and not v.is-nan()),
+    ok: v => (
+      type(v) in (int, decimal) or (type(v) == float and not v.is-nan())
+    ),
     must: "a number",
   ),
 )
@@ -62,9 +64,11 @@
 // with it at its own precision: `str(1.6)` is "1.6", where `decimal(1.6)`
 // is the float's binary value, 1.60000000000000008…. None when no
 // decimal is that number: past ±2^96, or with more than 28 decimal
-// places. (`str` never writes an exponent.)
+// places, or a NaN. (`str` never writes an exponent.)
 #let _as-decimal(f) = {
-  if f.is-infinite() or calc.abs(f) >= _decimal-limit { return none }
+  if f.is-nan() or f.is-infinite() or calc.abs(f) >= _decimal-limit {
+    return none
+  }
   let t = str(f)
   if t.split(".").at(1, default: "").len() > 28 { return none }
   decimal(t)
@@ -87,20 +91,36 @@
   if op in ("≥", ">") { (n, ">", g) } else { (n, "≤", g) }
 }
 
-// An int or a decimal over an int or decimal multiple stays exact;
-// anything else compares the float ratio with a tolerance, since
-// calc.rem(0.3, 0.1) is not 0. A ratio too large for a float (1e308 /
-// 0.123...) is infinite, and no finite multiple: report it rather than
-// compare the NaN its rounding leaves.
+// `a op b` for any two of int, float and decimal, none of them NaN. A
+// decimal compares with an int, but not with a float: the pair compares
+// as _decimal-against reads it, the float on the right.
+#let _mirror = ("≥": "≤", ">": "<", "≤": "≥", "<": ">")
+#let _compare(a, op, b) = {
+  let (m, o, c) = if type(a) == decimal and type(b) == float {
+    _decimal-against(a, op, b)
+  } else if type(a) == float and type(b) == decimal {
+    _decimal-against(b, _mirror.at(op), a)
+  } else { (a, op, b) }
+  (_holds.at(o))(m, c)
+}
+
+// A value and a multiple that are each an int, a decimal or a float a
+// decimal can hold compare exactly, as decimals: calc.rem(0.3, 0.1) is
+// not 0, but the decimals 0.3 and 0.1 divide evenly. Anything else (a
+// float past ±2^96 or with more than 28 places, a NaN) compares the
+// float ratio with a tolerance relative to it. A ratio too large for a
+// float (1e308 / 0.123...) is infinite, and no finite multiple: report
+// it rather than compare the NaN its rounding leaves.
+#let _exact(v) = if type(v) == float { _as-decimal(v) } else { v }
 #let _multiple-test(mult, value) = {
-  let exact = if type(value) in (int, decimal) and type(mult) == int {
-    mult
-  } else if type(value) == decimal and type(mult) == float {
-    _as-decimal(mult)
-  }
-  let off = if exact != none { calc.rem(value, exact) != 0 } else {
-    let q = float(value) / mult
-    q.is-infinite() or q.is-nan() or calc.abs(q - calc.round(q)) >= 1e-9
+  let (m, v) = (_exact(mult), _exact(value))
+  let off = if m != none and v != none { calc.rem(v, m) != 0 } else {
+    let q = float(value) / float(mult)
+    (
+      q.is-infinite()
+        or q.is-nan()
+        or calc.abs(q - calc.round(q)) > 1e-9 * calc.abs(q)
+    )
   }
   if off {
     (
@@ -314,11 +334,18 @@
     let found = rows
       .filter(row => not infinite(row))
       .map(row => (row.field, _whole-bound.at(row.op)(node.at(row.field))))
-    if found != () { found.sorted(key: p => p.at(1)).at(pick) }
+    // The bounds may mix floats and decimals, which don't sort together.
+    found.fold(none, (acc, p) => if (
+      acc == none or _compare(p.at(1), pick, acc.at(1))
+    ) { p } else { acc })
   }
-  let lower = tightest(lows, -1)
-  let upper = tightest(highs, 0)
-  if lower != none and upper != none and lower.at(1) > upper.at(1) {
+  // The largest lower bound, the last in row order on a tie, and the
+  // smallest upper one, the first.
+  let lower = tightest(lows, "≥")
+  let upper = tightest(highs, "<")
+  if (
+    lower != none and upper != none and _compare(lower.at(1), ">", upper.at(1))
+  ) {
     (lower.at(0), upper.at(0))
   }
 }
@@ -331,7 +358,7 @@
   (
     lower != none
       and upper != none
-      and not if pair.strict { lower < upper } else { lower <= upper }
+      and not _compare(lower, if pair.strict { "<" } else { "≤" }, upper)
   )
 })
 
@@ -430,14 +457,10 @@
   if "test" in row { return (row.test)(bound, value) }
   let measure = _measures.at(row.family)
   let n = (measure.of)(value)
-  // A decimal compares with an int, but not with a float.
-  let (m, op, b) = if type(n) == decimal and type(bound) == float {
-    _decimal-against(n, row.op, bound)
-  } else { (n, row.op, bound) }
   // A NaN (Typst data only: JSON has none) meets no bound, and Typst
   // refuses to compare it.
-  let nan = type(m) == float and m.is-nan()
-  if nan or not (_holds.at(op))(m, b) {
+  let nan = type(n) == float and n.is-nan()
+  if nan or not _compare(n, row.op, bound) {
     (
       message: _expected-got(
         measure.label + row.op + " " + _num(bound),

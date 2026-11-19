@@ -145,14 +145,26 @@
   )
 }
 
+/// `value` as a message shows it where its type is not the problem (an
+/// enum miss): a scalar as written, anything else by its type name.
+#let _shown(value) = if type(value) in (int, float, decimal) {
+  _num(value)
+} else if type(value) in (str, bool) { repr(value) } else {
+  _type-name-of(value)
+}
+
 /// What `coerce` panics with where a value leaves no sound model, at
 /// data path `path`. `expected` is the noun phrase ("a string", "an
-/// array", …).
-#let _coerce-message(path, expected, value) = (
+/// array", …); the value is named by `shown` when the fatal gives it,
+/// and by its type otherwise.
+#let _coerce-message(path, expected, value, shown: none) = (
   "coerce at "
     + _format-path(path)
     + ": "
-    + _expected-got(expected, _type-name-of(value))
+    + _expected-got(
+      expected,
+      if shown != none { shown } else { _type-name-of(value) },
+    )
     + " Run validate(schema, data) first."
 )
 

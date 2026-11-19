@@ -5,8 +5,8 @@
 // walk.typ, and registry.typ holds a descriptor for every kind.
 
 #import "../core/error.typ": (
-  _error, _expected-got, _type-miss, _type-name-of, _json-type-name,
-  _array-problem, _fail, _num, _problem,
+  _error, _expected-got, _type-miss, _type-name-of, _json-type-name, _bail,
+  _fail, _num, _problem, _shown,
 )
 #import "constraint.typ": _constraint-errors, _constrain
 
@@ -32,13 +32,13 @@
 /// left at `none` sets nothing. Panics on a value of the wrong type, or
 /// on bounds no number satisfies.
 ///
-/// - minimum (int, float, none): The smallest allowed value.
-/// - maximum (int, float, none): The largest allowed value.
-/// - exclusive-minimum (int, float, none): A value the number must be
+/// - minimum (int, float, decimal, none): The smallest allowed value.
+/// - maximum (int, float, decimal, none): The largest allowed value.
+/// - exclusive-minimum (int, float, decimal, none): A value the number must be
 ///   greater than.
-/// - exclusive-maximum (int, float, none): A value the number must be
+/// - exclusive-maximum (int, float, decimal, none): A value the number must be
 ///   less than.
-/// - multiple-of (int, float, none): A positive number the value must be
+/// - multiple-of (int, float, decimal, none): A positive number the value must be
 ///   a multiple of.
 /// -> dictionary
 #let number(
@@ -64,13 +64,13 @@
 /// optional bounds. Takes the same arguments as `number()`. Panics on a
 /// value of the wrong type, or on bounds no number satisfies.
 ///
-/// - minimum (int, float, none): The smallest allowed value.
-/// - maximum (int, float, none): The largest allowed value.
-/// - exclusive-minimum (int, float, none): A value the number must be
+/// - minimum (int, float, decimal, none): The smallest allowed value.
+/// - maximum (int, float, decimal, none): The largest allowed value.
+/// - exclusive-minimum (int, float, decimal, none): A value the number must be
 ///   greater than.
-/// - exclusive-maximum (int, float, none): A value the number must be
+/// - exclusive-maximum (int, float, decimal, none): A value the number must be
 ///   less than.
-/// - multiple-of (int, float, none): A positive number the value must be
+/// - multiple-of (int, float, decimal, none): A positive number the value must be
 ///   a multiple of.
 /// -> dictionary
 #let integer(
@@ -107,19 +107,32 @@
 #let null() = (kind: "null")
 
 // Mixed-type members allowed — the validator's `in` check gates on
-// equality, not type. `const` is a singleton enum.
+// equality, not type. `const` is a singleton enum. The values come as
+// any-of's members do (structure.typ's _members): a lone array argument
+// is the list, so an enum whose one value is an array wraps it.
 /// One of a fixed list of values. The values may be of mixed types.
-/// Panics if `values` is not a non-empty array.
+/// `enum-of("a", "b")` and `enum-of(("a", "b"))` build the same node; an
+/// enum whose only value is an array is `enum-of(((1, 2),))`. Panics if
+/// there are no values.
 ///
-/// - values (array): The allowed values.
+/// - ..values (any, array): The allowed values, as separate arguments or
+///   as one array.
 /// -> dictionary
-#let enum-of(values) = {
-  let p = _array-problem(values, "values", "a non-empty array", "value")
-  // An empty enum takes nothing, so every value would fail it.
-  if p == none and values == () {
-    p = _problem("values", "a non-empty array", "()")
+#let enum-of(..values) = {
+  if values.named() != (:) {
+    _bail(
+      "enum-of()",
+      "takes no named arguments; got: " + repr(values.named()) + ".",
+    )
   }
-  if p != none { _fail("enum-of()", p) }
+  let pos = values.pos()
+  let values = if pos.len() == 1 and type(pos.first()) == array {
+    pos.first()
+  } else { pos }
+  // An empty enum takes nothing, so every value would fail it.
+  if values == () {
+    _fail("enum-of()", _problem("values", "a non-empty array", "()"))
+  }
   (kind: "enum", values: values)
 }
 /// Exactly one value. Same as `enum-of` with a single value.
@@ -252,10 +265,16 @@
   } else {
     _error(ctx.path, "enum", message, expected: schema.values, got: value)
   }
-  // Either way no listed value is left to model, and coerce names them.
+  // Either way no listed value is left to model, and coerce names them
+  // and the value.
   (
     errors: errors,
     value: value,
-    fatal: (path: ctx.path, expected: "one of " + listed, got: value),
+    fatal: (
+      path: ctx.path,
+      expected: "one of " + listed,
+      got: value,
+      shown: _shown(value),
+    ),
   )
 }

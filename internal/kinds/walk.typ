@@ -4,9 +4,10 @@
 // constructors that build these kinds are in structure.typ, above it.
 
 #import "../core/ctx.typ": _at, _absent, _has
-#import "../core/error.typ": _error, _type-miss, _type-name-of, _closest-match
+#import "../core/error.typ": (
+  _error, _type-miss, _type-name-of, _closest-match, _shown,
+)
 #import "constraint.typ": _constraint-errors
-#import "leaf.typ": null
 
 // A node's kind as messages and describe-schema name it: the kind, then
 // a string's format, if it has one, in parentheses (`string (date)`).
@@ -19,8 +20,11 @@
 // A member's kind as union and `not` errors name it. A conditional
 // reads as its branches when both are set and agree (the translated
 // `{type: "object", if: …, then: …, else: …}` is an object either way),
-// and as `conditional` otherwise.
-#let _reported-kind(member) = if member.kind == "if" {
+// and as `conditional` otherwise. A nested union reads as its members,
+// `(number | boolean)`.
+#let _reported-kind(member) = if member.kind == "union" {
+  "(" + member.members.map(_reported-kind).join(" | ") + ")"
+} else if member.kind == "if" {
   let kinds = ("then", "otherwise").map(b => if b in member {
     _reported-kind(member.at(b))
   })
@@ -44,7 +48,9 @@
 // imports the engine. `value` is the model; `fatal` is none, or the
 // first place in walk order where the value leaves no sound model, as
 // (path, expected, got) for coerce's panic text. Every fatal walk also has
-// errors, so a walk with no errors has no fatal.
+// errors, so a walk with no errors has no fatal. A walk whose result is
+// one sub-schema's over the same value returns `(tail: sub-schema)`
+// instead of calling `recur`, and the engine walks it in its own frame.
 //
 // Hot recursive paths use `for` loops, not `.map(x => …)`: each closure
 // is a stack frame, and Typst caps the call depth.
@@ -121,8 +127,9 @@
       )
     }
   }
-  // A required key holding null counts as missing.
-  let required = schema.at("required-keys", default: ())
+  // A required key holding null counts as missing. A hand-built node
+  // may list a key twice, which object() keeps once: so does the walk.
+  let required = schema.at("required-keys", default: ()).dedup()
   for key in required {
     if not _has(value, key, ctx) {
       errors += _error(
@@ -139,7 +146,7 @@
   for (trigger, dependents) in schema.at("dependent-required", default: (:)) {
     if not _has(value, trigger, ctx) { continue }
     // A required key that is missing is already reported, once.
-    for dependent in dependents {
+    for dependent in dependents.dedup() {
       if not _has(value, dependent, ctx) and dependent not in required {
         errors += _error(
           ctx.path + (dependent,),
@@ -168,15 +175,19 @@
 // noise. Coerce has no member to build the model from, so it is fatal
 // whatever the errors' codes.
 //
-// A null() member never competes for a non-null value: the union
-// walks only its other members then, so `nullable(X)` judges a
-// non-null value exactly as X does, and several types plus null report
-// what the union of the types alone would.
+// A null member never competes for a non-null value: the union walks
+// only its other members then, so `nullable(X)` judges a non-null value
+// exactly as X does, and several types plus null report what the union
+// of the types alone would. A member is null by its kind, so an
+// annotated one counts too.
 #let _union-walk(schema, value, ctx, recur) = {
-  let others = schema.members.filter(m => m != null())
+  let others = ()
+  for m in schema.members {
+    if m.kind != "null" { others.push(m) }
+  }
   if value != none and others != () and others != schema.members {
-    if others.len() == 1 { return recur(others.first(), value, ctx) }
-    return _union-walk((..schema, members: others), value, ctx, recur)
+    if others.len() == 1 { return (tail: others.first()) }
+    return (tail: (..schema, members: others))
   }
   let results = ()
   for member in schema.members {
@@ -209,10 +220,12 @@
   ))
   let claimed = results.filter(r => type-misses(r) == ())
   if claimed.len() == 1 { return claimed.first() }
+  // When members take the value's type, coerce names the value, not it.
   let fatal = (
     path: ctx.path,
     expected: "a value matching one of the union alternatives",
     got: value,
+    shown: if claimed != () { _shown(value) },
   )
   let quantifier = if schema.exclusive { "exactly one" } else { "one" }
   let message = (
@@ -279,5 +292,5 @@
     default: none,
   )
   if branch == none { return (errors: (), value: value, fatal: none) }
-  recur(branch, value, ctx)
+  (tail: branch)
 }

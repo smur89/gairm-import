@@ -5,10 +5,10 @@
 // descriptor for every kind. This module sits above the registry, so
 // the schema check reads the registered kinds from it.
 
-#import "../core/error.typ": _bail, _problem, _fail, _key-names-problem
+#import "../core/error.typ": _bail, _problem, _fail
 #import "constraint.typ": _constrain, _value-problem, _bounds-problems
 #import "leaf.typ": null
-#import "registry.typ": _kinds, _object-problem
+#import "registry.typ": _kinds, _object-problem, _if-problem
 
 // Whether `node` is a dictionary of a registered kind. Never panics, so
 // a search can ask it of any node it meets.
@@ -154,7 +154,7 @@
 
 // JSON Schema anyOf / oneOf. Both share the union kind; `exclusive`
 // distinguishes "at least one member matches" (any-of) from "exactly
-// one" (one-of). Match counting lives in _union-walk below, and the
+// one" (one-of). Match counting lives in walk.typ's _union-walk, and the
 // model is the first matching member's output.
 /// A value that matches at least one of the member schemas (JSON Schema
 /// `anyOf`). `any-of(a, b)` and `any-of((a, b))` build the same node.
@@ -192,7 +192,7 @@
 /// - member (dictionary): The schema for a non-null value.
 /// -> dictionary
 #let nullable(member) = {
-  _require-schema(member, "nullable member")
+  _require-schema(member, "nullable() member")
   any-of((member, null()))
 }
 
@@ -204,7 +204,7 @@
 /// - member (dictionary): The schema the value must fail.
 /// -> dictionary
 #let not-of(member) = {
-  _require-schema(member, "not-of member")
+  _require-schema(member, "not-of() member")
   (kind: "not", member: member)
 }
 
@@ -232,31 +232,25 @@
       node.insert(name, branch)
     }
   }
-  if then == none and otherwise == none {
-    _bail(
-      "if-of()",
-      "needs a then or an otherwise branch; got neither. With no branch the condition checks nothing.",
-    )
-  }
+  let p = _if-problem(node)
+  if p != none { _fail("if-of()", p) }
   node
 }
 
-// `additional` controls keys not in `shape` (the engine-side name for
-// JSON Schema's `additionalProperties`): `none` / `false` → reject;
-// `true` → pass-through; schema dict → validate every extra against
-// it. `false` is accepted as a synonym for `none` so callers fluent
-// in JSON Schema can pass either. Bad-shape `additional` and
-// required-keys-not-covered both fail at construction, not as a
-// phantom validation error. `dependent-required` follows the same
-// rule: a malformed map always panics, and trigger / dependent keys
-// outside `shape` panic only when the object is closed.
-//
-// The arguments are checked by the registry's _object-problem, which
-// the translator words for its own keywords.
 // object()'s body, its panics naming `who`: object() itself, or the
 // public function that builds or edits an object through it (map(),
 // a lens edit), so a bad argument is named as the caller's call spells
-// it.
+// it. `additional` controls keys not in `shape` (the engine-side name
+// for JSON Schema's `additionalProperties`): `none` / `false` → reject;
+// `true` → pass-through; schema dict → validate every extra against
+// it. `false` is accepted as a synonym for `none` so callers fluent in
+// JSON Schema can pass either. Bad-shape `additional` and
+// required-keys-not-covered both fail at construction, not as a
+// phantom validation error. `dependent-required` follows the same
+// rule: a malformed map always panics, and trigger / dependent keys
+// outside `shape` panic only when the object is closed. The arguments
+// are checked by the registry's _object-problem, which the translator
+// words for its own keywords.
 #let _object(who, shape, required-keys, dependent-required, additional) = {
   if type(shape) != dictionary {
     _fail(who, _problem(

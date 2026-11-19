@@ -71,6 +71,20 @@
 #let mult-tiny = T((type: "number", multipleOf: 0.123456789))
 #assert.eq(validate(mult-tiny, 1e308).map(e => e.code), ("multiple",))
 #assert.eq(validate(mult-tiny, 0.246913578), ())
+// A float is judged as the decimal it is written as, with no absolute
+// tolerance: 1.0000000001 is no multiple of 1, nor 1e-10 of 0.5.
+#assert.eq(validate(number(multiple-of: 1), 1.0000000001).map(e => e.code), (
+  "multiple",
+))
+#assert.eq(validate(number(multiple-of: 0.5), 1e-10).map(e => e.code), (
+  "multiple",
+))
+#assert.eq(validate(number(multiple-of: 0.1), 0.3), ())
+// Past what a decimal holds, the ratio's tolerance is relative to it.
+#assert.eq(validate(number(multiple-of: 1e-30), 3e-30), ())
+#assert.eq(validate(number(multiple-of: 1e-30), 1e-40).map(e => e.code), (
+  "multiple",
+))
 
 // ---- translation -----------------------------------------------------------
 
@@ -278,6 +292,34 @@
 #assert.eq(
   validate(number(multiple-of: 0.1), decimal("0.30000000001")).map(e => e.code),
   ("multiple",),
+)
+// A bound may be a decimal too, against any number, and pairs with a
+// float bound; the integer gap reads it as well.
+#let dec-bounds = number(minimum: decimal("1.5"), exclusive-maximum: 1.6)
+#assert.eq(validate(dec-bounds, 1.55), ())
+#assert.eq(validate(dec-bounds, d), ())
+#assert.eq(validate(dec-bounds, 2).map(e => e.code), ("range",))
+#assert.eq(validate(dec-bounds, 1.4).map(e => e.code), ("range",))
+#assert.eq(
+  validate(number(maximum: decimal("1.5")), 1.5000001).map(e => e.code),
+  (
+    "range",
+  ),
+)
+#assert.eq(
+  validate(number(maximum: decimal("1000")), float.inf).map(e => e.code),
+  (
+    "range",
+  ),
+)
+#assert.eq(validate(number(multiple-of: decimal("0.1")), 0.3), ())
+#assert.eq(validate(integer(multiple-of: decimal("0.5")), 2), ())
+#assert.eq(validate(integer(minimum: decimal("1.5")), 1).map(e => e.code), (
+  "range",
+))
+#assert.eq(
+  validate((kind: "number", minimum: decimal("2")), 1).first().message,
+  "expected ≥ 2, got 1.",
 )
 #assert.eq(validate(integer(), decimal("2.0")), ())
 #assert.eq(validate(integer(), d).map(e => e.code), ("integer",))

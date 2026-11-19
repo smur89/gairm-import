@@ -50,11 +50,12 @@ key it does not declare), panics naming the path to that node. So does a `null` 
 only when it ends in `.json` and the schema's root rejects its type does
 the call panic, with a hint to read the file with `path(..)`.
 
-A document may nest about 37 levels deep, or about 18 when every level
-is a union, a `nullable(..)` or a conditional (the translator builds
-`type: ["object", "null"]` as a `nullable`). Typst caps how deeply calls
-nest, and each level costs two calls, or four through a union; past the
-cap, Typst fails with `maximum function call depth exceeded`.
+A document may nest about 37 levels deep, about 36 when every level is
+a `nullable(..)` or a conditional (the translator builds
+`type: ["object", "null"]` as a `nullable`), or about 18 when every
+level is an `any-of` or `one-of`. Typst caps how deeply calls nest, and
+each level costs two calls, or four through an `any-of` or `one-of`;
+past the cap, Typst fails with `maximum function call depth exceeded`.
 `schema-from-json-schema` reads about 35 levels of nested `properties`
 or `items`, and about 17 when every level is an `anyOf`.
 
@@ -139,7 +140,7 @@ built.
 | `not-of(member)` | | a value that does not match `member` |
 | `if-of(cond, ..)` | `then`, `otherwise` | a value that matches `then` if it matches `cond`, and `otherwise` if not |
 | `nullable(member)` | | `null` or a value `member` accepts (see [Null handling](README.md#null-handling)) |
-| `enum-of(values)` | | one of `values`, which may mix types |
+| `enum-of(a, b, …)` | | one of the values, which may mix types |
 | `const-of(value)` | | `value` only; the same as `enum-of((value,))` |
 | `boolean()` | | `true` or `false` |
 | `null()` | | `null`, or an absent key |
@@ -161,6 +162,7 @@ end in `-of`, since `not` and `if` are Typst keywords.
   string must have the format and match the pattern.
 - `any-of` and `one-of` take their members as separate arguments or as one
   array: `any-of(a, b)` equals `any-of((a, b))`.
+- `enum-of` takes its values the same way: `enum-of("a", "b")` equals `enum-of(("a", "b"))`, and a lone array value is written `enum-of(((1, 2),))`.
 - `if-of` is JSON Schema's `if` / `then` / `else`, with the else branch
   named `otherwise` (`else` is a Typst keyword). It takes `then`,
   `otherwise` or both; a branch left out accepts the value as it is. Only
@@ -168,6 +170,7 @@ end in `-of`, since `not` and `if` are Typst keywords.
   reported, and the branch it picks gives the errors and the model.
   `if-of(string(min-length: 5), then: string(pattern: "^x"))` accepts
   `"abc"` and `"xyzzy"`, and rejects `"abcde"`.
+- `number` and `integer` take each bound and `multiple-of` as an int, a float or a Typst `decimal`.
 - `integer`'s bounds must leave a whole number between them:
   `integer(minimum: 1.5, maximum: 1.7)` panics.
 - `object`'s `additional` says what to do with keys not in `shape`:
