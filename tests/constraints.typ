@@ -293,6 +293,34 @@
   validate(number(multiple-of: 0.1), decimal("0.30000000001")).map(e => e.code),
   ("multiple",),
 )
+// A bound may be a decimal too, against any number, and pairs with a
+// float bound; the integer gap reads it as well.
+#let dec-bounds = number(minimum: decimal("1.5"), exclusive-maximum: 1.6)
+#assert.eq(validate(dec-bounds, 1.55), ())
+#assert.eq(validate(dec-bounds, d), ())
+#assert.eq(validate(dec-bounds, 2).map(e => e.code), ("range",))
+#assert.eq(validate(dec-bounds, 1.4).map(e => e.code), ("range",))
+#assert.eq(
+  validate(number(maximum: decimal("1.5")), 1.5000001).map(e => e.code),
+  (
+    "range",
+  ),
+)
+#assert.eq(
+  validate(number(maximum: decimal("1000")), float.inf).map(e => e.code),
+  (
+    "range",
+  ),
+)
+#assert.eq(validate(number(multiple-of: decimal("0.1")), 0.3), ())
+#assert.eq(validate(integer(multiple-of: decimal("0.5")), 2), ())
+#assert.eq(validate(integer(minimum: decimal("1.5")), 1).map(e => e.code), (
+  "range",
+))
+#assert.eq(
+  validate((kind: "number", minimum: decimal("2")), 1).first().message,
+  "expected ≥ 2, got 1.",
+)
 #assert.eq(validate(integer(), decimal("2.0")), ())
 #assert.eq(validate(integer(), d).map(e => e.code), ("integer",))
 #assert.eq(

@@ -168,6 +168,7 @@ end in `-of`, since `not` and `if` are Typst keywords.
   reported, and the branch it picks gives the errors and the model.
   `if-of(string(min-length: 5), then: string(pattern: "^x"))` accepts
   `"abc"` and `"xyzzy"`, and rejects `"abcde"`.
+- `number` and `integer` take each bound and `multiple-of` as an int, a float or a Typst `decimal`.
 - `integer`'s bounds must leave a whole number between them:
   `integer(minimum: 1.5, maximum: 1.7)` panics.
 - `object`'s `additional` says what to do with keys not in `shape`:

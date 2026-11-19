@@ -23,7 +23,9 @@
 )
 #let _number = (
   (
-    ok: v => type(v) == int or (type(v) == float and not v.is-nan()),
+    ok: v => (
+      type(v) in (int, decimal) or (type(v) == float and not v.is-nan())
+    ),
     must: "a number",
   ),
 )
@@ -87,6 +89,19 @@
   let g = decimal(whole + "." + places.slice(0, 28))
   if f < 0 { g -= decimal("0.0000000000000000000000000001") }
   if op in ("≥", ">") { (n, ">", g) } else { (n, "≤", g) }
+}
+
+// `a op b` for any two of int, float and decimal, none of them NaN. A
+// decimal compares with an int, but not with a float: the pair compares
+// as _decimal-against reads it, the float on the right.
+#let _mirror = ("≥": "≤", ">": "<", "≤": "≥", "<": ">")
+#let _compare(a, op, b) = {
+  let (m, o, c) = if type(a) == decimal and type(b) == float {
+    _decimal-against(a, op, b)
+  } else if type(a) == float and type(b) == decimal {
+    _decimal-against(b, _mirror.at(op), a)
+  } else { (a, op, b) }
+  (_holds.at(o))(m, c)
 }
 
 // A value and a multiple that are each an int, a decimal or a float a
@@ -319,11 +334,18 @@
     let found = rows
       .filter(row => not infinite(row))
       .map(row => (row.field, _whole-bound.at(row.op)(node.at(row.field))))
-    if found != () { found.sorted(key: p => p.at(1)).at(pick) }
+    // The bounds may mix floats and decimals, which don't sort together.
+    found.fold(none, (acc, p) => if (
+      acc == none or _compare(p.at(1), pick, acc.at(1))
+    ) { p } else { acc })
   }
-  let lower = tightest(lows, -1)
-  let upper = tightest(highs, 0)
-  if lower != none and upper != none and lower.at(1) > upper.at(1) {
+  // The largest lower bound, the last in row order on a tie, and the
+  // smallest upper one, the first.
+  let lower = tightest(lows, "≥")
+  let upper = tightest(highs, "<")
+  if (
+    lower != none and upper != none and _compare(lower.at(1), ">", upper.at(1))
+  ) {
     (lower.at(0), upper.at(0))
   }
 }
@@ -336,7 +358,7 @@
   (
     lower != none
       and upper != none
-      and not if pair.strict { lower < upper } else { lower <= upper }
+      and not _compare(lower, if pair.strict { "<" } else { "≤" }, upper)
   )
 })
 
@@ -435,14 +457,10 @@
   if "test" in row { return (row.test)(bound, value) }
   let measure = _measures.at(row.family)
   let n = (measure.of)(value)
-  // A decimal compares with an int, but not with a float.
-  let (m, op, b) = if type(n) == decimal and type(bound) == float {
-    _decimal-against(n, row.op, bound)
-  } else { (n, row.op, bound) }
   // A NaN (Typst data only: JSON has none) meets no bound, and Typst
   // refuses to compare it.
-  let nan = type(m) == float and m.is-nan()
-  if nan or not (_holds.at(op))(m, b) {
+  let nan = type(n) == float and n.is-nan()
+  if nan or not _compare(n, row.op, bound) {
     (
       message: _expected-got(
         measure.label + row.op + " " + _num(bound),

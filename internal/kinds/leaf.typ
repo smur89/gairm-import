@@ -32,13 +32,13 @@
 /// left at `none` sets nothing. Panics on a value of the wrong type, or
 /// on bounds no number satisfies.
 ///
-/// - minimum (int, float, none): The smallest allowed value.
-/// - maximum (int, float, none): The largest allowed value.
-/// - exclusive-minimum (int, float, none): A value the number must be
+/// - minimum (int, float, decimal, none): The smallest allowed value.
+/// - maximum (int, float, decimal, none): The largest allowed value.
+/// - exclusive-minimum (int, float, decimal, none): A value the number must be
 ///   greater than.
-/// - exclusive-maximum (int, float, none): A value the number must be
+/// - exclusive-maximum (int, float, decimal, none): A value the number must be
 ///   less than.
-/// - multiple-of (int, float, none): A positive number the value must be
+/// - multiple-of (int, float, decimal, none): A positive number the value must be
 ///   a multiple of.
 /// -> dictionary
 #let number(
@@ -64,13 +64,13 @@
 /// optional bounds. Takes the same arguments as `number()`. Panics on a
 /// value of the wrong type, or on bounds no number satisfies.
 ///
-/// - minimum (int, float, none): The smallest allowed value.
-/// - maximum (int, float, none): The largest allowed value.
-/// - exclusive-minimum (int, float, none): A value the number must be
+/// - minimum (int, float, decimal, none): The smallest allowed value.
+/// - maximum (int, float, decimal, none): The largest allowed value.
+/// - exclusive-minimum (int, float, decimal, none): A value the number must be
 ///   greater than.
-/// - exclusive-maximum (int, float, none): A value the number must be
+/// - exclusive-maximum (int, float, decimal, none): A value the number must be
 ///   less than.
-/// - multiple-of (int, float, none): A positive number the value must be
+/// - multiple-of (int, float, decimal, none): A positive number the value must be
 ///   a multiple of.
 /// -> dictionary
 #let integer(
