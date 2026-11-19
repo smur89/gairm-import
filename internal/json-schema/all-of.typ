@@ -8,16 +8,19 @@
 #import "ref.typ": _follow-refs
 
 // Whether a raw allOf member declares `additionalProperties` false or a
-// schema, through `$ref` and nested allOf. Read from the JSON because
-// the translated kind can't tell an explicit `false` from an undeclared
-// one: object() stores both as no `additional`, and the translator
-// reads an undeclared one as closed, where draft 7 reads it as open.
-// Runs after the member translated, so its `$ref`s resolve without
-// cycles.
+// schema, through `$ref`, nested allOf, and the members of an anyOf (a
+// nullable object is `anyOf: [{…}, {type: "null"}]`). Read from the
+// JSON because the translated kind can't tell an explicit `false` from
+// an undeclared one: object() stores both as no `additional`, and the
+// translator reads an undeclared one as closed, where draft 7 reads it
+// as open. Runs after the member translated, so its `$ref`s resolve
+// without cycles.
 #let _restricts-extras(js, ctx) = {
   let js = _follow-refs(js, ctx)
-  if "allOf" in js {
-    return js.at("allOf").any(m => _restricts-extras(m, ctx))
+  for keyword in ("allOf", "anyOf") {
+    if keyword in js {
+      return js.at(keyword).any(m => _restricts-extras(m, ctx))
+    }
   }
   js.at("additionalProperties", default: true) != true
 }
