@@ -246,6 +246,11 @@
 // The null member judges no non-null value: by default the union
 // reports what the types alone would.
 #assert.eq(validate(with-null, true), validate(su, true))
+// A null member is known by its kind, so an annotated one stays out
+// of the way too, and still draws as `X?`.
+#let noted-null = any-of(string(), (..null(), description: "unset"))
+#assert.eq(validate(noted-null, 5), validate(string(), 5))
+#assert.eq(describe-schema(object((a: noted-null))), "a  string?")
 
 // Each type's keywords apply to its own member only.
 #let constrained = v((type: ("string", "integer"), minLength: 3, minimum: 10))

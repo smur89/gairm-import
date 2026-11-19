@@ -37,7 +37,7 @@
 // sit above this registry, since their schema check reads its kinds.
 
 #import "leaf.typ": (
-  null, _leaf-walk, _string-check, _number-check, _integer-check, _bool-check,
+  _leaf-walk, _string-check, _number-check, _integer-check, _bool-check,
   _null-check, _any-check, _enum-check,
 )
 #import "../core/error.typ": (
@@ -49,10 +49,11 @@
   _array-walk, _object-walk, _union-walk, _not-walk, _if-walk, _kind-label,
 )
 
-// `nullable(X)`'s shape: an any-of of exactly X then null, read off the
-// node, since nullable() sits above this registry.
+// `nullable(X)`'s shape: an any-of of exactly X then a null, read off
+// the node, since nullable() sits above this registry. The null is
+// known by its kind, so an annotated one counts too.
 #let _is-nullable(s) = (
-  not s.exclusive and s.members.len() == 2 and s.members.last() == null()
+  not s.exclusive and s.members.len() == 2 and s.members.last().kind == "null"
 )
 
 // A conditional's children, as (segment, field): the lens segments are

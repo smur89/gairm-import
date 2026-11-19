@@ -6,7 +6,6 @@
 #import "../core/ctx.typ": _at, _absent, _has
 #import "../core/error.typ": _error, _type-miss, _type-name-of, _closest-match
 #import "constraint.typ": _constraint-errors
-#import "leaf.typ": null
 
 // A node's kind as messages and describe-schema name it: the kind, then
 // a string's format, if it has one, in parentheses (`string (date)`).
@@ -169,12 +168,16 @@
 // noise. Coerce has no member to build the model from, so it is fatal
 // whatever the errors' codes.
 //
-// A null() member never competes for a non-null value: the union
-// walks only its other members then, so `nullable(X)` judges a
-// non-null value exactly as X does, and several types plus null report
-// what the union of the types alone would.
+// A null member never competes for a non-null value: the union walks
+// only its other members then, so `nullable(X)` judges a non-null value
+// exactly as X does, and several types plus null report what the union
+// of the types alone would. A member is null by its kind, so an
+// annotated one counts too.
 #let _union-walk(schema, value, ctx, recur) = {
-  let others = schema.members.filter(m => m != null())
+  let others = ()
+  for m in schema.members {
+    if m.kind != "null" { others.push(m) }
+  }
   if value != none and others != () and others != schema.members {
     if others.len() == 1 { return recur(others.first(), value, ctx) }
     return _union-walk((..schema, members: others), value, ctx, recur)
