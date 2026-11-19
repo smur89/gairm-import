@@ -493,8 +493,9 @@ larger numbers stay strings.
 
 `schema-from-json-schema(doc)` translates a JSON Schema document (a
 dictionary, `path(..)` or bytes) into a schema. It supports a subset of
-draft 7, and panics, naming the keyword, on anything it would otherwise
-have to drop.
+draft 7, and panics, naming the keyword and where it is (`at
+/properties/a: …`, a JSON Pointer), on anything it would otherwise have
+to drop.
 
 ```typst
 #let book-schema = schema-from-json-schema(path("book-schema.json"))

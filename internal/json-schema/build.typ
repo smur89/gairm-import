@@ -11,18 +11,20 @@
 #import "../kinds/format.typ": string, _string-problem
 #import "../kinds/constraint.typ": _read-constraints
 #import "keyword.typ": (
-  _bail, _bail-problem, _constraint-family, _membership-structural,
+  _bail, _bail-problem, _json, _into, _constraint-family,
+  _membership-structural,
 )
 
 // `dependentRequired` (2019-09) and draft 7's array-form `dependencies`
 // are the same constraint, read as (keyword, value); object() checks the
 // value's shape. The schema form of `dependencies` is out of scope, like
 // `dependentSchemas`, which it means.
-#let _dependent-required(js) = {
+#let _dependent-required(js, ctx) = {
   let has-dr = "dependentRequired" in js
   let has-dep = "dependencies" in js
   if has-dr and has-dep {
     _bail(
+      ctx,
       "\"dependencies\" and \"dependentRequired\" cannot both be set; use one.",
     )
   }
@@ -32,8 +34,9 @@
   for (trigger, dependents) in map {
     if type(dependents) == dictionary {
       _bail(
+        ctx,
         "unsupported JSON Schema keyword: the schema form of \"dependencies\" (for "
-          + repr(trigger)
+          + _json(trigger)
           + "). dependentSchemas and the schema form of dependencies are out of scope.",
       )
     }
@@ -45,7 +48,7 @@
 // keywords apply"): string() gives the formatted string the pattern as
 // an extra gate, checked after the format regex. string()'s own check runs
 // first, so a bad keyword bails in the translator's words.
-#let _string-base(js) = {
+#let _string-base(js, ctx) = {
   let pattern = js.at("pattern", default: none)
   let args = (
     format: js.at("format", default: none),
@@ -53,7 +56,7 @@
     expected: if pattern != none { "matching " + repr(pattern) },
   )
   let p = _string-problem(..args)
-  if p != none { _bail-problem(p) }
+  if p != none { _bail-problem(ctx, p, node: js) }
   string(..args)
 }
 
@@ -62,12 +65,13 @@
   let items = js.at("items", default: (:))
   if type(items) == array {
     _bail(
+      ctx,
       "unsupported JSON Schema keyword: the array form of \"items\" "
         + "(one schema per position). Tuple validation is out of scope; "
         + "give \"items\" one schema for every element.",
     )
   }
-  array-of(recur(items, ctx))
+  array-of(recur(items, _into(ctx, "items")))
 }
 
 // Under an `if` (`ctx.open-objects`, conditional.typ) an undeclared
@@ -80,6 +84,7 @@
   // Fully open with no constraints inverts the engine's strict intent.
   if not has-props and not has-ap and not ctx.open-objects {
     _bail(
+      ctx,
       "open object schemas (`type: \"object\"` with no `properties` "
         + "or `additionalProperties`) are out of scope; every field "
         + "must be declared or covered by `additionalProperties`.",
@@ -87,7 +92,10 @@
   }
   let props = if has-props { js.at("properties") } else { (:) }
   if type(props) != dictionary {
-    _bail-problem(_problem("properties", "an object", _json-type-name(props)))
+    _bail-problem(
+      ctx,
+      _problem("properties", "an object", _json-type-name(props)),
+    )
   }
   let additional = if not has-ap {
     if ctx.open-objects { true } else { none }
@@ -95,26 +103,29 @@
     let ap = js.at("additionalProperties")
     if ap == false { none } else if ap == true { true } else if (
       type(ap) == dictionary
-    ) { recur(ap, ctx) } else {
+    ) { recur(ap, _into(ctx, "additionalProperties")) } else {
       _bail(
+        ctx,
         "\"additionalProperties\" must be a schema, true, or false, got: "
-          + repr(ap)
+          + _json(ap)
           + ".",
       )
     }
   }
   let required = js.at("required", default: ())
-  let (keyword, dependent) = _dependent-required(js)
+  let (keyword, dependent) = _dependent-required(js, ctx)
   // object()'s own check, so a bad value bails in the translator's words.
   let p = _object-problem(required, dependent, additional, keys: props.keys())
   if p != none {
-    _bail-problem(p, keywords: (
-      required-keys: "required",
-      dependent-required: keyword,
-    ))
+    _bail-problem(
+      ctx,
+      p,
+      keywords: (required-keys: "required", dependent-required: keyword),
+      node: js,
+    )
   }
   let shape = (:)
-  for (k, v) in props { shape.insert(k, recur(v, ctx)) }
+  for (k, v) in props { shape.insert(k, recur(v, _into(ctx, "properties", k))) }
   object(
     shape,
     required-keys: required,
@@ -129,7 +140,7 @@
 // `integer` keeps its integral constraint rather than flattening to
 // number, which would silently drop it.
 #let _builders = (
-  string: (js, ctx, recur) => _string-base(js),
+  string: (js, ctx, recur) => _string-base(js, ctx),
   number: (..) => number(),
   integer: (..) => integer(),
   array: _array-base,
@@ -146,11 +157,11 @@
 // is the problem of integer bounds that hold no integer (constraint.typ),
 // which the caller decides on, since a `type` list's other members may
 // still take a value.
-#let _with-constraints(node, js, t) = {
+#let _with-constraints(node, js, t, ctx) = {
   let family = _constraint-family.at(t, default: none)
   if family == none { return (node: node, gap: none) }
   let read = _read-constraints(node, family, js, row => row.json)
-  if read.problem != none { _bail-problem(read.problem) }
+  if read.problem != none { _bail-problem(ctx, read.problem, node: js) }
   (node: read.node, gap: read.gap)
 }
 
@@ -164,25 +175,27 @@
   for keyword in _membership-structural {
     if keyword in js {
       _bail(
-        repr(keyword)
+        ctx,
+        _json(keyword)
           + " cannot be combined with enum/const — it describes object/array structure, which membership does not check.",
       )
     }
   }
   let values = if "enum" in js { js.at("enum") } else { (js.at("const"),) }
   if type(values) != array or values == () {
-    _bail-problem(_problem(
+    _bail-problem(ctx, _problem(
       "enum",
       "a non-empty array of values",
       if values == () { "[]" } else { _json-type-name(values) },
     ))
   }
-  let by-type = ("string", "number", "array")
-    .map(t => (
+  let by-type = (:)
+  for t in ("string", "number", "array") {
+    by-type.insert(
       t,
-      _with-constraints(_builders.at(t)(js, ctx, recur), js, t).node,
-    ))
-    .to-dict()
+      _with-constraints(_builders.at(t)(js, ctx, recur), js, t, ctx).node,
+    )
+  }
   let survivors = values.filter(v => {
     let kind = _json-type-name(v)
     // `type` keeps a value whose JSON type it names; `integer` is a
@@ -206,6 +219,7 @@
   })
   if survivors.len() == 0 {
     _bail(
+      ctx,
       "no enum/const value satisfies the accompanying type/constraints, so the schema is unsatisfiable.",
     )
   }

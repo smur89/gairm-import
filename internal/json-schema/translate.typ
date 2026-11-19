@@ -3,7 +3,7 @@
 // reads its keywords and hands it to the builders (build.typ) or the
 // composition keywords. Anything not supported panics rather than
 // silently dropping the constraint; keyword.typ says which keywords
-// those are.
+// those are, and every panic names the node's JSON Pointer.
 //
 // The recursion through these files (and build.typ, all-of.typ,
 // conditional.typ) runs in `for` and `while` loops, not `.map`
@@ -16,7 +16,7 @@
 #import "../kinds/leaf.typ": unknown, enum-of
 #import "../kinds/structure.typ": any-of, one-of, not-of
 #import "keyword.typ": (
-  _bail, _bail-problem, _check-keywords, _check-keywords-typed,
+  _bail, _bail-problem, _check-keywords, _check-keywords-typed, _json, _into,
   _has-keyword-for, _require-member-array, _role-of,
 )
 #import "ref.typ": _resolve-ref
@@ -27,13 +27,14 @@
 // The node's `type` names, checked, or none when it has none. Checked
 // before the enum / const fold, which would otherwise report a typo
 // like `type: "strng"` as "no value satisfies ...".
-#let _type-names-of(js) = {
+#let _type-names-of(js, ctx) = {
   let t = js.at("type", default: none)
   if t == none { return none }
   if type(t) == array and (t.len() == 0 or t.any(x => type(x) != str)) {
     _bail(
+      ctx,
       "\"type\" array must be a non-empty array of type names, got: "
-        + repr(t)
+        + _json(t)
         + ".",
     )
   }
@@ -41,9 +42,10 @@
   for m in names {
     if m not in _builders.keys() {
       _bail(
+        ctx,
         "unknown `type` name "
-          + repr(m)
-          + if type(t) == array { " in " + repr(t) }
+          + _json(m)
+          + if type(t) == array { " in " + _json(t) }
           + "; expected one of: "
           + _builders.keys().join(", ")
           + ".",
@@ -62,11 +64,13 @@
 // A union keyword's applicator: its members translated, then `build`.
 #let _union-of(keyword, build) = (js, ctx, recur) => {
   let members = ()
-  for m in _require-member-array(js, keyword) { members.push(recur(m, ctx)) }
+  for (i, m) in _require-member-array(js, keyword, ctx).enumerate() {
+    members.push(recur(m, _into(ctx, keyword, i)))
+  }
   build(members)
 }
 
-#let _not(js, ctx, recur) = not-of(recur(js.at("not"), ctx))
+#let _not(js, ctx, recur) = not-of(recur(js.at("not"), _into(ctx, "not")))
 
 // The composition keywords (#108), each with its member schemas, and
 // `if`, which reads its node's other keywords too (conditional.typ).
@@ -80,39 +84,43 @@
   "if": _conditional,
 )
 
-// `ctx` is the document `root`, `seen`, the chain of `$ref`s that led
-// here, and `open-objects`, set under an `if` (conditional.typ).
+// `ctx` is the document `root`; `seen`, the chain of `$ref`s that led
+// here; `at`, the JSON Pointer of the node being translated, which
+// every panic names; and `open-objects`, set under an `if`
+// (conditional.typ).
 #let _translate(js, ctx) = {
   let (js, ctx) = (js, ctx)
   // A `$ref` is followed in this loop, so a chain of them costs no call
-  // depth.
+  // depth, and its target translates at its own place in the document.
   while true {
     // A `properties` value or `$ref` target reaches here unchecked; a
     // boolean would otherwise fail with a raw Typst error on `in` below.
     if type(js) != dictionary {
       _bail(
+        ctx,
         "a subschema must be a schema object, got: "
-          + repr(js)
+          + _json(js)
           + if type(js) == bool {
             ". Boolean schemas (true / false) are out of scope."
           } else { "." },
       )
     }
-    _check-keywords(js)
+    _check-keywords(js, ctx)
     if "$ref" not in js { break }
     let ref = js.at("$ref")
     if type(ref) != str {
-      _bail-problem(_problem("$ref", "a string", _json-type-name(ref)))
+      _bail-problem(ctx, _problem("$ref", "a string", _json-type-name(ref)))
     }
-    js = _resolve-ref(ref, ctx.root, ctx.seen)
-    ctx = (..ctx, seen: ctx.seen + (ref,))
+    let target = _resolve-ref(ref, ctx)
+    js = target.value
+    ctx = (..ctx, seen: ctx.seen + (ref,), at: target.at)
   }
   let applicator = js.keys().find(k => _role-of(k) == "applicator")
   if applicator != none {
     return _applicators.at(applicator)(js, ctx, _translate)
   }
-  let names = _type-names-of(js)
-  if names != none { _check-keywords-typed(js, names) }
+  let names = _type-names-of(js, ctx)
+  if names != none { _check-keywords-typed(js, names, ctx) }
   if "enum" in js or "const" in js {
     return enum-of(_fold-membership(js, ctx, names, _translate))
   }
@@ -143,10 +151,15 @@
   // unsatisfiable and bails.
   let built = ()
   for t in types {
-    built.push(_with-constraints(_builders.at(t)(js, ctx, _translate), js, t))
+    built.push(_with-constraints(
+      _builders.at(t)(js, ctx, _translate),
+      js,
+      t,
+      ctx,
+    ))
   }
   let members = built.filter(b => b.gap == none).map(b => b.node)
-  if members == () { _bail-problem(built.first().gap) }
+  if members == () { _bail-problem(ctx, built.first().gap) }
   if members.len() == 1 { members.first() } else { any-of(members) }
 }
 
@@ -163,10 +176,11 @@
   // carries the schema-from-json-schema prefix.
   if type(parsed) != dictionary {
     _bail(
+      none,
       "expected a parsed JSON Schema dict, path(...), or bytes, got: "
         + _json-type-name(parsed)
         + ".",
     )
   }
-  _translate(parsed, (root: parsed, seen: (), open-objects: false))
+  _translate(parsed, (root: parsed, seen: (), at: "", open-objects: false))
 }

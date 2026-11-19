@@ -6,7 +6,7 @@
 // schemas. With none, the branches are T and E as they are, of any kind.
 
 #import "../kinds/structure.typ": if-of
-#import "keyword.typ": _role-of, _lone-hints
+#import "keyword.typ": _role-of, _lone-hints, _into
 #import "all-of.typ": _join, _restricts-extras
 
 // A branch read beside its siblings, as draft 7 reads it: a branch
@@ -54,7 +54,7 @@
     .filter(((k, _)) => k != "if" and _role-of(k) != "branch")
     .to-dict()
   if "then" not in js and "else" not in js { return recur(siblings, ctx) }
-  let cond = recur(js.at("if"), (..ctx, open-objects: true))
+  let cond = recur(js.at("if"), (.._into(ctx, "if"), open-objects: true))
   let lone = siblings.keys().all(k => _role-of(k) == "annotation")
   let base = if not lone { recur(siblings, ctx) }
   let base-restricts = if not lone { _restricts-extras(siblings, ctx) }
@@ -64,14 +64,17 @@
       if not lone { parts.insert(arg, base) }
       continue
     }
+    let at = _into(ctx, k)
     if lone {
-      parts.insert(arg, recur(js.at(k), ctx))
+      parts.insert(arg, recur(js.at(k), at))
       continue
     }
     let b = _beside(js.at(k), siblings)
     parts.insert(arg, _join(
-      (base, recur(b, ctx)),
-      (base-restricts, _restricts-extras(b, ctx)),
+      (base, recur(b, at)),
+      (base-restricts, _restricts-extras(b, at)),
+      (ctx, at),
+      ctx,
       who: "the siblings of \"if\" and its branches",
     ))
   }
