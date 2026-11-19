@@ -46,34 +46,34 @@
 // (`open-objects`, build.typ), so `{properties: {country: {const:
 // "US"}}}` holds for an address with more keys than `country`. An `if`
 // with neither branch checks nothing (draft 7), so the node translates
-// without it. The siblings translate once and join each branch.
-#let _conditional(js, ctx, recur, resolve) = {
+// without it. The siblings translate once and join each branch. The
+// branches translate in a loop, not a `.map`, to spend no call depth.
+#let _conditional(js, ctx, recur) = {
   let siblings = js
     .pairs()
     .filter(((k, _)) => k != "if" and _role-of(k) != "branch")
     .to-dict()
   if "then" not in js and "else" not in js { return recur(siblings, ctx) }
   let cond = recur(js.at("if"), (..ctx, open-objects: true))
-  let branches = (then: "then", otherwise: "else")
-  if siblings.keys().all(k => _role-of(k) == "annotation") {
-    return if-of(
-      cond,
-      ..branches
-        .pairs()
-        .filter(((_, k)) => k in js)
-        .map(((arg, k)) => (arg, recur(js.at(k), ctx)))
-        .to-dict(),
-    )
-  }
-  let base = recur(siblings, ctx)
-  let base-restricts = _restricts-extras(siblings, resolve)
-  let branch(k) = if k not in js { base } else {
+  let lone = siblings.keys().all(k => _role-of(k) == "annotation")
+  let base = if not lone { recur(siblings, ctx) }
+  let base-restricts = if not lone { _restricts-extras(siblings, ctx) }
+  let parts = (:)
+  for (arg, k) in (("then", "then"), ("otherwise", "else")) {
+    if k not in js {
+      if not lone { parts.insert(arg, base) }
+      continue
+    }
+    if lone {
+      parts.insert(arg, recur(js.at(k), ctx))
+      continue
+    }
     let b = _beside(js.at(k), siblings)
-    _join(
+    parts.insert(arg, _join(
       (base, recur(b, ctx)),
-      (base-restricts, _restricts-extras(b, resolve)),
+      (base-restricts, _restricts-extras(b, ctx)),
       who: "the siblings of \"if\" and its branches",
-    )
+    ))
   }
-  if-of(cond, ..branches.pairs().map(((arg, k)) => (arg, branch(k))).to-dict())
+  if-of(cond, ..parts)
 }

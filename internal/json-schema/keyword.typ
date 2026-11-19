@@ -20,6 +20,21 @@
   _bail(_worded(p, repr(keywords.at(p.arg, default: p.arg))))
 }
 
+// A composition keyword's members; each is checked as a subschema when
+// it is translated.
+#let _require-member-array(js, keyword) = {
+  let members = js.at(keyword)
+  if type(members) != array or members.len() == 0 {
+    _bail(
+      repr(keyword)
+        + " must be a non-empty array of schemas, got: "
+        + repr(members)
+        + ".",
+    )
+  }
+  members
+}
+
 // The constraint family each JSON type reads its rows from: `integer`
 // is a number. Types not listed take no constraint keyword.
 #let _constraint-family = (

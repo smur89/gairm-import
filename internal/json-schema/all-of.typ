@@ -4,21 +4,20 @@
 #import "../kinds/structure.typ": object, nullable, _is-object
 #import "../kinds/walk.typ": _kind-label
 #import "../core/error.typ": _a
-#import "keyword.typ": _bail
+#import "keyword.typ": _bail, _require-member-array
+#import "ref.typ": _follow-refs
 
 // Whether a raw allOf member declares `additionalProperties` false or a
 // schema, through `$ref` and nested allOf. Read from the JSON because
 // the translated kind can't tell an explicit `false` from an undeclared
 // one: object() stores both as no `additional`, and the translator
 // reads an undeclared one as closed, where draft 7 reads it as open.
-// Runs after the member translated, so `resolve` (a `$ref` to its
-// target) is known to succeed without cycles.
-#let _restricts-extras(js, resolve) = {
-  if "$ref" in js {
-    return _restricts-extras(resolve(js.at("$ref")), resolve)
-  }
+// Runs after the member translated, so its `$ref`s resolve without
+// cycles.
+#let _restricts-extras(js, ctx) = {
+  let js = _follow-refs(js, ctx)
   if "allOf" in js {
-    return js.at("allOf").any(m => _restricts-extras(m, resolve))
+    return js.at("allOf").any(m => _restricts-extras(m, ctx))
   }
   js.at("additionalProperties", default: true) != true
 }
@@ -122,12 +121,13 @@
   if inner.all(x => x != none) { nullable(merged) } else { merged }
 }
 
-// The allOf of the schema objects `raw`, each translated by `recur`.
-#let _all-of(raw, ctx, recur, resolve) = {
+// The allOf applicator: the node's member schemas, each translated by
+// `recur`, merged.
+#let _all-of(js, ctx, recur) = {
   let (members, restricts) = ((), ())
-  for m in raw {
+  for m in _require-member-array(js, "allOf") {
     members.push(recur(m, ctx))
-    restricts.push(_restricts-extras(m, resolve))
+    restricts.push(_restricts-extras(m, ctx))
   }
   _join(members, restricts)
 }

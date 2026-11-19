@@ -56,8 +56,9 @@ a `nullable(..)` or a conditional (the translator builds
 level is an `any-of` or `one-of`. Typst caps how deeply calls nest, and
 each level costs two calls, or four through an `any-of` or `one-of`;
 past the cap, Typst fails with `maximum function call depth exceeded`.
-`schema-from-json-schema` reads about 35 levels of nested `properties`
-or `items`, and about 17 when every level is an `anyOf`.
+`schema-from-json-schema` reads about 34 levels of nested `properties`,
+`items`, `not`, `$ref` or lone `if`, and about 17 when every level is an
+`anyOf`, an `allOf` or an `if` beside other keywords.
 
 ### Error records
 

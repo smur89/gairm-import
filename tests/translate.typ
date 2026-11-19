@@ -587,3 +587,31 @@
   anyOf: ((type: "object", properties: (a: j)), (type: "null")),
 )))
 #assert.eq(deep-any.kind, "union")
+// An `allOf` or an `if` with siblings costs what an `anyOf` does, a
+// lone `if` what `properties` does, and a `$ref` nothing.
+#let deep-all-of = T(nested(15, j => (
+  allOf: ((type: "object", properties: (a: j)),),
+)))
+#assert.eq(deep-all-of.kind, "object")
+#let deep-if = T(nested(15, j => (
+  type: "object",
+  properties: (a: (type: "string")),
+  "if": (required: ("a",)),
+  then: (properties: (b: j)),
+)))
+#assert.eq(deep-if.kind, "if")
+#assert.eq(T(nested(30, j => ("if": (minLength: 1), then: j))).kind, "if")
+#let chain(n) = range(n).fold(
+  (definitions: (d0: (type: "string"))),
+  (js, i) => (
+    definitions: (
+      ..js.definitions,
+      ("d" + str(i + 1)): (
+        type: "object",
+        properties: (a: ("$ref": "#/definitions/d" + str(i))),
+      ),
+    ),
+    "$ref": "#/definitions/d" + str(i + 1),
+  ),
+)
+#assert.eq(T(chain(30)).kind, "object")

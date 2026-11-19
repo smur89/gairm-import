@@ -1,97 +1,28 @@
 // JSON Schema (draft 7 subset) → Typst-schema translator: the entry
-// point, `$ref` resolution and the dispatcher, which reads a node's
-// keywords and hands it to the builders (build.typ) or the composition
-// keywords. Anything not supported panics rather than silently dropping
-// the constraint; keyword.typ says which keywords those are.
+// point and the dispatcher, which follows a node's `$ref` (ref.typ),
+// reads its keywords and hands it to the builders (build.typ) or the
+// composition keywords. Anything not supported panics rather than
+// silently dropping the constraint; keyword.typ says which keywords
+// those are.
 //
-// The recursion through these files (and build.typ, all-of.typ) runs in
-// `for` loops, not `.map` closures: each closure is a call frame, and
-// Typst caps how deeply calls nest, so a frame per level costs depth.
+// The recursion through these files (and build.typ, all-of.typ,
+// conditional.typ) runs in `for` and `while` loops, not `.map`
+// closures, and calls each applicator and builder directly: each
+// closure or wrapper is a call frame, and Typst caps how deeply calls
+// nest, so a frame per level costs depth.
 
 #import "../core/error.typ": _json-type-name, _problem
 #import "../core/input.typ": _decode-input
-#import "../core/pointer.typ": _percent-decode, _read-pointer, _pointer-get
 #import "../kinds/leaf.typ": unknown, enum-of
 #import "../kinds/structure.typ": any-of, one-of, not-of
 #import "keyword.typ": (
   _bail, _bail-problem, _check-keywords, _check-keywords-typed,
-  _has-keyword-for, _role-of,
+  _has-keyword-for, _require-member-array, _role-of,
 )
+#import "ref.typ": _resolve-ref
 #import "build.typ": _builders, _with-constraints, _fold-membership
 #import "all-of.typ": _all-of
 #import "conditional.typ": _conditional
-
-// `seen` is the chain of refs traversed so far; a repeat means the
-// schema contains itself — a tree that nests a tree, or an alias of an
-// alias. A translated schema is a finite tree, so it can't, and the
-// translator panics before Typst's recursion limit fires deep in the
-// stack.
-#let _resolve-ref(ref, root, seen) = {
-  // `#/` is not the root: as a JSON Pointer, `/` names the key "".
-  if ref == "#" {
-    _bail("$ref \"#\" cannot reference the document root.")
-  }
-  if not ref.starts-with("#/") {
-    _bail(
-      "only internal $ref (starting with \"#/\") is supported, got: "
-        + repr(ref)
-        + ".",
-    )
-  }
-  if ref in seen {
-    _bail(
-      "recursive $ref: "
-        + (seen + (ref,)).map(repr).join(" → ")
-        + " refers back to itself. A translated schema is a finite tree, so a schema that contains itself (a tree of trees, a list of lists) cannot be translated.",
-    )
-  }
-  // The fragment is a URI's, so it is percent-decoded into the pointer
-  // (RFC 3986) before the pointer is read (RFC 6901): `%25` is `%`.
-  let pointer = _percent-decode(ref.slice(1))
-  if pointer == none {
-    _bail(
-      "$ref "
-        + repr(ref)
-        + " has a malformed percent escape; `%` must start a `%XX` hex escape of UTF-8 bytes (write `%25` for a literal `%`).",
-    )
-  }
-  let read = _read-pointer(pointer)
-  if read.bad != none {
-    _bail(
-      "$ref "
-        + repr(ref)
-        + " has an invalid escape; RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
-    )
-  }
-  // RFC 6901: `~1` / `~0` unescape, empty segments are the "" key, and
-  // a numeric segment indexes an array (e.g. "#/allOf/0") or names a key.
-  let found = _pointer-get(root, read.path)
-  if found.missing != none {
-    _bail(
-      "$ref "
-        + repr(ref)
-        + " could not be resolved (segment "
-        + repr(str(found.missing))
-        + " missing).",
-    )
-  }
-  found.value
-}
-
-// A composition keyword's members; each is checked as a subschema when
-// it is translated.
-#let _require-member-array(js, keyword) = {
-  let members = js.at(keyword)
-  if type(members) != array or members.len() == 0 {
-    _bail(
-      repr(keyword)
-        + " must be a non-empty array of schemas, got: "
-        + repr(members)
-        + ".",
-    )
-  }
-  members
-}
 
 // The node's `type` names, checked, or none when it has none. Checked
 // before the enum / const fold, which would otherwise report a typo
@@ -128,10 +59,6 @@
 // array.
 #let _untyped-types = ("boolean", "object", "array", "number", "string", "null")
 
-// A `$ref` to its target in `ctx`'s document, for the merges that read
-// raw members (all-of.typ).
-#let _resolver(ctx) = ref => _resolve-ref(ref, ctx.root, ())
-
 // A union keyword's applicator: its members translated, then `build`.
 #let _union-of(keyword, build) = (js, ctx, recur) => {
   let members = ()
@@ -139,45 +66,46 @@
   build(members)
 }
 
+#let _not(js, ctx, recur) = not-of(recur(js.at("not"), ctx))
+
 // The composition keywords (#108), each with its member schemas, and
 // `if`, which reads its node's other keywords too (conditional.typ).
+// Each takes `(js, ctx, recur)` and is stored as it is, not wrapped, so
+// a level of nesting costs no extra call.
 #let _applicators = (
-  allOf: (js, ctx, recur) => _all-of(
-    _require-member-array(js, "allOf"),
-    ctx,
-    recur,
-    _resolver(ctx),
-  ),
+  allOf: _all-of,
   anyOf: _union-of("anyOf", any-of),
   oneOf: _union-of("oneOf", one-of),
-  "not": (js, ctx, recur) => not-of(recur(js.at("not"), ctx)),
-  "if": (js, ctx, recur) => _conditional(js, ctx, recur, _resolver(ctx)),
+  "not": _not,
+  "if": _conditional,
 )
 
 // `ctx` is the document `root`, `seen`, the chain of `$ref`s that led
 // here, and `open-objects`, set under an `if` (conditional.typ).
 #let _translate(js, ctx) = {
-  // A `properties` value or `$ref` target reaches here unchecked; a
-  // boolean would otherwise fail with a raw Typst error on `in` below.
-  if type(js) != dictionary {
-    _bail(
-      "a subschema must be a schema object, got: "
-        + repr(js)
-        + if type(js) == bool {
-          ". Boolean schemas (true / false) are out of scope."
-        } else { "." },
-    )
-  }
-  _check-keywords(js)
-  if "$ref" in js {
+  let (js, ctx) = (js, ctx)
+  // A `$ref` is followed in this loop, so a chain of them costs no call
+  // depth.
+  while true {
+    // A `properties` value or `$ref` target reaches here unchecked; a
+    // boolean would otherwise fail with a raw Typst error on `in` below.
+    if type(js) != dictionary {
+      _bail(
+        "a subschema must be a schema object, got: "
+          + repr(js)
+          + if type(js) == bool {
+            ". Boolean schemas (true / false) are out of scope."
+          } else { "." },
+      )
+    }
+    _check-keywords(js)
+    if "$ref" not in js { break }
     let ref = js.at("$ref")
     if type(ref) != str {
       _bail-problem(_problem("$ref", "a string", _json-type-name(ref)))
     }
-    return _translate(
-      _resolve-ref(ref, ctx.root, ctx.seen),
-      (..ctx, seen: ctx.seen + (ref,)),
-    )
+    js = _resolve-ref(ref, ctx.root, ctx.seen)
+    ctx = (..ctx, seen: ctx.seen + (ref,))
   }
   let applicator = js.keys().find(k => _role-of(k) == "applicator")
   if applicator != none {
