@@ -32,8 +32,7 @@
 }
 
 // An object that declares no fields and lets anything through is a
-// free-form bag (JSON Resume's `custom`): opaque data, not a section
-// with extras tacked on, so coerce passes it through unchanged.
+// free-form bag: opaque data, not an object with extras tacked on.
 #let _is-free-form(schema) = (
   schema.kind == "object"
     and schema.shape.len() == 0
@@ -75,9 +74,7 @@
   (errors: errors, value: model, fatal: fatal)
 }
 
-// An object that declares no fields and lets anything through is a
-// free-form bag (JSON Resume's `custom`): opaque data, so its model is
-// the value as given, nulls included.
+// A free-form bag's model is the value as given, nulls included.
 //
 // Keys not in the shape: with `additional: true` they pass through
 // unchecked (absent ones dropped), with an `additional` schema each is
