@@ -214,10 +214,9 @@ value exactly as `X` does:
 ## Validating a JSON Resume
 
 [JSON Resume](https://jsonresume.org/schema) publishes its schema as a JSON
-Schema document. Save a copy beside your file as `resume.schema.json`,
-from [jsonresume.org/schema](https://jsonresume.org/schema) or the
-[`@jsonresume/schema`](https://www.npmjs.com/package/@jsonresume/schema)
-npm package, and translate it:
+Schema document. Download
+[`schema.json`](https://raw.githubusercontent.com/jsonresume/resume-schema/v1.2.1/schema.json)
+beside your file as `resume.schema.json`, and translate it:
 
 <!-- x-release-please-start-version -->
 ```typst
