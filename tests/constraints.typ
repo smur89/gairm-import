@@ -71,6 +71,20 @@
 #let mult-tiny = T((type: "number", multipleOf: 0.123456789))
 #assert.eq(validate(mult-tiny, 1e308).map(e => e.code), ("multiple",))
 #assert.eq(validate(mult-tiny, 0.246913578), ())
+// A float is judged as the decimal it is written as, with no absolute
+// tolerance: 1.0000000001 is no multiple of 1, nor 1e-10 of 0.5.
+#assert.eq(validate(number(multiple-of: 1), 1.0000000001).map(e => e.code), (
+  "multiple",
+))
+#assert.eq(validate(number(multiple-of: 0.5), 1e-10).map(e => e.code), (
+  "multiple",
+))
+#assert.eq(validate(number(multiple-of: 0.1), 0.3), ())
+// Past what a decimal holds, the ratio's tolerance is relative to it.
+#assert.eq(validate(number(multiple-of: 1e-30), 3e-30), ())
+#assert.eq(validate(number(multiple-of: 1e-30), 1e-40).map(e => e.code), (
+  "multiple",
+))
 
 // ---- translation -----------------------------------------------------------
 

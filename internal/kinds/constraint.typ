@@ -62,9 +62,11 @@
 // with it at its own precision: `str(1.6)` is "1.6", where `decimal(1.6)`
 // is the float's binary value, 1.60000000000000008…. None when no
 // decimal is that number: past ±2^96, or with more than 28 decimal
-// places. (`str` never writes an exponent.)
+// places, or a NaN. (`str` never writes an exponent.)
 #let _as-decimal(f) = {
-  if f.is-infinite() or calc.abs(f) >= _decimal-limit { return none }
+  if f.is-nan() or f.is-infinite() or calc.abs(f) >= _decimal-limit {
+    return none
+  }
   let t = str(f)
   if t.split(".").at(1, default: "").len() > 28 { return none }
   decimal(t)
@@ -87,20 +89,23 @@
   if op in ("≥", ">") { (n, ">", g) } else { (n, "≤", g) }
 }
 
-// An int or a decimal over an int or decimal multiple stays exact;
-// anything else compares the float ratio with a tolerance, since
-// calc.rem(0.3, 0.1) is not 0. A ratio too large for a float (1e308 /
-// 0.123...) is infinite, and no finite multiple: report it rather than
-// compare the NaN its rounding leaves.
+// A value and a multiple that are each an int, a decimal or a float a
+// decimal can hold compare exactly, as decimals: calc.rem(0.3, 0.1) is
+// not 0, but the decimals 0.3 and 0.1 divide evenly. Anything else (a
+// float past ±2^96 or with more than 28 places, a NaN) compares the
+// float ratio with a tolerance relative to it. A ratio too large for a
+// float (1e308 / 0.123...) is infinite, and no finite multiple: report
+// it rather than compare the NaN its rounding leaves.
+#let _exact(v) = if type(v) == float { _as-decimal(v) } else { v }
 #let _multiple-test(mult, value) = {
-  let exact = if type(value) in (int, decimal) and type(mult) == int {
-    mult
-  } else if type(value) == decimal and type(mult) == float {
-    _as-decimal(mult)
-  }
-  let off = if exact != none { calc.rem(value, exact) != 0 } else {
-    let q = float(value) / mult
-    q.is-infinite() or q.is-nan() or calc.abs(q - calc.round(q)) >= 1e-9
+  let (m, v) = (_exact(mult), _exact(value))
+  let off = if m != none and v != none { calc.rem(v, m) != 0 } else {
+    let q = float(value) / float(mult)
+    (
+      q.is-infinite()
+        or q.is-nan()
+        or calc.abs(q - calc.round(q)) > 1e-9 * calc.abs(q)
+    )
   }
   if off {
     (
