@@ -30,6 +30,7 @@
 - [Errors](#errors)
 - [Null handling](#null-handling)
 - [Validating a JSON Resume](#validating-a-json-resume)
+- [Upgrading from 0.x](#upgrading-from-0x)
 - [Reference](#reference)
 - [Contributing](#contributing)
 - [License](#license)
@@ -55,7 +56,8 @@ Translate a JSON Schema document you already have:
 ```
 <!-- x-release-please-end -->
 
-Or build the schema in Typst:
+`book-schema.json` is any JSON Schema document; this one says what the
+Typst schema below says. Or build the schema in Typst:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -102,7 +104,7 @@ number and `book.tags` an array of strings.
 | Run | `parse`, `validate`, `coerce`, `format-errors` |
 | Schemas | `schema-from-json-schema` |
 | Constructors | `string`, `number`, `integer`, `boolean`, `null`, `markup`, `unknown`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
-| Edit | `lens-get`, `lens-put`, `lens-over`, `add-field`, `remove-field`, `set-required`, `unset-required` |
+| Lenses | `lens-get`, `lens-put`, `lens-over`, `add-field`, `remove-field`, `set-required`, `unset-required` |
 | Inspect | `describe-schema`, `find-paths` |
 | Pointers | `path-to-pointer`, `pointer-to-path` |
 
@@ -117,14 +119,10 @@ parser for one schema:
 #import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
 
 #let parse-book = parse.with(schema-from-json-schema(json("book-schema.json")))
-#let atlas = parse-book(path("atlas.json"))
-#let gazetteer = parse-book(path("gazetteer.json"))
+#let book = parse-book(path("book.json"))
 ```
 <!-- x-release-please-end -->
 
-Up to 0.13 the data came first and the schema was named,
-`parse(data, schema: s)`; from 1.0 that call fails with "missing
-argument: data", and swapping the two arguments fixes it.
 [REFERENCE.md](REFERENCE.md) covers the rest, one section per group.
 
 ## Input forms
@@ -377,12 +375,30 @@ a suggestion:
 For a different mix, or for a renderer's own fields, edit either schema
 with lenses; see [REFERENCE.md](REFERENCE.md#lenses-and-edits).
 
+## Upgrading from 0.x
+
+| 0.x | 1.0 |
+|---|---|
+| `parse(data, schema: s)`, and `validate`, `coerce` | `parse(s, data)`: the schema first |
+| `resume-schema`, `resume-schema-strict` | your own copy, translated: [Validating a JSON Resume](#validating-a-json-resume) |
+| `str-type`, `number-type`, `integer-type` | `string()`, `number()`, `integer()` |
+| `bool-type`, `null-type`, `any-type`, `content-type` | `boolean()`, `null()`, `unknown()`, `markup()` |
+| `date-string`, `uri-string`, … | `string(format: "date")`, `string(format: "uri")`, … |
+| `pattern-string(re)` | `string(pattern: re)` |
+| `paths-of-kind` | `find-paths` |
+| `lens(p)`, `(lens: p)`, `lens-then(a, b)` | the path `p`, `a + b` |
+| `kind-at(s, at)` | `lens-get(s, at).kind` |
+| `lens-get(at, s)`, and the other lenses | `lens-get(s, at)`: the schema first |
+| `map(true)` | `object((:), additional: true)` |
+
+Validation is stricter in places: `date` takes only `YYYY-MM-DD`, and
+`date-time` and `time` need an offset. The
+[changelog](https://github.com/smur89/gairm-import/blob/main/CHANGELOG.md)
+lists every change.
+
 ## Reference
 
-[REFERENCE.md](REFERENCE.md) documents the run functions and the model
-they return, every constructor and argument, the formats, lenses and the
-edits, introspection, JSON Pointer, the JSON Schema translator and its
-deviations from draft 7.
+[REFERENCE.md](REFERENCE.md) documents every export.
 
 ## Contributing
 

@@ -1,21 +1,20 @@
-// Mirrors REFERENCE.md, "Formats": the messages its block shows for
+// Mirrors REFERENCE.md, "Formats": the report its block shows for
 // `member`, and the datetime values it says a date format takes. The
-// paths and messages must match the block.
-#import "@preview/gairm-import:0.0.0": validate, coerce, string
+// report must match the block.
+#import "@preview/gairm-import:0.0.0": validate, coerce, format-errors, string
 #import "reference-schemas.typ": member
 
 #assert.eq(
-  validate(member, (
+  format-errors(validate(member, (
     name: "Ada",
     email: "ada",
     homepage: "example.com",
     joined: "2024/01/15",
-  )).map(e => (e.path, e.message)),
-  (
-    (("email",), "expected an email (e.g. \"name@example.com\")."),
-    (("homepage",), "expected a URI (e.g. \"https://example.com\")."),
-    (("joined",), "expected an ISO-8601 date (e.g. \"2024-01-15\")."),
-  ),
+  ))),
+  "gairm-import: found 3 problems in the input:
+  - email: expected an email (e.g. \"name@example.com\").
+  - homepage: expected a URI (e.g. \"https://example.com\").
+  - joined: expected an ISO-8601 date (e.g. \"2024-01-15\").",
 )
 
 // A partial date, or a time with no offset, is not one of the formats.

@@ -109,3 +109,8 @@
     format: string(),
   )),
 )
+
+// The opening example: a schema file, then the data.
+#let book-schema = schema-from-json-schema(path("book-schema.json"))
+#let book = coerce(book-schema, json("book.json"))
+#assert.eq(book.year, 1998)

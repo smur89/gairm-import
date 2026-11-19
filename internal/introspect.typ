@@ -192,12 +192,11 @@
 ///   `enum-of`, `any-of` or `if-of`. A node finds the nodes of its kind
 ///   that also have every field it sets, with the same value:
 ///   `string()` finds every string, `string(format: "date")` only the
-///   date strings, `number()` numbers but not integers, and
-///   `number(minimum: 0)` only the numbers with minimum 0, and
-///   `string(pattern: p)` every string with pattern `p`, whatever its
-///   `expected`. A constructor finds the nodes it builds: `enum-of` every enum, `const-of` the single-value ones,
-///   `any-of` and `one-of` their own unions, and `nullable` the
-///   nullable ones.
+///   date strings, and `number()` numbers but not integers. A
+///   constructor finds the nodes it builds: `const-of` the single-value
+///   enums, `any-of` the inclusive unions (a nullable is one), `one-of`
+///   the exclusive ones, `nullable` the nullable ones, and the rest every
+///   node of their kind.
 /// -> array
 #let find-paths(schema, query) = {
   _require-schema(schema, "find-paths schema")

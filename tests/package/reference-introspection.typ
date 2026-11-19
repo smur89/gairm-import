@@ -66,3 +66,19 @@ name*    string",
 // whatever its message.
 #assert.eq(find-paths(member, string(pattern: "^[A-Z]{3}$")), (("code",),))
 #assert.eq(lens-get(team, ("contact", 0)).format, "email")
+
+// find-paths: a constructor finds the nodes it builds.
+#let u = object((
+  a: any-of(string(), number()),
+  b: one-of(string(), number()),
+  c: nullable(string()),
+  d: const-of("x"),
+  e: enum-of(("x", "y")),
+))
+#assert.eq(find-paths(u, any-of), (("a",), ("c",)))
+#assert.eq(find-paths(u, one-of), (("b",),))
+#assert.eq(find-paths(u, nullable), (("c",),))
+#assert.eq(find-paths(u, const-of), (("d",),))
+#assert.eq(find-paths(u, enum-of), (("d",), ("e",)))
+// ...and the rest every node of their kind.
+#assert.eq(find-paths(u, string), (("a", 0), ("b", 0), ("c", 0)))

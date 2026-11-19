@@ -364,6 +364,8 @@
 // on a pure map are still meaningful ("the document must contain
 // these specific keys, plus any number of others").
 /// A dictionary with any keys, whose values all match `value-schema`.
+/// Panics if `value-schema` is not a schema, or `required-keys` is not
+/// an array of key names.
 ///
 /// - value-schema (dictionary): The schema for every value.
 /// - required-keys (array): Keys that must be present.
