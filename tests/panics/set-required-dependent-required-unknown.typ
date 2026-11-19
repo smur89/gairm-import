@@ -1,4 +1,4 @@
-// expect: set-required dependent-required must be only declared fields (the object takes no other keys), got: "x".
+// expect: set-required schema field "dependent-required" must be only declared fields (the object takes no other keys), got: "x".
 #import "../../lib.typ": set-required, string
 #let bad = (
   kind: "object",

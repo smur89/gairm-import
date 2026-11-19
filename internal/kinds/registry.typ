@@ -254,6 +254,7 @@
         s.at("required-keys", default: ()),
         s.at("dependent-required", default: (:)),
         s.at("additional", default: none),
+        keys: s.shape.keys(),
       ))
     },
     searchable: false,

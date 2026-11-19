@@ -73,7 +73,7 @@
 // constraint miss leaves the value, as it does outside a union.
 #assert.eq(coerce(any-of(string(min-length: 5), number()), "x"), "x")
 #assert.eq(
-  coerce(any-of(object((a: content-type)), string()), (a: "x", b: 1)),
+  coerce(any-of(object((a: markup())), string()), (a: "x", b: 1)),
   (a: [x]),
 )
 // A type error below the union's own path doesn't stop a member claiming.

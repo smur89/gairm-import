@@ -44,8 +44,9 @@ whether JSON `null` is an absent key (off) or a value (on); see
 
 Each call checks the whole schema before it reads the data: an argument
 that is not a schema, or a hand-built node anywhere in it that is
-missing a field or holds one of the wrong shape, panics naming the path
-to that node. So does a `null` document. A string is checked as data;
+missing a field, holds one of the wrong shape, or breaks a rule its
+constructor enforces (bounds no value meets, a closed object requiring a
+key it does not declare), panics naming the path to that node. So does a `null` document. A string is checked as data;
 only when it ends in `.json` and the schema's root rejects its type does
 the call panic, with a hint to read the file with `path(..)`.
 

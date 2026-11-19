@@ -332,6 +332,39 @@
   )
 })
 
+/// The problems with the bounds `node` sets, as `(problem, gap)`: bounds
+/// no value satisfies, and an integer node's bounds that hold numbers but
+/// no integer, each named by `key(row)` with its value; or none. The gap
+/// is reported apart, so a translated `type` list can drop its integer
+/// member alone. The schema check passes only a node's kind and bounds,
+/// so this never hashes a subtree.
+#let _bounds-problems(node, key) = {
+  let named(field) = (
+    key(_constraint-rows.find(row => row.field == field))
+      + " ("
+      + repr(node.at(field))
+      + ")"
+  )
+  let clash = _bounds-conflict(node)
+  let message = if clash != none {
+    let (lower, upper) = (clash.lower, clash.upper).map(named)
+    if clash.strict {
+      lower + " and " + upper + " leave no satisfying value."
+    } else { lower + " > " + upper + " is unsatisfiable." }
+  }
+  let gap = if clash == none { _integer-gap(node) }
+  (
+    problem: if message != none { (message: message) },
+    gap: if gap != none {
+      (
+        message: gap.map(named).join(" and ")
+          + if gap.len() == 1 { " leaves" } else { " leave" }
+          + " no integer.",
+      )
+    },
+  )
+}
+
 /// `node` with the constraint values in `given` set, as the translator
 /// and the constructors both read them. `given` is keyed by `key(row)`:
 /// the row's JSON keyword for the translator, its field for a
@@ -359,33 +392,7 @@
       result.insert(row.field, row.at("read", default: x => x)(v))
     }
   }
-  let named(field) = (
-    key(_constraint-rows.find(row => row.field == field))
-      + " ("
-      + repr(result.at(field))
-      + ")"
-  )
-  let clash = _bounds-conflict(result)
-  let message = if clash != none {
-    let (lower, upper) = (clash.lower, clash.upper).map(named)
-    if clash.strict {
-      lower + " and " + upper + " leave no satisfying value."
-    } else { lower + " > " + upper + " is unsatisfiable." }
-  }
-  // Bounds a number satisfies can still hold no integer. Reported apart
-  // from `problem`, so a `type` list can drop its integer member alone.
-  let gap = if clash == none { _integer-gap(result) }
-  (
-    node: result,
-    problem: if message != none { (message: message) },
-    gap: if gap != none {
-      (
-        message: gap.map(named).join(" and ")
-          + if gap.len() == 1 { " leaves" } else { " leave" }
-          + " no integer.",
-      )
-    },
-  )
+  (node: result, .._bounds-problems(result, key))
 }
 
 /// `node` with a constructor's constraint arguments of `family` set.
