@@ -18,6 +18,29 @@
 #assert.eq(r.message, "expected a URI (e.g. \"https://example.com\").")
 #assert.eq(validate(work, (:)), ())
 
+// Error records: a dependent record's path, expected and got; a
+// one-of's expected; a key that is not a plain name in a rendered path.
+#let dep = validate(
+  object(
+    (card: string(), billing: string()),
+    dependent-required: (card: ("billing",)),
+  ),
+  (card: "x"),
+).first()
+#assert.eq(dep.path, ("billing",))
+#assert.eq(dep.expected, (dependent-required: (card: ("billing",))))
+#assert.eq(dep.got, none)
+#assert.eq(
+  validate(one-of(number(), integer()), 1).first().expected,
+  ("number", "integer"),
+)
+#assert.eq(
+  format-errors(validate(object(("a.b": object((c: string())))), (
+    "a.b": (c: 1),
+  ))),
+  "gairm-import: found 1 problem in the input:\n  - [\"a.b\"].c: expected string, got integer.",
+)
+
 // The model, row by row.
 #assert.eq(
   coerce(string(format: "date"), datetime(year: 2024, month: 1, day: 5)),

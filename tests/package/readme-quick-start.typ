@@ -38,7 +38,7 @@
 #assert.eq(from-json-schema, expected)
 #assert.eq(from-combinators, expected)
 
-// "API at a glance": with the schema first, `.with` makes a parser.
+// "API at a glance": `parse.with(schema)` is a parser for one schema.
 #{
   import "@preview/gairm-import:0.0.0": parse, schema-from-json-schema
 

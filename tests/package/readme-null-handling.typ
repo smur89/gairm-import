@@ -4,7 +4,8 @@
 #import "@preview/gairm-import:0.0.0": (
   parse, validate, coerce, object, string, nullable, array-of,
 )
-#import "readme-json-resume.typ": resume-schema, resume-schema-strict
+#import "readme-json-resume.typ": resume-schema
+#import "reference-json-resume.typ": resume-schema-strict
 
 #let schema = object(
   (name: string(), nickname: nullable(string())),

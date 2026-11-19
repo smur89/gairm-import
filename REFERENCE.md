@@ -18,6 +18,7 @@ schema under [Schema paths and edits](#schema-paths-and-edits).
   - [Supported keywords](#supported-keywords)
   - [Out of scope](#out-of-scope)
   - [Deviations from draft 7](#deviations-from-draft-7)
+  - [A stricter JSON Resume](#a-stricter-json-resume)
 
 The examples assume the whole package is imported:
 
@@ -46,9 +47,10 @@ Each call checks the whole schema before it reads the data: an argument
 that is not a schema, or a hand-built node anywhere in it that is
 missing a field, holds one of the wrong shape, or breaks a rule its
 constructor enforces (bounds no value meets, a closed object requiring a
-key it does not declare), panics naming the path to that node. So does a `null` document. A string is checked as data;
-only when it ends in `.json` and the schema's root rejects its type does
-the call panic, with a hint to read the file with `path(..)`.
+key it does not declare), panics naming the path to that node. So does a
+`null` document. A string is checked as data; only when it ends in
+`.json` and the schema's root rejects its type does the call panic,
+with a hint to read the file with `path(..)`.
 
 A document may nest about 37 levels deep, about 36 when every level is
 a `nullable(..)` or a conditional (the translator builds
@@ -86,7 +88,7 @@ Branch on `code`, not on the message:
 | `dependent` | A key required by another key's presence is missing | The rule broken, the trigger's entry: `(dependent-required: (card: ("billing",)))` | |
 | `enum` | Not one of the enum's values | The values | The value |
 | `format` | Not in the format's shape (date, email, …) | The format's description | The value |
-| `pattern` | Does not match the pattern | `string()`'s `expected`, else `"matching pattern"` | The value |
+| `pattern` | Does not match the pattern | `string()`'s `expected`; for a translated `pattern`, `matching "<pattern>"`; else `"matching pattern"` | The value |
 | `length` | String too short or too long | The bound broken: `(min-length: 3)` or `(max-length: 80)` | The length |
 | `range` | Number out of range | The bound broken: `(minimum: 1)`, `(exclusive-minimum: 1)`, `(maximum: 10)` or `(exclusive-maximum: 10)` | The number |
 | `multiple` | Not a multiple of `multiple-of` | `(multiple-of: 0.1)` | The number |
@@ -144,7 +146,7 @@ built.
 | `enum-of(a, b, …)` | | one of the values, which may mix types |
 | `const-of(value)` | | `value` only; the same as `enum-of((value,))` |
 | `boolean()` | | `true` or `false` |
-| `null()` | | `null`, or an absent key |
+| `null()` | | `null`, under `strict-null: true`; by default a `null` key counts as absent |
 | `markup()` | | a string, returned as Typst `content` so it splices into markup |
 | `unknown()` | | any value, passed through unchanged (JSON Schema `{}`) |
 
@@ -370,7 +372,8 @@ and covers fields a future schema adds:
 `describe-schema(schema)` draws a schema as an indented tree, one line per
 field with its kind:
 
-- keys sort alphabetically, so diffs across schema versions stay stable;
+- keys sort alphabetically, so diffs across schema versions stay stable,
+  and a key that is not a plain name is quoted (`"a.b"`);
 - a required field is suffixed `*`, an array `[]`, and `*` as a key stands
   for any other key (the `additional` schema);
 - a required key the shape doesn't declare is listed as `key*` with the
@@ -443,8 +446,8 @@ they work wherever a schema path does. A query is:
   nullable ones, and the rest (`string`, `boolean`, `not-of`, …) every
   node of their kind.
 
-`object` and `array` are walked through, not searched for, and panic as a
-query. An `additional` schema shadowed by a field literally named
+`object`, `map` and `array-of`, as a constructor or a node, are walked
+through, not searched for, and panic as a query. An `additional` schema shadowed by a field literally named
 `"additionalProperties"` has no path, so it is not searched; reach it
 with `schema-update` on its object.
 
@@ -643,8 +646,9 @@ Where a draft 7 validator and this package disagree on the same schema:
   no backreference, and `\d` and `\w` match Unicode digits and letters.
 - **String length counts grapheme clusters**, not code points: `"é"`
   written as `e` plus a combining accent has length 1.
-- **`multipleOf` on floats uses a tolerance** (a ratio within 1e-9 of a
-  whole number), so `0.3` is a multiple of `0.1`.
+- **`multipleOf` compares numbers as written**, as decimals, so `0.3` is
+  a multiple of `0.1`; only a float no decimal can hold (past ±2^96)
+  falls back to a ratio within a relative 1e-9 of a whole number.
 - **`uniqueItems` compares items as the model holds them**: by default a
   null key is dropped, so under an object schema `{"a": 1, "b": null}` and
   `{"a": 1}` are duplicates. A free-form object (`additionalProperties:
@@ -671,3 +675,71 @@ Where a draft 7 validator and this package disagree on the same schema:
   except `additionalProperties: true` / `false`.
 - **`dependentRequired`**, from draft 2019-09, is accepted alongside draft
   7's array-form `dependencies`.
+
+### A stricter JSON Resume
+
+[JSON Resume](https://jsonresume.org/schema)'s schema leaves its objects
+open and its dates partial. To report a misspelt key, check full dates
+and make the free-text fields Typst `content`, edit the document before
+translating it and the schema after:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.13.0": (
+  parse, schema-from-json-schema, schema-put, markup,
+)
+
+// Not for schemas with `not` or `if`: closing an object there loosens them.
+#let close(js) = if type(js) == dictionary {
+  let js = js.pairs().map(((k, v)) => (k, close(v))).to-dict()
+  if (
+    "properties" in js and js.at("additionalProperties", default: true) == true
+  ) {
+    js.additionalProperties = false
+  }
+  js
+} else if type(js) == array { js.map(close) } else { js }
+
+#let strict-json = {
+  let js = close(json("resume.schema.json"))
+  // A full date, or the year and month JSON Resume also allows.
+  js.definitions.iso8601 = (
+    anyOf: (
+      (type: "string", format: "date"),
+      (type: "string", pattern: "^[0-9]{4}(-(0[1-9]|1[0-2]))?$"),
+    ),
+  )
+  js
+}
+
+#let resume-schema-strict = (
+  ("objective",),
+  ("basics", "summary"),
+  ("work", "items", "summary"),
+  ("work", "items", "highlights", "items"),
+  ("volunteer", "items", "summary"),
+  ("volunteer", "items", "highlights", "items"),
+  ("education", "items", "summary"),
+  ("awards", "items", "summary"),
+  ("certificates", "items", "summary"),
+  ("publications", "items", "summary"),
+  ("references", "items", "reference"),
+  ("projects", "items", "summary"),
+  ("projects", "items", "description"),
+  ("projects", "items", "highlights", "items"),
+).fold(
+  schema-from-json-schema(strict-json),
+  (schema, at) => schema-put(schema, at, markup()),
+)
+
+#let resume = parse(resume-schema-strict, path("resume.json"))
+```
+<!-- x-release-please-end -->
+
+Typed extras (`additionalProperties` with a schema) still pass if they
+match, and the free-form `custom` objects stay open. A misspelt key is
+now reported with a suggestion:
+
+```text
+  - work[0].positon: unknown key "positon". Did you mean "position"?
+```
