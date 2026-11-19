@@ -92,6 +92,7 @@
   str: "string",
   int: "integer",
   float: "number",
+  decimal: "number",
   bool: "boolean",
   array: "array",
   dictionary: "object",
@@ -105,10 +106,12 @@
   _type-names.at(raw, default: raw)
 }
 
-/// A JSON type name per value, with int and float as the one number
-/// type JSON has.
+/// A JSON type name per value, with int, float and decimal as the one
+/// number type JSON has.
 #let _json-type-name(value) = {
-  if type(value) in (int, float) { "number" } else { _type-name-of(value) }
+  if type(value) in (int, float, decimal) { "number" } else {
+    _type-name-of(value)
+  }
 }
 
 /// A walk result for a value of the wrong JSON type: the `type` error,
