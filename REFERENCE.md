@@ -521,7 +521,8 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   under [Formats](#formats)). With both `format` and `pattern`, both
   apply.
 - Numbers: `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`
-  (as numbers, draft 7's form), `multipleOf`.
+  (as numbers, draft 7's form; draft 4's `true` / `false` panics),
+  `multipleOf`.
 - Arrays: `items` (a single schema; no `items` takes any item),
   `minItems`, `maxItems`, `uniqueItems`.
 - Objects: `properties`, `required`, `additionalProperties` (a schema,

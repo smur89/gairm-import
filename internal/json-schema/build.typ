@@ -165,6 +165,18 @@
 #let _with-constraints(node, js, t, ctx) = {
   let family = _constraint-family.at(t, default: none)
   if family == none { return (node: node, gap: none) }
+  // Draft 4 wrote an exclusive bound as `minimum` plus a boolean flag.
+  for keyword in ("exclusiveMinimum", "exclusiveMaximum") {
+    if family == "number" and type(js.at(keyword, default: 0)) == bool {
+      _bail(
+        ctx,
+        _json(keyword)
+          + " must be a number, got: "
+          + _json(js.at(keyword))
+          + ". Draft 4's boolean form is not supported; give the bound itself, as draft 7 does.",
+      )
+    }
+  }
   let read = _read-constraints(node, family, js, row => row.json)
   if read.problem != none { _bail-problem(ctx, read.problem, node: js) }
   (node: read.node, gap: read.gap)
