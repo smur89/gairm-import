@@ -133,8 +133,9 @@
     }
   }
   // A null trigger does not fire, and a null dependent is missing. The
-  // error sits at the missing key, as `required`'s does, and `got`
-  // names the key that requires it.
+  // error sits at the missing key, as `required`'s does; `expected` is
+  // the rule broken, the trigger's entry as the node holds it, as a
+  // constraint miss gives its bound, and `got` is none: nothing is there.
   for (trigger, dependents) in schema.at("dependent-required", default: (:)) {
     if not _has(value, trigger, ctx) { continue }
     // A required key that is missing is already reported, once.
@@ -147,8 +148,7 @@
             + " is required when "
             + repr(trigger)
             + " is present.",
-          expected: dependent,
-          got: trigger,
+          expected: (dependent-required: ((trigger): dependents)),
         )
       }
     }

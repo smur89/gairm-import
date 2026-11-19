@@ -80,7 +80,7 @@ Branch on `code`, not on the message:
 | `type` | Wrong JSON type (also: an enum or union none of whose members takes that type) | The type name, or for an enum or union the names it takes joined by "or" (`"string or number"`) | The value's type name |
 | `required` | A required key is missing | | |
 | `unknown-key` | A key the object does not declare | The valid keys | The key |
-| `dependent` | A key required by another key's presence is missing | The missing key | The key that requires it |
+| `dependent` | A key required by another key's presence is missing | The rule broken, the trigger's entry: `(dependent-required: (card: ("billing",)))` | |
 | `enum` | Not one of the enum's values | The values | The value |
 | `format` | Not in the format's shape (date, email, …) | The format's description | The value |
 | `pattern` | Does not match the pattern | The pattern's description | The value |

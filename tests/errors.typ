@@ -74,8 +74,8 @@
     object((a: string(), b: string()), dependent-required: (a: ("b",))),
     "dependent",
     ("b",),
-    "b",
-    "a",
+    (dependent-required: (a: ("b",))),
+    none,
   ),
   // enum; int and float are one JSON number type, so 2.5 is an enum miss.
   ("c", enum-of(("a", "b")), "enum", (), ("a", "b"), "c"),
