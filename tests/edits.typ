@@ -33,7 +33,7 @@
 )
 #assert.eq(
   add-field(s, (), "c", number(), required: true),
-  set-required(add-field(s, (), "c", number()), (), ("a", "c")),
+  set-required(add-field(s, (), "c", number()), (), ("c",)),
 )
 #assert.eq(
   add-field(s, (), "c", number(), required: false),
@@ -93,13 +93,27 @@
   (),
 )
 
-// set-required replaces the list rather than merging: an empty one
-// drops every required key.
-#let all-three = set-required(strict, basics, ("name", "email", "summary"))
+// set-required adds to the list, after the keys already required,
+// once each; an empty list is a no-op. It undoes unset-required.
+#let all-three = set-required(strict, basics, ("summary", "name", "summary"))
 #assert.eq(all-three.shape.basics.required-keys, ("name", "email", "summary"))
+#assert.eq(set-required(all-three, basics, ()), all-three)
 #assert.eq(
-  set-required(all-three, basics, ()).shape.basics.required-keys,
-  (),
+  set-required(unset-required(all-three, basics, ("email",)), basics, (
+    "email",
+  ))
+    .shape
+    .basics
+    .required-keys,
+  ("name", "summary", "email"),
+)
+// Replacing the whole list is a schema-update.
+#assert.eq(
+  schema-update(all-three, basics, o => (..o, required-keys: ("email",)))
+    .shape
+    .basics
+    .required-keys,
+  ("email",),
 )
 
 // unset-required relaxes one or several; an empty list is a no-op.

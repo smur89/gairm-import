@@ -194,11 +194,11 @@
   })
 }
 
-// Replace, not merge. On a closed object keys must
-// exist in shape so a typo fails at edit time, not as a phantom
-// "missing X" error; an open one allows what object() allows.
-/// Returns a new schema where the object at `at` requires exactly
-/// `keys`, replacing its earlier list. Panics if `keys` is not an array
+// The inverse of unset-required. On a closed object keys must exist
+// in shape so a typo fails at edit time, not as a phantom "missing X"
+// error; an open one allows what object() allows.
+/// Returns a new schema where the object at `at` also requires `keys`,
+/// after the keys it already requires. Panics if `keys` is not an array
 /// of key names, or if a key is not in the shape of an object that
 /// rejects other keys.
 ///
@@ -220,11 +220,10 @@
         names: unknown,
       ))
     }
-    (required-keys: keys)
+    (required-keys: (parent.required-keys + keys).dedup())
   })
 }
 
-// Symmetric to set-required — relax specific keys without re-listing.
 // Absent-key panics so a stale "still required" assumption surfaces.
 /// Returns a new schema where the object at `at` no longer requires
 /// `keys`. Panics if `keys` is not an array of key names, or if a key

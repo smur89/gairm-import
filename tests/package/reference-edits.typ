@@ -53,11 +53,7 @@
 #assert.eq(opened.dependent-required, member.dependent-required)
 
 // Require a member's joining date, then relax it again.
-#let dated = set-required(
-  team,
-  ("members", "items"),
-  ("name", "email", "joined"),
-)
+#let dated = set-required(team, ("members", "items"), ("joined",))
 #let undated = unset-required(dated, ("members", "items"), ("joined",))
 #assert.eq(schema-get(dated, ("members", "items")).required-keys, (
   "name",

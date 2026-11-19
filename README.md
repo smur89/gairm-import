@@ -391,6 +391,7 @@ see [REFERENCE.md](REFERENCE.md#schema-paths-and-edits).
 | `kind-at(s, at)` | `schema-get(s, at).kind` |
 | `lens-get(at, s)`, `lens-put`, `lens-over` | `schema-get(s, at)`, `schema-put`, `schema-update`: the schema first |
 | `map(true)` | `object((:), additional: true)` |
+| `set-required(s, at, keys)` replacing the list | `set-required` adds `keys`; replace with `schema-update(s, at, o => (..o, required-keys: keys))` |
 
 Validation is stricter in places: `date` takes only `YYYY-MM-DD`, and
 `date-time` and `time` need an offset. The

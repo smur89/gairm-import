@@ -280,7 +280,7 @@ wins over the keyword; reach the additional schema in that case with
 | `schema-update(schema, at, fn)` | the schema with the node at `at` replaced by `fn(node)` |
 | `add-field(schema, at, key, sub-schema, required: false)` | the object at `at` with a new field `key`, required if `required: true` |
 | `remove-field(schema, at, key)` | the object at `at` without the field, and without it in `required-keys` and `dependent-required` |
-| `set-required(schema, at, keys)` | the object at `at` requiring exactly `keys` |
+| `set-required(schema, at, keys)` | the object at `at` also requiring `keys`, after those it already requires |
 | `unset-required(schema, at, keys)` | the object at `at` no longer requiring `keys` |
 
 Every edit returns a new schema and leaves its input alone. The schema
@@ -290,6 +290,8 @@ an edit touches is rebuilt through `object()`, so an edit cannot break its
 invariants. A missing path or field, adding a field that exists,
 requiring a key a closed object does not declare, or unsetting one it
 does not require panics, naming the function and what failed.
+To replace the whole list, use
+`schema-update(s, at, o => (..o, required-keys: keys))`.
 
 The examples edit `team`, a schema built on `member` from
 [Constructors](#constructors):
@@ -335,11 +337,7 @@ The examples edit `team`, a schema built on `member` from
 )
 
 // Require a member's joining date, then relax it again.
-#let dated = set-required(
-  team,
-  ("members", "items"),
-  ("name", "email", "joined"),
-)
+#let dated = set-required(team, ("members", "items"), ("joined",))
 #let undated = unset-required(dated, ("members", "items"), ("joined",))
 ```
 
