@@ -74,6 +74,7 @@
     parts.insert(arg, _join(
       (base, recur(b, at)),
       (base-restricts, _restricts-extras(b, at)),
+      (siblings, b),
       (ctx, at),
       ctx,
       who: "the siblings of \"if\" and its branches",
