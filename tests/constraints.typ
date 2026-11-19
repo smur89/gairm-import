@@ -3,7 +3,8 @@
 // kebab-case field on the node; validate checks it after the type.
 
 #import "../lib.typ": (
-  validate, schema-from-json-schema, array-of, object, string, number, any-type,
+  validate, coerce, schema-from-json-schema, array-of, object, string, number,
+  integer, any-type,
 )
 
 #let T = schema-from-json-schema
@@ -211,4 +212,25 @@
     e.got
   )),
   ((1, 2),),
+)
+
+// ---- decimal ---------------------------------------------------------------
+//
+// A Typst `decimal` is a number: JSON never gives one, but data written
+// in Typst may. It is judged against int and float bounds alike, and
+// modelled as given.
+#let d = decimal("1.5")
+#assert.eq(validate(number(minimum: 1, maximum: 1.6), d), ())
+#assert.eq(coerce(number(), d), d)
+#assert.eq(validate(number(minimum: 1.6), d).map(e => e.code), ("range",))
+#assert.eq(validate(number(exclusive-maximum: 1), d).map(e => e.code), (
+  "range",
+))
+#assert.eq(validate(number(multiple-of: 0.5), d), ())
+#assert.eq(validate(number(multiple-of: 1), d).map(e => e.code), ("multiple",))
+#assert.eq(validate(integer(), decimal("2.0")), ())
+#assert.eq(validate(integer(), d).map(e => e.code), ("integer",))
+#assert.eq(
+  validate(string(), d).first().message,
+  "expected string, got number.",
 )
