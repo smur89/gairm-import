@@ -39,11 +39,11 @@
 #let _label = "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 #let _octet = "(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
 
-// A time of day, `HH:MM:SS` with an optional fraction and offset, as in
-// RFC 3339: `Z` may be lowercase, and second 60 (a leap second) is let
-// through where one can fall — at minute 59, or at any minute under an
-// offset with minutes (UTC 23:59:60 at +01:30 is 01:29:60). Which hour
-// is not checked.
+// A time of day as RFC 3339's `full-time`: `HH:MM:SS`, an optional
+// fraction, then an offset, `Z` (either case) or `±HH:MM`. Second 60 (a
+// leap second) is let through where one can fall — at minute 59, or at
+// any minute under an offset with minutes (UTC 23:59:60 at +01:30 is
+// 01:29:60). Which hour is not checked.
 #let _clock = {
   let hour = "([01][0-9]|2[0-3])"
   let fraction = "(\.[0-9]+)?"
@@ -55,7 +55,7 @@
       + ":([0-5][0-9]:[0-5][0-9]|59:60)"
       + fraction
       + offset
-      + "?|"
+      + "|"
       + hour
       + ":[0-5][0-9]:60"
       + fraction
@@ -64,17 +64,19 @@
   )
 }
 
-// Tightened over the upstream JSON Resume regexes, which accept
-// impossible months / days because they use [0-1][0-9] / [0-3][0-9].
-// Deliberately permissive (no full RFC compliance). The hint omits the
-// offending value — the path already names the field, the canonical
-// example is the actionable part.
+// `date`, `date-time` and `time` are RFC 3339's `full-date`,
+// `date-time` and `full-time`, as draft 7 defines them, with months and
+// days in range (but no check that February has a 30th). The others are
+// deliberately permissive: they reject obvious malformations without a
+// full RFC grammar. The hint omits the offending value — the path
+// already names the field, and the canonical example is the actionable
+// part.
 #let _format-rows = (
   (
     format: "date",
     datetime: false,
     pattern: regex(
-      "^([0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[0-9]{4}-(0[1-9]|1[0-2])|[0-9]{4})$",
+      "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
     ),
     expected: "an ISO-8601 date (e.g. \"2024-01-15\")",
   ),
@@ -97,9 +99,9 @@
   (
     format: "email",
     datetime: none,
-    // An unquoted local part without whitespace, or a quoted one; a domain of one or
-    // more labels, or an address literal in brackets (`[127.0.0.1]`,
-    // `[IPv6:::1]`).
+    // An unquoted local part without whitespace, or a quoted one; a
+    // domain of one or more labels, or an address literal in brackets
+    // (`[127.0.0.1]`, `[IPv6:::1]`).
     pattern: regex(
       "^([^@\s\"]+|\"([^\"\\\\]|\\\\.)+\")@([^@\s.\[\]]+(\.[^@\s.\[\]]+)*|\[[^\[\]\s]+\])$",
     ),
@@ -242,11 +244,13 @@
 // The format check: the datetime conversion, then the row's regex, then
 // the node's own extra pattern, each a gate. A datetime of the wrong
 // shape is a `format` miss that leaves no string to model; a regex or
-// pattern miss still leaves the string.
+// pattern miss still leaves the string. A converted datetime skips the
+// regex: it is a real date by construction, and a Typst datetime has no
+// offset, so a `date-time` one models as a local time with none.
 #let _format-check(row, schema, value, ctx) = {
-  let value = if type(value) == datetime and row.datetime != none {
-    let converted = _from-datetime(row, value)
-    if converted == none {
+  if type(value) == datetime and row.datetime != none {
+    let s = _from-datetime(row, value)
+    if s == none {
       let expected = _datetime-expected(row)
       return (
         errors: _error(
@@ -260,8 +264,8 @@
         fatal: (path: ctx.path, expected: expected, got: value),
       )
     }
-    converted
-  } else { value }
+    return (errors: _pattern-errors(schema, s, ctx.path), value: s, fatal: none)
+  }
   if type(value) != str {
     return _type-miss(ctx.path, "string", value)
   }
@@ -275,18 +279,15 @@
     )
     return (errors: errors, value: value, fatal: none)
   }
-  // Extra pattern gate (format + pattern), on the converted string.
+  // Extra pattern gate (format + pattern).
   (errors: _pattern-errors(schema, value, ctx.path), value: value, fatal: none)
 }
 
 // The string kind's check: its format's, when it has one, which runs
 // the node's own pattern after the format; the type gate and the
-// pattern alone otherwise. A hand-built node may carry a format the
-// table doesn't know, which panics here.
+// pattern alone otherwise.
 #let _string-kind-check(schema, value, ctx) = {
   let format = schema.at("format", default: none)
   if format == none { return _pattern-check(schema, value, ctx) }
-  let row = _formats.at(format, default: none)
-  if row == none { _fail("string schema", _string-problem(format: format)) }
-  _format-check(row, schema, value, ctx)
+  _format-check(_formats.at(format), schema, value, ctx)
 }

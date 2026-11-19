@@ -33,12 +33,12 @@
 //     year-keyed object), so a decoded path is not always the one
 //     encoded, though both name the same place in the document.
 
+#import "error.typ": _fail, _problem
+
 // Order matters: `~1` → `/` first would let an `~1` token round-
 // trip wrong (e.g. `~01` should decode to `~1`, not `/0`). Encode
 // `~` first so subsequent `/` encodes don't see the new `~0` we
-// just introduced. Decode mirrors: `~1` before `~0`.
-#import "error.typ": _bail, _fail, _problem
-
+// just introduced. Decode (_read-pointer) mirrors: `~1` before `~0`.
 #let _escape-token(s) = s.replace("~", "~0").replace("/", "~1")
 
 // RFC 6901 only defines two escape sequences: `~0` and `~1`. A
@@ -73,8 +73,6 @@
   (path: path, bad: none)
 }
 
-// Convert a path tuple to an RFC 6901 JSON Pointer string. Empty
-// path → empty string (whole-document reference per spec).
 /// Writes a path as an RFC 6901 JSON Pointer: `("basics", "email")`
 /// becomes `"/basics/email"`. `()` becomes `""`. Panics on a segment that
 /// is not a `str` or a non-negative `int`.
@@ -91,40 +89,25 @@
   }
   if path.len() == 0 { return "" }
   let parts = path.map(seg => {
-    if type(seg) == str { _escape-token(seg) } else if type(seg) == int {
-      // RFC 6901 array-index ABNF is non-negative only — emitting
-      // "/-1" would round-trip back to the string "-1" (regex
-      // rejects the minus sign), silently breaking the round-trip
-      // property REFERENCE.md promises.
-      if seg < 0 {
-        _bail(
-          "path-to-pointer",
-          "expected a non-negative integer "
-            + "(RFC 6901 array indices), got: "
-            + str(seg)
-            + ".",
-        )
-      }
-      str(seg)
-    } else {
-      _bail(
-        "path-to-pointer",
-        "expected a str or int segment, got: "
-          + repr(seg)
-          + " ("
-          + repr(type(seg))
-          + ").",
-      )
+    if type(seg) == str { return _escape-token(seg) }
+    // RFC 6901's array-index ABNF is non-negative only: "/-1" would
+    // read back as the string "-1", breaking the round trip
+    // REFERENCE.md promises.
+    if type(seg) != int or seg < 0 {
+      _fail("path-to-pointer", _problem(
+        "path segment",
+        "a string or a non-negative integer (an RFC 6901 array index)",
+        repr(seg),
+      ))
     }
+    str(seg)
   })
   "/" + parts.join("/")
 }
 
-// Inverse. Empty string → empty path. A bare "/" decodes to a
-// single empty-string segment (RFC 6901: "/" means "the empty
-// string key at root"). Otherwise the pointer must start with "/".
 /// Reads an RFC 6901 JSON Pointer as a path: `"/work/0/highlights/1"`
-/// becomes `("work", 0, "highlights", 1)`. `""` becomes `()`. Panics on a
+/// becomes `("work", 0, "highlights", 1)`. `""` becomes `()`, and `"/"`
+/// the one empty-string key, `("",)`. Panics on a
 /// pointer that does not start with `/` or has a bad `~` escape.
 ///
 /// - pointer (str): The pointer.
@@ -135,21 +118,19 @@
   }
   if pointer == "" { return () }
   if not pointer.starts-with("/") {
-    _bail(
-      "pointer-to-path",
-      "expected \"\" or a pointer starting with \"/\", got: "
-        + repr(pointer)
-        + ".",
-    )
+    _fail("pointer-to-path", _problem(
+      "pointer",
+      "\"\" or a pointer starting with \"/\"",
+      repr(pointer),
+    ))
   }
   let read = _read-pointer(pointer)
   if read.bad != none {
-    _bail(
-      "pointer-to-path",
-      "got an invalid escape sequence in token: "
-        + repr(read.bad)
-        + ". RFC 6901 only allows `~0` (tilde) and `~1` (slash).",
-    )
+    _fail("pointer-to-path", _problem(
+      "pointer token",
+      "escaped only as RFC 6901 allows, `~0` (tilde) and `~1` (slash)",
+      repr(read.bad),
+    ))
   }
   read.path
 }

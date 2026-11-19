@@ -6,10 +6,9 @@
 // the schema check reads the registered kinds from it.
 
 #import "../core/error.typ": _bail, _problem, _fail, _key-names-problem
-#import "constraint.typ": _constrain
+#import "constraint.typ": _constrain, _value-problem
 #import "leaf.typ": null-type
-#import "format.typ": _string-problem
-#import "registry.typ": _kinds
+#import "registry.typ": _kinds, _object-problem
 
 // Whether `node` is a dictionary of a registered kind. Never panics, so
 // a search can ask it of any node it meets.
@@ -19,37 +18,73 @@
     and node.kind in _kinds
 )
 
-// A schema node: a dictionary whose `kind` is registered. Shallow, as
-// its children were checked when they were built. A string node whose
-// `format` the format table doesn't know, which only a hand-built node
-// can carry, panics here.
-#let _is-schema(node) = {
-  if type(node) == dictionary and node.at("kind", default: none) == "string" {
-    let p = _string-problem(format: node.at("format", default: none))
-    if p != none { _fail("string schema", p) }
+// What a schema check suggests to a caller who passed something else.
+#let _schema-hint = " Build schemas with the constructors."
+
+// The first malformed node in `node`, pre-order, as (path, problem), or
+// none: a node that is not a dictionary of a registered kind, or one
+// whose own fields its descriptor rejects (registry.typ). `path` is the
+// lens path to it from `node`. Never panics, so a search can ask it of
+// any value.
+//
+// Typst memoizes a call by hashing its arguments, which visits the whole
+// subtree, so this calls nothing else with the node: the descriptor's
+// fields and rows are checked inline. It takes the node alone and builds
+// the path on the way back up, so each subtree's verdict is memoized: a
+// subtree a constructor already checked, or one shared by several
+// parents (a union that repeats a member), is checked once.
+#let _schema-problem(node) = {
+  let kind = if type(node) == dictionary { node.at("kind", default: none) }
+  if type(kind) != str or kind not in _kinds {
+    return (
+      path: (),
+      problem: _problem(none, "a schema", repr(node), hint: _schema-hint),
+    )
   }
-  _has-kind(node)
+  let d = _kinds.at(kind)
+  let p = none
+  for (field, required, ok, must) in d.fields {
+    if field not in node {
+      if required { p = _problem("field " + repr(field), must, "missing") }
+    } else if ok != none and not ok(node.at(field)) {
+      p = _problem("field " + repr(field), must, repr(node.at(field)))
+    }
+    if p != none { break }
+  }
+  if p == none and d.problem != none { p = (d.problem)(node) }
+  for row in d.rows {
+    if p != none { break }
+    if row.field in node {
+      let must = _value-problem(row, node.at(row.field))
+      if must != none {
+        p = _problem("field " + repr(row.field), must, repr(node.at(row.field)))
+      }
+    }
+  }
+  if p != none { return (path: (), problem: p) }
+  for (seg, sub, _) in (d.children)(node) {
+    let found = _schema-problem(sub)
+    if found != none {
+      // A shadowed additional schema has no lens segment of its own.
+      let seg = if seg == none { "additionalProperties" } else { seg }
+      return (path: (seg,) + found.path, problem: found.problem)
+    }
+  }
 }
 
 // Whether `node` is an object schema: for the operations only an
 // object supports (the field edits, the allOf merge).
 #let _is-object(node) = node.kind == "object"
 
-// What a schema check suggests to a caller who passed something else.
-#let _schema-hint = " Build schemas with the constructors."
-
-// The one gate for a node entering from user code: a lens-put value, a
-// lens-over result, a constructor's sub-schema. A malformed node fails
-// here, naming what took it, not later as an unknown kind mid-walk.
+// The one gate for a node entering from user code: a run function's
+// schema, a lens-put value, a lens-over result, a constructor's
+// sub-schema. A malformed node fails here, naming what took it and
+// where in it the problem is, not later as a raw error mid-walk.
 #let _require-schema(node, who) = {
-  if not _is-schema(node) {
-    _fail(who, _problem(
-      none,
-      "a schema",
-      repr(node),
-      hint: _schema-hint,
-    ))
-  }
+  let found = _schema-problem(node)
+  if found == none { return }
+  let at = if found.path != () { " at " + repr(found.path) }
+  _fail(who + at, found.problem)
 }
 
 // The named parameters are the array rows' fields (constraint.typ),
@@ -95,13 +130,11 @@
   let members = if pos.len() == 1 and type(pos.first()) == array {
     pos.first()
   } else { pos }
-  if members.len() == 0 or not members.all(_is-schema) {
-    _fail(fn-name, _problem(
-      "members",
-      "a non-empty array of schemas",
-      repr(members),
-      hint: _schema-hint,
-    ))
+  if members.len() == 0 {
+    _fail(fn-name, _problem("members", "a non-empty array of schemas", "()"))
+  }
+  for (i, m) in members.enumerate() {
+    _require-schema(m, fn-name + " member " + str(i))
   }
   members
 }
@@ -205,41 +238,9 @@
 // rule: a malformed map always panics, and trigger / dependent keys
 // outside `shape` panic only when the object is closed.
 //
-// The argument shapes are checked by _object-problem, which the
-// translator words for its own keywords; whether the names are in
-// `shape` is object()'s alone.
-#let _object-problem(required-keys, dependent-required, additional) = {
-  let additional-ok = (
-    additional in (none, false, true) or _is-schema(additional)
-  )
-  if not additional-ok {
-    return _problem(
-      "additional",
-      "none, false, true, or a schema dict (built with the constructors)",
-      repr(additional),
-    )
-  }
-  // Checked whatever `additional` is: an open object reads the names as
-  // keys too, so a non-string one would pass here and fail at validation.
-  let p = _key-names-problem(required-keys, "required-keys")
-  if p != none { return p }
-  if type(dependent-required) != dictionary {
-    return _problem(
-      "dependent-required",
-      "a dictionary of key to array of keys",
-      repr(dependent-required),
-    )
-  }
-  for (trigger, dependents) in dependent-required {
-    let p = _key-names-problem(
-      dependents,
-      "dependent-required",
-      entry: trigger,
-    )
-    if p != none { return p }
-  }
-}
-
+// The argument shapes are checked by the registry's _object-problem,
+// which the translator words for its own keywords; whether the names
+// are in `shape` is object()'s alone.
 // object()'s body, its panics naming `who`: object() itself, or the
 // public function that builds or edits an object through it (map(),
 // a lens edit), so a bad argument is named as the caller's call spells
@@ -254,6 +255,9 @@
   }
   let p = _object-problem(required-keys, dependent-required, additional)
   if p != none { _fail(who, p) }
+  if type(additional) == dictionary {
+    _require-schema(additional, who + " additional")
+  }
   // A key listed twice is required once, so it is missing once.
   let required-keys = required-keys.dedup()
   let dependent-required = dependent-required
@@ -344,9 +348,9 @@
 )
 
 // `node` with `changes` applied, rebuilt through object() so every
-// edit keeps the constructor's invariants; a panic names `who`. A change to `additional:
-// none` or `dependent-required: (:)` drops that field, as object()
-// does.
+// edit keeps the constructor's invariants; a panic names `who`. A
+// change to `additional: none` or `dependent-required: (:)` drops that
+// field, as object() does.
 #let _object-with(node, who: "object()", ..changes) = {
   let s = (:..node, ..changes.named())
   let out = _object(

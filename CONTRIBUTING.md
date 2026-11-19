@@ -8,7 +8,7 @@ Typst Universe) running smoothly.
 
 Fork the repository, make your change on a branch, and open a pull request
 against `main`. Report security issues privately, as
-[`SECURITY.md`](SECURITY.md) describes, not as a PR or issue.
+[`SECURITY.md`](https://github.com/smur89/gairm-import/blob/main/SECURITY.md) describes, not as a PR or issue.
 
 ## Scope
 
@@ -22,7 +22,7 @@ outside a schema belong in an extension schema built by the caller (see
 
 ## Project layout
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the codemap, the layering
+See [ARCHITECTURE.md](https://github.com/smur89/gairm-import/blob/main/ARCHITECTURE.md) for the codemap, the layering
 rule and where to make each kind of change.
 
 ## Development loop
@@ -79,4 +79,4 @@ release and submits it to Typst Universe.
 
 ## Security
 
-See [`SECURITY.md`](SECURITY.md) for how to report a vulnerability.
+See [`SECURITY.md`](https://github.com/smur89/gairm-import/blob/main/SECURITY.md) for how to report a vulnerability.

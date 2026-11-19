@@ -125,11 +125,11 @@ work[]:
   resume-schema-strict,
   string(format: "date"),
 )
-// The 13 iso8601 $ref fields, and meta.lastModified's date member.
-#assert.eq(date-paths-strict.len(), 14)
-#assert(("meta", "lastModified", 1) in date-paths-strict)
-#assert(("work", "items", "startDate") in date-paths-strict)
-#assert(("certificates", "items", "date") in date-paths-strict)
+// The full-date member of each of the 13 iso8601 $ref fields.
+#assert.eq(date-paths-strict.len(), 13)
+#assert(date-paths-strict.all(p => p.last() == 0))
+#assert(("work", "items", "startDate", 0) in date-paths-strict)
+#assert(("certificates", "items", "date", 0) in date-paths-strict)
 #assert.eq(find-paths(resume-schema, string(format: "date")), ())
 
 // iso8601 $ref fields land as patterned strings in the faithful base
@@ -294,25 +294,18 @@ plain  string",
 
 // --- unions and `not` --------------------------------------------------
 
-// meta.lastModified is a date-time or date string in the
-// strict schema: its date member is found alongside the 13 iso8601
-// fields, and the union node itself is still found.
-#assert.eq(
-  find-paths(resume-schema-strict, string(format: "date-time")),
-  (("meta", "lastModified", 0),),
-)
-#assert(("meta", "lastModified") in find-paths(resume-schema-strict, any-of))
-#assert.eq(
-  lens-get(resume-schema-strict, ("meta", "lastModified", 0)).kind,
-  "string",
+// A strict date field is a full date or a partial one: the union node
+// is found, and lenses reach each member.
+#assert(
+  ("work", "items", "startDate") in find-paths(resume-schema-strict, any-of),
 )
 #assert.eq(
-  lens-get(resume-schema-strict, ("meta", "lastModified", 0)).format,
-  "date-time",
-)
-#assert.eq(
-  lens-get(resume-schema-strict, ("meta", "lastModified", 1)).format,
+  lens-get(resume-schema-strict, ("work", "items", "startDate", 0)).format,
   "date",
+)
+#assert.eq(
+  lens-get(resume-schema-strict, ("work", "items", "startDate", 1)).kind,
+  "string",
 )
 
 // `location` is one-of((str, object)): its free-text member and the
@@ -482,22 +475,16 @@ phone → email",
   "sean  string\nseán  number\n名前    string",
 )
 
-// The nullable query reads a union's shape, so a hand-built member is
-// searched past, not rebuilt, and a first member of no registered kind
-// is not a nullable.
-#for members in (
-  ((kind: "money"),),
-  ((kind: "money"), null-type),
-  ((a: 1), null-type),
-) {
-  assert.eq(
-    find-paths(
-      object((a: (kind: "union", members: members, exclusive: false))),
-      nullable,
-    ),
-    (),
-  )
-}
+// A hand-built union of nullable's shape is a nullable to the query.
+#assert.eq(
+  find-paths(
+    object((
+      a: (kind: "union", members: (string(), null-type), exclusive: false),
+    )),
+    nullable,
+  ),
+  (("a",),),
+)
 #assert.eq(find-paths(object((a: nullable(string()))), nullable), (("a",),))
 
 // string(pattern:) sets no `expected`, so a query by pattern alone finds

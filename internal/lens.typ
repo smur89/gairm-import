@@ -38,7 +38,7 @@
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": (
-  _require-schema, _is-schema, _is-object, _object-with, _rebuilt,
+  _require-schema, _has-kind, _is-object, _object-with, _rebuilt,
 )
 #import "kinds/walk.typ": _kind-label
 #import "core/error.typ": (
@@ -61,14 +61,16 @@
 }
 
 // What an argument is, for the order panic below.
-#let _what(x) = if _is-schema(x) { "a schema" } else if _is-location(x) {
+#let _what(x) = if _has-kind(x) { "a schema" } else if _is-location(x) {
   "a location"
 } else { "a " + str(type(x)) }
 
 // The schema and the path of a lens-get / lens-put / lens-over call.
-// Schema first: any other call panics naming what it got.
+// Schema first: any other call panics naming what it got, and a
+// malformed schema names the node at fault.
 #let _subject(a, b, op) = {
-  if _is-schema(a) and _is-location(b) {
+  if _has-kind(a) and _is-location(b) {
+    _require-schema(a, op + " schema")
     return (a, _location-path(b, op))
   }
   _bail(
@@ -122,6 +124,7 @@
     "lens-over",
   )
 }
+
 // The skeleton the object edits share: check the schema and the
 // location once, find the object at `at`, let `edit` check it and
 // return the fields to change (as object() names them), and write it

@@ -88,15 +88,13 @@
   ),
 )
 
-// JSON Schema `{}`: no constraint at all. A leaf, so nested values
-// pass through as given; in strict-null mode it takes null too.
+// JSON Schema `{}`. A leaf, so nested values are never walked.
 /// Any value, passed through to the model unchanged (nested values
 /// included). In `strict-null` mode it also accepts `null`.
 #let any-type = (kind: "any")
 
-// "Must be null or absent". By default a null is absent before any
-// kind sees it; in strict-null mode it reaches the check, which takes
-// it.
+// By default a null is absent before any kind sees it; in strict-null
+// mode it reaches the check, which takes it.
 /// `null` or an absent key. Any other value is an error.
 #let null-type = (kind: "null")
 
@@ -158,8 +156,10 @@
 
 #let _string-check = _typed-check((str,), "string")
 #let _bool-check = _typed-check((bool,), "boolean")
-#let _number-check = _typed-check((int, float), "number")
-#let _integer-gate = _typed-check((int, float), "integer")
+// A Typst `decimal` is a number too: JSON never gives one, but data
+// written in Typst may.
+#let _number-check = _typed-check((int, float, decimal), "number")
+#let _integer-gate = _typed-check((int, float, decimal), "integer")
 
 // The number gate, then the integral one: draft-7 semantics, so a
 // float with zero fractional part passes. The integral miss is
@@ -212,9 +212,9 @@
   } else { () }
 }
 
-// The check of a string with no format: the type gate, then the
-// node's own pattern, if it carries one. Pattern and hint travel on the schema node rather
-// than via the format table, since each instance is unique.
+// The check of a string with no format: the type gate, then the node's
+// own pattern, if it carries one. Pattern and hint travel on the schema
+// node rather than via the format table, since each instance is unique.
 #let _pattern-check(schema, value, ctx) = {
   if type(value) != str {
     return _type-miss(ctx.path, "string", value)

@@ -17,7 +17,7 @@
 #import "format.typ": string
 #import "structure.typ" as _structure-mod
 #import "structure.typ": (
-  array-of, object, map, any-of, one-of, not-of, if-of, nullable, _has-kind,
+  array-of, object, map, any-of, one-of, not-of, if-of, nullable,
 )
 
 #let _constructors = {
@@ -31,9 +31,7 @@
     union: (
       (any-of, s => not s.exclusive),
       (one-of, s => s.exclusive),
-      // A nullable's first member must be a schema nullable() could
-      // take; checked by kind, so a hand-built member is passed over.
-      (nullable, s => _is-nullable(s) and _has-kind(s.members.first())),
+      (nullable, _is-nullable),
     ),
     "not": (not-of,),
     "if": (if-of,),

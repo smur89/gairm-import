@@ -7,7 +7,7 @@
 // engine, the translator's reader, its allow-list and its enum/const
 // fold all read these rows, so a new keyword is one row.
 
-#import "../core/error.typ": _bail, _error, _expected-got, _problem, _fail
+#import "../core/error.typ": _error, _expected-got, _problem, _fail
 
 // Which raw values a keyword takes, as checks run in order; the first
 // that fails names what the value must be. A count may be a float with
@@ -52,20 +52,51 @@
   "<": (n, bound) => n < bound,
 )
 
-// Integers stay exact; floats compare the ratio with a tolerance, since
+// Every decimal lies strictly within ±2^96 and on a grid of 1e-28.
+#let _decimal-limit = calc.pow(2.0, 96)
+
+// A float as the decimal it is written as, so a decimal value compares
+// with it at its own precision: `str(1.6)` is "1.6", where `decimal(1.6)`
+// is the float's binary value, 1.60000000000000008…. None when no
+// decimal is that number: past ±2^96, or with more than 28 decimal
+// places. (`str` never writes an exponent.)
+#let _as-decimal(f) = {
+  if f.is-infinite() or calc.abs(f) >= _decimal-limit { return none }
+  let t = str(f)
+  if t.split(".").at(1, default: "").len() > 28 { return none }
+  decimal(t)
+}
+
+// A decimal `n` against a float bound under `op`, as the (n, op, bound)
+// to compare exactly. A bound a decimal is compares as one. One past
+// ±2^96 lies on the same side of every decimal as of 0, so 0 stands in
+// for `n`. One between two points of the 1e-28 grid moves to the point
+// below it, g: `n ≥ b` and `n > b` both read `n > g`, and `n ≤ b` and
+// `n < b` both read `n ≤ g`.
+#let _decimal-against(n, op, f) = {
+  let d = _as-decimal(f)
+  if d != none { return (n, op, d) }
+  if f.is-infinite() or calc.abs(f) >= _decimal-limit { return (0, op, f) }
+  // Its first 28 places, toward zero, then down one step if negative.
+  let (whole, places) = str(f).split(".")
+  let g = decimal(whole + "." + places.slice(0, 28))
+  if f < 0 { g -= decimal("0.0000000000000000000000000001") }
+  if op in ("≥", ">") { (n, ">", g) } else { (n, "≤", g) }
+}
+
+// An int or a decimal over an int or decimal multiple stays exact;
+// anything else compares the float ratio with a tolerance, since
 // calc.rem(0.3, 0.1) is not 0. A ratio too large for a float (1e308 /
 // 0.123...) is infinite, and no finite multiple: report it rather than
 // compare the NaN its rounding leaves.
 #let _multiple-test(mult, value) = {
-  // A schema bug, not a data error: the translator rejects it, but a
-  // hand-built node can carry it.
-  if mult <= 0 {
-    _bail(none, "multiple-of must be positive, got: " + str(mult) + ".")
+  let exact = if type(value) in (int, decimal) and type(mult) == int {
+    mult
+  } else if type(value) == decimal and type(mult) == float {
+    _as-decimal(mult)
   }
-  let off = if type(value) == int and type(mult) == int {
-    calc.rem(value, mult) != 0
-  } else {
-    let q = value / mult
+  let off = if exact != none { calc.rem(value, exact) != 0 } else {
+    let q = float(value) / mult
     q.is-infinite() or q.is-nan() or calc.abs(q - calc.round(q)) >= 1e-9
   }
   if off {
@@ -376,7 +407,11 @@
   if "test" in row { return (row.test)(bound, value) }
   let measure = _measures.at(row.family)
   let n = (measure.of)(value)
-  if not (_holds.at(row.op))(n, bound) {
+  // A decimal compares with an int, but not with a float.
+  let (m, op, b) = if type(n) == decimal and type(bound) == float {
+    _decimal-against(n, row.op, bound)
+  } else { (n, row.op, bound) }
+  if not (_holds.at(op))(m, b) {
     (
       message: _expected-got(
         measure.label + row.op + " " + str(bound),

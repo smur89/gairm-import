@@ -74,3 +74,38 @@
   type(coerce(schema-from-json-schema((type: "integer")), 1.0)),
   float,
 )
+
+// The recipe that drops formats outside the nine: the format goes, the
+// rest of the node stays, and a property named "format" is kept.
+#let checked = (
+  "date",
+  "date-time",
+  "time",
+  "uri",
+  "email",
+  "uuid",
+  "hostname",
+  "ipv4",
+  "ipv6",
+)
+#let drop-formats(js) = if type(js) == dictionary {
+  let js = js.pairs().map(((k, v)) => (k, drop-formats(v))).to-dict()
+  let f = js.at("format", default: none)
+  if type(f) == str and f not in checked { let _ = js.remove("format") }
+  js
+} else if type(js) == array { js.map(drop-formats) } else { js }
+#assert.eq(
+  schema-from-json-schema(drop-formats((
+    type: "object",
+    properties: (
+      link: (type: "string", format: "uri-reference", maxLength: 9),
+      when: (type: "string", format: "date"),
+      format: (type: "string"),
+    ),
+  ))),
+  object((
+    link: string(max-length: 9),
+    when: string(format: "date"),
+    format: string(),
+  )),
+)

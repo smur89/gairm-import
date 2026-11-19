@@ -24,6 +24,14 @@
 //                 the node as `of` with `mark` (a nullable as `X?`)
 //   bad-segment   (schema, segment) => the problem (error.typ) a lens
 //                 reports when the segment names no child
+//   fields        ((field, required, ok, must), ..): the node's own
+//                 fields the walk reads. `ok` judges a present value, or
+//                 is none for a sub-schema, which is checked as a schema
+//                 of its own; `must` says what the value must be
+//   rows          the constraint rows (constraint.typ) its fields may set
+//   problem       none, or schema => the problem (error.typ) with the
+//                 node's fields that `fields` can't state, or none.
+//                 structure.typ's _schema-problem reads all three
 //
 // The constructors that build each kind are listed in catalog.typ: they
 // sit above this registry, since their schema check reads its kinds.
@@ -32,15 +40,15 @@
   null-type, _leaf-walk, _string-check, _number-check, _integer-check,
   _bool-check, _null-check, _any-check, _enum-check,
 )
-#import "../core/error.typ": _a, _not-in, _problem
-#import "format.typ": _string-kind-check
+#import "../core/error.typ": _a, _not-in, _problem, _key-names-problem
+#import "constraint.typ": _constraint-rows
+#import "format.typ": _string-kind-check, _string-problem
 #import "walk.typ": (
   _array-walk, _object-walk, _union-walk, _not-walk, _if-walk, _kind-label,
 )
 
-// `nullable(X)`'s shape: an any-of of exactly X then null. Read off the
-// node rather than by rebuilding nullable(X), which would panic on a
-// hand-built member.
+// `nullable(X)`'s shape: an any-of of exactly X then null, read off the
+// node, since nullable() sits above this registry.
 #let _is-nullable(s) = (
   not s.exclusive and s.members.len() == 2 and s.members.last() == null-type
 )
@@ -52,8 +60,49 @@
 // The (segment, field) pairs of the parts `s` has.
 #let _if-present(s) = _if-parts.filter(((_, field)) => field in s)
 
+// `p` with its argument named as a node's field (`field "format"`), for
+// a problem a constructor's check words for its argument.
+#let _as-field(p) = if p != none and p.at("arg", default: none) != none {
+  (..p, arg: "field " + repr(p.arg))
+} else { p }
+
+// The problem (error.typ) with object()'s `required-keys`,
+// `dependent-required` and `additional` arguments, or none, which
+// object() and the translator word in their own terms. Whether the
+// names are in `shape` is object()'s alone, and whether a dictionary
+// `additional` is a schema is the schema check's.
+#let _object-problem(required-keys, dependent-required, additional) = {
+  if not (additional in (none, false, true) or type(additional) == dictionary) {
+    return _problem(
+      "additional",
+      "none, false, true, or a schema dict (built with the constructors)",
+      repr(additional),
+    )
+  }
+  // Checked whatever `additional` is: an open object reads the names as
+  // keys too, so a non-string one would pass here and fail at validation.
+  let p = _key-names-problem(required-keys, "required-keys")
+  if p != none { return p }
+  if type(dependent-required) != dictionary {
+    return _problem(
+      "dependent-required",
+      "a dictionary of key to array of keys",
+      repr(dependent-required),
+    )
+  }
+  for (trigger, dependents) in dependent-required {
+    let p = _key-names-problem(
+      dependents,
+      "dependent-required",
+      entry: trigger,
+    )
+    if p != none { return p }
+  }
+}
+
 // A leaf passes its `check`, constraint `family` and `model` (leaf.typ)
-// instead of a walk.
+// instead of a walk. A walked kind passes its `family` too, when it
+// takes constraint rows.
 #let _kind(
   searchable: true,
   children: s => (),
@@ -72,8 +121,13 @@
   check: none,
   family: none,
   model: v => v,
+  fields: (),
+  problem: none,
 ) = (
   walk: if check != none { _leaf-walk(check, family, model) } else { walk },
+  fields: fields,
+  rows: _constraint-rows.filter(row => row.family == family),
+  problem: problem,
   searchable: searchable,
   children: children,
   with-child: with-child,
@@ -92,6 +146,17 @@
   string: _kind(
     check: _string-kind-check,
     family: "string",
+    // Stored, a pattern and its message must be values: a null one
+    // would reach `match` (string() leaves an unset one out).
+    fields: (
+      ("pattern", false, v => type(v) in (regex, str), "a regex or a string"),
+      ("expected", false, v => type(v) == str, "a string"),
+    ),
+    problem: s => _as-field(_string-problem(
+      format: s.at("format", default: none),
+      pattern: s.at("pattern", default: none),
+      expected: s.at("expected", default: none),
+    )),
     suffix: s => (
       _kind-label(s) + if "pattern" in s { " + pattern" } else { "" }
     ),
@@ -110,6 +175,7 @@
   // The values inline, for at-a-glance debugging.
   enum: _kind(
     check: _enum-check,
+    fields: (("values", true, v => type(v) == array, "an array of values"),),
     suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
   ),
   // find-paths only walks through the two plain containers: every
@@ -117,6 +183,8 @@
   // than a question.
   array: _kind(
     walk: _array-walk,
+    family: "array",
+    fields: (("elem", true, none, "a schema"),),
     searchable: false,
     inline: true,
     children: s => (("items", s.elem, "[]"),),
@@ -135,6 +203,29 @@
   // the display-only key for "any other key".
   object: _kind(
     walk: _object-walk,
+    fields: (
+      (
+        "shape",
+        true,
+        v => type(v) == dictionary,
+        "a dictionary of field name to schema",
+      ),
+    ),
+    // object() reads `additional: false` as none and stores neither, so
+    // a node never holds false, which the walk would take for a schema.
+    problem: s => if s.at("additional", default: none) == false {
+      _problem(
+        "field \"additional\"",
+        "true or a schema (leave it out to reject other keys)",
+        "false",
+      )
+    } else {
+      _as-field(_object-problem(
+        s.at("required-keys", default: ()),
+        s.at("dependent-required", default: (:)),
+        s.at("additional", default: none),
+      ))
+    },
     searchable: false,
     children: s => {
       let required = s.at("required-keys", default: ())
@@ -184,6 +275,15 @@
   // went through any-of or one-of.
   union: _kind(
     walk: _union-walk,
+    fields: (
+      (
+        "members",
+        true,
+        v => type(v) == array and v != (),
+        "a non-empty array of schemas",
+      ),
+      ("exclusive", true, v => type(v) == bool, "true or false"),
+    ),
     children: s => s
       .members
       .enumerate()
@@ -208,6 +308,7 @@
   ),
   "not": _kind(
     walk: _not-walk,
+    fields: (("member", true, none, "a schema"),),
     // No header: the member's label, its lens segment, says it.
     children: s => (("not", s.member, "not"),),
     with-child: (s, _, sub) => (..s, member: sub),
@@ -221,6 +322,7 @@
   // the labels, the lens segments, say what each child is.
   "if": _kind(
     walk: _if-walk,
+    fields: (("cond", true, none, "a schema"),),
     children: s => _if-present(s).map(((seg, field)) => (
       seg,
       s.at(field),
@@ -240,9 +342,6 @@
   ),
 )
 
-// A node of a kind the registry doesn't know, or of no kind at all (both
-// hand-built), behaves as a leaf, as it did before the registry.
-#let _descriptor(s) = {
-  let kind = s.at("kind", default: none)
-  if type(kind) == str { _kinds.at(kind, default: _kind()) } else { _kind() }
-}
+// The descriptor of schema node `s`, which the entry points have checked
+// (structure.typ's _require-schema), so its kind is registered.
+#let _descriptor(s) = _kinds.at(s.kind)

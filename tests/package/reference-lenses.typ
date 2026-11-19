@@ -2,77 +2,74 @@
 // edits keep what they don't touch. The calls match REFERENCE.md; the
 // asserts are ours.
 #import "@preview/gairm-import:0.0.0": *
-#import "readme-json-resume.typ": resume-schema, resume-schema-strict
+#import "reference-schemas.typ": member, team
 
-// A renderer-specific top-level field.
-#let altacv-schema = add-field(
-  resume-schema,
-  (),
-  "focusAreas",
-  array-of(content-type),
-)
-#assert.eq(altacv-schema.additional, resume-schema.additional)
-#assert.eq(validate(altacv-schema, (focusAreas: ("a",), extra: 1)), ())
-// Spreading the shape into a new object closes the top level.
-#assert.ne(
-  validate(
-    object((..resume-schema.shape, focusAreas: array-of(content-type))),
-    (extra: 1),
-  ),
-  (),
-)
-
-// A numeric rating on every language entry.
-#let with-rating = add-field(
-  resume-schema,
-  ("languages", "items"),
-  "rating",
-  number(),
-)
-#assert.eq(lens-get(with-rating, ("languages", "items", "rating")), number())
-
-// Back to a plain-string summary in the strict schema.
+// A field a renderer adds.
+#let with-logo = add-field(team, (), "logo", string(format: "uri"))
+#assert.eq(lens-get(with-logo, ("logo",)), string(format: "uri"))
+#assert.eq(with-logo.required-keys, team.required-keys)
+// Splicing the shape into a new object drops the required keys.
 #assert.eq(
-  lens-get(resume-schema-strict, ("basics", "summary")).kind,
-  "content",
+  object((..team.shape, logo: string(format: "uri"))).required-keys,
+  (),
 )
-#let plain-summary = lens-put(
-  resume-schema-strict,
-  ("basics", "summary"),
-  string(),
-)
-#assert.eq(lens-get(plain-summary, ("basics", "summary")), string())
 
-// Spreading `meta` keeps its `additional`.
-#let with-extra-meta = lens-over(
-  resume-schema,
-  ("meta",),
-  meta => (..meta, shape: (..meta.shape, source: string())),
+// A role on every member, required.
+#let with-role = add-field(
+  team,
+  ("members", "items"),
+  "role",
+  enum-of(("lead", "dev")),
+  required: true,
 )
-#let meta = lens-get(with-extra-meta, ("meta",))
-#assert.eq(meta.shape.source, string())
-#assert.eq(meta.additional, lens-get(resume-schema, ("meta",)).additional)
+#assert.eq(
+  lens-get(with-role, ("members", "items")).required-keys,
+  ("name", "email", "role"),
+)
 
-// Require basics.name and basics.email, then relax email again.
-#let strict-basics = set-required(
-  resume-schema,
-  ("basics",),
-  (
-    "name",
-    "email",
-  ),
+// Members' names as content, so they splice into markup.
+#let content-names = lens-put(
+  team,
+  ("members", "items", "name"),
+  content-type,
 )
-#let name-only = unset-required(strict-basics, ("basics",), ("email",))
-#assert.eq(lens-get(strict-basics, ("basics",)).required-keys, (
+#assert.eq(
+  parse(content-names, (
+    name: "Core",
+    members: ((name: "Ada", email: "a@b.c"),),
+  )),
+  (name: "Core", members: ((name: [Ada], email: "a@b.c"),)),
+)
+
+// Spreading a member keeps everything it doesn't change.
+#let open-members = lens-over(
+  team,
+  ("members", "items"),
+  m => (..m, additional: true),
+)
+#let opened = lens-get(open-members, ("members", "items"))
+#assert.eq(opened.additional, true)
+#assert.eq(opened.shape, member.shape)
+#assert.eq(opened.dependent-required, member.dependent-required)
+
+// Require a member's joining date, then relax it again.
+#let dated = set-required(
+  team,
+  ("members", "items"),
+  ("name", "email", "joined"),
+)
+#let undated = unset-required(dated, ("members", "items"), ("joined",))
+#assert.eq(lens-get(dated, ("members", "items")).required-keys, (
   "name",
   "email",
+  "joined",
 ))
-#assert.eq(lens-get(name-only, ("basics",)).required-keys, ("name",))
+#assert.eq(undated, team)
 
 // A location is a path or `(lens: path)`, and paths join with `+`.
 #assert.eq(
-  lens-get(resume-schema, (lens: ("work",) + ("items", "highlights"))),
-  lens-get(resume-schema, ("work", "items", "highlights")),
+  lens-get(team, (lens: ("members",) + ("items", "tags"))),
+  lens-get(team, ("members", "items", "tags")),
 )
 
 // Every uri field to a corporate pattern.
@@ -80,12 +77,12 @@
   pattern: "^https://(corp|docs)\.example\.com/",
   expected: "a corporate URL",
 )
-#let corporate-schema = find-paths(
-  resume-schema,
-  string(format: "uri"),
-).fold(
-  resume-schema,
+#let corporate-schema = find-paths(team, string(format: "uri")).fold(
+  team,
   (schema, path) => lens-put(schema, path, corporate-uri),
 )
 #assert.eq(find-paths(corporate-schema, string(format: "uri")), ())
-#assert.eq(lens-get(corporate-schema, ("basics", "url")), corporate-uri)
+#assert.eq(
+  lens-get(corporate-schema, ("members", "items", "homepage")),
+  corporate-uri,
+)

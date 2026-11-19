@@ -3,10 +3,11 @@
 // and the enum / const fold that filters a value list by them.
 
 #import "../core/ctx.typ": _ctx
-#import "../core/error.typ": _json-type-name
+#import "../core/error.typ": _json-type-name, _problem
 #import "../engine.typ": _walk
 #import "../kinds/leaf.typ": number, integer, bool-type, null-type
-#import "../kinds/structure.typ": array-of, object, _object-problem
+#import "../kinds/structure.typ": array-of, object
+#import "../kinds/registry.typ": _object-problem
 #import "../kinds/format.typ": string, _string-problem
 #import "../kinds/constraint.typ": _read-constraints
 #import "keyword.typ": (
@@ -86,7 +87,7 @@
   }
   let props = if has-props { js.at("properties") } else { (:) }
   if type(props) != dictionary {
-    _bail("\"properties\" must be an object, got: " + repr(type(props)) + ".")
+    _bail-problem(_problem("properties", "an object", _json-type-name(props)))
   }
   let additional = if not has-ap {
     if ctx.open-objects { true } else { none }
@@ -175,9 +176,11 @@
   }
   let values = if "enum" in js { js.at("enum") } else { (js.at("const"),) }
   if type(values) != array {
-    _bail(
-      "\"enum\" must be an array of values, got: " + repr(type(values)) + ".",
-    )
+    _bail-problem(_problem(
+      "enum",
+      "an array of values",
+      _json-type-name(values),
+    ))
   }
   let by-type = ("string", "number", "array")
     .map(t => (t, _build(js, ctx, t, recur).node))
