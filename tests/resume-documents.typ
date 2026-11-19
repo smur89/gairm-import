@@ -132,19 +132,19 @@
 #assert.eq(validate(resume-schema, sample), ())
 #assert.eq(validate(resume-schema-strict, sample), ())
 
-// Strict meta.lastModified takes upstream's `YYYY-MM-DDThh:mm:ss` (which
-// the sample uses) or a bare date, and nothing else.
-#let with-modified(value) = (
+// Strict date fields take a full date (RFC 3339) or JSON Resume's
+// partial ones, and nothing else.
+#let with-start(value) = (
   basics: (name: "Jane Doe"),
-  meta: (lastModified: value),
+  work: ((name: "Acme", startDate: value),),
 )
-#for ok in ("2026-10-22T14:30:00", "2026-10-22T14:30:00Z", "2026-10-22") {
-  assert.eq(validate(resume-schema-strict, with-modified(ok)), ())
+#for ok in ("2026", "2026-10", "2026-10-22") {
+  assert.eq(validate(resume-schema-strict, with-start(ok)), ())
 }
-#for bad in ("2026-10-22 14:30", "yesterday") {
+#for bad in ("2026-13", "2026/10/22", "2026-10-22T14:30:00Z") {
   assert.eq(
-    validate(resume-schema-strict, with-modified(bad)).map(e => e.path),
-    (("meta", "lastModified"),),
+    validate(resume-schema-strict, with-start(bad)).map(e => e.path),
+    (("work", 0, "startDate"),),
   )
 }
 

@@ -18,6 +18,10 @@
   ),
 )
 
+// A partial date, or a time with no offset, is not one of the formats.
+#assert.eq(validate(string(format: "date"), "2024-01").len(), 1)
+#assert.eq(validate(string(format: "time"), "10:00:00").len(), 1)
+
 #let date = datetime(year: 2024, month: 1, day: 5)
 #let date-time = datetime(
   year: 2024,

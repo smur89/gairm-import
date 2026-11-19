@@ -303,16 +303,16 @@ check nothing, so a `null` there is kept.
 Upstream sets `additionalProperties: true` at the top level and on every
 section's items, so undeclared keys pass: a misspelt `positon` is kept
 rather than reported. Its date fields (`startDate`, `endDate`, `date`, …)
-are strings checked by its `iso8601` regex, and `meta.lastModified` is a
-plain string. For a stricter schema, edit the document before translating
-it and the schema after:
+are strings checked by its `iso8601` regex. For a stricter schema, edit
+the document before translating it and the schema after:
 
 - close every object that declares properties, so an undeclared key is an
   error. Typed extras (`additionalProperties` with a schema) still pass if
   they match, and the free-form `custom` objects, which declare none, stay
   open;
-- check the date fields as `format: "date"`, which also takes a Typst
-  `datetime`, and `meta.lastModified` as a date-time or a date;
+- check the date fields as a full date with `format: "date"`, which also
+  takes a Typst `datetime`, or as the year or year and month JSON Resume
+  allows;
 - make the free-text fields Typst `content`, so they splice into markup.
 
 <!-- x-release-please-start-version -->
@@ -334,11 +334,11 @@ it and the schema after:
 
 #let strict-json = {
   let js = close(json("resume.schema.json"))
-  js.definitions.iso8601 = (type: "string", format: "date")
-  js.properties.meta.properties.lastModified = (
+  // A full date, or the year and month JSON Resume also allows.
+  js.definitions.iso8601 = (
     anyOf: (
-      (type: "string", format: "date-time"),
       (type: "string", format: "date"),
+      (type: "string", pattern: "^[0-9]{4}(-(0[1-9]|1[0-2]))?$"),
     ),
   )
   js
