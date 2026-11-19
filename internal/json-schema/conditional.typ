@@ -109,8 +109,7 @@
   if "then" not in js and "else" not in js { return recur(siblings, ctx) }
   let plain = siblings.keys().filter(k => _role-of(k) != "annotation")
   let lone = plain == ()
-  let types = siblings.at("type", default: none)
-  let types = if type(types) == array { types } else { (types,) }
+  let types = _types(siblings)
   // Siblings that are only an object type, null allowed beside it.
   let typed = (
     plain == ("type",) and types.filter(t => t != "null").dedup() == ("object",)

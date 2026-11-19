@@ -2,9 +2,7 @@
 // Pointer. The dispatcher (translate.typ) follows a node's `$ref`, and
 // the merges (all-of.typ, conditional.typ) read a raw member's target.
 
-#import "../core/pointer.typ": (
-  _percent-decode, _read-pointer, _pointer-get, _escape-token,
-)
+#import "../core/pointer.typ": _percent-decode, _read-pointer, _pointer-get
 #import "keyword.typ": _bail, _json, _base-id, _bail-embedded-id, _into
 
 // The target of `ref`, a `$ref` on the node at `ctx`, as `(value, at,

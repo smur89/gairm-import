@@ -79,16 +79,14 @@
 
 // `at`, checked as a schema path. Panics, naming `who`, on anything
 // else: a schema by what it is rather than its repr, which can run to
-// pages, and a string with its one-key spelling. A schema in the path's
-// place of an edit that writes one is likely that one, passed first.
-#let _schema-path(at, who) = {
+// pages, with the caller's `hint`, and a string with its one-key
+// spelling.
+#let _schema-path(at, who, hint: none) = {
   if _is-path(at) { return at }
   let p = _array-problem(at, "path", "an array of path segments", "key")
   if _has-kind(at) {
     p.got = "a schema"
-    if who in ("schema-put", "add-field") {
-      p.hint = " The path comes before the schema to write."
-    }
+    p.hint = hint
   }
   _fail(who, p)
 }

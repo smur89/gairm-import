@@ -42,7 +42,7 @@
   _require-schema, _has-kind, _is-object, _object-with, _rebuilt,
 )
 #import "kinds/walk.typ": _kind-label
-#import "kinds/registry.typ": _nullable-hint
+#import "kinds/registry.typ": _nullable-hint, _is-map
 #import "core/error.typ": (
   _a, _bail, _fail, _problem, _not-in, _require-bool, _require-key-names,
 )
@@ -77,7 +77,12 @@
 #let _subject(a, b, op) = {
   if _has-kind(a) or (_is-path(b) and not _is-path(a)) {
     _require-schema(a, op + " schema")
-    return (a, _schema-path(b, op))
+    // A schema in the path's place of an edit that writes one is likely
+    // that one, passed first.
+    let hint = if op in ("schema-put", "add-field") {
+      " The path comes before the schema to write."
+    }
+    return (a, _schema-path(b, op, hint: hint))
   }
   _bail(
     op,
@@ -151,12 +156,9 @@
   if not _is-object(parent) {
     // An edit that takes the object's path, given a field's.
     let up = if takes-object and path != () { path.slice(0, -1) }
+    let above = if up != none { _get-at(schema, up, op) }
     let field-of = (
-      up != none
-        and {
-          let above = _get-at(schema, up, op)
-          _is-object(above) and path.last() in above.shape
-        }
+      above != none and _is-object(above) and path.last() in above.shape
     )
     _fail(op, _problem(
       "the node at " + repr(path),
@@ -222,19 +224,6 @@
           + repr(key)
           + " already in object shape. "
           + "Use schema-put / schema-update to replace an existing field.",
-      )
-    }
-    // A field by that name would shadow the additional schema in every
-    // schema path (registry.typ).
-    if (
-      key == "additionalProperties"
-        and type(parent.at("additional", default: none)) == dictionary
-    ) {
-      _bail(
-        "add-field",
-        "key \"additionalProperties\" would hide the object's schema for other keys from schema paths. To replace that schema, use schema-put(s, "
-          + repr(at + (key,))
-          + ", x).",
       )
     }
     // Checked as schema-put checks its node, so `additional: false`
@@ -326,7 +315,7 @@
           "Valid keys",
           parent.shape.keys(),
         )
-          // A key only required is no field: unset-required drops it.
+          // A key only required, or a map's value schema, is no field.
           + if key in parent.required-keys {
             (
               " It is only required: use unset-required(s, "
@@ -335,11 +324,7 @@
                 + repr(key)
                 + ",))."
             )
-          } else if (
-            // Nor is a map's value schema: its object drops it.
-            key == "additionalProperties"
-              and type(parent.at("additional", default: none)) == dictionary
-          ) {
+          } else if key == "additionalProperties" and _is-map(parent) {
             " To drop the additional schema, use schema-update on the object: o => (..o, additional: none)."
           } else { "" },
       )

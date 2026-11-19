@@ -20,12 +20,12 @@
   if _looks-like-json(data) {
     "does not take JSON text: decode it with json(bytes(..)), or read the file with read(.., encoding: none)."
   } else {
+    let shown = repr(data)
     (
-      "does not take a string path: inside a "
-        + "package it resolves from the package, not your project. Pass path("
-        + repr(data)
+      "does not take a string path: inside a package it resolves from the package, not your project. Pass path("
+        + shown
         + ") or json("
-        + repr(data)
+        + shown
         + ") instead."
     )
   },
@@ -55,7 +55,7 @@
 #let _refuse-path(fn-name, data, r) = {
   if (
     type(data) == str
-      and (_looks-like-path(data) or _looks-like-json(data))
       and r.errors.any(e => e.code == "type" and e.path == ())
+      and (_looks-like-path(data) or _looks-like-json(data))
   ) { _path-hint(fn-name, data) }
 }

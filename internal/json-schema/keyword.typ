@@ -204,8 +204,9 @@
 // composition keyword or `$ref` (checked before the `$ref` is resolved,
 // which would drop it), an unsupported keyword with a reason of its
 // own, a `then` / `else` with no `if` (draft 7 ignores them), an
-// embedded `$id`, then every unknown or outside-the-subset key at once (a typo like
-// `minLenght` included: draft 7 would ignore it), then a null value.
+// embedded `$id`, then every unknown or outside-the-subset key at once
+// (a typo like `minLenght` included: draft 7 would ignore it), then a
+// null value.
 #let _check-keywords(js, ctx) = {
   for (keyword, entry) in _keywords {
     if (

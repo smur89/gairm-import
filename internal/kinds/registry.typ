@@ -54,6 +54,10 @@
   _reported-kind,
 )
 
+// Whether object `s` has a schema for the keys it doesn't declare, as a
+// map does: the one a schema path enters as "additionalProperties".
+#let _is-map(s) = type(s.at("additional", default: none)) == dictionary
+
 // X when `s` is an any-of of exactly X and a null, in either order,
 // else none. The null is known by its kind, so an annotated one counts
 // too. Any node may be asked.
@@ -92,17 +96,6 @@
   (
     message: "needs a then or an otherwise branch; got neither. With no branch the condition checks nothing.",
   )
-} else {
-  // if-of() reads a none branch as no branch, and stores none.
-  let unset = ("then", "otherwise").find(f => s.at(f, default: 0) == none)
-  if unset != none {
-    _problem(
-      "field " + repr(unset),
-      "a schema",
-      "none",
-      hint: " Leave the field out for no branch.",
-    )
-  }
 }
 
 // `p` with its argument named as a node's field (`field "format"`), for
@@ -388,7 +381,7 @@
           // The steps a JSON Schema user, or a map's, is likely missing.
           + if seg == "properties" {
             " A schema path enters a field by its bare name, with no \"properties\" segment."
-          } else if type(s.at("additional", default: none)) == dictionary {
+          } else if _is-map(s) {
             " \"additionalProperties\" enters the schema for other keys."
           } else { "" },
       )
@@ -447,8 +440,12 @@
   // the labels, the path segments, say what each child is.
   "if": _kind(
     walk: _if-walk,
-    fields: (("cond", true, none, "a schema"),),
-    reads: ("then", "otherwise"),
+    // if-of() reads a none branch as no branch, and stores none.
+    fields: (
+      ("cond", true, none, "a schema"),
+      ("then", false, v => v != none, "a schema"),
+      ("otherwise", false, v => v != none, "a schema"),
+    ),
     problem: _if-problem,
     children: s => _if-present(s).map(((seg, field)) => (
       seg,
