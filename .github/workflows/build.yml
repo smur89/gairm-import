@@ -109,7 +109,7 @@ jobs:
       # Pinned by digest so a checker update (or a re-pushed tag) can't flip
       # the verdict on the same source; the tag is kept for readability.
       # Renovate bumps both.
-      PCHECK_IMAGE: ghcr.io/typst/package-check:0.6.0@sha256:97993f6cafed2d74442299b3f76f756fdaaadea284b178df47481d62adb8d8ef
+      PCHECK_IMAGE: ghcr.io/typst/package-check:0.7.0@sha256:713c0fd1d79258f6772802512259b5b06e744d3cc833ac2dcb34710a8a6d63ca
       # Stamped into the staged manifest so the directory matches what
       # @preview/<name>:<version> resolves to.
       PKG_VERSION: 0.0.0
