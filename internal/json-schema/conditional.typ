@@ -46,15 +46,16 @@
 // (`open-objects`, build.typ), so `{properties: {country: {const:
 // "US"}}}` holds for an address with more keys than `country`. An `if`
 // with neither branch checks nothing (draft 7), so the node translates
-// without it. The siblings translate once and join each branch. The
-// branches translate in a loop, not a `.map`, to spend no call depth.
+// without it, once its condition has been checked. The siblings
+// translate once and join each branch. The branches translate in a
+// loop, not a `.map`, to spend no call depth.
 #let _conditional(js, ctx, recur) = {
   let siblings = js
     .pairs()
     .filter(((k, _)) => k != "if" and _role-of(k) != "branch")
     .to-dict()
-  if "then" not in js and "else" not in js { return recur(siblings, ctx) }
   let cond = recur(js.at("if"), (.._into(ctx, "if"), open-objects: true))
+  if "then" not in js and "else" not in js { return recur(siblings, ctx) }
   let lone = siblings.keys().all(k => _role-of(k) == "annotation")
   let base = if not lone { recur(siblings, ctx) }
   let base-restricts = if not lone { _restricts-extras(siblings, ctx) }
