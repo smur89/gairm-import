@@ -6,8 +6,8 @@
 // the schema check reads the registered kinds from it.
 
 #import "../core/error.typ": _bail, _problem, _fail, _key-names-problem
-#import "constraint.typ": _constrain, _value-problem
-#import "leaf.typ": null-type
+#import "constraint.typ": _constrain, _value-problem, _bounds-problems
+#import "leaf.typ": null
 #import "registry.typ": _kinds, _object-problem
 
 // Whether `node` is a dictionary of a registered kind. Never panics, so
@@ -60,6 +60,19 @@
         p = _problem("field " + repr(row.field), must, repr(node.at(row.field)))
       }
     }
+  }
+  // Bounds no value meets, as the constructors refuse them: read off the
+  // kind and the bounds alone, not the node, whose hash is its subtree.
+  if p == none and d.rows != () {
+    let bounds = d
+      .rows
+      .filter(row => row.field in node)
+      .map(row => (row.field, node.at(row.field)))
+      .to-dict()
+    let b = _bounds-problems((kind: kind, ..bounds), row => (
+      "field " + repr(row.field)
+    ))
+    p = if b.problem != none { b.problem } else { b.gap }
   }
   if p != none { return (path: (), problem: p) }
   for (seg, sub, _) in (d.children)(node) {
@@ -169,7 +182,7 @@
 )
 
 // JSON Schema `[X, "null"]`. An any-of, not a kind of its own: in
-// strict-null mode the union walk hands a null to null-type, and in
+// strict-null mode the union walk hands a null to null(), and in
 // default mode a null is absent before any kind sees it, so this is X.
 /// A value that matches `member` or is `null`. Without `strict-null`
 /// every field already treats `null` as absent, so this is `member`;
@@ -180,7 +193,7 @@
 /// -> dictionary
 #let nullable(member) = {
   _require-schema(member, "nullable member")
-  any-of((member, null-type))
+  any-of((member, null()))
 }
 
 // JSON Schema `not` — the value must NOT match the negated schema.

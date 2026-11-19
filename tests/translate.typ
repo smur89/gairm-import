@@ -4,9 +4,9 @@
 // in tests/panics/.
 
 #import "../lib.typ": (
-  validate, coerce, schema-from-json-schema, bool-type, null-type, any-type,
-  array-of, object, enum-of, const-of, any-of, one-of, not-of, if-of, nullable,
-  number, string, describe-schema, integer,
+  validate, coerce, schema-from-json-schema, boolean, null, unknown, array-of,
+  object, enum-of, const-of, any-of, one-of, not-of, if-of, nullable, number,
+  string, describe-schema, integer,
 )
 
 #let T = schema-from-json-schema
@@ -20,8 +20,8 @@
   ((type: "string"), string()),
   ((type: "number"), number()),
   ((type: "integer"), integer()),
-  ((type: "boolean"), bool-type),
-  ((type: "null"), null-type),
+  ((type: "boolean"), boolean()),
+  ((type: "null"), null()),
   ((type: "array", items: (type: "string")), array-of(string())),
   (
     (type: "array", items: (type: "array", items: (type: "number"))),
@@ -110,7 +110,7 @@
   ),
   (
     (oneOf: ((type: "string"), (type: "boolean"))),
-    one-of((string(), bool-type)),
+    one-of((string(), boolean())),
   ),
   (("not": (type: "string")), not-of(string())),
   // if / then / else with no siblings: the branches as written, of any
@@ -130,27 +130,27 @@
       otherwise: number(),
     ),
   ),
-  (("if": (type: "string")), any-type),
+  (("if": (type: "string")), unknown()),
   ((type: "string", minLength: 2, "if": (minLength: 5)), string(min-length: 2)),
   (
     (anyOf: ((type: "string"), (oneOf: ((type: "number"), (type: "boolean"))))),
-    any-of((string(), one-of((number(), bool-type)))),
+    any-of((string(), one-of((number(), boolean())))),
   ),
   // No `type`: `{}` and annotations alone take any value; a keyword
   // narrows only its own type's member.
-  ((:), any-type),
-  ((title: "x", description: "anything"), any-type),
-  ((type: "array"), array-of(any-type)),
-  ((type: "array", minItems: 1), (..array-of(any-type), min-items: 1)),
+  ((:), unknown()),
+  ((title: "x", description: "anything"), unknown()),
+  ((type: "array"), array-of(unknown())),
+  ((type: "array", minItems: 1), (..array-of(unknown()), min-items: 1)),
   (
     (minLength: 2),
     any-of((
-      bool-type,
+      boolean(),
       object((:), additional: true),
-      array-of(any-type),
+      array-of(unknown()),
       number(),
       (..string(), min-length: 2),
-      null-type,
+      null(),
     )),
   ),
   // Every entry form: a dict, or bytes as Typst's decoders take.
@@ -179,7 +179,7 @@
 #assert.eq(T((type: "object", properties: (:))), object((:)))
 #assert.eq(
   T((type: "object", properties: (anything: (:)))).shape.anything,
-  any-type,
+  unknown(),
 )
 
 // ---- $ref ------------------------------------------------------------------
@@ -246,7 +246,7 @@
   utf8: string(),
   percent: string(),
   quote: number(),
-  tilde-space: bool-type,
+  tilde-space: boolean(),
   plain: integer(),
 ))
 
@@ -338,7 +338,7 @@
 // Draft 7: `{}` takes any value, and a type-specific keyword constrains
 // only values of its own type. Adapted from the JSON Schema test suite.
 
-#assert.eq(describe-schema(any-type), "any")
+#assert.eq(describe-schema(unknown()), "unknown")
 
 // One value of every JSON type, and some nesting.
 #let every-type = (
@@ -400,12 +400,12 @@
 }
 
 // `{}` coerces any value unchanged, a strict-mode null too.
-#assert.eq(coerce(any-type, (a: (1, none), b: "x")), (
+#assert.eq(coerce(unknown(), (a: (1, none), b: "x")), (
   a: (1, none),
   b: "x",
 ))
 #assert.eq(
-  coerce(object((x: any-type)), (x: none), strict-null: true),
+  coerce(object((x: unknown())), (x: none), strict-null: true),
   (x: none),
 )
 

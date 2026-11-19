@@ -6,8 +6,7 @@
 
 #import "internal/run.typ": validate, coerce, parse, format-errors
 #import "internal/kinds/leaf.typ": (
-  number, integer, content-type, bool-type, null-type, any-type, enum-of,
-  const-of,
+  number, integer, markup, boolean, null, unknown, enum-of, const-of,
 )
 #import "internal/kinds/format.typ": string
 #import "internal/kinds/structure.typ": (

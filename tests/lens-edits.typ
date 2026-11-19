@@ -9,19 +9,7 @@
 )
 #import "fixtures/resume.typ": resume-schema
 
-// ---- a lens or a path ------------------------------------------------------
-
 #let s = object((a: string(), b: string()), required-keys: ("a",))
-#assert.eq(
-  add-field(s, (), "c", number()),
-  add-field(s, (lens: ()), "c", number()),
-)
-#assert.eq(remove-field(s, (), "b"), remove-field(s, (lens: ()), "b"))
-#assert.eq(
-  set-required(s, (), ("a", "b")),
-  set-required(s, (lens: ()), ("a", "b")),
-)
-#assert.eq(unset-required(s, (), ("a",)), unset-required(s, (lens: ()), ("a",)))
 
 // ---- add-field and remove-field --------------------------------------------
 

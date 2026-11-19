@@ -44,7 +44,7 @@ name*    string",
 
 // The notation for nullable, not and `*` keys.
 #assert.eq(describe-schema(object((a: nullable(string())))), "a  string?")
-#assert.eq(describe-schema(object((a: not-of(null-type)))), "a:\n  not  null")
+#assert.eq(describe-schema(object((a: not-of(null())))), "a:\n  not  null")
 #assert.eq(describe-schema(map(number())), "*  number")
 #assert.eq(
   describe-schema(if-of(

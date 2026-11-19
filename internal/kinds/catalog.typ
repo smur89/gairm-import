@@ -12,7 +12,9 @@
 #import "../core/error.typ": _internal
 #import "registry.typ": _kinds, _is-nullable
 #import "leaf.typ" as _leaf-mod
-#import "leaf.typ": number, integer, enum-of, const-of
+#import "leaf.typ": (
+  number, integer, markup, boolean, null, unknown, enum-of, const-of,
+)
 #import "format.typ" as _format-mod
 #import "format.typ": string
 #import "structure.typ" as _structure-mod
@@ -25,6 +27,10 @@
     string: (string,),
     number: (number,),
     integer: (integer,),
+    markup: (markup,),
+    boolean: (boolean,),
+    "null": (null,),
+    unknown: (unknown,),
     enum: (enum-of, (const-of, s => s.values.len() == 1)),
     array: (array-of,),
     object: (object, map),
@@ -54,7 +60,7 @@
   }
 }
 
-// Every kind listed here is registered, every exported constant names a
+// Every kind listed here is registered, every exported schema value names a
 // registered kind, and every exported constructor is listed, so a new
 // kind can't miss its descriptor or its constructors.
 // `dictionary(module)` lists a module's names.

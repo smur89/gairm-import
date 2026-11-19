@@ -225,7 +225,7 @@
   additional: true,
 ))
 #assert(described-true.contains("*"))
-#assert(described-true.contains("any"))
+#assert(described-true.contains("unknown"))
 
 // lens-put rejects a replacement that is not a schema:
 // tests/panics/lens-put-value-not-schema.typ.

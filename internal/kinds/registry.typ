@@ -37,8 +37,8 @@
 // sit above this registry, since their schema check reads its kinds.
 
 #import "leaf.typ": (
-  null-type, _leaf-walk, _string-check, _number-check, _integer-check,
-  _bool-check, _null-check, _any-check, _enum-check,
+  null, _leaf-walk, _string-check, _number-check, _integer-check, _bool-check,
+  _null-check, _any-check, _enum-check,
 )
 #import "../core/error.typ": _a, _not-in, _problem, _key-names-problem
 #import "constraint.typ": _constraint-rows
@@ -50,7 +50,7 @@
 // `nullable(X)`'s shape: an any-of of exactly X then null, read off the
 // node, since nullable() sits above this registry.
 #let _is-nullable(s) = (
-  not s.exclusive and s.members.len() == 2 and s.members.last() == null-type
+  not s.exclusive and s.members.len() == 2 and s.members.last() == null()
 )
 
 // A conditional's children, as (segment, field): the lens segments are
@@ -192,16 +192,16 @@
     ),
   ),
   // The model wraps the string so it splices into markup.
-  content: _kind(check: _string-check, family: "string", model: v => [#v]),
+  markup: _kind(check: _string-check, family: "string", model: v => [#v]),
   number: _kind(check: _number-check, family: "number"),
   // A number with the integral gate; the number rows apply.
   integer: _kind(
     check: _integer-check,
     family: "number",
   ),
-  bool: _kind(check: _bool-check),
+  boolean: _kind(check: _bool-check),
   null: _kind(check: _null-check),
-  any: _kind(check: _any-check),
+  unknown: _kind(check: _any-check),
   // The values inline, for at-a-glance debugging.
   enum: _kind(
     check: _enum-check,
@@ -254,6 +254,7 @@
         s.at("required-keys", default: ()),
         s.at("dependent-required", default: (:)),
         s.at("additional", default: none),
+        keys: s.shape.keys(),
       ))
     },
     searchable: false,

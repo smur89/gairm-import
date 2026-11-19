@@ -44,8 +44,9 @@ whether JSON `null` is an absent key (off) or a value (on); see
 
 Each call checks the whole schema before it reads the data: an argument
 that is not a schema, or a hand-built node anywhere in it that is
-missing a field or holds one of the wrong shape, panics naming the path
-to that node. So does a `null` document. A string is checked as data;
+missing a field, holds one of the wrong shape, or breaks a rule its
+constructor enforces (bounds no value meets, a closed object requiring a
+key it does not declare), panics naming the path to that node. So does a `null` document. A string is checked as data;
 only when it ends in `.json` and the schema's root rejects its type does
 the call panic, with a hint to read the file with `path(..)`.
 
@@ -61,8 +62,8 @@ or `items`, and about 17 when every level is an `anyOf`.
 
 An error record is `(path, code, message, expected, got)`:
 
-- `path` is where in the document the problem is, as keys and array
-  indices (`("work", 0, "url")`); for a missing key (`required`,
+- `path` is where in the document the problem is, as a data path of keys
+  and array indices (`("work", 0, "url")`); for a missing key (`required`,
   `dependent`) it is the key that is missing, and `()` is the root. A
   missing key the object requires is reported once, as `required`, and
   never also as `dependent`; one it doesn't require gets a `dependent`
@@ -80,7 +81,7 @@ Branch on `code`, not on the message:
 | `type` | Wrong JSON type (also: an enum or union none of whose members takes that type) | The type name, or for an enum or union the names it takes joined by "or" (`"string or number"`) | The value's type name |
 | `required` | A required key is missing | | |
 | `unknown-key` | A key the object does not declare | The valid keys | The key |
-| `dependent` | A key required by another key's presence is missing | The missing key | The key that requires it |
+| `dependent` | A key required by another key's presence is missing | The rule broken, the trigger's entry: `(dependent-required: (card: ("billing",)))` | |
 | `enum` | Not one of the enum's values | The values | The value |
 | `format` | Not in the format's shape (date, email, …) | The format's description | The value |
 | `pattern` | Does not match the pattern | The pattern's description | The value |
@@ -105,10 +106,10 @@ quoting a key that is not a plain name in brackets (`["a.b"].c`,
 | Schema | Model |
 |---|---|
 | `string(..)` | the string. A Typst `datetime` becomes its ISO string: one with a date and no time in a `date` field, one with both in a `date-time` field; any other `datetime` is a `format` error (see [Formats](#formats)) |
-| `content-type` | the string as Typst `content` |
+| `markup()` | the string as Typst `content` |
 | `number(..)`, `integer(..)` | the number as given, an int, a float or a Typst `decimal`: an `integer` field keeps `1.0` as a float |
-| `bool-type`, `null-type`, `enum-of(..)`, `const-of(..)` | the value as given |
-| `any-type` | the value as given, nested values included |
+| `boolean()`, `null()`, `enum-of(..)`, `const-of(..)` | the value as given |
+| `unknown()` | the value as given, nested values included |
 | `array-of(..)` | each item's model; absent (null) items dropped |
 | `object(..)` | each declared key's model, absent keys dropped. Undeclared keys are dropped, passed through as given (`additional: true`), or modelled by the `additional` schema. A free-form object (no fields, `additional: true`) is kept as given, nulls included |
 | `any-of(..)`, `one-of(..)` | the model of the first member that matches; when none matches but exactly one member takes the value's type, that member's model, as `coerce` would build it alone |
@@ -140,6 +141,16 @@ built.
 | `nullable(member)` | | `null` or a value `member` accepts (see [Null handling](README.md#null-handling)) |
 | `enum-of(values)` | | one of `values`, which may mix types |
 | `const-of(value)` | | `value` only; the same as `enum-of((value,))` |
+| `boolean()` | | `true` or `false` |
+| `null()` | | `null`, or an absent key |
+| `markup()` | | a string, returned as Typst `content` so it splices into markup |
+| `unknown()` | | any value, passed through unchanged (JSON Schema `{}`) |
+
+Every schema is a function call, named after the JSON Schema type it
+checks where that name is free: `string()`, `boolean()`, `null()`. A name
+Typst already uses gets another: an array is `array-of(..)`, a string
+returned as content `markup()`, any value `unknown()`. The combinators
+end in `-of`, since `not` and `if` are Typst keywords.
 
 - `min-length` and `max-length` count characters as grapheme clusters.
 - `format` takes one of the nine names under [Formats](#formats).
@@ -165,11 +176,6 @@ built.
   keys that must be present whenever it is; a key listed twice counts
   once. A key holding `null` counts as absent for both unless
   `strict-null` is on.
-
-Four kinds take no arguments and are constants: `content-type` (a string,
-returned as Typst `content` so it splices into markup), `bool-type`,
-`null-type` (`null` or an absent key) and `any-type` (any value, passed
-through unchanged).
 
 ```typst
 #let member = object(
@@ -243,8 +249,10 @@ with `^…$` for a full-string match.
 
 ## Lenses and edits
 
-A *location* names one node in a schema: a path array, or `(lens: path)`.
-Every function below takes either. A path's segments are:
+A *schema path* names one node in a schema, as an array of segments.
+It is not a *data path*, the keys and indices an error record's `path`
+holds, which name a place in the document. Every function below takes a
+schema path. Its segments are:
 
 | Segment | Enters |
 |---|---|
@@ -309,7 +317,7 @@ The examples edit `team`, a schema built on `member` from
 #let content-names = lens-put(
   team,
   ("members", "items", "name"),
-  content-type,
+  markup(),
 )
 
 // Spreading a member keeps everything it doesn't change.
@@ -409,7 +417,7 @@ else  number
 `find-paths(schema, query)` lists the path of every node matching
 `query`, inside union, `not-of` and `if-of` members too, sorted as above.
 The paths use the segments under [Lenses and edits](#lenses-and-edits), so
-they work wherever a location does. A query is:
+they work wherever a schema path does. A query is:
 
 - a schema node, which matches the nodes of its kind that have every field
   the query sets, with the same value: `string()` finds every string,
@@ -453,8 +461,8 @@ with `lens-over` on its object.
 ```
 
 An error record's `path` addresses the **data**, so its pointer is one any
-JSON Pointer tool can resolve against the document. A lens or
-`find-paths` path addresses the **schema**, in this package's own
+JSON Pointer tool can resolve against the document. A schema path, as
+the lenses and `find-paths` use, addresses the **schema**, in this package's own
 segments, and encodes segment for segment: `("basics", "email")` becomes
 `/basics/email` and `("work", "items")` becomes `/work/items`. That is
 neither a data pointer nor a JSON Schema location, which would read
@@ -491,7 +499,7 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   other array becomes an `any-of` with one member per type (`null` last),
   each type-specific keyword applying only to its own type's member.
 - No `type`: a node with no type-specific keyword (`{}`, or annotations
-  only) is `any-type`. With type-specific keywords (`{minLength: 2}`) it is
+  only) is `unknown()`. With type-specific keywords (`{minLength: 2}`) it is
   an `any-of` over boolean, object, array, number, string and null, each
   keyword narrowing only its own type's member; the object member is open
   unless the node has `properties` or `additionalProperties`.

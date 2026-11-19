@@ -99,7 +99,7 @@
 )
 
 // A null reaches a type check only in strict-null mode, where every
-// kind but null-type rejects it ("got null").
+// kind but null() rejects it ("got null").
 #let _type-name-of(value) = {
   if value == none { return "null" }
   let raw = repr(type(value))

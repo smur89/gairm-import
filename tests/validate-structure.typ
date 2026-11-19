@@ -4,8 +4,8 @@
 // just resume-schema.
 
 #import "../lib.typ": (
-  validate, schema-from-json-schema, content-type, bool-type, null-type,
-  array-of, object, string, number, integer,
+  validate, schema-from-json-schema, markup, boolean, null, array-of, object,
+  string, number, integer,
 )
 
 // The errors for `value` under key `k`, so every path starts at ("k",).
@@ -15,16 +15,16 @@
 
 #for (schema, value) in (
   (string(), "hi"),
-  (content-type, "summary text"),
+  (markup(), "summary text"),
   (number(), 42),
   (number(), 3.14),
   // integer(): draft 7 semantics, any number with a zero fractional
   // part, so float 2.0 passes.
   (integer(), 42),
   (integer(), 2.0),
-  (bool-type, true),
-  (bool-type, false),
-  (null-type, none),
+  (boolean(), true),
+  (boolean(), false),
+  (null(), none),
   (array-of(string()), ("a", "b", "c")),
 ) {
   assert.eq(at("f", schema, value), (), message: repr((schema, value)))
@@ -37,8 +37,8 @@
   (integer(), 1.5, "expected an integer"),
   // A non-number fails the number gate before the integral one.
   (integer(), "nope", "expected integer, got string"),
-  (bool-type, "yes", "expected boolean, got string"),
-  (null-type, 1, "expected null"),
+  (boolean(), "yes", "expected boolean, got string"),
+  (null(), 1, "expected null"),
   (array-of(string()), "oops", "expected array"),
   (object((a: string())), "oops", "expected object"),
 ) {
@@ -96,10 +96,10 @@
 // The engine walks any schema: a hand-built extension schema, not part
 // of JSON Resume, validates like resume-schema does.
 #let extension-schema = object((
-  greeting: content-type,
+  greeting: markup(),
   rating: number(),
   recipients: array-of(string()),
-  details: object((title: string(), bullets: array-of(content-type))),
+  details: object((title: string(), bullets: array-of(markup()))),
 ))
 #assert.eq(
   validate(extension-schema, (

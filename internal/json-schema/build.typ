@@ -5,7 +5,7 @@
 #import "../core/ctx.typ": _ctx
 #import "../core/error.typ": _json-type-name, _problem
 #import "../engine.typ": _walk
-#import "../kinds/leaf.typ": number, integer, bool-type, null-type
+#import "../kinds/leaf.typ": number, integer, boolean, null
 #import "../kinds/structure.typ": array-of, object
 #import "../kinds/registry.typ": _object-problem
 #import "../kinds/format.typ": string, _string-problem
@@ -134,8 +134,8 @@
   integer: (..) => integer(),
   array: _array-base,
   object: _object-base,
-  boolean: (..) => bool-type,
-  "null": (..) => null-type,
+  boolean: (..) => boolean(),
+  "null": (..) => null(),
 )
 
 // Reads the constraint keywords for JSON type `t` onto `node`, bailing

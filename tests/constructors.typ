@@ -5,13 +5,13 @@
 
 #import "../lib.typ": (
   string, number, integer, array-of, schema-from-json-schema, validate, coerce,
-  object, find-paths, content-type, if-of,
+  object, find-paths, markup, if-of,
 )
 
 // ---- the nodes ---------------------------------------------------------
 
 #assert.eq(string(), (kind: "string"))
-#assert.eq(content-type, (kind: "content"))
+#assert.eq(markup(), (kind: "markup"))
 #assert.eq(number(), (kind: "number"))
 #assert.eq(array-of(string()), (kind: "array", elem: (kind: "string")))
 #assert.eq(

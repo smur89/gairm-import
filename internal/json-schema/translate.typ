@@ -11,7 +11,7 @@
 #import "../core/error.typ": _json-type-name, _problem
 #import "../core/input.typ": _decode-input
 #import "../core/pointer.typ": _percent-decode, _read-pointer, _pointer-get
-#import "../kinds/leaf.typ": any-type, enum-of
+#import "../kinds/leaf.typ": unknown, enum-of
 #import "../kinds/structure.typ": any-of, one-of, not-of
 #import "keyword.typ": (
   _bail, _bail-problem, _check-keywords, _check-keywords-typed,
@@ -200,7 +200,7 @@
     _untyped-types
   } else {
     // No type-specific keyword: any value.
-    return any-type
+    return unknown()
   }
   // Untyped, an object with no `properties` or `additionalProperties`
   // is open, where `type: "object"` bails.

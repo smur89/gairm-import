@@ -54,17 +54,12 @@
   _nodes(s).filter(((_, n)) => keep(n)).map(((p, _)) => p)
 )
 
-// A location: where lens and introspection functions point. A lens
-// `(lens: path)`, or a bare path array. Neither is a schema node: an
-// array is not a dictionary, and a lens has no `kind`.
-#let _is-lens(x) = (
-  type(x) == dictionary and x.keys() == ("lens",) and type(x.lens) == array
-)
-#let _is-location(x) = type(x) == array or _is-lens(x)
+// A schema path: where lens and introspection functions point, as an
+// array of segments. Never a schema node, which is a dictionary.
+#let _is-path(x) = type(x) == array
 
-// The path a location names. Panics, naming `who`, on anything else.
-#let _location-path(at, who) = {
-  if type(at) == array { return at }
-  if _is-lens(at) { return at.lens }
-  _fail(who, _problem("location", "a lens or a path array", repr(at)))
+// `at`, checked as a schema path. Panics, naming `who`, on anything else.
+#let _schema-path(at, who) = {
+  if _is-path(at) { return at }
+  _fail(who, _problem("path", "an array of path segments", repr(at)))
 }

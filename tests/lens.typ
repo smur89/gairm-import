@@ -1,5 +1,4 @@
-// Lenses: a location in a schema, as `(lens: path)` or the bare path
-// array, read with lens-get, replaced with lens-put, mapped with
+// Lenses: a schema path, an array of segments, read with lens-get, replaced with lens-put, mapped with
 // lens-over. Each takes the schema first, so
 // edits pipe through `.fold`. A segment enters an object field, an
 // array's "items", an object's "additionalProperties", a union member
@@ -7,15 +6,14 @@
 // branches by "if", "then" and "else".
 
 #import "../lib.typ": (
-  lens-get, lens-put, lens-over, find-paths, validate, object, array-of,
-  content-type, any-of, one-of, not-of, if-of, schema-from-json-schema, string,
-  number,
+  lens-get, lens-put, lens-over, find-paths, validate, object, array-of, markup,
+  any-of, one-of, not-of, if-of, schema-from-json-schema, string, number,
 )
 #import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
-// ---- the lens ----------------------------------------------------------
+// ---- the path ----------------------------------------------------------
 
-#let name = (lens: ("basics", "name"))
+#let name = ("basics", "name")
 
 // ---- lens-get --------------------------------------------------------------
 
@@ -26,7 +24,6 @@
 #assert("name" in basics.shape)
 // The empty path is the identity.
 #assert.eq(lens-get(resume-schema, ()), resume-schema)
-#assert.eq(lens-get(resume-schema, (lens: ())), resume-schema)
 
 // "items" enters an array's elements: ("work", "items", "highlights")
 // is the highlights field of each work entry.
@@ -44,12 +41,12 @@
 
 // ---- lens-put and lens-over ------------------------------------------------
 
-#let widened = lens-put(resume-schema, name, content-type)
-#assert.eq(lens-get(widened, name), content-type)
-#assert.eq(lens-put(resume-schema, ("basics", "name"), content-type), widened)
-#assert.eq(lens-over(resume-schema, name, _ => content-type), widened)
+#let widened = lens-put(resume-schema, name, markup())
+#assert.eq(lens-get(widened, name), markup())
+#assert.eq(lens-put(resume-schema, ("basics", "name"), markup()), widened)
+#assert.eq(lens-over(resume-schema, name, _ => markup()), widened)
 #assert.eq(
-  lens-over(resume-schema, ("basics", "name"), _ => content-type),
+  lens-over(resume-schema, ("basics", "name"), _ => markup()),
   widened,
 )
 // Siblings survive untouched, and the original is unchanged.
@@ -60,22 +57,22 @@
 // The identity lens replaces the whole schema, for call sites that take
 // a lens generically but sometimes mean "the whole schema".
 #assert.eq(lens-put(resume-schema, (), string()), string())
-#assert.eq(lens-over(resume-schema, (lens: ()), _ => string()), string())
+#assert.eq(lens-over(resume-schema, (), _ => string()), string())
 
 // A put through an array replaces the element's field and keeps the
 // array and object wrappers.
 #let rich = lens-put(
   resume-schema,
   ("work", "items", "highlights", "items"),
-  content-type,
+  markup(),
 )
 #assert.eq(rich.shape.work.kind, "array")
 #assert.eq(rich.shape.work.elem.kind, "object")
-#assert.eq(rich.shape.work.elem.shape.highlights, array-of(content-type))
+#assert.eq(rich.shape.work.elem.shape.highlights, array-of(markup()))
 
 // The extension use case from #26: add `rating` to every language entry,
 // a deep edit into languages' items. Only the lensed node changes.
-#let language-items = (lens: ("languages", "items"))
+#let language-items = ("languages", "items")
 #let with-rating = lens-over(
   resume-schema,
   language-items,
@@ -116,10 +113,10 @@
 #for (at, value, field, node) in (
   (
     ("place", 0),
-    content-type,
+    markup(),
     "place",
     one-of((
-      content-type,
+      markup(),
       object((city: string())),
     )),
   ),
@@ -131,19 +128,19 @@
   ),
   (
     ("place", 1, "city"),
-    content-type,
+    markup(),
     "place",
     one-of((
       string(),
-      object((city: content-type)),
+      object((city: markup())),
     )),
   ),
   (("other", "not"), string(), "other", not-of(string())),
   (
     ("cond", "if"),
-    content-type,
+    markup(),
     "cond",
-    if-of(content-type, then: object((b: string())), otherwise: number()),
+    if-of(markup(), then: object((b: string())), otherwise: number()),
   ),
   (
     ("cond", "then"),
@@ -153,9 +150,9 @@
   ),
   (
     ("cond", "then", "b"),
-    content-type,
+    markup(),
     "cond",
-    if-of(string(), then: object((b: content-type)), otherwise: number()),
+    if-of(string(), then: object((b: markup())), otherwise: number()),
   ),
   (
     ("cond", "else"),
@@ -206,9 +203,9 @@
     lens-put(
       resume-schema-strict,
       ("work", "items", "location", 0),
-      content-type,
+      markup(),
     ),
     ("work", "items", "location", 0),
   ).kind,
-  "content",
+  "markup",
 )

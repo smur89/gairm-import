@@ -4,7 +4,7 @@
 // from it (tests/package/readme-json-resume.typ asserts the README's
 // recipe builds these same two schemas).
 // Not a test itself: the fixture tests import it.
-#import "../../lib.typ": schema-from-json-schema, lens-put, content-type
+#import "../../lib.typ": schema-from-json-schema, lens-put, markup
 
 #let resume-schema = schema-from-json-schema(json("jsonresume-schema.json"))
 
@@ -51,5 +51,5 @@
 
 #let resume-schema-strict = content-paths.fold(
   schema-from-json-schema(_strict-json),
-  (schema, at) => lens-put(schema, at, content-type),
+  (schema, at) => lens-put(schema, at, markup()),
 )

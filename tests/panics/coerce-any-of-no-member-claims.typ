@@ -1,3 +1,3 @@
 // expect: coerce at a: expected a value matching one of the union alternatives, got integer.
-#import "../../lib.typ": any-of, bool-type, coerce, object, string
-#coerce(object((a: any-of((string(), bool-type)))), (a: 1))
+#import "../../lib.typ": any-of, boolean, coerce, object, string
+#coerce(object((a: any-of((string(), boolean())))), (a: 1))

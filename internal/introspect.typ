@@ -111,7 +111,7 @@
   // condition and branches. `additional: true` shows as `* any`.
   let rows = _children(schema).map(((_, sub, label)) => _row(label, sub))
   if schema.at("additional", default: none) == true {
-    rows.push((label: "*", text: "any"))
+    rows.push((label: "*", text: "unknown"))
   }
   let aligned = rows.filter(r => "text" in r or r.head != none)
   let col = if aligned == () { 0 } else {
@@ -182,7 +182,7 @@
 
 /// Lists the lens path of every node in `schema` that matches `query`,
 /// including inside union and `not` members and a conditional's
-/// condition and branches. The paths work wherever a location does.
+/// condition and branches. The paths work wherever a schema path does.
 /// Panics for `object` and `array`, which the search walks through, and
 /// for anything that is not a schema or a constructor.
 ///
