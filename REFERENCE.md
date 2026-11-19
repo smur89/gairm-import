@@ -59,7 +59,10 @@ An error record is `(path, code, message, expected, got)`:
 Pointer. Each call checks the whole schema before it reads the data: an
 argument that is not a schema, or a hand-built node anywhere in it that
 is missing a field or holds one of the wrong shape, panics naming the
-path to that node. So does a `null` document. A string is checked as data; only when it
+path to that node. So does a `null` document. `format-errors` and
+`parse`'s report write a path as `work[0].url`, quoting a key that is not
+a plain name in brackets (`["a.b"].c`, `[""]`), so no two paths read
+alike. A string is checked as data; only when it
 ends in `.json` and the schema's root rejects its type does the call
 panic, with a hint to read the file with `path(..)`.
 
@@ -485,7 +488,9 @@ Each of these panics with a message naming it:
 - boolean schemas (`properties: {a: true}`, `items: false`) and the array
   form of `items`;
 - `$ref` outside the document, to the root (`#`), to a named
-  anchor, or in a cycle;
+  anchor, or one that refers back to itself: a translated schema is a
+  finite tree, so a recursive schema (a tree of nodes, a list of lists)
+  cannot be translated;
 - formats other than the nine;
 - `allOf` with non-object members or with closed members that declare
   different properties, and the same of `if` / `then` / `else` beside
