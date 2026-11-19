@@ -32,9 +32,9 @@
 //
 // Every edit keeps the constructors' invariants. The node `lens-put`
 // writes, or `lens-over`'s function returns, must be a schema (checked
-// shallowly: its children were checked when it was built), and an
-// edited object, the written node or any object above it, is rebuilt
-// through object(). Build replacements with the constructors.
+// whole, as every entry point checks one), and an edited object, the
+// written node or any object above it, is rebuilt through object().
+// Build replacements with the constructors.
 
 #import "kinds/traverse.typ": _get-at, _set-at, _is-location, _location-path
 #import "kinds/structure.typ": (
@@ -130,7 +130,7 @@
 // return the fields to change (as object() names them), and write it
 // back rebuilt through object().
 #let _edit-object(schema, at, op, edit) = {
-  _require-schema(schema, op + "'s first argument")
+  _require-schema(schema, op + " schema")
   let path = _location-path(at, op)
   let parent = _get-at(schema, path, op)
   if not _is-object(parent) {
@@ -140,6 +140,9 @@
       _a(_kind-label(parent)) + " schema",
     ))
   }
+  // A hand-built object may leave `required-keys` out, as object() never
+  // does: the edits read it with its default.
+  let parent = (required-keys: (), ..parent)
   _set-at(schema, path, _object-with(parent, who: op, ..edit(parent)), op)
 }
 
