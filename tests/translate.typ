@@ -102,6 +102,8 @@
   ((enum: ((1,), (1, 2), (3,)), minItems: 2), enum-of(((1, 2),))),
   ((const: 5, minimum: 4), const-of(5)),
   ((enum: (1, "x", true, none), minimum: 4), enum-of(("x", true, none))),
+  // With both, a value must be in the enum and equal the const.
+  ((enum: (1, 2), const: 2), const-of(2)),
   // anyOf / oneOf / not, nested too.
   (
     (anyOf: ((type: "string"), (type: "number"))),
@@ -112,6 +114,12 @@
     one-of((string(), boolean())),
   ),
   (("not": (type: "string")), not-of(string())),
+  // `not` is only a test, like `if`: every object in it with no
+  // `additionalProperties` is open, as draft 7 reads it.
+  (
+    ("not": (type: "object", properties: (a: (type: "object")))),
+    not-of(object((a: object((:), additional: true)), additional: true)),
+  ),
   // if / then / else with no siblings: the branches as written, of any
   // kind; `if` with neither branch is dropped (draft 7 checks nothing).
   (
@@ -327,6 +335,15 @@
     ),
     (:),
     object((a: string()), additional: number()),
+  ),
+  // `additionalProperties: {}` takes any value, so it is `true`.
+  (
+    (
+      obj((a: (type: "string")), additionalProperties: (:)),
+      obj((b: (type: "number")), additionalProperties: true),
+    ),
+    (:),
+    object((a: string(), b: number()), additional: true),
   ),
 ) {
   assert.eq(T((allOf: members, ..extra)), node, message: repr(members))
@@ -576,6 +593,40 @@
   )).then,
   object((a: string(), b: number()), additional: true),
 )
+// Siblings that are only `type: "object"` add nothing to a branch, so
+// a closed branch stands alone rather than merging with an open object.
+#let closed-ab(p) = (
+  properties: ((p): (type: "string")),
+  additionalProperties: false,
+)
+#assert.eq(
+  T((
+    type: "object",
+    description: "a or b",
+    "if": (required: ("a",)),
+    then: closed-ab("a"),
+    "else": closed-ab("b"),
+  )),
+  if-of(
+    T((required: ("a",), additionalProperties: true)),
+    then: object((a: string())),
+    otherwise: object((b: string())),
+  ),
+)
+
+// `not` reads its objects open, as draft 7 does: an object with more
+// keys than the ones it names still matches, so `not` rejects it.
+#let not-legacy = T((
+  "not": (
+    type: "object",
+    properties: (kind: (const: "legacy")),
+    required: ("kind",),
+  ),
+))
+#assert.eq(codes(validate(not-legacy, (kind: "legacy", id: 7))), (
+  ((), "not"),
+))
+#assert.eq(validate(not-legacy, (kind: "current", id: 7)), ())
 
 // Nesting: the translator's recursion spends as few call frames per level
 // as the walk does, so a schema it translates is one validate can walk.
@@ -587,3 +638,31 @@
   anyOf: ((type: "object", properties: (a: j)), (type: "null")),
 )))
 #assert.eq(deep-any.kind, "union")
+// An `allOf` or an `if` with siblings costs what an `anyOf` does, a
+// lone `if` what `properties` does, and a `$ref` nothing.
+#let deep-all-of = T(nested(15, j => (
+  allOf: ((type: "object", properties: (a: j)),),
+)))
+#assert.eq(deep-all-of.kind, "object")
+#let deep-if = T(nested(15, j => (
+  type: "object",
+  properties: (a: (type: "string")),
+  "if": (required: ("a",)),
+  then: (properties: (b: j)),
+)))
+#assert.eq(deep-if.kind, "if")
+#assert.eq(T(nested(30, j => ("if": (minLength: 1), then: j))).kind, "if")
+#let chain(n) = range(n).fold(
+  (definitions: (d0: (type: "string"))),
+  (js, i) => (
+    definitions: (
+      ..js.definitions,
+      ("d" + str(i + 1)): (
+        type: "object",
+        properties: (a: ("$ref": "#/definitions/d" + str(i))),
+      ),
+    ),
+    "$ref": "#/definitions/d" + str(i + 1),
+  ),
+)
+#assert.eq(T(chain(30)).kind, "object")

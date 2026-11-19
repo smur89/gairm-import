@@ -1,4 +1,4 @@
-// expect: unsupported JSON Schema keyword(s): "minLenght".
+// expect: at /properties/name: unsupported JSON Schema keyword(s): "minLenght".
 #import "../../lib.typ": schema-from-json-schema
 #schema-from-json-schema((
   type: "object",
