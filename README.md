@@ -23,7 +23,6 @@
 
 ## Contents
 
-- [What it is](#what-it-is)
 - [Quick start](#quick-start)
 - [API at a glance](#api-at-a-glance)
 - [Input forms](#input-forms)
@@ -31,34 +30,23 @@
 - [Null handling](#null-handling)
 - [Validating a JSON Resume](#validating-a-json-resume)
 - [Upgrading from 0.x](#upgrading-from-0x)
-- [Reference](#reference)
 - [Contributing](#contributing)
 - [License](#license)
 
-## What it is
-
-gairm-import checks a JSON document against a schema and returns it as
-Typst values. Every problem in the document is reported at once, each with
-its path and, for a misspelt key, a "Did you mean …?" hint. The schema can
-be a JSON Schema document or one you build with Typst functions, and you
-can edit either through schema paths before use. Requires Typst `0.15.0`
-or later.
-
 ## Quick start
 
-Translate a JSON Schema document you already have:
+Requires Typst `0.15.0` or later. Given this `book.json`:
 
-<!-- x-release-please-start-version -->
-```typst
-#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
-
-#let book-schema = schema-from-json-schema(json("book-schema.json"))
-#let book = parse(book-schema, path("book.json"))
+```json
+{
+  "title": "The Pocket Atlas of Imaginary Places",
+  "author": "Aoife Brennan",
+  "year": 1998,
+  "tags": ["atlas", "fiction"]
+}
 ```
-<!-- x-release-please-end -->
 
-`book-schema.json` is any JSON Schema document; this one says what the
-Typst schema below says. Or build the schema in Typst:
+build its schema in Typst and parse it:
 
 <!-- x-release-please-start-version -->
 ```typst
@@ -80,23 +68,22 @@ Typst schema below says. Or build the schema in Typst:
 ```
 <!-- x-release-please-end -->
 
+The result mirrors the document: `book.title` is a string, `book.year` a
+number and `book.tags` an array of strings. Or translate a JSON Schema
+document you already have:
+
+<!-- x-release-please-start-version -->
+```typst
+#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
+
+#let book-schema = schema-from-json-schema(json("book-schema.json"))
+#let book = parse(book-schema, path("book.json"))
+```
+<!-- x-release-please-end -->
+
 The translator takes a draft 7 subset and panics on anything it cannot
 honour rather than dropping it; [REFERENCE.md](REFERENCE.md#json-schema-translation)
 lists the keywords it supports and how it differs from draft 7.
-
-With this `book.json`:
-
-```json
-{
-  "title": "The Pocket Atlas of Imaginary Places",
-  "author": "Aoife Brennan",
-  "year": 1998,
-  "tags": ["atlas", "fiction"]
-}
-```
-
-the result mirrors the document: `book.title` is a string, `book.year` a
-number and `book.tags` an array of strings.
 
 ## API at a glance
 
@@ -111,20 +98,11 @@ number and `book.tags` an array of strings.
 
 `parse` validates and coerces in one call and panics with every problem
 found. `validate` returns the problems as a list, and `coerce` builds the
-model without checking. All three take the schema, then the data, and
-`strict-null:` (default `false`). With the schema first, `.with` makes a
-parser for one schema:
+model without validating first, panicking only where the data leaves no
+model. All three take the schema, then the data, and `strict-null:`
+(default `false`), so `parse.with(schema)` is a parser for one schema.
 
-<!-- x-release-please-start-version -->
-```typst
-#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
-
-#let parse-book = parse.with(schema-from-json-schema(json("book-schema.json")))
-#let book = parse-book(path("book.json"))
-```
-<!-- x-release-please-end -->
-
-[REFERENCE.md](REFERENCE.md) covers the rest, one section per group.
+[REFERENCE.md](REFERENCE.md) documents every export, one section per group.
 
 ## Input forms
 
@@ -299,82 +277,9 @@ rejects a `null` in any declared field. The free-form `custom` objects
 check nothing, so a `null` there is kept.
 
 Upstream sets `additionalProperties: true` at the top level and on every
-section's items, so undeclared keys pass: a misspelt `positon` is kept
-rather than reported. Its date fields (`startDate`, `endDate`, `date`, …)
-are strings checked by its `iso8601` regex. For a stricter schema, edit
-the document before translating it and the schema after:
-
-- close every object that declares properties, so an undeclared key is an
-  error. Typed extras (`additionalProperties` with a schema) still pass if
-  they match, and the free-form `custom` objects, which declare none, stay
-  open;
-- check the date fields as a full date with `format: "date"`, which also
-  takes a Typst `datetime`, or as the year or year and month JSON Resume
-  allows;
-- make the free-text fields Typst `content`, so they splice into markup.
-
-<!-- x-release-please-start-version -->
-```typst
-#import "@preview/gairm-import:0.13.0": (
-  parse, schema-from-json-schema, schema-put, markup,
-)
-
-// Not for schemas with `not` or `if`: closing an object there loosens them.
-#let close(js) = if type(js) == dictionary {
-  let js = js.pairs().map(((k, v)) => (k, close(v))).to-dict()
-  if (
-    "properties" in js and js.at("additionalProperties", default: true) == true
-  ) {
-    js.additionalProperties = false
-  }
-  js
-} else if type(js) == array { js.map(close) } else { js }
-
-#let strict-json = {
-  let js = close(json("resume.schema.json"))
-  // A full date, or the year and month JSON Resume also allows.
-  js.definitions.iso8601 = (
-    anyOf: (
-      (type: "string", format: "date"),
-      (type: "string", pattern: "^[0-9]{4}(-(0[1-9]|1[0-2]))?$"),
-    ),
-  )
-  js
-}
-
-#let resume-schema-strict = (
-  ("objective",),
-  ("basics", "summary"),
-  ("work", "items", "summary"),
-  ("work", "items", "highlights", "items"),
-  ("volunteer", "items", "summary"),
-  ("volunteer", "items", "highlights", "items"),
-  ("education", "items", "summary"),
-  ("awards", "items", "summary"),
-  ("certificates", "items", "summary"),
-  ("publications", "items", "summary"),
-  ("references", "items", "reference"),
-  ("projects", "items", "summary"),
-  ("projects", "items", "description"),
-  ("projects", "items", "highlights", "items"),
-).fold(
-  schema-from-json-schema(strict-json),
-  (schema, at) => schema-put(schema, at, markup()),
-)
-
-#let resume = parse(resume-schema-strict, path("resume.json"))
-```
-<!-- x-release-please-end -->
-
-Under the strict schema, a misspelt key in a work entry is reported with
-a suggestion:
-
-```text
-  - work[0].positon: unknown key "positon". Did you mean "position"?
-```
-
-For a different mix, or for a renderer's own fields, edit either schema;
-see [REFERENCE.md](REFERENCE.md#schema-paths-and-edits).
+section's items, so a misspelt `positon` is kept rather than reported.
+[REFERENCE.md](REFERENCE.md#a-stricter-json-resume) shows how to close
+the objects, check full dates and make the free-text fields `content`.
 
 ## Upgrading from 0.x
 
@@ -386,7 +291,8 @@ see [REFERENCE.md](REFERENCE.md#schema-paths-and-edits).
 | `bool-type`, `null-type`, `any-type`, `content-type` | `boolean()`, `null()`, `unknown()`, `markup()` |
 | `date-string`, `uri-string`, … | `string(format: "date")`, `string(format: "uri")`, … |
 | `pattern-string(re)` | `string(pattern: re)` |
-| `paths-of-kind` | `find-paths` |
+| `paths-of-kind`, and its kind-name query (`"date-string"`) | `find-paths`, with a constructor or node: `string(format: "date")` |
+| hand-built `(kind: "str")`, `"bool"`, `"any"`, `"content"` | `string()`, `boolean()`, `unknown()`, `markup()` |
 | `lens(p)`, `(lens: p)`, `lens-then(a, b)` | the path `p`, `a + b` |
 | `kind-at(s, at)` | `schema-get(s, at).kind` |
 | `lens-get(at, s)`, `lens-put`, `lens-over` | `schema-get(s, at)`, `schema-put`, `schema-update`: the schema first |
@@ -396,13 +302,12 @@ see [REFERENCE.md](REFERENCE.md#schema-paths-and-edits).
 | `set-required(s, at, keys)` replacing the list | `set-required` adds `keys`; replace with `schema-update(s, at, o => (..o, required-keys: keys))` |
 
 Validation is stricter in places: `date` takes only `YYYY-MM-DD`, and
-`date-time` and `time` need an offset. The
+`date-time` and `time` need an offset. Error records changed too: a
+`dependent` record's `path` is the missing key and its `expected` the
+rule broken, and a union's `type` record names types (`"string or
+integer"`). The
 [release notes](https://github.com/smur89/gairm-import/releases) list
 every change.
-
-## Reference
-
-[REFERENCE.md](REFERENCE.md) documents every export.
 
 ## Contributing
 
