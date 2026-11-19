@@ -1,6 +1,6 @@
 // RFC 6901 JSON Pointer: the public path <-> pointer pair, and below
 // it the reading the translator's `$ref` needs (percent-decoding a URI
-// fragment, looking a path up in a document). Path tuples used by lenses
+// fragment, looking a path up in a document). Schema paths
 // (`("basics", "email")`) and validator error reports (`("work",
 // 0, "highlights", 1)`) <-> the "/basics/email" / "/work/0/
 // highlights/1" form external tooling (editor extensions, schema
@@ -10,7 +10,7 @@
 //   - Validator error paths address INTO data (str keys, non-negative
 //     int indices) and encode to a real RFC 6901 pointer a data-aware
 //     tool can dereference.
-//   - Lens / introspect paths address INTO a schema, in this
+//   - Schema paths address INTO a schema, in this
 //     package's own segments (`"items"`, `"additionalProperties"`,
 //     `"not"`, an int union index) and with no `properties` segment,
 //     so they encode segment for segment: `("work", "items")` is
@@ -35,10 +35,10 @@
 
 #import "error.typ": _fail, _problem
 
-// Order matters: `~1` → `/` first would let an `~1` token round-
-// trip wrong (e.g. `~01` should decode to `~1`, not `/0`). Encode
-// `~` first so subsequent `/` encodes don't see the new `~0` we
-// just introduced. Decode (_read-pointer) mirrors: `~1` before `~0`.
+// Order matters. Encode `~` first, so its pass doesn't rewrite the
+// `~1` the `/` pass writes. Decode (_read-pointer) mirrors it: `~1` before
+// `~0`, so `~01` decodes to `~1`; `~0` first would turn it into `~1`
+// and then `/`.
 #let _escape-token(s) = s.replace("~", "~0").replace("/", "~1")
 
 // RFC 6901 only defines two escape sequences: `~0` and `~1`. A

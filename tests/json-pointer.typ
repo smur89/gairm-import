@@ -1,5 +1,5 @@
 // RFC 6901 JSON Pointer interop: path-to-pointer and pointer-to-path
-// are inverses for the segments validate and lens paths produce (str
+// are inverses for the segments validate and schema paths produce (str
 // object keys, int array indices).
 
 #import "../lib.typ": path-to-pointer, pointer-to-path

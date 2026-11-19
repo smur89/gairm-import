@@ -41,7 +41,8 @@ gairm-import checks a JSON document against a schema and returns it as
 Typst values. Every problem in the document is reported at once, each with
 its path and, for a misspelt key, a "Did you mean …?" hint. The schema can
 be a JSON Schema document or one you build with Typst functions, and you
-can edit either with lenses before use. Requires Typst `0.15.0` or later.
+can edit either through schema paths before use. Requires Typst `0.15.0`
+or later.
 
 ## Quick start
 
@@ -104,7 +105,7 @@ number and `book.tags` an array of strings.
 | Run | `parse`, `validate`, `coerce`, `format-errors` |
 | Schemas | `schema-from-json-schema` |
 | Constructors | `string`, `number`, `integer`, `boolean`, `null`, `markup`, `unknown`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
-| Lenses | `lens-get`, `lens-put`, `lens-over`, `add-field`, `remove-field`, `set-required`, `unset-required` |
+| Edits | `schema-get`, `schema-put`, `schema-update`, `add-field`, `remove-field`, `set-required`, `unset-required` |
 | Inspect | `describe-schema`, `find-paths` |
 | Pointers | `path-to-pointer`, `pointer-to-path` |
 
@@ -315,7 +316,7 @@ the document before translating it and the schema after:
 <!-- x-release-please-start-version -->
 ```typst
 #import "@preview/gairm-import:0.13.0": (
-  parse, schema-from-json-schema, lens-put, markup,
+  parse, schema-from-json-schema, schema-put, markup,
 )
 
 // Not for schemas with `not` or `if`: closing an object there loosens them.
@@ -358,7 +359,7 @@ the document before translating it and the schema after:
   ("projects", "items", "highlights", "items"),
 ).fold(
   schema-from-json-schema(strict-json),
-  (schema, at) => lens-put(schema, at, markup()),
+  (schema, at) => schema-put(schema, at, markup()),
 )
 
 #let resume = parse(resume-schema-strict, path("resume.json"))
@@ -372,8 +373,8 @@ a suggestion:
   - work[0].positon: unknown key "positon". Did you mean "position"?
 ```
 
-For a different mix, or for a renderer's own fields, edit either schema
-with lenses; see [REFERENCE.md](REFERENCE.md#lenses-and-edits).
+For a different mix, or for a renderer's own fields, edit either schema;
+see [REFERENCE.md](REFERENCE.md#schema-paths-and-edits).
 
 ## Upgrading from 0.x
 
@@ -387,9 +388,12 @@ with lenses; see [REFERENCE.md](REFERENCE.md#lenses-and-edits).
 | `pattern-string(re)` | `string(pattern: re)` |
 | `paths-of-kind` | `find-paths` |
 | `lens(p)`, `(lens: p)`, `lens-then(a, b)` | the path `p`, `a + b` |
-| `kind-at(s, at)` | `lens-get(s, at).kind` |
-| `lens-get(at, s)`, and the other lenses | `lens-get(s, at)`: the schema first |
+| `kind-at(s, at)` | `schema-get(s, at).kind` |
+| `lens-get(at, s)`, `lens-put`, `lens-over` | `schema-get(s, at)`, `schema-put`, `schema-update`: the schema first |
 | `map(true)` | `object((:), additional: true)` |
+| `add-field(s, at, key, sub)` | `add-field(s, at + (key,), sub)` |
+| `remove-field(s, at, key)` | `remove-field(s, at + (key,))` |
+| `set-required(s, at, keys)` replacing the list | `set-required` adds `keys`; replace with `schema-update(s, at, o => (..o, required-keys: keys))` |
 
 Validation is stricter in places: `date` takes only `YYYY-MM-DD`, and
 `date-time` and `time` need an offset. The

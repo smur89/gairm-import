@@ -3,7 +3,8 @@
 // keyword the document uses, and types each field as upstream does.
 
 #import "../lib.typ": (
-  lens-get, schema-from-json-schema, validate, object, describe-schema, string,
+  schema-get, schema-from-json-schema, validate, object, describe-schema,
+  string,
 )
 #import "fixtures/resume.typ": resume-schema
 
@@ -91,12 +92,12 @@
   (("skills", "items", "keywords"), (kind: "array", elem: string())),
   (("education", "items", "courses", "items"), string()),
 ) {
-  let node = lens-get(resume-schema, path)
+  let node = schema-get(resume-schema, path)
   if type(want) == str { node = describe-schema(node) }
   assert.eq(node, want, message: repr(path))
 }
 
 // Upstream leaves nested objects open; `custom` is a free-form bag.
 #for path in (("work", "items"), ("languages", "items"), ("skills", "items")) {
-  assert.eq(lens-get(resume-schema, path).additional, true)
+  assert.eq(schema-get(resume-schema, path).additional, true)
 }

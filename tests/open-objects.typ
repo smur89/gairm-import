@@ -2,8 +2,8 @@
 // combinator — #77.
 
 #import "../lib.typ": (
-  validate, coerce, schema-from-json-schema, object, map, array-of, lens-get,
-  lens-put, find-paths, describe-schema, string, number,
+  validate, coerce, schema-from-json-schema, object, map, array-of, schema-get,
+  schema-put, find-paths, describe-schema, string, number,
 )
 
 // --- map() convenience ----------------------------------------------
@@ -187,7 +187,7 @@
 //
 // Path segment is `"additionalProperties"` (matching the JSON Schema
 // keyword name, same convention as `"items"` for arrays). The
-// emitted path round-trips through `lens-get`.
+// emitted path round-trips through `schema-get`.
 #let tags-schema = object(
   (name: string(), tags: map(string())),
   required-keys: ("name",),
@@ -196,8 +196,8 @@
   find-paths(tags-schema, string()),
   (("name",), ("tags", "additionalProperties")),
 )
-// Round-trip: the segment is a real lens path.
-#assert.eq(lens-get(tags-schema, ("tags", "additionalProperties")), string())
+// Round-trip: the segment is a real schema path.
+#assert.eq(schema-get(tags-schema, ("tags", "additionalProperties")), string())
 
 // Nested `additional` inside `additional` works too.
 #let nested-maps = map(map(number()))
@@ -206,14 +206,14 @@
   (("additionalProperties", "additionalProperties"),),
 )
 
-// --- lens: `"additionalProperties"` writes back into `additional` --
-#let updated = lens-put(
+// --- schema-put: `"additionalProperties"` writes back into `additional` --
+#let updated = schema-put(
   tags-schema,
   ("tags", "additionalProperties"),
   number(),
 )
 #assert.eq(updated.shape.tags.additional, number())
-// Shape outside the lensed path is untouched.
+// Shape outside the edited path is untouched.
 #assert.eq(updated.shape.name, string())
 
 // --- describe-schema renders `additional` --------------------------
@@ -227,8 +227,8 @@
 #assert(described-true.contains("*"))
 #assert(described-true.contains("unknown"))
 
-// lens-put rejects a replacement that is not a schema:
-// tests/panics/lens-put-value-not-schema.typ.
+// schema-put rejects a replacement that is not a schema:
+// tests/panics/schema-put-value-not-schema.typ.
 
 // --- describe-schema with nested map of map ------------------------
 //
@@ -237,32 +237,32 @@
 #let nested-described = describe-schema(map(map(string())))
 #assert(nested-described.contains("*"))
 
-// --- lens collision: literal "additionalProperties" shape key wins -
+// --- path collision: literal "additionalProperties" shape key wins -
 //
 // Meta-schemas describe properties literally named
 // "additionalProperties". Shape-first precedence keeps that literal
 // key addressable; the additional schema in that collision case is
-// reached via lens-over on the parent (see lens.typ top-of-file).
+// reached via schema-update on the parent (see edit.typ top-of-file).
 // Distinct baseline + replacement so the "untouched" assertion below
-// can't pass accidentally if lens-put rewrote both.
+// can't pass accidentally if schema-put rewrote both.
 #let meta-shaped = object(
   (additionalProperties: number()),
   additional: string(format: "email"),
 )
-// Literal property wins: lens-get returns the shape entry, not `additional`.
-#assert.eq(lens-get(meta-shaped, ("additionalProperties",)), number())
-// And lens-put rewrites the shape entry, not `additional`.
-#let after-put = lens-put(meta-shaped, ("additionalProperties",), string())
+// Literal property wins: schema-get returns the shape entry, not `additional`.
+#assert.eq(schema-get(meta-shaped, ("additionalProperties",)), number())
+// And schema-put rewrites the shape entry, not `additional`.
+#let after-put = schema-put(meta-shaped, ("additionalProperties",), string())
 #assert.eq(after-put.shape.additionalProperties, string())
 #assert.eq(after-put.additional, string(format: "email"))  // untouched, distinct from the replacement
 
-// --- lens "items" doesn't collide: per-kind dispatch ----------------
+// --- path "items" doesn't collide: per-kind dispatch ----------------
 //
 // "items" on an object kind is a shape key lookup; on an array kind
 // it enters `.elem`. The two interpretations live in different
 // _descend branches, so a property literally named "items" stays
 // addressable on objects.
 #let obj-with-items-key = object((items: string()))
-#assert.eq(lens-get(obj-with-items-key, ("items",)), string())
+#assert.eq(schema-get(obj-with-items-key, ("items",)), string())
 #let arr = array-of(number())
-#assert.eq(lens-get(arr, ("items",)), number())
+#assert.eq(schema-get(arr, ("items",)), number())

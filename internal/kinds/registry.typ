@@ -1,4 +1,4 @@
-// One descriptor per schema kind, so the engine, lens and
+// One descriptor per schema kind, so the engine, edits and
 // introspection ask the registry instead of keeping their own `kind ==`
 // ladders. A descriptor holds:
 //
@@ -9,11 +9,11 @@
 //   searchable    find-paths finds it, rather than only walking
 //                 through it
 //   children      schema => ((segment, sub-schema, label), ..): segments
-//                 as lens paths spell them, labels as describe-schema
+//                 as schema paths spell them, labels as describe-schema
 //                 draws them
 //   with-child    (schema, segment, sub) => the node with that child
 //                 replaced; none for a leaf, which has no children. An
-//                 object comes back as it is; the lens write rebuilds
+//                 object comes back as it is; a schema edit rebuilds
 //                 it through object() (traverse.typ)
 //   suffix        schema => what describe-schema prints on the node's own
 //                 row: by default a leaf's kind, and no header (none)
@@ -23,7 +23,7 @@
 //                 array's elements as `name[]`)
 //   shorthand     schema => none, or (of, mark): describe-schema draws
 //                 the node as `of` with `mark` (a nullable as `X?`)
-//   bad-segment   (schema, segment) => the problem (error.typ) a lens
+//   bad-segment   (schema, segment) => the problem (error.typ) a schema path
 //                 reports when the segment names no child
 //   fields        ((field, required, ok, must), ..): the node's own
 //                 fields the walk reads. `ok` judges a present value, or
@@ -57,7 +57,7 @@
   not s.exclusive and s.members.len() == 2 and s.members.last().kind == "null"
 )
 
-// A conditional's children, as (segment, field): the lens segments are
+// A conditional's children, as (segment, field): the path segments are
 // the JSON Schema keywords, the fields if-of()'s arguments (`else` is a
 // Typst keyword).
 #let _if-parts = (("if", "cond"), ("then", "then"), ("else", "otherwise"))
@@ -182,7 +182,7 @@
     check: _string-kind-check,
     family: "string",
     // Stored, a pattern must be a regex, as string() stores it: `match`
-    // with a string is a substring test, so a hand-built or lens-edited
+    // with a string is a substring test, so a hand-built or hand-edited
     // string pattern would silently match as literal text. Its message
     // must be a value: a null one would reach the error.
     fields: (
@@ -263,7 +263,7 @@
   // Fields in key order, so every walk is diff-stable whatever order
   // the source declared them in; then the additional schema when it
   // is one. A field literally named "additionalProperties" shadows the
-  // additional schema, as in lens paths: reach that through the parent.
+  // additional schema, as in schema paths: reach that through the parent.
   // A required field is labelled `name*`; the additional schema `*`,
   // the display-only key for "any other key".
   object: _kind(
@@ -306,7 +306,7 @@
         ))
       let additional = s.at("additional", default: none)
       // Shadowed by a literal "additionalProperties" field, the
-      // additional schema has no lens segment (none): describe-schema
+      // additional schema has no path segment (none): describe-schema
       // still draws it, but no path leads to it.
       let seg = if "additionalProperties" in s.shape { none } else {
         "additionalProperties"
@@ -315,7 +315,7 @@
         fields + ((seg, additional, "*"),)
       } else { fields }
     },
-    // As given: the lens write rebuilds it through object()
+    // As given: a schema edit rebuilds it through object()
     // (traverse.typ), which sits above this registry.
     with-child: (s, seg, sub) => if seg in s.shape {
       // Typst dicts are values: this copy leaves `s` untouched.
@@ -370,6 +370,11 @@
         + str(s.members.len() - 1)
         + ", for a union schema",
       repr(seg),
+      // A nullable's schema is member 0, a step a path can easily miss.
+      hint: if type(seg) == str and _is-nullable(s) {
+        let of = _kind-label(s.members.first())
+        " Insert 0 to step into nullable(" + of + ")."
+      },
     ),
     // The header says which union; the members are listed below it.
     suffix: s => if s.exclusive { "one of" } else { "any of" },
@@ -379,7 +384,7 @@
   "not": _kind(
     walk: _not-walk,
     fields: (("member", true, none, "a schema"),),
-    // No header: the member's label, its lens segment, says it.
+    // No header: the member's label, its path segment, says it.
     children: s => (("not", s.member, "not"),),
     with-child: (s, _, sub) => (..s, member: sub),
     bad-segment: (s, seg) => _problem(
@@ -389,7 +394,7 @@
     ),
   ),
   // The condition, then the branches it has. No header, as for `not`:
-  // the labels, the lens segments, say what each child is.
+  // the labels, the path segments, say what each child is.
   "if": _kind(
     walk: _if-walk,
     fields: (("cond", true, none, "a schema"),),

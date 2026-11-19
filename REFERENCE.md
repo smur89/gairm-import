@@ -4,14 +4,14 @@ The [README](README.md) is the guide: quick start, input forms, errors,
 null handling and validating a JSON Resume. This file is the reference
 for every export, and says each thing once. Its examples build on the
 `member` schema under [Constructors](#constructors) and the `team`
-schema under [Lenses and edits](#lenses-and-edits).
+schema under [Schema paths and edits](#schema-paths-and-edits).
 
 - [Running](#running)
   - [Error records](#error-records)
   - [The model](#the-model)
 - [Constructors](#constructors)
 - [Formats](#formats)
-- [Lenses and edits](#lenses-and-edits)
+- [Schema paths and edits](#schema-paths-and-edits)
 - [Introspection](#introspection)
 - [JSON Pointer](#json-pointer)
 - [JSON Schema translation](#json-schema-translation)
@@ -253,7 +253,7 @@ as the same string.
 A `pattern` is a Typst regex, and matches anywhere in the string: anchor it
 with `^…$` for a full-string match.
 
-## Lenses and edits
+## Schema paths and edits
 
 A *schema path* names one node in a schema, as an array of segments.
 It is not a *data path*, the keys and indices an error record's `path`
@@ -266,30 +266,36 @@ schema path. Its segments are:
 | `"items"` | an array's item schema |
 | `"additionalProperties"` | an object's `additional` schema (only when it is a schema, not `true`) |
 | an int (`0`) | that member of an `any-of` or `one-of` |
+| `0` in a `nullable(X)` | `X` |
 | `"not"` | a `not-of` member |
 | `"if"`, `"then"`, `"else"` | an `if-of`'s condition, or a branch it has (`"else"` is `otherwise`) |
 
 `()` is the whole schema. A field literally named `"additionalProperties"`
 wins over the keyword; reach the additional schema in that case with
-`lens-over` on the parent. Paths join with `+`.
+`schema-update` on the parent. Paths join with `+`.
 
 | Function | Returns |
 |---|---|
-| `lens-get(schema, at)` | the node at `at` |
-| `lens-put(schema, at, value)` | the schema with the node at `at` replaced by `value` |
-| `lens-over(schema, at, fn)` | the schema with the node at `at` replaced by `fn(node)` |
-| `add-field(schema, at, key, sub-schema, required: false)` | the object at `at` with a new field `key`, required if `required: true` |
-| `remove-field(schema, at, key)` | the object at `at` without the field, and without it in `required-keys` and `dependent-required` |
-| `set-required(schema, at, keys)` | the object at `at` requiring exactly `keys` |
+| `schema-get(schema, at)` | the node at `at` |
+| `schema-put(schema, at, value)` | the schema with the node at `at` replaced by `value` |
+| `schema-update(schema, at, fn)` | the schema with the node at `at` replaced by `fn(node)` |
+| `add-field(schema, at, sub-schema, required: false)` | the schema with a new field at `at`, required if `required: true` |
+| `remove-field(schema, at)` | the schema without the field at `at`, which also leaves `required-keys` and `dependent-required` |
+| `set-required(schema, at, keys)` | the object at `at` also requiring `keys`, after those it already requires |
 | `unset-required(schema, at, keys)` | the object at `at` no longer requiring `keys` |
 
 Every edit returns a new schema and leaves its input alone. The schema
-comes first, so edits chain through `.fold`. A node written by `lens-put`
-or returned by `lens-over`'s function must be a schema, and every object
+comes first, so edits chain through `.fold`. A node written by `schema-put`
+or returned by `schema-update`'s function must be a schema, and every object
 an edit touches is rebuilt through `object()`, so an edit cannot break its
 invariants. A missing path or field, adding a field that exists,
 requiring a key a closed object does not declare, or unsetting one it
 does not require panics, naming the function and what failed.
+
+`add-field` and `remove-field` take the field's own path, its object's
+path plus its name, so a `find-paths` result folds straight into
+`remove-field`. `set-required` adds to `required-keys`; to replace the
+list, use `schema-update(s, at, o => (..o, required-keys: keys))`.
 
 The examples edit `team`, a schema built on `member` from
 [Constructors](#constructors):
@@ -309,37 +315,32 @@ The examples edit `team`, a schema built on `member` from
 )
 
 // A field a renderer adds.
-#let with-logo = add-field(team, (), "logo", string(format: "uri"))
+#let with-logo = add-field(team, ("logo",), string(format: "uri"))
 
 // A role on every member, required.
 #let with-role = add-field(
   team,
-  ("members", "items"),
-  "role",
+  ("members", "items", "role"),
   enum-of(("lead", "dev")),
   required: true,
 )
 
 // Members' names as content, so they splice into markup.
-#let content-names = lens-put(
+#let content-names = schema-put(
   team,
   ("members", "items", "name"),
   markup(),
 )
 
 // Spreading a member keeps everything it doesn't change.
-#let open-members = lens-over(
+#let open-members = schema-update(
   team,
   ("members", "items"),
   m => (..m, additional: true),
 )
 
 // Require a member's joining date, then relax it again.
-#let dated = set-required(
-  team,
-  ("members", "items"),
-  ("name", "email", "joined"),
-)
+#let dated = set-required(team, ("members", "items"), ("joined",))
 #let undated = unset-required(dated, ("members", "items"), ("joined",))
 ```
 
@@ -349,7 +350,7 @@ The examples edit `team`, a schema built on `member` from
 nothing, and `object()` rejects undeclared keys by default, so it would
 also close an object that was open.
 
-Folding `find-paths` into `lens-put` edits every node of a kind at once,
+Folding `find-paths` into `schema-put` edits every node of a kind at once,
 and covers fields a future schema adds:
 
 ```typst
@@ -359,7 +360,7 @@ and covers fields a future schema adds:
 )
 #let corporate-schema = find-paths(team, string(format: "uri")).fold(
   team,
-  (schema, path) => lens-put(schema, path, corporate-uri),
+  (schema, path) => schema-put(schema, path, corporate-uri),
 )
 ```
 
@@ -371,6 +372,9 @@ field with its kind:
 - keys sort alphabetically, so diffs across schema versions stay stable;
 - a required field is suffixed `*`, an array `[]`, and `*` as a key stands
   for any other key (the `additional` schema);
+- a required key the shape doesn't declare is listed as `key*` with the
+  `additional` schema (`unknown` for `additional: true`);
+- an object with no fields that takes no other keys shows as `empty object`;
 - constraints follow the kind in brackets, a format in parentheses, and a
   pattern as `+ pattern`;
 - a union lists its members as `[0]`, `[1]`, … under `any of:` or
@@ -395,7 +399,7 @@ tags[]    string (min-items 1, unique-items)
 phone → email
 ```
 
-And `team` from [Lenses and edits](#lenses-and-edits), with `member`
+And `team` from [Schema paths and edits](#schema-paths-and-edits), with `member`
 nested under `members[]`:
 
 ```text
@@ -423,7 +427,7 @@ else  number
 
 `find-paths(schema, query)` lists the path of every node matching
 `query`, inside union, `not-of` and `if-of` members too, sorted as above.
-The paths use the segments under [Lenses and edits](#lenses-and-edits), so
+The paths use the segments under [Schema paths and edits](#schema-paths-and-edits), so
 they work wherever a schema path does. A query is:
 
 - a schema node, which matches the nodes of its kind that have every field
@@ -441,14 +445,14 @@ they work wherever a schema path does. A query is:
 `object` and `array` are walked through, not searched for, and panic as a
 query. An `additional` schema shadowed by a field literally named
 `"additionalProperties"` has no path, so it is not searched; reach it
-with `lens-over` on its object.
+with `schema-update` on its object.
 
 ```typst
 #find-paths(team, string(format: "email"))
 // → (("contact", 0), ("members", "items", "email"))
 #find-paths(member, number())
 // → (("rating",),)
-#lens-get(team, ("contact", 0)).format
+#schema-get(team, ("contact", 0)).format
 // → "email"
 ```
 
@@ -470,7 +474,7 @@ with `lens-over` on its object.
 
 An error record's `path` addresses the **data**, so its pointer is one any
 JSON Pointer tool can resolve against the document. A schema path, as
-the lenses and `find-paths` use, addresses the **schema**, in this package's own
+the edits and `find-paths` use, addresses the **schema**, in this package's own
 segments, and encodes segment for segment: `("basics", "email")` becomes
 `/basics/email` and `("work", "items")` becomes `/work/items`. That is
 neither a data pointer nor a JSON Schema location, which would read

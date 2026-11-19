@@ -1,12 +1,12 @@
-// One schema traversal, through the kind descriptors, shared by lens
-// and introspection. Paths are lens paths: a field name, "items" for an
+// One schema traversal, through the kind descriptors, shared by the
+// edits and introspection. Paths are schema paths: a field name, "items" for an
 // array's elements, "additionalProperties" for an object's additional
 // schema, an int index for a union member, "not" for a `not` member,
 // "if", "then" and "else" for a conditional's condition and branches.
 
-#import "../core/error.typ": _fail, _problem
+#import "../core/error.typ": _fail, _array-problem
 #import "registry.typ": _descriptor
-#import "structure.typ": _rebuilt
+#import "structure.typ": _rebuilt, _has-kind
 
 #let _children(s) = (_descriptor(s).children)(s)
 
@@ -54,12 +54,16 @@
   _nodes(s).filter(((_, n)) => keep(n)).map(((p, _)) => p)
 )
 
-// A schema path: where lens and introspection functions point, as an
+// A schema path: where the edit and introspection functions point, as an
 // array of segments. Never a schema node, which is a dictionary.
 #let _is-path(x) = type(x) == array
 
-// `at`, checked as a schema path. Panics, naming `who`, on anything else.
+// `at`, checked as a schema path. Panics, naming `who`, on anything
+// else: a schema by what it is rather than its repr, which can run to
+// pages, and a string with its one-key spelling.
 #let _schema-path(at, who) = {
   if _is-path(at) { return at }
-  _fail(who, _problem("path", "an array of path segments", repr(at)))
+  let p = _array-problem(at, "path", "an array of path segments", "key")
+  if _has-kind(at) { p.got = "a schema" }
+  _fail(who, p)
 }

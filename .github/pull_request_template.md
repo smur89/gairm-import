@@ -9,7 +9,7 @@
 <!-- Tick whichever apply, and add any new ones. -->
 
 - [ ] `make check` passes locally
-- [ ] Added or updated a test under `tests/` if this PR changes validation, coercion, translation, lenses or introspection
+- [ ] Added or updated a test under `tests/` if this PR changes validation, coercion, translation, schema edits or introspection
 - [ ] Updated README.md or REFERENCE.md, and their `tests/package/` mirrors, if this PR changes the public API
 
 ## Notes for the reviewer

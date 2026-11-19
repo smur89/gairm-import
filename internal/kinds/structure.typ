@@ -24,7 +24,7 @@
 // The first malformed node in `node`, pre-order, as (path, problem), or
 // none: a node that is not a dictionary of a registered kind, or one
 // whose own fields its descriptor rejects (registry.typ). `path` is the
-// lens path to it from `node`. Never panics, so a search can ask it of
+// schema path to it from `node`. Never panics, so a search can ask it of
 // any value.
 //
 // Typst memoizes a call by hashing its arguments, which visits the whole
@@ -78,7 +78,7 @@
   for (seg, sub, _) in (d.children)(node) {
     let found = _schema-problem(sub)
     if found != none {
-      // A shadowed additional schema has no lens segment of its own.
+      // A shadowed additional schema has no path segment of its own.
       let seg = if seg == none { "additionalProperties" } else { seg }
       return (path: (seg,) + found.path, problem: found.problem)
     }
@@ -90,7 +90,7 @@
 #let _is-object(node) = node.kind == "object"
 
 // The one gate for a node entering from user code: a run function's
-// schema, a lens-put value, a lens-over result, a constructor's
+// schema, a schema-put value, a schema-update result, a constructor's
 // sub-schema. A malformed node fails here, naming what took it and
 // where in it the problem is, not later as a raw error mid-walk.
 #let _require-schema(node, who) = {
@@ -239,7 +239,7 @@
 
 // object()'s body, its panics naming `who`: object() itself, or the
 // public function that builds or edits an object through it (map(),
-// a lens edit), so a bad argument is named as the caller's call spells
+// a schema edit), so a bad argument is named as the caller's call spells
 // it. `additional` controls keys not in `shape` (the engine-side name
 // for JSON Schema's `additionalProperties`): `none` / `false` → reject;
 // `true` → pass-through; schema dict → validate every extra against

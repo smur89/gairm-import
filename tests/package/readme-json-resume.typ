@@ -5,7 +5,7 @@
 // the asserts are ours. Other doc mirrors import the two schemas from
 // here.
 #import "@preview/gairm-import:0.0.0": (
-  parse, schema-from-json-schema, lens-put, markup,
+  parse, schema-from-json-schema, schema-put, markup,
 )
 
 #let schema-file = "/tests/fixtures/jsonresume-schema.json"
@@ -74,7 +74,7 @@
   ("projects", "items", "highlights", "items"),
 ).fold(
   schema-from-json-schema(strict-json),
-  (schema, at) => lens-put(schema, at, markup()),
+  (schema, at) => schema-put(schema, at, markup()),
 )
 
 #let resume = parse(resume-schema-strict, path("resume.json"))

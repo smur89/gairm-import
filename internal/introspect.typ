@@ -1,20 +1,20 @@
 // Schema-shape inspection helpers. Debugging an extension schema
 // otherwise means `repr(schema)` (noisy dict dump) or hand-walking
 // `.shape` accessors. Introspection here stays read-only; edits live
-// in lens.typ.
+// in edit.typ.
 //
-// Path tuples use lens-compatible segments — `"items"` for array
-// descent, `"additionalProperties"` for the additional schema, an
-// index for a union member, `"not"` for a `not` member, `"if"`,
-// `"then"` and `"else"` for a conditional's condition and branches — so
-// `find-paths` output round-trips through `lens-get`.
+// Paths are schema paths — `"items"` for array descent,
+// `"additionalProperties"` for the additional schema, an index for a
+// union member, `"not"` for a `not` member, `"if"`, `"then"` and
+// `"else"` for a conditional's condition and branches — so
+// `find-paths` output round-trips through `schema-get`.
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
 #import "core/error.typ": _a, _fail, _problem, _key-label
 #import "kinds/registry.typ": _kinds, _descriptor
-#import "kinds/catalog.typ": _constructor
-#import "kinds/structure.typ": _require-schema
+#import "kinds/catalog.typ": _constructor, _constructors
+#import "kinds/structure.typ": _require-schema, _is-object
 #import "kinds/walk.typ": _kind-label
 #import "kinds/traverse.typ": _children, _paths-where
 #import "kinds/constraint.typ": _constraint-rows
@@ -25,6 +25,11 @@
 #let _searchable-kinds = _kinds.keys().filter(k => _kinds.at(k).searchable)
 
 #let _leaf(s) = _descriptor(s).with-child == none
+// An object that takes only `{}`: no fields and no other keys. It has
+// no rows to draw, so it is drawn on its label's row, as a leaf is.
+#let _empty(s) = (
+  _is-object(s) and s.shape == (:) and s.at("additional", default: none) == none
+)
 #let _suffix(s) = (_descriptor(s).suffix)(s)
 
 // Widths count grapheme clusters, as a reader sees them: `seán` is four
@@ -63,7 +68,9 @@
 }
 
 // A leaf's text: its kind, its mark, then what it sets beyond it.
-#let _text(s, mark) = _suffix(s) + mark + _paren(s)
+#let _text(s, mark) = (
+  (if _empty(s) { "empty object" } else { _suffix(s) }) + mark + _paren(s)
+)
 
 // The tree layout is where an inline kind (an array) differs from the
 // rest: its one child extends its parent's row with the child's label
@@ -85,7 +92,9 @@
     let (elem, elem-mark) = _shown(elem)
     (label + mark + elem-label, elem, elem-mark, _paren(sub))
   } else { (label, sub, mark, "") }
-  if _leaf(sub) { return (label: label, text: _text(sub, mark) + after) }
+  if _leaf(sub) or _empty(sub) {
+    return (label: label, text: _text(sub, mark) + after)
+  }
   let head = _suffix(sub)
   if head == none {
     (label: label + mark + after, head: none, block: sub)
@@ -97,7 +106,7 @@
 // drawn by its parent's row; a node `alone` (the root), a leaf or an
 // inline node draws its own, as a row with no label and no column.
 #let _describe(schema, indent, alone: false) = {
-  if alone or _leaf(schema) or _inline(schema) {
+  if alone or _leaf(schema) or _empty(schema) or _inline(schema) {
     let r = _row("", schema)
     let line = (
       r.label
@@ -112,23 +121,48 @@
   // Each child under its label: a field name (`*` when required), `*`
   // for an object's additional schema, `[i]` for a union member, `not`
   // for a `not` member, `if`, `then` and `else` for a conditional's
-  // condition and branches. `additional: true` shows as `* any`.
-  let rows = _children(schema).map(((_, sub, label)) => _row(label, sub))
-  if schema.at("additional", default: none) == true {
-    rows.push((label: "*", text: "unknown"))
+  // condition and branches. `additional: true` shows as `* unknown`.
+  let children = _children(schema)
+  let rows = ()
+  if _is-object(schema) {
+    // A required key the shape doesn't declare is checked against the
+    // additional schema, so it is drawn with that schema, among the
+    // fields in key order; the additional schema's own row comes last.
+    let additional = schema.at("additional", default: none)
+    let fields = children.filter(((k, ..)) => k in schema.shape)
+    let undeclared = schema
+      .at("required-keys", default: ())
+      .filter(k => k not in schema.shape)
+      .map(k => (k, additional, _key-label(k) + "*"))
+    for (k, sub, label) in (fields + undeclared).sorted(key: c => c.at(0)) {
+      rows.push(if sub == true { (label: label, text: "unknown") } else {
+        _row(label, sub)
+      })
+    }
+    for (_, sub, label) in children.filter(((k, ..)) => k not in schema.shape) {
+      rows.push(_row(label, sub))
+    }
+    if additional == true { rows.push((label: "*", text: "unknown")) }
+  } else {
+    for (_, sub, label) in children { rows.push(_row(label, sub)) }
   }
   let aligned = rows.filter(r => "text" in r or r.head != none)
   let col = if aligned == () { 0 } else {
     calc.max(..aligned.map(r => _width(r.label))) + 2
   }
-  let lines = rows.map(r => if "text" in r {
-    indent + _pad-right(r.label, col) + r.text
-  } else {
-    let head = if r.head == none { r.label } else {
-      _pad-right(r.label, col) + r.head
-    }
-    indent + head + ":\n" + _describe(r.block, indent + "  ")
-  })
+  // A loop, not a map: a closure would cost a call frame per level,
+  // and a nested schema would overflow before validate does.
+  let lines = ()
+  for r in rows {
+    lines.push(if "text" in r {
+      indent + _pad-right(r.label, col) + r.text
+    } else {
+      let head = if r.head == none { r.label } else {
+        _pad-right(r.label, col) + r.head
+      }
+      indent + head + ":\n" + _describe(r.block, indent + "  ")
+    })
+  }
   // An object's dependent-required, one trigger a line, after its
   // fields.
   for (trigger, deps) in schema
@@ -186,7 +220,7 @@
   }
 } else { (kind: none, name: repr(query)) }
 
-/// Lists the lens path of every node in `schema` that matches `query`,
+/// Lists the schema path of every node in `schema` that matches `query`,
 /// including inside union and `not` members and a conditional's
 /// condition and branches. The paths work wherever a schema path does.
 /// Panics for `object` and `array`, which the search walks through, and
@@ -219,8 +253,11 @@
     _fail("find-paths", _problem(
       "query",
       "a schema node or a constructor of a kind it can find ("
-        + _searchable-kinds.join(", ")
-        + "); object and array are walked through, not searched for",
+        + _searchable-kinds
+          .map(k => _constructors.at(k).map(((c, _)) => repr(c)))
+          .flatten()
+          .join(", ")
+        + "); object, map and array-of are walked through, not searched for",
       q.name,
     ))
   }

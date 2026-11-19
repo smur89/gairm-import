@@ -7,7 +7,7 @@ this file says which header to read.
 
 The package walks a value against a schema and reports what doesn't
 match, optionally returning a cleaned-up model of the value. The JSON
-Schema translator, lenses and introspection are built on the same schema
+Schema translator, the schema-path edits and introspection are built on the same schema
 representation and the same walk.
 
 ## Codemap
@@ -18,7 +18,7 @@ internal/core/              # L0: input forms, errors, the walk context, JSON Po
 internal/kinds/             # L1: constructors, formats, constraint rows, walks, the kind registry and catalog, traversal
 internal/engine.typ         # L2: the one walk over schema and value
 internal/json-schema/       # L3: the JSON Schema translator
-internal/lens.typ           # L3: lens-get / lens-put / lens-over and the field edits
+internal/edit.typ           # L3: schema-get / schema-put / schema-update and the field edits
 internal/introspect.typ     # L3: describe-schema, find-paths
 internal/run.typ            # L3: validate / coerce / parse and format-errors
 tests/*.typ                 # assertions, one file per public concept
@@ -37,16 +37,16 @@ A schema is a plain dictionary tagged with a `kind`:
 `(kind: "string", min-length: 3)`, `(kind: "union", members: (..),
 exclusive: false)`. Constructors only build and check these dictionaries;
 constraints and formats are fields, not kinds. Because nodes are data,
-they compare with `==`, print with `repr`, and can be edited (lenses) or
+they compare with `==`, print with `repr`, and can be edited (`schema-put` and the edits) or
 produced by the translator.
 
 A kind's behaviour lives in its descriptor in `kinds/registry.typ` (the
 header lists the fields): which fields a node must carry, how it walks,
-its children and their labels, how a lens replaces a child, and how
+its children and their labels, how an edit replaces a child, and how
 `describe-schema` draws it. Every entry point checks the whole schema
 once against those fields (`structure.typ`'s `_require-schema`), so the
-walk, lenses and introspection never meet a malformed node. The
-engine, lenses and introspection read the registry rather than keeping
+walk, edits and introspection never meet a malformed node. The
+engine, edits and introspection read the registry rather than keeping
 their own `kind ==` ladders. Within `kinds/`, the walks (`walk.typ`) sit
 below the registry and the constructors (`structure.typ`) above it,
 since a constructor checks its sub-schemas against the registered kinds;

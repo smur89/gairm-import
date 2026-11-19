@@ -5,8 +5,8 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, schema-from-json-schema, describe-schema, find-paths,
-  lens-get, lens-put, markup, null, array-of, object, enum-of, any-of, one-of,
-  not-of, if-of, nullable, string, boolean, number, integer,
+  schema-get, schema-put, markup, null, array-of, object, enum-of, any-of,
+  one-of, not-of, if-of, nullable, string, boolean, number, integer,
 )
 
 #let T = schema-from-json-schema
@@ -366,7 +366,7 @@
   (),
 )
 
-// Lenses and find-paths reach X as member 0.
+// Schema paths and find-paths reach X as member 0.
 #let doc = T((
   type: "object",
   properties: (
@@ -375,12 +375,12 @@
   ),
 ))
 #assert.eq(find-paths(doc, string(format: "date")), (("when", 0),))
-#assert.eq(lens-get(doc, ("when",)).kind, "union")
-#assert.eq(lens-get(doc, ("when", 0)).kind, "string")
-#assert.eq(lens-get(doc, ("when", 0)).format, "date")
-#assert.eq(lens-get(doc, ("name", 0)), string())
+#assert.eq(schema-get(doc, ("when",)).kind, "union")
+#assert.eq(schema-get(doc, ("when", 0)).kind, "string")
+#assert.eq(schema-get(doc, ("when", 0)).format, "date")
+#assert.eq(schema-get(doc, ("name", 0)), string())
 #assert.eq(
-  lens-put(doc, ("name", 0), (..string(), min-length: 1)).shape.name,
+  schema-put(doc, ("name", 0), (..string(), min-length: 1)).shape.name,
   nullable((..string(), min-length: 1)),
 )
 #assert.eq(describe-schema(doc), "name  string?\nwhen  string (date)?")
