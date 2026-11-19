@@ -651,6 +651,30 @@
   then: (properties: (b: j)),
 )))
 #assert.eq(deep-if.kind, "if")
+// A branch borrows its siblings' properties as they translated, not by
+// translating them again, so an `if` nested in a sibling property costs
+// one translation a level (12 levels took 2.7 s when each branch
+// re-translated them). The borrowed property still checks.
+#let deep-if-siblings = T(nested(12, j => (
+  type: "object",
+  properties: (a: j),
+  "if": (required: ("a",)),
+  then: (required: ("a",)),
+)))
+#let deep-if-value = range(12).fold("x", (d, _) => (a: d))
+#assert.eq(validate(deep-if-siblings, deep-if-value), ())
+#assert.eq(
+  codes(validate(deep-if-siblings, range(12).fold(5, (d, _) => (a: d)))),
+  ((range(12).map(_ => "a"), "type"),),
+)
+// A nullable branch gets them too.
+#let lent-nullable = T((
+  type: "object",
+  properties: (a: (type: "integer")),
+  "if": (required: ("a",)),
+  then: (type: ("object", "null"), required: ("a",)),
+))
+#assert.eq(codes(validate(lent-nullable, (a: "x"))), ((("a",), "type"),))
 #assert.eq(T(nested(30, j => ("if": (minLength: 1), then: j))).kind, "if")
 #let chain(n) = range(n).fold(
   (definitions: (d0: (type: "string"))),
@@ -721,4 +745,11 @@
 #assert.eq(
   T((definitions: (a: ("$id": "", type: "string")), "$ref": "#/definitions/a")),
   string(),
+)
+
+// A translated pattern's `expected` quotes it as JSON writes it, so a
+// control character is `\u0001`, not Typst's `\u{1}`.
+#assert.eq(
+  validate(T((type: "string", pattern: "^\u{1}$")), "x").first().expected,
+  "matching \"^\\u0001$\"",
 )

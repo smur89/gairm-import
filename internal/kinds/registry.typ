@@ -51,6 +51,7 @@
 #import "format.typ": _string-kind-check, _string-problem
 #import "walk.typ": (
   _array-walk, _object-walk, _union-walk, _not-walk, _if-walk, _kind-label,
+  _reported-kind,
 )
 
 // X when `s` is an any-of of exactly X and a null, in either order,
@@ -70,9 +71,12 @@
 )
 
 // The hint for a path that missed a nullable's one step: its schema is
-// member 0.
+// member 0, named as union messages name it (a union by its members).
 #let _nullable-hint(s) = if _is-nullable(s) {
-  " Insert 0 to step into nullable(" + _kind-label(s.members.first()) + ")."
+  let m = s.members.first()
+  let label = _reported-kind(m)
+  if m.kind == "union" { label = label.slice(1, -1) }
+  " Insert 0 to step into nullable(" + label + ")."
 }
 
 // A conditional's children, as (segment, field): the path segments are
@@ -219,8 +223,9 @@
         "a regex (string() compiles a string pattern)",
       ),
       ("expected", false, v => type(v) == str, "a string"),
+      // A format name is judged by `problem`; this only refuses none.
+      ("format", false, v => v != none, "a format name"),
     ),
-    reads: ("format",),
     problem: s => _as-field(_string-problem(
       format: s.at("format", default: none),
       pattern: s.at("pattern", default: none),
@@ -271,10 +276,15 @@
     inline: true,
     children: s => (("items", s.elem, "[]"),),
     with-child: (s, _, sub) => (..s, elem: sub),
+    // An int is likely an error record's path: a data path, which
+    // indexes the elements a schema path enters as "items".
     bad-segment: (s, seg) => _problem(
       "path segment",
       "\"items\" for an array schema",
       repr(seg),
+      hint: if type(seg) == int {
+        " A data path (an error record's) indexes elements; a schema path enters them all as \"items\"."
+      },
     ),
   ),
   // Fields in key order, so every walk is diff-stable whatever order

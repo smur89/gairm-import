@@ -65,3 +65,33 @@
     (("tags",), "unique"),
   ).sorted(),
 )
+
+// Mirrors REFERENCE.md, "Schema nodes": the node shapes are API.
+#assert.eq(string(pattern: "^a"), (kind: "string", pattern: regex("^a")))
+#assert.eq(array-of(string()).elem, string())
+#assert.eq(object((a: string())), (
+  kind: "object",
+  shape: (a: string()),
+  required-keys: (),
+))
+#assert.eq(map(number()), (
+  kind: "object",
+  shape: (:),
+  required-keys: (),
+  additional: number(),
+))
+#assert.eq(nullable(string()), (
+  kind: "union",
+  members: (string(), null()),
+  exclusive: false,
+))
+#assert.eq(one-of(string(), number()).exclusive, true)
+#assert.eq(not-of(string()), (kind: "not", member: string()))
+#assert.eq(if-of(string(), then: string(min-length: 1)).keys(), (
+  "kind",
+  "cond",
+  "then",
+))
+#assert.eq(enum-of("a", 1).values, ("a", 1))
+// A field no kind reads is an annotation and rides along.
+#assert.eq(validate((kind: "string", formt: "date"), "x"), ())

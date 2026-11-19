@@ -256,20 +256,12 @@ upstream adds works as soon as you update the file. Pass the result to any
 renderer that takes JSON Resume data, such as
 [`altacv`](https://typst.app/universe/package/altacv):
 
-<!-- Two fences (not one): a single fence would let release-please rewrite this altacv pin on every gairm release. Bump it by hand when altacv publishes a new version. See https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
+<!-- Bump this altacv pin by hand when altacv publishes a new version: release-please only owns gairm-import's. -->
 
 ```typst
 #import "@preview/altacv:1.9.0": alta
+#alta(resume)
 ```
-
-<!-- x-release-please-start-version -->
-```typst
-#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
-
-#let resume-schema = schema-from-json-schema(json("resume.schema.json"))
-#alta(parse(resume-schema, path("resume.json")))
-```
-<!-- x-release-please-end -->
 
 The schema declares no nullable fields, so with `strict-null: true` it
 rejects a `null` in any declared field. The free-form `custom` objects

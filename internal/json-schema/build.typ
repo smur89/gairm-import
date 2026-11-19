@@ -32,7 +32,8 @@
   let map = js.at(keyword, default: (:))
   if type(map) != dictionary { return (keyword, map) }
   for (trigger, dependents) in map {
-    if type(dependents) == dictionary {
+    // A boolean is a schema too, in draft 7's `dependencies`.
+    if keyword == "dependencies" and type(dependents) in (dictionary, bool) {
       _bail(
         ctx,
         "unsupported JSON Schema keyword: the schema form of \"dependencies\" (for "
@@ -53,7 +54,7 @@
   let args = (
     format: js.at("format", default: none),
     pattern: pattern,
-    expected: if pattern != none { "matching " + repr(pattern) },
+    expected: if pattern != none { "matching " + _json(pattern) },
   )
   let p = _string-problem(..args)
   // JSON has no regex: a pattern is a string there.
@@ -214,7 +215,18 @@
     ))
   }
   if "enum" in js and "const" in js {
-    values = values.filter(v => v == js.at("const"))
+    let c = js.at("const")
+    values = values.filter(v => v == c)
+    if values == () {
+      _bail(
+        ctx,
+        "\"const\" "
+          + _json(c)
+          + " is not one of the \"enum\" values "
+          + _json(js.at("enum"))
+          + ", so the schema is unsatisfiable.",
+      )
+    }
   }
   let by-type = (:)
   for t in ("string", "number", "array") {

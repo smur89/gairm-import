@@ -8,7 +8,7 @@
 
 #import "../lib.typ": (
   validate, coerce, parse, markup, null, array-of, object, nullable, any-of,
-  one-of, if-of, enum-of, string, number,
+  one-of, if-of, not-of, enum-of, string, number,
 )
 #import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
@@ -282,6 +282,21 @@
 #assert.eq(
   codes(validate(any-of((null(),)), 1, strict-null: true)),
   (((), "type"),),
+)
+
+// strict-null's run docs: a not-of whose member rejects null, and an
+// if-of without the branch it picks, accept it too.
+#assert.eq(
+  validate(object((a: not-of(string()))), (a: none), strict-null: true),
+  (),
+)
+#assert.eq(
+  validate(
+    object((a: if-of(string(), then: string()))),
+    (a: none),
+    strict-null: true,
+  ),
+  (),
 )
 
 // ---- a conditional judges null in the walk's mode -------------------

@@ -41,15 +41,21 @@
 // so a bad segment panics the same way from a put as from a get, a leaf
 // (which has no writer) included. Every object on the way back up is
 // rebuilt through object(), so a write keeps its invariants, and a
-// panic there names `who`.
-#let _set-at(s, path, sub, who) = if path == () { sub } else {
-  let (head, ..rest) = path
-  let head = _segment(s.kind, head)
-  let child = _child(s, head, who)
-  _rebuilt(
-    (_descriptor(s).with-child)(s, head, _set-at(child, rest, sub, who)),
-    who,
-  )
+// panic there names `who`. Two loops, not a recursion, so an edit
+// reaches as deep as a walk does.
+#let _set-at(s, path, sub, who) = {
+  let trail = ()
+  let node = s
+  for seg in path {
+    let seg = _segment(node.kind, seg)
+    trail.push((node, seg))
+    node = _child(node, seg, who)
+  }
+  let out = sub
+  for (node, seg) in trail.rev() {
+    out = _rebuilt((_descriptor(node).with-child)(node, seg, out), who)
+  }
+  out
 }
 
 // Every (path, node) pair, pre-order, of the nodes a path reaches: a

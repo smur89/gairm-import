@@ -5,7 +5,7 @@
 // with sibling keywords, the siblings and each branch must be object
 // schemas. With none, the branches are T and E as they are, of any kind.
 
-#import "../kinds/structure.typ": if-of
+#import "../kinds/structure.typ": if-of, nullable, _is-object
 #import "keyword.typ": _role-of, _lone-hints, _into, _keywords
 #import "../kinds/registry.typ": _nullable-member
 #import "all-of.typ": _join, _restricts-extras
@@ -17,7 +17,10 @@
 // `additionalProperties` and `properties` (its own properties win, and
 // the merge then bails on any that differ). Without them the merge
 // would read `then: {required: ["b"]}` as a closed object that has no
-// `b`. A branch that is a `$ref` or a composition is merged as written,
+// `b`. A borrowed property comes as `{}` and gets the schema the
+// siblings translated to (_lend), so a nested `if` translates each
+// level once, not once per branch. Returns the branch and the borrowed
+// keys. A branch that is a `$ref` or a composition is merged as written,
 // and so is one that is no object schema (an `enum`, a `type` without
 // `object`, a keyword for another type): the merge then names it as it
 // is, rather than by keywords it took from its siblings.
@@ -40,8 +43,9 @@
     type(branch) != dictionary
       or branch.keys().any(k => _role-of(k) in _lone-hints)
       or not _objectish(branch)
-  ) { return branch }
+  ) { return (branch, ()) }
   let b = branch
+  let borrowed = ()
   if "type" not in b and "type" in siblings {
     b.insert("type", siblings.type)
   }
@@ -54,10 +58,29 @@
     if (
       type(own) == dictionary and type(theirs) == dictionary and theirs != (:)
     ) {
-      b.insert("properties", (:..theirs, ..own))
+      borrowed = theirs.keys().filter(k => k not in own)
+      b.insert("properties", (:..borrowed.map(k => (k, (:))).to-dict(), ..own))
     }
   }
-  b
+  (b, borrowed)
+}
+
+// `node`, a translated branch, with the schemas of its `borrowed` keys
+// (_beside) taken from `base`, its translated siblings. Anything but an
+// object, or a nullable one, is left for the merge to name.
+#let _lend(node, base, borrowed) = {
+  if borrowed == () { return node }
+  let from = _nullable-member(base)
+  if from == none { from = base }
+  let x = _nullable-member(node)
+  let obj = if x == none { node } else { x }
+  if not (_is-object(obj) and _is-object(from)) { return node }
+  let shape = obj.shape
+  for k in borrowed {
+    if k in from.shape { shape.insert(k, from.shape.at(k)) }
+  }
+  obj.shape = shape
+  if x == none { obj } else { nullable(obj) }
 }
 
 #let _who = "the siblings of \"if\" and its branches"
@@ -106,8 +129,8 @@
       parts.insert(arg, recur(js.at(k), at))
       continue
     }
-    let b = _beside(js.at(k), siblings)
-    let node = recur(b, at)
+    let (b, borrowed) = _beside(js.at(k), siblings)
+    let node = _lend(recur(b, at), base, borrowed)
     if base == none {
       // Only an object reaches the branch, so a nullable one is its
       // object, and the merge of one member checks it is an object.

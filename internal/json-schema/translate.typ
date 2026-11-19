@@ -92,7 +92,7 @@
 )
 
 // `ctx` is the document `root`; `seen`, the chain of `$ref`s that led
-// here; `at`, the JSON Pointer of the node being translated, which
+// here, each with its target's path (ref.typ); `at`, the JSON Pointer of the node being translated, which
 // every panic names; and `open-objects`, set under an `if` or a `not`.
 #let _translate(js, ctx) = {
   let (js, ctx) = (js, ctx)
@@ -119,7 +119,7 @@
     }
     let target = _resolve-ref(ref, ctx)
     js = target.value
-    ctx = (..ctx, seen: ctx.seen + (ref,), at: target.at)
+    ctx = (..ctx, seen: ctx.seen + ((ref, target.path),), at: target.at)
   }
   let applicator = js.keys().find(k => _role-of(k) == "applicator")
   if applicator != none {
@@ -180,11 +180,23 @@
   let parsed = _decode-input("schema-from-json-schema", js, null-ok: true)
   // Non-dictionaries are rejected at the boundary so the diagnostic
   // carries the schema-from-json-schema prefix.
+  // A file or bytes had the right type: its content is the problem, so
+  // a scalar is quoted as JSON (an array, which may be long, is named).
   if type(parsed) != dictionary {
+    let what = if type(js) in (path, bytes) {
+      (
+        "the document must be a JSON object (a schema), got: "
+          + if type(parsed) == array { "an array" } else { _json(parsed) }
+      )
+    } else {
+      (
+        "expected a parsed JSON Schema dict, path(...), or bytes, got: "
+          + _json-type-name(parsed)
+      )
+    }
     _bail(
       none,
-      "expected a parsed JSON Schema dict, path(...), or bytes, got: "
-        + _json-type-name(parsed)
+      what
         + if type(parsed) == bool {
           ". Boolean schemas (true / false) are out of scope."
         } else { "." },

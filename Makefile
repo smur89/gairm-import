@@ -3,10 +3,6 @@
 # `make help` lists the targets and the variables you can override,
 # from the `## ` note on each rule and `?=` default.
 
-# A failed recipe can leave a partial target that the next `make`
-# would treat as fresh. Delete it instead.
-.DELETE_ON_ERROR:
-
 TYPST    ?= typst ## the typst binary
 TYPSTYLE ?= typstyle ## the typstyle binary
 ROOT     := .
