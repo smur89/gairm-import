@@ -530,7 +530,8 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
 - `enum` and `const` become `enum-of` and `const-of`. `type` and
   constraint keywords beside them are folded in at translate time: only
   the values that satisfy them are kept, and a keyword leaves values of
-  other types alone (`minimum` ignores a string).
+  other types alone (`minimum` ignores a string). With both, only the
+  `enum` values equal to the `const` are kept.
 - `anyOf`, `oneOf` and `not` become `any-of`, `one-of` and `not-of`.
 - `allOf` of object schemas is merged at translate time: the properties
   and `required` lists union, a key in two members must have the same

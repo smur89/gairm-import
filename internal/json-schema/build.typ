@@ -167,10 +167,11 @@
 
 // Folds the `type` and constraint keywords beside `enum` / `const` into
 // the value set: each value is checked against the schema the node
-// builds for its JSON type, and only survivors are kept. Type-specific
-// keywords ignore other types (JSON Schema semantics), so a value of a
-// type no keyword applies to — a bool, null, object, or a string beside
-// only `minimum` — survives.
+// builds for its JSON type, and only survivors are kept. With both
+// `enum` and `const`, only the enum values equal to the const survive.
+// Type-specific keywords ignore other types (JSON Schema semantics), so
+// a value of a type no keyword applies to — a bool, null, object, or a
+// string beside only `minimum` — survives.
 #let _fold-membership(js, ctx, names, recur) = {
   for keyword in _membership-structural {
     if keyword in js {
@@ -188,6 +189,9 @@
       "a non-empty array of values",
       if values == () { "[]" } else { _json-type-name(values) },
     ))
+  }
+  if "enum" in js and "const" in js {
+    values = values.filter(v => v == js.at("const"))
   }
   let by-type = (:)
   for t in ("string", "number", "array") {

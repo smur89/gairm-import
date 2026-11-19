@@ -102,6 +102,8 @@
   ((enum: ((1,), (1, 2), (3,)), minItems: 2), enum-of(((1, 2),))),
   ((const: 5, minimum: 4), const-of(5)),
   ((enum: (1, "x", true, none), minimum: 4), enum-of(("x", true, none))),
+  // With both, a value must be in the enum and equal the const.
+  ((enum: (1, 2), const: 2), const-of(2)),
   // anyOf / oneOf / not, nested too.
   (
     (anyOf: ((type: "string"), (type: "number"))),
