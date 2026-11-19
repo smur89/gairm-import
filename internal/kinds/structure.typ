@@ -238,9 +238,8 @@
 // rule: a malformed map always panics, and trigger / dependent keys
 // outside `shape` panic only when the object is closed.
 //
-// The argument shapes are checked by the registry's _object-problem,
-// which the translator words for its own keywords; whether the names
-// are in `shape` is object()'s alone.
+// The arguments are checked by the registry's _object-problem, which
+// the translator words for its own keywords.
 // object()'s body, its panics naming `who`: object() itself, or the
 // public function that builds or edits an object through it (map(),
 // a lens edit), so a bad argument is named as the caller's call spells
@@ -253,7 +252,12 @@
       repr(shape),
     ))
   }
-  let p = _object-problem(required-keys, dependent-required, additional)
+  let p = _object-problem(
+    required-keys,
+    dependent-required,
+    additional,
+    keys: shape.keys(),
+  )
   if p != none { _fail(who, p) }
   if type(additional) == dictionary {
     _require-schema(additional, who + " additional")
@@ -269,36 +273,6 @@
   let normalized = if additional == false { none } else { additional }
   for (key, sub) in shape {
     _require-schema(sub, who + " field " + repr(key))
-  }
-  // With `additional`, undeclared required keys are covered by the
-  // additional schema, so the subset check only applies when closed.
-  let unknown = if normalized == none {
-    required-keys.filter(k => k not in shape)
-  } else {
-    ()
-  }
-  if unknown.len() > 0 {
-    _bail(
-      who,
-      "required-keys references keys not in shape: " + unknown.join(", ") + ".",
-    )
-  }
-  let unknown-dependent = if normalized == none {
-    dependent-required
-      .pairs()
-      .map(((trigger, dependents)) => (trigger,) + dependents)
-      .flatten()
-      .filter(k => k not in shape)
-  } else {
-    ()
-  }
-  if unknown-dependent.len() > 0 {
-    _bail(
-      who,
-      "dependent-required references keys not in shape: "
-        + unknown-dependent.dedup().join(", ")
-        + ".",
-    )
   }
   let result = (
     kind: "object",

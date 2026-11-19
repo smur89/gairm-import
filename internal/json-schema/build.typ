@@ -106,15 +106,17 @@
   let required = js.at("required", default: ())
   let (keyword, dependent) = _dependent-required(js)
   // object()'s own check, so a bad value bails in the translator's words.
-  let p = _object-problem(required, dependent, additional)
+  let p = _object-problem(required, dependent, additional, keys: props.keys())
   if p != none {
     _bail-problem(p, keywords: (
       required-keys: "required",
       dependent-required: keyword,
     ))
   }
+  let shape = (:)
+  for (k, v) in props { shape.insert(k, recur(v, ctx)) }
   object(
-    props.pairs().map(((k, v)) => (k, recur(v, ctx))).to-dict(),
+    shape,
     required-keys: required,
     dependent-required: dependent,
     additional: additional,
@@ -152,13 +154,6 @@
   (node: read.node, gap: read.gap)
 }
 
-// The schema for the node as JSON type `t`, as `(node, gap)`.
-#let _build(js, ctx, t, recur) = _with-constraints(
-  _builders.at(t)(js, ctx, recur),
-  js,
-  t,
-)
-
 // Folds the `type` and constraint keywords beside `enum` / `const` into
 // the value set: each value is checked against the schema the node
 // builds for its JSON type, and only survivors are kept. Type-specific
@@ -183,7 +178,10 @@
     ))
   }
   let by-type = ("string", "number", "array")
-    .map(t => (t, _build(js, ctx, t, recur).node))
+    .map(t => (
+      t,
+      _with-constraints(_builders.at(t)(js, ctx, recur), js, t).node,
+    ))
     .to-dict()
   let survivors = values.filter(v => {
     let kind = _json-type-name(v)

@@ -68,10 +68,16 @@
 
 // The problem (error.typ) with object()'s `required-keys`,
 // `dependent-required` and `additional` arguments, or none, which
-// object() and the translator word in their own terms. Whether the
-// names are in `shape` is object()'s alone, and whether a dictionary
-// `additional` is a schema is the schema check's.
-#let _object-problem(required-keys, dependent-required, additional) = {
+// object() and the translator word in their own terms. Given the
+// declared field names `keys`, a closed object's names must be among
+// them: with `additional`, an undeclared name is covered by it. Whether
+// a dictionary `additional` is a schema is the schema check's.
+#let _object-problem(
+  required-keys,
+  dependent-required,
+  additional,
+  keys: none,
+) = {
   if not (additional in (none, false, true) or type(additional) == dictionary) {
     return _problem(
       "additional",
@@ -97,6 +103,23 @@
       entry: trigger,
     )
     if p != none { return p }
+  }
+  if keys == none or additional not in (none, false) { return }
+  for (arg, names) in (
+    ("required-keys", required-keys),
+    (
+      "dependent-required",
+      dependent-required.pairs().map(((t, ds)) => (t,) + ds).flatten(),
+    ),
+  ) {
+    let unknown = names.filter(k => k not in keys).dedup()
+    if unknown != () {
+      return _problem(
+        arg,
+        "only declared fields (the object takes no other keys)",
+        unknown.map(repr).join(", "),
+      )
+    }
   }
 }
 

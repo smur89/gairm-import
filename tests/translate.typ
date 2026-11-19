@@ -577,3 +577,14 @@
   )).then,
   object((a: string(), b: number()), additional: true),
 )
+
+// Nesting: the translator's recursion spends as few call frames per level
+// as the walk does, so a schema it translates is one validate can walk.
+// REFERENCE.md states these depths; a lost frame per level fails here.
+#let nested(n, wrap) = range(n).fold((type: "string"), (j, _) => wrap(j))
+#let deep-props = T(nested(30, j => (type: "object", properties: (a: j))))
+#assert.eq(validate(deep-props, range(30).fold("x", (d, _) => (a: d))), ())
+#let deep-any = T(nested(15, j => (
+  anyOf: ((type: "object", properties: (a: j)), (type: "null")),
+)))
+#assert.eq(deep-any.kind, "union")

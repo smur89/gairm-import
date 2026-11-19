@@ -123,7 +123,11 @@
 }
 
 // The allOf of the schema objects `raw`, each translated by `recur`.
-#let _all-of(raw, ctx, recur, resolve) = _join(
-  raw.map(m => recur(m, ctx)),
-  raw.map(m => _restricts-extras(m, resolve)),
-)
+#let _all-of(raw, ctx, recur, resolve) = {
+  let (members, restricts) = ((), ())
+  for m in raw {
+    members.push(recur(m, ctx))
+    restricts.push(_restricts-extras(m, resolve))
+  }
+  _join(members, restricts)
+}
