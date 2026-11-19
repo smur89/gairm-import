@@ -41,8 +41,11 @@ they compare with `==`, print with `repr`, and can be edited (lenses) or
 produced by the translator.
 
 A kind's behaviour lives in its descriptor in `kinds/registry.typ` (the
-header lists the fields): how it walks, its children and their labels,
-how a lens replaces a child, and how `describe-schema` draws it. The
+header lists the fields): which fields a node must carry, how it walks,
+its children and their labels, how a lens replaces a child, and how
+`describe-schema` draws it. Every entry point checks the whole schema
+once against those fields (`structure.typ`'s `_require-schema`), so the
+walk, lenses and introspection never meet a malformed node. The
 engine, lenses and introspection read the registry rather than keeping
 their own `kind ==` ladders. Within `kinds/`, the walks (`walk.typ`) sit
 below the registry and the constructors (`structure.typ`) above it,
