@@ -93,7 +93,9 @@
       if required { p = _problem("field " + repr(field), must, "missing") }
     } else if ok != none and not ok(node.at(field)) {
       let v = node.at(field)
-      p = _problem("field " + repr(field), must, repr(v), hint: _none-hint(v))
+      // A field the kind requires can't be left out instead.
+      let hint = if not required { _none-hint(v) }
+      p = _problem("field " + repr(field), must, repr(v), hint: hint)
     }
     if p != none { break }
   }

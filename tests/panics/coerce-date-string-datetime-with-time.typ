@@ -1,4 +1,4 @@
-// expect: coerce at d: expected a string or a datetime with a date and no time, got datetime.
+// expect: coerce at d: expected a string or a datetime with a date in years 0 to 9999 and no time, got datetime.
 #import "../../lib.typ": coerce, object, string
 #coerce(
   object((

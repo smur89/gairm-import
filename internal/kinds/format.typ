@@ -166,11 +166,12 @@
     let names = _formats.keys().map(repr)
     return _problem("format", "one of " + names.join(", "), repr(format))
   }
+  // An argument, so a hand-built node's problem names its field.
   if expected != none and pattern == none {
-    return (
-      message: "expected describes a pattern, so it needs pattern:; got expected: "
-        + repr(expected)
-        + " alone.",
+    return _problem(
+      "expected",
+      "given with a pattern, which it describes",
+      repr(expected),
     )
   }
   if pattern != none and type(pattern) not in (regex, str) {
@@ -234,7 +235,7 @@
 // time returns none — a time is never dropped to make a date fit — and
 // so does a year outside RFC 3339's four digits, which the regex the
 // conversion skips would refuse.
-#let _datetime-expected = "a string or a datetime with a date and no time"
+#let _datetime-expected = "a string or a datetime with a date in years 0 to 9999 and no time"
 
 #let _from-datetime(value) = {
   let year = value.year()

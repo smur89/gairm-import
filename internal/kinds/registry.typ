@@ -92,6 +92,17 @@
   (
     message: "needs a then or an otherwise branch; got neither. With no branch the condition checks nothing.",
   )
+} else {
+  // if-of() reads a none branch as no branch, and stores none.
+  let unset = ("then", "otherwise").find(f => s.at(f, default: 0) == none)
+  if unset != none {
+    _problem(
+      "field " + repr(unset),
+      "a schema",
+      "none",
+      hint: " Leave the field out for no branch.",
+    )
+  }
 }
 
 // `p` with its argument named as a node's field (`field "format"`), for
@@ -302,8 +313,16 @@
         v => type(v) == dictionary,
         "a dictionary of field name to schema",
       ),
+      // Judged by `problem`; these only refuse none.
+      ("required-keys", false, v => v != none, "an array of key names"),
+      (
+        "dependent-required",
+        false,
+        v => v != none,
+        "a dictionary of key to array of keys",
+      ),
     ),
-    reads: ("required-keys", "dependent-required", "additional"),
+    reads: ("additional",),
     // object() reads `additional: false` as none and stores neither, so
     // a node never holds false, which the walk would take for a schema.
     problem: s => if s.at("additional", default: none) == false {
