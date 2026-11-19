@@ -139,7 +139,7 @@
   let parent = _get-at(schema, path, op)
   if not _is-object(parent) {
     _fail(op, _problem(
-      "path",
+      "the node at " + repr(path),
       "an object schema",
       _a(_kind-label(parent)) + " schema",
     ))

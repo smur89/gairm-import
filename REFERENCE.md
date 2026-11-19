@@ -266,6 +266,7 @@ schema path. Its segments are:
 | `"items"` | an array's item schema |
 | `"additionalProperties"` | an object's `additional` schema (only when it is a schema, not `true`) |
 | an int (`0`) | that member of an `any-of` or `one-of` |
+| `0` in a `nullable(X)` | `X` |
 | `"not"` | a `not-of` member |
 | `"if"`, `"then"`, `"else"` | an `if-of`'s condition, or a branch it has (`"else"` is `otherwise`) |
 

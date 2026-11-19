@@ -370,6 +370,11 @@
         + str(s.members.len() - 1)
         + ", for a union schema",
       repr(seg),
+      // A nullable's schema is member 0, a step a path can easily miss.
+      hint: if type(seg) == str and _is-nullable(s) {
+        let of = _kind-label(s.members.first())
+        " Insert 0 to step into nullable(" + of + ")."
+      },
     ),
     // The header says which union; the members are listed below it.
     suffix: s => if s.exclusive { "one of" } else { "any of" },
