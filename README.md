@@ -281,7 +281,7 @@ renderer that takes JSON Resume data, such as
 <!-- Two fences (not one): a single fence would let release-please rewrite this altacv pin on every gairm release. Bump it by hand when altacv publishes a new version. See https://github.com/typst/packages/pull/5069#discussion_r3420827761 -->
 
 ```typst
-#import "@preview/altacv:1.7.0": alta
+#import "@preview/altacv:1.9.0": alta
 ```
 
 <!-- x-release-please-start-version -->
