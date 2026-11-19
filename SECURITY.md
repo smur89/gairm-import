@@ -2,10 +2,8 @@
 
 ## Reporting a vulnerability
 
-If you've found a security issue in `gairm-import` — for example, a way for a
-malicious JSON document to escape into shell execution, exfiltrate environment
-data via the host running `typst compile`, or otherwise compromise the
-compiler — please **do not** open a public issue.
+If you've found a security issue in `gairm-import`, please **do not** open a
+public issue.
 
 Instead, open a private report via [GitHub Security Advisories](https://github.com/smur89/gairm-import/security/advisories/new).
 I'll acknowledge within a few days and work with you on a fix.
@@ -14,13 +12,12 @@ I'll acknowledge within a few days and work with you on a fix.
 
 `gairm-import` is a Typst data-loading library: it reads a JSON document
 (a path, bytes or a Typst value), checks it against a schema the caller
-supplies, and returns Typst values. The most realistic attack surface is malicious input
-crafted to exploit a `typst` runtime bug; please report those upstream at
-[typst/typst](https://github.com/typst/typst/security). Issues *specific* to
-this package (e.g. a validation gap that lets unexpected data shapes through,
-or a path-handling bug in `parse`) are in scope here.
+supplies, and returns Typst values. Input crafted to exploit a `typst` runtime
+bug belongs upstream at [typst/typst](https://github.com/typst/typst/security).
+Issues *specific* to this package, such as a validation gap that lets
+unexpected data through, are in scope here.
 
 ## Supported versions
 
-Only the most recent published release on [Typst Universe](https://typst.app/universe/package/gairm-import)
-receives fixes.
+Only the most recent release on
+[Typst Universe](https://typst.app/universe/package/gairm-import) receives fixes.

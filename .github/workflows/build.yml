@@ -35,8 +35,8 @@ defaults:
     shell: bash
 
 jobs:
-  # `make check`: every fixture, panic case and package test, the
-  # typstyle check and the layering check. A required check, so a
+  # `make check`: every fixture, panic case and package test, and the
+  # typstyle, layering and conventions checks. A required check, so a
   # green `make check` locally means a green `test` here.
   test:
     runs-on: ubuntu-latest
