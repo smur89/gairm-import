@@ -97,9 +97,9 @@
   (
     format: "email",
     datetime: none,
-    // An unquoted local part without whitespace, or a quoted one; a domain of one or
-    // more labels, or an address literal in brackets (`[127.0.0.1]`,
-    // `[IPv6:::1]`).
+    // An unquoted local part without whitespace, or a quoted one; a
+    // domain of one or more labels, or an address literal in brackets
+    // (`[127.0.0.1]`, `[IPv6:::1]`).
     pattern: regex(
       "^([^@\s\"]+|\"([^\"\\\\]|\\\\.)+\")@([^@\s.\[\]]+(\.[^@\s.\[\]]+)*|\[[^\[\]\s]+\])$",
     ),
