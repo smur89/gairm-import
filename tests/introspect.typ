@@ -42,9 +42,6 @@ work[]:
 
 #assert.eq(describe-schema(toy), expected)
 
-// Empty schema — no children, no panic.
-#assert.eq(describe-schema(object((:))), "")
-
 // Single leaf at the root (degenerate but supported).
 #assert.eq(describe-schema(string()), "string")
 
@@ -521,3 +518,34 @@ phone → email",
   describe-schema(edge),
   "\"\"     string\n\"a.b\"  string?\nc      string\n\"a.b\" → \"\"",
 )
+
+// A required key the shape doesn't declare is drawn with the schema
+// other keys get, among the fields in key order.
+#assert.eq(
+  describe-schema(map(string(), required-keys: ("id",))),
+  "id*  string\n*    string",
+)
+#assert.eq(
+  describe-schema(object(
+    (b: string()),
+    required-keys: ("a", "b"),
+    additional: true,
+  )),
+  "a*  unknown\nb*  string\n*   unknown",
+)
+
+// An object with no fields and no other keys draws on its label's row.
+#assert.eq(
+  describe-schema(object((a: object((:)), b: string()))),
+  "a  empty object\nb  string",
+)
+#assert.eq(describe-schema(object((:))), "empty object")
+#assert.eq(
+  describe-schema(any-of((object((:)), string()))),
+  "any of:\n  [0]  empty object\n  [1]  string",
+)
+
+// describe-schema reaches as deep as validate: 37 nested objects
+// (tests/engine-walk.typ).
+#let deep = range(37).fold(string(), (s, _) => object((a: s)))
+#assert(describe-schema(deep).ends-with("a  string"))

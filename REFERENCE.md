@@ -371,6 +371,9 @@ field with its kind:
 - keys sort alphabetically, so diffs across schema versions stay stable;
 - a required field is suffixed `*`, an array `[]`, and `*` as a key stands
   for any other key (the `additional` schema);
+- a required key the shape doesn't declare is listed as `key*` with the
+  `additional` schema (`unknown` for `additional: true`);
+- an object with no fields that takes no other keys shows as `empty object`;
 - constraints follow the kind in brackets, a format in parentheses, and a
   pattern as `+ pattern`;
 - a union lists its members as `[0]`, `[1]`, … under `any of:` or
