@@ -89,20 +89,18 @@ lists the keywords it supports and how it differs from draft 7.
 
 | Group | Names |
 |---|---|
-| Run | `parse`, `validate`, `coerce`, `format-errors` |
-| Schemas | `schema-from-json-schema` |
-| Constructors | `string`, `number`, `integer`, `boolean`, `null`, `markup`, `unknown`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
-| Edits | `schema-get`, `schema-put`, `schema-update`, `add-field`, `remove-field`, `set-required`, `unset-required` |
-| Inspect | `describe-schema`, `find-paths` |
-| Pointers | `path-to-pointer`, `pointer-to-path` |
+| [Run](REFERENCE.md#running) | `parse`, `validate`, `coerce`, `format-errors` |
+| [Schemas](REFERENCE.md#json-schema-translation) | `schema-from-json-schema` |
+| [Constructors](REFERENCE.md#constructors) | `string`, `number`, `integer`, `boolean`, `null`, `markup`, `unknown`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
+| [Edits](REFERENCE.md#schema-paths-and-edits) | `schema-get`, `schema-put`, `schema-update`, `add-field`, `remove-field`, `set-required`, `unset-required` |
+| [Inspect](REFERENCE.md#introspection) | `describe-schema`, `find-paths` |
+| [Pointers](REFERENCE.md#json-pointer) | `path-to-pointer`, `pointer-to-path` |
 
 `parse` validates and coerces in one call and panics with every problem
 found. `validate` returns the problems as a list, and `coerce` builds the
 model without validating first, panicking only where the data leaves no
 model. All three take the schema, then the data, and `strict-null:`
 (default `false`), so `parse.with(schema)` is a parser for one schema.
-
-[REFERENCE.md](REFERENCE.md) documents every export, one section per group.
 
 ## Input forms
 
@@ -117,7 +115,8 @@ model. All three take the schema, then the data, and `strict-null:`
 
 A string is data, not a path: inside a package it would resolve from the
 package, never your file, so a `.json`-looking string the schema rejects
-panics with a hint to use `path(..)`. A `null` document panics.
+panics with a hint to use `path(..)`. `read("book.json")` without
+`encoding: none` gives the file's text, which is a string too.
 `schema-from-json-schema` takes the first three forms only.
 
 ## Errors
@@ -155,15 +154,13 @@ Branch on `code`, not on the message;
 `expected` and `got` hold for each.
 
 `format-errors(errors)` turns the records into `parse`'s report, reading
-only `path` and `message`:
+only `path` and `message`. With `book-schema` from
+[Quick start](#quick-start):
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.13.0": (
-  validate, coerce, format-errors, schema-from-json-schema,
-)
+#import "@preview/gairm-import:0.13.0": validate, coerce, format-errors
 
-#let book-schema = schema-from-json-schema(json("book-schema.json"))
 #let doc = json("book.json")
 #let errors = validate(book-schema, doc)
 #if errors.len() > 0 {
@@ -251,10 +248,8 @@ A minimal `resume.json`:
 
 The result mirrors the document: `resume.basics.name` and
 `resume.work.at(0).position` are strings, `resume.work.at(0).highlights` an
-array of strings. Your copy of the schema decides the version, so a field
-upstream adds works as soon as you update the file. Pass the result to any
-renderer that takes JSON Resume data, such as
-[`altacv`](https://typst.app/universe/package/altacv):
+array of strings. Pass the result to any renderer that takes JSON Resume
+data, such as [`altacv`](https://typst.app/universe/package/altacv):
 
 <!-- Bump this altacv pin by hand when altacv publishes a new version: release-please only owns gairm-import's. -->
 
@@ -262,10 +257,6 @@ renderer that takes JSON Resume data, such as
 #import "@preview/altacv:1.9.0": alta
 #alta(resume)
 ```
-
-The schema declares no nullable fields, so with `strict-null: true` it
-rejects a `null` in any declared field. The free-form `custom` objects
-check nothing, so a `null` there is kept.
 
 Upstream sets `additionalProperties: true` at the top level and on every
 section's items, so a misspelt `positon` is kept rather than reported.
@@ -292,6 +283,7 @@ the objects, check full dates and make the free-text fields `content`.
 | `map(true)` | `object((:), additional: true)` |
 | `add-field(s, at, key, sub)` | `add-field(s, at + (key,), sub)` |
 | `remove-field(s, at, key)` | `remove-field(s, at + (key,))` |
+| an `object` node's `required-keys`, always set | set only when not empty: read `s.at("required-keys", default: ())` |
 | `set-required(s, at, keys)` replacing the list | `set-required` adds `keys`; replace with `schema-update(s, at, o => (..o, required-keys: keys))` |
 
 Validation is stricter in places: `date` takes only `YYYY-MM-DD`,

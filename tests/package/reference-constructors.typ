@@ -23,6 +23,8 @@
 #assert.eq(member, shared.member)
 
 #assert.eq(any-of(string(), number()), any-of((string(), number())))
+#assert.eq(enum-of("a", "b"), enum-of(("a", "b")))
+#assert.eq(enum-of(((1, 2),)).values, ((1, 2),))
 #assert.eq(const-of(1), enum-of((1,)))
 
 // The if-of example.

@@ -26,7 +26,7 @@
   (1,),
 )
 
-// multipleOf on floats uses a tolerance.
+// multipleOf compares numbers as decimals.
 #assert.eq(validate(number(multiple-of: 0.1), 0.3), ())
 
 // uniqueItems compares items as the model holds them.

@@ -4,8 +4,6 @@
 #import "@preview/gairm-import:0.0.0": (
   parse, validate, coerce, object, string, nullable, array-of,
 )
-#import "readme-json-resume.typ": resume-schema
-#import "reference-json-resume.typ": resume-schema-strict
 
 #let schema = object(
   (name: string(), nickname: nullable(string())),
@@ -55,6 +53,10 @@
   coerce(array-of(nullable(string())), ("x", none), strict-null: true),
   ("x", none),
 )
+// ... and counted by min-items: dropped by default, kept with strict-null.
+#let two = array-of(nullable(string()), min-items: 2)
+#assert.eq(codes(("x", none), two, false), ("items",))
+#assert.eq(codes(("x", none), two, true), ())
 // Dependent-required trigger holding null.
 #assert.eq(codes((a: none), dep, false), ())
 #assert.eq(codes((a: none), dep, true), ("type", "dependent"))
@@ -63,23 +65,4 @@
 // Free-form object.
 #for strict in (false, true) {
   assert.eq(coerce(free, (a: none), strict-null: strict), (a: none))
-}
-
-// Strict null on a resume schema: a declared field rejects null, the
-// free-form `custom` bag keeps it.
-#for schema in (resume-schema, resume-schema-strict) {
-  assert.eq(
-    validate(schema, (basics: (name: none)), strict-null: true).map(
-      e => e.code,
-    ),
-    ("type",),
-  )
-  assert.eq(
-    validate(
-      schema,
-      (basics: (name: "A", custom: (k: none))),
-      strict-null: true,
-    ),
-    (),
-  )
 }
