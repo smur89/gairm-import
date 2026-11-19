@@ -113,8 +113,29 @@
       dependent-required: keyword,
     ))
   }
+  // A closed object can't hold a key it doesn't declare. object() would
+  // refuse one too, but in its own argument names.
+  if additional == none {
+    for (kw, names) in (
+      ("required", required),
+      (keyword, dependent.pairs().map(((t, ds)) => (t,) + ds).flatten()),
+    ) {
+      let unknown = names.filter(k => k not in props).dedup()
+      if unknown != () {
+        _bail(
+          repr(kw)
+            + " names keys not in \"properties\" of an object that takes no other keys: "
+            + unknown.join(", ")
+            + ".",
+        )
+      }
+    }
+  }
+  // A loop, not a `.map` closure: a frame less per level of nesting.
+  let shape = (:)
+  for (k, v) in props { shape.insert(k, recur(v, ctx)) }
   object(
-    props.pairs().map(((k, v)) => (k, recur(v, ctx))).to-dict(),
+    shape,
     required-keys: required,
     dependent-required: dependent,
     additional: additional,

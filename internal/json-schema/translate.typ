@@ -13,7 +13,7 @@
   _bail, _bail-problem, _check-keywords, _check-keywords-typed,
   _has-keyword-for, _role-of,
 )
-#import "build.typ": _builders, _build, _fold-membership
+#import "build.typ": _builders, _with-constraints, _fold-membership
 #import "all-of.typ": _all-of
 #import "conditional.typ": _conditional
 
@@ -128,6 +128,16 @@
 // raw members (all-of.typ).
 #let _resolver(ctx) = ref => _resolve-ref(ref, ctx.root, ())
 
+// A union keyword's applicator: its members translated, then `build`.
+// The members are translated in a `for` loop rather than a `.map`
+// closure, as everywhere on the translator's recursion: every closure is
+// a call frame, and Typst caps how deeply calls nest.
+#let _union-of(keyword, build) = (js, ctx, recur) => {
+  let members = ()
+  for m in _require-member-array(js, keyword) { members.push(recur(m, ctx)) }
+  build(members)
+}
+
 // The composition keywords (#108), each with its member schemas, and
 // `if`, which reads its node's other keywords too (conditional.typ).
 #let _applicators = (
@@ -137,12 +147,8 @@
     recur,
     _resolver(ctx),
   ),
-  anyOf: (js, ctx, recur) => any-of(
-    _require-member-array(js, "anyOf").map(m => recur(m, ctx)),
-  ),
-  oneOf: (js, ctx, recur) => one-of(
-    _require-member-array(js, "oneOf").map(m => recur(m, ctx)),
-  ),
+  anyOf: _union-of("anyOf", any-of),
+  oneOf: _union-of("oneOf", one-of),
   "not": (js, ctx, recur) => not-of(recur(js.at("not"), ctx)),
   "if": (js, ctx, recur) => _conditional(js, ctx, recur, _resolver(ctx)),
 )
@@ -205,8 +211,12 @@
   let js = if open { (..js, additionalProperties: true) } else { js }
   // An integer member whose bounds hold no integer takes no value, so a
   // `type` list drops it; with no other member the schema is
-  // unsatisfiable and bails.
-  let built = types.map(t => _build(js, ctx, t, _translate))
+  // unsatisfiable and bails. Built here rather than through _build, so a
+  // nested node costs only this call and its builder's.
+  let built = ()
+  for t in types {
+    built.push(_with-constraints(_builders.at(t)(js, ctx, _translate), js, t))
+  }
   let members = built.filter(b => b.gap == none).map(b => b.node)
   if members == () { _bail-problem(built.first().gap) }
   if members.len() == 1 { members.first() } else { any-of(members) }

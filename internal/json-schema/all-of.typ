@@ -123,7 +123,9 @@
 }
 
 // The allOf of the schema objects `raw`, each translated by `recur`.
-#let _all-of(raw, ctx, recur, resolve) = _join(
-  raw.map(m => recur(m, ctx)),
-  raw.map(m => _restricts-extras(m, resolve)),
-)
+// A loop, not a `.map` closure, so a member costs a frame less.
+#let _all-of(raw, ctx, recur, resolve) = {
+  let members = ()
+  for m in raw { members.push(recur(m, ctx)) }
+  _join(members, raw.map(m => _restricts-extras(m, resolve)))
+}
