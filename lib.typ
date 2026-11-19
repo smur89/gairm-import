@@ -13,8 +13,8 @@
   array-of, object, map, any-of, one-of, not-of, if-of, nullable,
 )
 #import "internal/json-schema/translate.typ": schema-from-json-schema
-#import "internal/lens.typ": (
-  lens-get, lens-put, lens-over, add-field, remove-field, set-required,
+#import "internal/edit.typ": (
+  schema-get, schema-put, schema-update, add-field, remove-field, set-required,
   unset-required,
 )
 #import "internal/introspect.typ": describe-schema, find-paths

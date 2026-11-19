@@ -1,5 +1,5 @@
 // The `member` and `team` schemas REFERENCE.md's examples build on, as
-// "Constructors" and "Lenses and edits" define them. Not a test itself:
+// "Constructors" and "Schema paths and edits" define them. Not a test itself:
 // the reference-* mirrors import it.
 #import "@preview/gairm-import:0.0.0": *
 

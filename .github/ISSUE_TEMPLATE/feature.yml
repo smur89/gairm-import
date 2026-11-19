@@ -31,5 +31,5 @@ body:
       label: Scope
       description: gairm-import is a schema engine. Renderer-specific behaviour (theme, labels, decorations) belongs in the consuming template, and fields outside a schema in an extension schema the caller builds.
       options:
-        - label: This request is about validation, coercion, translation, lenses or introspection, not rendering.
+        - label: This request is about validation, coercion, translation, schema edits or introspection, not rendering.
           required: true

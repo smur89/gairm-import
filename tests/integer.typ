@@ -5,7 +5,7 @@
 #import "../lib.typ": (
   object, array-of, nullable, any-of, find-paths, describe-schema,
   schema-from-json-schema, validate, coerce, not-of, string, number, integer,
-  lens-get,
+  schema-get,
 )
 
 
@@ -17,8 +17,8 @@
   maybe: nullable(integer()),
 ))
 
-#assert.eq(lens-get(schema, ("age",)).kind, "integer")
-#assert.eq(lens-get(schema, ("score",)).kind, "number")
+#assert.eq(schema-get(schema, ("age",)).kind, "integer")
+#assert.eq(schema-get(schema, ("score",)).kind, "number")
 #assert.eq(find-paths(schema, integer()), (
   ("age",),
   ("counts", "items"),
@@ -37,7 +37,7 @@
 // all.
 #let translated = schema-from-json-schema((type: "integer", minimum: 1))
 #assert.eq(translated, (kind: "integer", minimum: 1))
-#assert.eq(lens-get(translated, ()).kind, "integer")
+#assert.eq(schema-get(translated, ()).kind, "integer")
 
 // Validation unchanged: the number gate, the integral gate, then the
 // number rows.

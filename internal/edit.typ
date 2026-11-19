@@ -1,37 +1,38 @@
-// Lens-style schema editing.
+// Schema editing through schema paths.
 //
-// Top-level lens-* functions rather than methods on a lens record:
+// Top-level schema-* functions rather than methods on a record:
 // Typst parses `dict.field(args)` as a type-method lookup, not a call
 // of the closure stored under that key, so methods would force
-// `(lens.put)(args)` at every call site.
+// `(path.put)(args)` at every call site.
 //
 // The schema comes first everywhere, so edits pipe through `.fold`.
 // Every function here points into the schema with a schema path, an
 // array of segments.
 //
 // Path segments borrow JSON Schema keyword names (not the engine field
-// names), but a lens path is not a JSON Schema location: a field is
+// names), but a schema path is not a JSON Schema location: a field is
 // entered by its bare name, with no `properties` segment. Segments:
 //   - object   : string key into `.shape`
 //   - object   : literal "additionalProperties" to enter `.additional`
 //                (only when set to a schema dict, not `true`)
 //   - array    : literal "items" to enter `.elem`
-//   - union    : int index into `.members` (any-of and one-of alike)
+//   - union    : int index into `.members` (any-of and one-of alike;
+//                a nullable's schema is member 0)
 //   - not      : literal "not" to enter `.member`
 //   - if       : literal "if", "then" or "else" to enter `.cond`, `.then`
 //                or `.otherwise` (a branch only when it is set)
-//   - empty `()` : identity lens
+//   - empty `()` : the whole schema
 //
 // Shape-first precedence for objects: if `"additionalProperties"` is
 // both a literal property in `shape` and the additionalProperties
 // keyword name, the literal property wins (meta-schemas are the
 // realistic case where this collision arises). Reach the
-// additional-schema in that rare collision case via lens-over on the
+// additional-schema in that rare collision case via schema-update on the
 // parent — `p => p.additional` to read, `p => (..p, additional: new)`
 // to write.
 //
-// Every edit keeps the constructors' invariants. The node `lens-put`
-// writes, or `lens-over`'s function returns, must be a schema (checked
+// Every edit keeps the constructors' invariants. The node `schema-put`
+// writes, or `schema-update`'s function returns, must be a schema (checked
 // whole, as every entry point checks one), and an edited object, the
 // written node or any object above it, is rebuilt through object().
 // Build replacements with the constructors.
@@ -63,13 +64,14 @@
 // What an argument is, for the order panic below.
 #let _what(x) = if _has-kind(x) { "a schema" } else if _is-path(x) {
   "a path"
-} else { "a " + str(type(x)) }
+} else if x == none { "none" } else { _a(str(type(x))) }
 
-// The schema and the path of a lens-get / lens-put / lens-over call.
-// Schema first: any other call panics naming what it got, and a
+// The schema and the path of a schema-get / schema-put / schema-update
+// call. Given a schema first, the path is checked as the edits check
+// theirs; anything else panics naming what came in which order. A
 // malformed schema names the node at fault.
 #let _subject(a, b, op) = {
-  if _has-kind(a) and _is-path(b) {
+  if _has-kind(a) {
     _require-schema(a, op + " schema")
     return (a, _schema-path(b, op))
   }
@@ -88,12 +90,11 @@
 /// - schema (dictionary): The schema to read from.
 /// - at (array): Where: a schema path.
 /// -> dictionary
-#let lens-get(schema, at) = {
-  let (schema, path) = _subject(schema, at, "lens-get")
-  _get-at(schema, path, "lens-get")
+#let schema-get(schema, at) = {
+  let (schema, path) = _subject(schema, at, "schema-get")
+  _get-at(schema, path, "schema-get")
 }
 
-// `put` because `set` is a Typst keyword.
 /// Returns a new schema with the node at `at` replaced by `value`. The
 /// input schema is not changed. Panics if `value` is not a schema, or
 /// if the edit breaks an object's invariants (as `object` would).
@@ -102,26 +103,37 @@
 /// - at (array): Where: a schema path.
 /// - value (dictionary): The replacement node.
 /// -> dictionary
-#let lens-put(schema, at, value) = {
-  let (schema, path) = _subject(schema, at, "lens-put")
-  _set-at(schema, path, _checked(value, "lens-put value"), "lens-put")
+#let schema-put(schema, at, value) = {
+  let (schema, path) = _subject(schema, at, "schema-put")
+  _set-at(schema, path, _checked(value, "schema-put value"), "schema-put")
 }
 
 /// Returns a new schema with the node at `at` replaced by `fn` applied
-/// to it. Panics if `fn` returns anything but a schema, or if the edit
-/// breaks an object's invariants (as `object` would).
+/// to it. Panics if `fn` is not a function or returns anything but a
+/// schema, or if the edit breaks an object's invariants (as `object`
+/// would).
 ///
 /// - schema (dictionary): The schema to edit.
 /// - at (array): Where: a schema path.
 /// - fn (function): Takes the current node, returns the new one.
 /// -> dictionary
-#let lens-over(schema, at, fn) = {
-  let (schema, path) = _subject(schema, at, "lens-over")
+#let schema-update(schema, at, fn) = {
+  let (schema, path) = _subject(schema, at, "schema-update")
+  if type(fn) != function {
+    _fail("schema-update", _problem(
+      "fn",
+      "a function from the node to its replacement",
+      repr(fn),
+    ))
+  }
   _set-at(
     schema,
     path,
-    _checked(fn(_get-at(schema, path, "lens-over")), "lens-over result"),
-    "lens-over",
+    _checked(
+      fn(_get-at(schema, path, "schema-update")),
+      "schema-update result",
+    ),
+    "schema-update",
   )
 }
 
@@ -147,16 +159,16 @@
 }
 
 // Collisions panic instead of overwriting silently — for the
-// overwrite-an-existing-key case, callers can reach for lens-put / lens-over.
+// overwrite-an-existing-key case, callers can reach for schema-put /
+// schema-update.
 // `required: true` adds the key to required-keys in the same edit, so
 // the object is rebuilt, and checked, once.
 /// Returns a new schema with `key` added to the object at `at`. Panics
 /// if the target is not an object or already has that key; use
-/// `lens-put` to replace a field.
+/// `schema-put` to replace a field.
 ///
 /// - schema (dictionary): The schema to edit.
-/// - at (dictionary, array): The object that gets the field: a lens or
-///   a path array.
+/// - at (array): The object that gets the field, as a schema path.
 /// - key (str): The new field's name.
 /// - sub-schema (dictionary): The schema for the field.
 /// - required (bool): Whether the object also requires the field.
@@ -171,7 +183,7 @@
         "key "
           + repr(key)
           + " already in object shape. "
-          + "Use lens-put / lens-over to replace an existing field.",
+          + "Use schema-put / schema-update to replace an existing field.",
       )
     }
     let edit = (shape: (..parent.shape, (key): sub-schema))
@@ -182,7 +194,7 @@
   })
 }
 
-// Replace, not merge — mirrors lens-put. On a closed object keys must
+// Replace, not merge. On a closed object keys must
 // exist in shape so a typo fails at edit time, not as a phantom
 // "missing X" error; an open one allows what object() allows.
 /// Returns a new schema where the object at `at` requires exactly

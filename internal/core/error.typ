@@ -38,7 +38,7 @@
 )
 
 /// `"<what> not in <where>[: <names, …>]. <label>: <valid, …>."`, for
-/// names an edit or a lens path may not use: `what` names one, or
+/// names an edit or a schema path may not use: `what` names one, or
 /// introduces the list `names`.
 #let _not-in(what, where, label, valid, names: none) = (
   what

@@ -1,14 +1,14 @@
 // Schema introspection: `describe-schema` draws a schema, `find-paths`
-// lists the lens path of every node of a kind. Both reach into union
+// lists the schema path of every node of a kind. Both reach into union
 // and `not` members
 // (#164) and conditionals (#109): a union member's segment is its
 // index, a `not` member's is "not", and a conditional's are "if",
 // "then" and "else".
 
 #import "../lib.typ": (
-  describe-schema, find-paths, lens-get, object, array-of, map, markup, boolean,
-  null, enum-of, any-of, const-of, one-of, not-of, if-of, nullable, string,
-  number, integer, schema-from-json-schema,
+  describe-schema, find-paths, schema-get, object, array-of, map, markup,
+  boolean, null, enum-of, any-of, const-of, one-of, not-of, if-of, nullable,
+  string, number, integer, schema-from-json-schema,
 )
 #import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
@@ -94,8 +94,8 @@ work[]:
   ("work", "items", "summary"),
 ))
 
-// `items` segments are lens-compatible — feed one back in.
-#assert.eq(lens-get(resume-schema-strict, content-paths.at(0)), markup())
+// `items` segments are schema paths — feed one back in.
+#assert.eq(schema-get(resume-schema-strict, content-paths.at(0)), markup())
 
 // Formats carry through to the strict schema from the faithful
 // base (translator-emitted `format: "uri"` / `format: "email"`).
@@ -136,7 +136,7 @@ work[]:
 // (translator picks up upstream's `definitions/iso8601` pattern). The
 // strict schema rewrites them to date strings, so they vanish there.
 // The query is one of them, so it finds every string with that pattern.
-#let iso8601 = lens-get(resume-schema, ("work", "items", "startDate"))
+#let iso8601 = schema-get(resume-schema, ("work", "items", "startDate"))
 #let iso-paths-faithful = find-paths(resume-schema, iso8601)
 #assert.eq(iso-paths-faithful.len(), 13)
 #assert(("work", "items", "startDate") in iso-paths-faithful)
@@ -191,18 +191,18 @@ work[]:
 
 // --- the kind at a location ----------------------------------------
 
-#assert.eq(lens-get(resume-schema, ("basics", "name")).kind, "string")
+#assert.eq(schema-get(resume-schema, ("basics", "name")).kind, "string")
 // A formatted string is a string; its format is a field.
-#assert.eq(lens-get(resume-schema, ("basics", "email")).kind, "string")
-#assert.eq(lens-get(resume-schema, ("basics", "email")).format, "email")
+#assert.eq(schema-get(resume-schema, ("basics", "email")).kind, "string")
+#assert.eq(schema-get(resume-schema, ("basics", "email")).format, "email")
 #assert.eq(
-  lens-get(resume-schema-strict, ("basics", "summary")).kind,
+  schema-get(resume-schema-strict, ("basics", "summary")).kind,
   "markup",
 )
-#assert.eq(lens-get(resume-schema, ("work", "items")).kind, "object")
-#assert.eq(lens-get(resume-schema, ("work",)).kind, "array")
+#assert.eq(schema-get(resume-schema, ("work", "items")).kind, "object")
+#assert.eq(schema-get(resume-schema, ("work",)).kind, "array")
 // Empty path is the identity — root kind.
-#assert.eq(lens-get(resume-schema, ()).kind, "object")
+#assert.eq(schema-get(resume-schema, ()).kind, "object")
 
 // Kind values (#135): a schema node matches by its kind and the fields
 // it sets; a constructor stands for the kind it builds. A constructor
@@ -295,16 +295,16 @@ plain  string",
 // --- unions and `not` --------------------------------------------------
 
 // A strict date field is a full date or a partial one: the union node
-// is found, and lenses reach each member.
+// is found, and schema-get reaches each member.
 #assert(
   ("work", "items", "startDate") in find-paths(resume-schema-strict, any-of),
 )
 #assert.eq(
-  lens-get(resume-schema-strict, ("work", "items", "startDate", 0)).format,
+  schema-get(resume-schema-strict, ("work", "items", "startDate", 0)).format,
   "date",
 )
 #assert.eq(
-  lens-get(resume-schema-strict, ("work", "items", "startDate", 1)).kind,
+  schema-get(resume-schema-strict, ("work", "items", "startDate", 1)).kind,
   "string",
 )
 
@@ -314,7 +314,7 @@ plain  string",
 #assert(("work", "items", "location", 0) in str-paths)
 #assert(("work", "items", "location", 1, "city") in str-paths)
 #assert.eq(
-  lens-get(resume-schema, ("work", "items", "location", 1)).kind,
+  schema-get(resume-schema, ("work", "items", "location", 1)).kind,
   "object",
 )
 
@@ -323,8 +323,8 @@ plain  string",
   place: one-of((string(), object((city: string())))),
   other: not-of(array-of(number())),
 ))
-#assert.eq(lens-get(union-toy, ("other", "not", "items")).kind, "number")
-#assert.eq(lens-get(union-toy, ("place", 1, "city")).kind, "string")
+#assert.eq(schema-get(union-toy, ("other", "not", "items")).kind, "number")
+#assert.eq(schema-get(union-toy, ("place", 1, "city")).kind, "string")
 #assert.eq(find-paths(union-toy, string()), (
   ("place", 0),
   ("place", 1, "city"),
@@ -350,16 +350,16 @@ plain  string",
   ("a", "then", "when"),
   ("a", "else", "items"),
 ))
-#assert.eq(lens-get(cond-toy, ("a", "else")).kind, "array")
+#assert.eq(schema-get(cond-toy, ("a", "else")).kind, "array")
 #for p in find-paths(cond-toy, string(format: "date")) {
-  assert.eq(lens-get(cond-toy, p), string(format: "date"))
+  assert.eq(schema-get(cond-toy, p), string(format: "date"))
 }
-// Every path find-paths returns round-trips through a lens.
+// Every path find-paths returns round-trips through schema-get.
 #for p in find-paths(union-toy, string()) {
-  assert.eq(lens-get(union-toy, p).kind, "string")
+  assert.eq(schema-get(union-toy, p).kind, "string")
 }
 #for p in find-paths(union-toy, string(format: "date")) {
-  assert.eq(lens-get(union-toy, p), string(format: "date"))
+  assert.eq(schema-get(union-toy, p), string(format: "date"))
 }
 
 // --- describe-schema: every feature it draws ----------------------------

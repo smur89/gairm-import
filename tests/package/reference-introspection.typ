@@ -65,7 +65,7 @@ name*    string",
 // A query by pattern alone sets no expected, so it finds the field
 // whatever its message.
 #assert.eq(find-paths(member, string(pattern: "^[A-Z]{3}$")), (("code",),))
-#assert.eq(lens-get(team, ("contact", 0)).format, "email")
+#assert.eq(schema-get(team, ("contact", 0)).format, "email")
 
 // find-paths: a constructor finds the nodes it builds.
 #let u = object((

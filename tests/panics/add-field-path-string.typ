@@ -1,3 +1,3 @@
-// expect: add-field path must be an array of path segments, got: "basics".
+// expect: add-field path must be an array of path segments, got: "basics". Write ("basics",) for one key.
 #import "../../lib.typ": add-field, object, string
 #add-field(object((basics: object((:)))), "basics", "x", string())

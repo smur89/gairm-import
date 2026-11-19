@@ -1,13 +1,13 @@
 // Schema-shape inspection helpers. Debugging an extension schema
 // otherwise means `repr(schema)` (noisy dict dump) or hand-walking
 // `.shape` accessors. Introspection here stays read-only; edits live
-// in lens.typ.
+// in edit.typ.
 //
-// Path tuples use lens-compatible segments — `"items"` for array
+// Paths are schema paths — `"items"` for array
 // descent, `"additionalProperties"` for the additional schema, an
 // index for a union member, `"not"` for a `not` member, `"if"`,
 // `"then"` and `"else"` for a conditional's condition and branches — so
-// `find-paths` output round-trips through `lens-get`.
+// `find-paths` output round-trips through `schema-get`.
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
@@ -186,7 +186,7 @@
   }
 } else { (kind: none, name: repr(query)) }
 
-/// Lists the lens path of every node in `schema` that matches `query`,
+/// Lists the schema path of every node in `schema` that matches `query`,
 /// including inside union and `not` members and a conditional's
 /// condition and branches. The paths work wherever a schema path does.
 /// Panics for `object` and `array`, which the search walks through, and

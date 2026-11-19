@@ -1,6 +1,6 @@
 // RFC 6901 JSON Pointer: the public path <-> pointer pair, and below
 // it the reading the translator's `$ref` needs (percent-decoding a URI
-// fragment, looking a path up in a document). Path tuples used by lenses
+// fragment, looking a path up in a document). Schema paths
 // (`("basics", "email")`) and validator error reports (`("work",
 // 0, "highlights", 1)`) <-> the "/basics/email" / "/work/0/
 // highlights/1" form external tooling (editor extensions, schema
@@ -10,7 +10,7 @@
 //   - Validator error paths address INTO data (str keys, non-negative
 //     int indices) and encode to a real RFC 6901 pointer a data-aware
 //     tool can dereference.
-//   - Lens / introspect paths address INTO a schema, in this
+//   - Schema paths address INTO a schema, in this
 //     package's own segments (`"items"`, `"additionalProperties"`,
 //     `"not"`, an int union index) and with no `properties` segment,
 //     so they encode segment for segment: `("work", "items")` is

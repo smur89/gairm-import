@@ -1,11 +1,11 @@
 // The object edits: add-field, remove-field, set-required and
-// unset-required, each at a location (a lens or a path). Every edit
+// unset-required, each at a location (a schema path). Every edit
 // leaves a node equal to the one object() builds, so it keeps the
 // constructor's invariants, and leaves its input unchanged.
 
 #import "../lib.typ": (
-  lens-put, lens-over, add-field, remove-field, set-required, unset-required,
-  object, map, validate, string, number,
+  schema-put, schema-update, add-field, remove-field, set-required,
+  unset-required, object, map, validate, string, number,
 )
 #import "fixtures/resume.typ": resume-schema
 
@@ -166,14 +166,14 @@
   dependent-required: (a: ("b",)),
 )
 #assert.eq(
-  lens-put(parent, ("b",), number()),
+  schema-put(parent, ("b",), number()),
   object(
     (a: string(), b: number()),
     required-keys: ("a",),
     dependent-required: (a: ("b",)),
   ),
 )
-#assert.eq(lens-over(parent, (), p => p), parent)
+#assert.eq(schema-update(parent, (), p => p), parent)
 #assert.eq(remove-field(parent, (), "b"), object(
   (a: string()),
   required-keys: ("a",),
