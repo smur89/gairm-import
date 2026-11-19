@@ -203,8 +203,24 @@
       _kind-label(s) + if "pattern" in s { " + pattern" } else { "" }
     ),
   ),
-  // The model wraps the string so it splices into markup.
-  markup: _kind(check: _string-check, family: "string", model: v => [#v]),
+  // The model wraps the string so it splices into markup. Its check
+  // reads no pattern or format, so a hand-built one is refused rather
+  // than silently ignored.
+  markup: _kind(
+    check: _string-check,
+    family: "string",
+    model: v => [#v],
+    problem: s => {
+      let field = ("pattern", "format").find(f => f in s)
+      if field != none {
+        (
+          message: "field "
+            + repr(field)
+            + " does nothing on markup, which takes no pattern or format; use string() for one.",
+        )
+      }
+    },
+  ),
   number: _kind(check: _number-check, family: "number"),
   // A number with the integral gate; the number rows apply.
   integer: _kind(
