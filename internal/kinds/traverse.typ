@@ -6,6 +6,7 @@
 
 #import "../core/error.typ": _fail, _problem
 #import "registry.typ": _descriptor
+#import "structure.typ": _rebuilt
 
 #let _children(s) = (_descriptor(s).children)(s)
 
@@ -26,11 +27,16 @@
 
 // _child runs on the way down, before the node's writer is looked at,
 // so a bad segment panics the same way from a put as from a get, a leaf
-// (which has no writer) included.
+// (which has no writer) included. Every object on the way back up is
+// rebuilt through object(), so a write keeps its invariants, and a
+// panic there names `who`.
 #let _set-at(s, path, sub, who) = if path == () { sub } else {
   let (head, ..rest) = path
   let child = _child(s, head, who)
-  (_descriptor(s).with-child)(s, head, _set-at(child, rest, sub, who), who)
+  _rebuilt(
+    (_descriptor(s).with-child)(s, head, _set-at(child, rest, sub, who)),
+    who,
+  )
 }
 
 // Every (path, node) pair, pre-order, of the nodes a path reaches: a

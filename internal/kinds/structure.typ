@@ -1,34 +1,22 @@
 // The structural kinds' constructors, arrays, unions, `not`,
-// conditionals, objects and maps, and the walks the engine runs for
-// them. Leaves live in leaf.typ and format.typ, and registry.typ holds a
-// descriptor for every kind.
+// conditionals, objects and maps, and the schema check every
+// sub-schema passes. Leaves live in leaf.typ and format.typ, the walks
+// the engine runs for these kinds in walk.typ, and registry.typ holds a
+// descriptor for every kind. This module sits above the registry, so
+// the schema check reads the registered kinds from it.
 
-#import "../core/ctx.typ": _at, _absent, _has
-#import "../core/error.typ": (
-  _bail, _error, _type-miss, _type-name-of, _closest-match, _problem, _fail,
-  _key-names-problem,
-)
-#import "constraint.typ": _constraint-errors, _constrain
+#import "../core/error.typ": _bail, _problem, _fail, _key-names-problem
+#import "constraint.typ": _constrain
 #import "leaf.typ": null-type
 #import "format.typ": _string-problem
+#import "registry.typ": _kinds
 
-// Every kind registry.typ holds a descriptor for. The constructors sit
-// below the registry, so they check sub-schemas against this list, and
-// the registry asserts at load that the two agree.
-#let _schema-kinds = (
-  "string",
-  "content",
-  "number",
-  "integer",
-  "bool",
-  "null",
-  "any",
-  "enum",
-  "array",
-  "object",
-  "union",
-  "not",
-  "if",
+// Whether `node` is a dictionary of a registered kind. Never panics, so
+// a search can ask it of any node it meets.
+#let _has-kind(node) = (
+  type(node) == dictionary
+    and type(node.at("kind", default: none)) == str
+    and node.kind in _kinds
 )
 
 // A schema node: a dictionary whose `kind` is registered. Shallow, as
@@ -36,21 +24,11 @@
 // `format` the format table doesn't know, which only a hand-built node
 // can carry, panics here.
 #let _is-schema(node) = {
-  if type(node) != dictionary { return false }
-  let kind = node.at("kind", default: none)
-  if kind == "string" {
+  if type(node) == dictionary and node.at("kind", default: none) == "string" {
     let p = _string-problem(format: node.at("format", default: none))
     if p != none { _fail("string schema", p) }
   }
-  kind in _schema-kinds
-}
-
-// A node's kind as messages and describe-schema name it: the kind, then
-// a string's format, if it has one, in parentheses (`string (date)`).
-#let _kind-label(node) = {
-  if node.kind == "string" and "format" in node {
-    "string (" + node.format + ")"
-  } else { node.kind }
+  _has-kind(node)
 }
 
 // Whether `node` is an object schema: for the operations only an
@@ -99,21 +77,6 @@
       unique-items: unique-items,
     ),
   )
-}
-
-// A member's kind as union and `not` errors name it. A conditional
-// reads as its branches when both are set and agree (the translated
-// `{type: "object", if: …, then: …, else: …}` is an object either way),
-// and as `conditional` otherwise.
-#let _reported-kind(member) = if member.kind == "if" {
-  let kinds = ("then", "otherwise").map(b => if b in member {
-    _reported-kind(member.at(b))
-  })
-  if none not in kinds and kinds.dedup().len() == 1 { kinds.first() } else {
-    "conditional"
-  }
-} else {
-  _kind-label(member)
 }
 
 // Bad-shape members fail at construction, not as a phantom validation
@@ -399,14 +362,12 @@
   out
 }
 
-// An object that declares no fields and lets anything through is a
-// free-form bag (JSON Resume's `custom`): opaque data, not a section
-// with extras tacked on, so coerce passes it through unchanged.
-#let _is-free-form(schema) = (
-  schema.kind == "object"
-    and schema.shape.len() == 0
-    and schema.at("additional", default: none) == true
-)
+// `node` as a write leaves it: an object rebuilt through object(), so
+// it keeps the constructor's invariants (a panic naming `who`), and any
+// other node as it is.
+#let _rebuilt(node, who) = if _is-object(node) {
+  _object-with(node, who: who)
+} else { node }
 
 // `required-keys` kwarg for symmetry with `object` — required keys
 // on a pure map are still meaningful ("the document must contain
@@ -421,259 +382,4 @@
   // object() takes it as.
   _require-schema(value-schema, "map() value-schema")
   _object("map()", (:), required-keys, (:), value-schema)
-}
-
-// ---- engine behaviour ------------------------------------------------
-//
-// A structural walk is (schema, value, ctx, recur) -> (errors, value,
-// fatal). `recur` is the engine's walk, passed in so kinds/ never
-// imports the engine. `value` is the model; `fatal` is none, or the
-// first place in walk order where the value leaves no sound model, as
-// (path, expected, got) for coerce's panic text. Every fatal walk also has
-// errors, so a walk with no errors has no fatal.
-//
-// Hot recursive paths use `for` loops, not `.map(x => …)`: each closure
-// is a stack frame, and Typst caps the call depth.
-
-#let _array-walk(schema, value, ctx, recur) = {
-  if type(value) != array {
-    return _type-miss(ctx.path, "array", value)
-  }
-  let errors = ()
-  let fatal = none
-  // The walked items the model keeps, as (source index, item), so
-  // constraints judge what the model holds while uniqueness still cites
-  // source indices. Absent items are dropped: a null in an array of
-  // strings would otherwise reach renderers as a stray `none`.
-  let kept = ()
-  let model = ()
-  for (i, elem) in value.enumerate() {
-    let r = recur(schema.elem, elem, _at(ctx, i))
-    errors += r.errors
-    if fatal == none { fatal = r.fatal }
-    if not _absent(r.value, ctx) {
-      kept.push((i, r.value))
-      model.push(r.value)
-    }
-  }
-  errors += _constraint-errors(schema, "array", kept, ctx.path)
-  (errors: errors, value: model, fatal: fatal)
-}
-
-// An object that declares no fields and lets anything through is a
-// free-form bag (JSON Resume's `custom`): opaque data, so its model is
-// the value as given, nulls included.
-//
-// Keys not in the shape: with `additional: true` they pass through
-// unchecked (absent ones dropped), with an `additional` schema each is
-// walked against it, and otherwise each is an `unknown-key` error and
-// left out of the model. Absent fields are left out too. Only an absent
-// value is dropped: an object whose keys were all null stays an empty
-// dictionary, since validate counts it as present.
-#let _object-walk(schema, value, ctx, recur) = {
-  if type(value) != dictionary {
-    return _type-miss(ctx.path, "object", value)
-  }
-  let additional = schema.at("additional", default: none)
-  let errors = ()
-  let fatal = none
-  let out = (:)
-  for (key, sub-value) in value {
-    if key in schema.shape or (additional != none and additional != true) {
-      let sub-schema = schema.shape.at(key, default: additional)
-      let r = recur(sub-schema, sub-value, _at(ctx, key))
-      errors += r.errors
-      if fatal == none { fatal = r.fatal }
-      if not _absent(r.value, ctx) { out.insert(key, r.value) }
-    } else if additional == true {
-      if not _absent(sub-value, ctx) { out.insert(key, sub-value) }
-    } else {
-      // Strict: a fuzzy suggestion if the typo is within edit distance
-      // 2 of a valid key, otherwise the full key list. An unknown key
-      // holding null is still flagged: silently swallowing typos
-      // defeats the point of strict validation.
-      let suggestion = _closest-match(key, schema.shape.keys())
-      let tail = if suggestion != none {
-        "Did you mean " + repr(suggestion) + "?"
-      } else if schema.shape.len() == 0 {
-        "The object takes no keys."
-      } else {
-        "Valid keys: " + schema.shape.keys().join(", ") + "."
-      }
-      errors += _error(
-        ctx.path + (key,),
-        "unknown-key",
-        "unknown key " + repr(key) + ". " + tail,
-        expected: schema.shape.keys(),
-        got: key,
-      )
-    }
-  }
-  // A required key holding null counts as missing.
-  let required = schema.at("required-keys", default: ())
-  for key in required {
-    if not _has(value, key, ctx) {
-      errors += _error(
-        ctx.path + (key,),
-        "required",
-        "missing required key " + repr(key) + ".",
-      )
-    }
-  }
-  // A null trigger does not fire, and a null dependent is missing. The
-  // error sits at the missing key, as `required`'s does, and `got`
-  // names the key that requires it.
-  for (trigger, dependents) in schema.at("dependent-required", default: (:)) {
-    if not _has(value, trigger, ctx) { continue }
-    // A required key that is missing is already reported, once.
-    for dependent in dependents {
-      if not _has(value, dependent, ctx) and dependent not in required {
-        errors += _error(
-          ctx.path + (dependent,),
-          "dependent",
-          repr(dependent)
-            + " is required when "
-            + repr(trigger)
-            + " is present.",
-          expected: dependent,
-          got: trigger,
-        )
-      }
-    }
-  }
-  let model = if _is-free-form(schema) { value } else { out }
-  (errors: errors, value: model, fatal: fatal)
-}
-
-// anyOf / oneOf. Each member is walked at most once, and the model is
-// the first member that walks clean, so nothing is walked a second time
-// to build it. any-of stops at that member; one-of walks them all to
-// count matches.
-//
-// With no clean member, one summary error at the union's own path
-// rather than every member's failure list: member errors describe
-// branches the value never claimed to match, so replaying them all is
-// noise. Coerce has no member to build the model from, so it is fatal
-// whatever the errors' codes.
-//
-// A null-type member never competes for a non-null value: the union
-// walks only its other members then, so `nullable(X)` judges a
-// non-null value exactly as X does, and several types plus null report
-// what the union of the types alone would.
-#let _union-walk(schema, value, ctx, recur) = {
-  let others = schema.members.filter(m => m != null-type)
-  if value != none and others != () and others != schema.members {
-    if others.len() == 1 { return recur(others.first(), value, ctx) }
-    return _union-walk((..schema, members: others), value, ctx, recur)
-  }
-  let results = ()
-  for member in schema.members {
-    let r = recur(member, value, ctx)
-    if r.errors == () and not schema.exclusive { return r }
-    results.push(r)
-  }
-  let clean = results.filter(r => r.errors == ())
-  if clean.len() == 1 { return clean.first() }
-  let kinds = schema.members.map(_reported-kind)
-  if clean.len() > 1 {
-    // The first match still models the value, as for any-of.
-    let errors = _error(
-      ctx.path,
-      "union",
-      "expected exactly one alternative to match, but "
-        + str(clean.len())
-        + " matched.",
-      expected: kinds,
-    )
-    return (errors: errors, value: clean.first().value, fatal: none)
-  }
-  let fatal = (
-    path: ctx.path,
-    expected: "a value matching one of the union alternatives",
-    got: value,
-  )
-  // A member claims the value when it has no `type` error at the
-  // union's own path. When exactly one claims, its own errors say what
-  // is wrong; the generic summary would read like a type error for a
-  // right-typed value that merely broke a constraint.
-  let type-misses(r) = r.errors.filter(e => (
-    e.code == "type" and e.path == ctx.path
-  ))
-  let claimed = results.filter(r => type-misses(r) == ())
-  if claimed.len() == 1 {
-    // A claimant that can't be modelled says where itself (e.g. a nested
-    // field); one that only broke a constraint gets the union's message.
-    let own = claimed.first().fatal
-    return (
-      errors: claimed.first().errors,
-      value: value,
-      fatal: if own != none { own } else { fatal },
-    )
-  }
-  let quantifier = if schema.exclusive { "exactly one" } else { "one" }
-  let message = (
-    "expected a value matching "
-      + quantifier
-      + " of: "
-      + kinds.join(" | ")
-      + "; none matched."
-  )
-  // No member takes the value's type at all: a type error, so an
-  // enclosing union doesn't count this one as claiming it either. Its
-  // `expected` gathers the type names the members' own type errors give
-  // (an enum's or a nested union's already joined by " or ").
-  let errors = if claimed.len() == 0 {
-    let names = results
-      .map(r => type-misses(r).map(e => e.expected.split(" or ")))
-      .flatten()
-      .dedup()
-    _error(
-      ctx.path,
-      "type",
-      message,
-      expected: names.join(" or "),
-      got: _type-name-of(value),
-    )
-  } else {
-    _error(ctx.path, "union", message, expected: kinds)
-  }
-  (errors: errors, value: value, fatal: fatal)
-}
-
-// `not` inverts the member verdict; the member's own errors are
-// discarded (they describe why the value is ACCEPTABLE here). There is
-// no shape to model toward, so the value passes through as given, like
-// an `additional: true` extra.
-#let _not-walk(schema, value, ctx, recur) = {
-  let r = recur(schema.member, value, ctx)
-  let errors = if r.errors == () {
-    _error(
-      ctx.path,
-      "not",
-      "expected a value not matching the negated "
-        + _reported-kind(schema.member)
-        + " schema.",
-    )
-  } else { () }
-  (errors: errors, value: value, fatal: none)
-}
-
-// `if` / `then` / `else`. The condition is walked in the same ctx, so
-// the same null mode, and only its verdict counts: its errors and model
-// are discarded, as `not` discards its member's. The branch it picks is
-// the result, errors, model and fatal alike, so coerce follows the
-// branch validate judged by. A missing branch accepts the value as
-// given, like an `additional: true` extra.
-//
-// So in a union a conditional member claims a value as its chosen
-// branch does (_union-walk reads only that branch's errors), and a
-// missing branch, having no errors, matches it outright.
-#let _if-walk(schema, value, ctx, recur) = {
-  let matched = recur(schema.cond, value, ctx).errors == ()
-  let branch = schema.at(
-    if matched { "then" } else { "otherwise" },
-    default: none,
-  )
-  if branch == none { return (errors: (), value: value, fatal: none) }
-  recur(branch, value, ctx)
 }

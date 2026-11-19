@@ -1,8 +1,9 @@
 // expect: internal — bool-type has kind "bool", which has no descriptor.
 // The load-time coverage check, run on a registry missing a kind that
 // leaf.typ exports a constant for.
-#import "../../internal/kinds/registry.typ": _check-coverage, _kinds
+#import "../../internal/kinds/catalog.typ": _check-coverage, _constructors
+#import "../../internal/kinds/registry.typ": _kinds
 #import "../../internal/kinds/leaf.typ" as leaf-mod
 #let kinds = _kinds
 #let _ = kinds.remove("bool")
-#_check-coverage(kinds, (leaf-mod,))
+#_check-coverage(kinds, _constructors, (leaf-mod,))

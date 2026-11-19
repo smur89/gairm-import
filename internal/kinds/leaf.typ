@@ -1,8 +1,8 @@
 // The leaf kinds' constants and constructors: the scalars and enums,
 // and the checks the engine runs for them, the per-node regex gate
 // among them. string() and the format table live in format.typ,
-// the containers and combinators in structure.typ, and registry.typ
-// holds a descriptor for every kind.
+// the containers and combinators in structure.typ with their walks in
+// walk.typ, and registry.typ holds a descriptor for every kind.
 
 #import "../core/error.typ": (
   _error, _expected-got, _type-miss, _type-name-of, _json-type-name,
