@@ -140,7 +140,7 @@ built.
 | `not-of(member)` | | a value that does not match `member` |
 | `if-of(cond, ..)` | `then`, `otherwise` | a value that matches `then` if it matches `cond`, and `otherwise` if not |
 | `nullable(member)` | | `null` or a value `member` accepts (see [Null handling](README.md#null-handling)) |
-| `enum-of(values)` | | one of `values`, which may mix types |
+| `enum-of(a, b, …)` | | one of the values, which may mix types |
 | `const-of(value)` | | `value` only; the same as `enum-of((value,))` |
 | `boolean()` | | `true` or `false` |
 | `null()` | | `null`, or an absent key |
@@ -162,6 +162,7 @@ end in `-of`, since `not` and `if` are Typst keywords.
   string must have the format and match the pattern.
 - `any-of` and `one-of` take their members as separate arguments or as one
   array: `any-of(a, b)` equals `any-of((a, b))`.
+- `enum-of` takes its values the same way: `enum-of("a", "b")` equals `enum-of(("a", "b"))`, and a lone array value is written `enum-of(((1, 2),))`.
 - `if-of` is JSON Schema's `if` / `then` / `else`, with the else branch
   named `otherwise` (`else` is a Typst keyword). It takes `then`,
   `otherwise` or both; a branch left out accepts the value as it is. Only

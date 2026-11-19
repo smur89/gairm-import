@@ -8,6 +8,12 @@
   kind: "enum",
   values: ("native", "fluent", "intermediate", "beginner"),
 ))
+// The values come as separate arguments or as one array; a lone array
+// value is wrapped.
+#assert.eq(enum-of("a", "b"), enum-of(("a", "b")))
+#assert.eq(enum-of("a").values, ("a",))
+#assert.eq(enum-of(((1, 2),)).values, ((1, 2),))
+#assert.eq(validate(enum-of(((1, 2),)), (1, 2)), ())
 // const-of is the singleton enum.
 #assert.eq(const-of("v1.0.0"), (kind: "enum", values: ("v1.0.0",)))
 
