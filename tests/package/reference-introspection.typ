@@ -67,14 +67,14 @@ phone → email",
   "if    string (min-length 5)\nthen  string + pattern\nelse  number",
 )
 
-#let dates = paths-of-kind(resume-schema-strict, string(format: "date"))
+#let dates = find-paths(resume-schema-strict, string(format: "date"))
 #assert.eq(dates.first(), ("awards", "items", "date"))
 #assert(("meta", "lastModified", 1) in dates)
-#assert.eq(paths-of-kind(member, number()), (("rating",),))
-#assert.eq(paths-of-kind(member, number(minimum: 0)), (("rating",),))
-#assert.eq(paths-of-kind(member, integer()), (("age",),))
+#assert.eq(find-paths(member, number()), (("rating",),))
+#assert.eq(find-paths(member, number(minimum: 0)), (("rating",),))
+#assert.eq(find-paths(member, integer()), (("age",),))
 #assert.eq(
-  paths-of-kind(
+  find-paths(
     member,
     string(pattern: "^[A-Z]{3}$", expected: "a three-letter code"),
   ),

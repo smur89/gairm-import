@@ -5,7 +5,7 @@
 //   walk          (schema, value, ctx, recur) => (errors, value, fatal):
 //                 what the engine runs (walk.typ; a leaf's is built from
 //                 its check by _leaf-walk, leaf.typ)
-//   searchable    paths-of-kind finds it, rather than only walking
+//   searchable    find-paths finds it, rather than only walking
 //                 through it
 //   children      schema => ((segment, sub-schema, label), ..): segments
 //                 as lens paths spell them, labels as describe-schema
@@ -112,7 +112,7 @@
     check: _enum-check,
     suffix: s => "enum (" + s.values.map(repr).join(", ") + ")",
   ),
-  // paths-of-kind only walks through the two plain containers: every
+  // find-paths only walks through the two plain containers: every
   // schema is full of them, so asking for one is more likely a slip
   // than a question.
   array: _kind(

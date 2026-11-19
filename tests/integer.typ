@@ -3,7 +3,7 @@
 // number checks plus the integral gate).
 
 #import "../lib.typ": (
-  object, array-of, nullable, any-of, paths-of-kind, describe-schema,
+  object, array-of, nullable, any-of, find-paths, describe-schema,
   schema-from-json-schema, validate, coerce, not-of, string, number, integer,
   lens-get,
 )
@@ -19,12 +19,12 @@
 
 #assert.eq(lens-get(schema, ("age",)).kind, "integer")
 #assert.eq(lens-get(schema, ("score",)).kind, "number")
-#assert.eq(paths-of-kind(schema, integer()), (
+#assert.eq(find-paths(schema, integer()), (
   ("age",),
   ("counts", "items"),
   ("maybe", 0),
 ))
-#assert.eq(paths-of-kind(schema, number()), (("score",),))
+#assert.eq(find-paths(schema, number()), (("score",),))
 
 // describe-schema names the kind.
 #assert.eq(describe-schema(integer()), "integer")

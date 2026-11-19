@@ -18,5 +18,5 @@
   lens-get, lens-put, lens-over, add-field, remove-field, set-required,
   unset-required,
 )
-#import "internal/introspect.typ": describe-schema, paths-of-kind
+#import "internal/introspect.typ": describe-schema, find-paths
 #import "internal/core/pointer.typ": path-to-pointer, pointer-to-path

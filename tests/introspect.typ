@@ -1,4 +1,4 @@
-// Schema introspection: `describe-schema` draws a schema, `paths-of-kind`
+// Schema introspection: `describe-schema` draws a schema, `find-paths`
 // lists the lens path of every node of a kind. Both reach into union
 // and `not` members
 // (#164) and conditionals (#109): a union member's segment is its
@@ -6,9 +6,9 @@
 // "then" and "else".
 
 #import "../lib.typ": (
-  describe-schema, paths-of-kind, lens-get, object, array-of, map, content-type,
+  describe-schema, find-paths, lens-get, object, array-of, map, content-type,
   bool-type, null-type, enum-of, any-of, const-of, one-of, not-of, if-of,
-  nullable, string, number, integer,
+  nullable, string, number, integer, schema-from-json-schema,
 )
 #import "fixtures/resume.typ": resume-schema, resume-schema-strict
 
@@ -71,11 +71,11 @@ work[]:
 #assert("work[]:" in canonical)
 #assert("meta:" in canonical)
 
-// --- paths-of-kind ---------------------------------------------------
+// --- find-paths ---------------------------------------------------
 
 // The strict schema's content leaves are the fixture's content-paths
 // (14 entries). Alphabetical ordering means we can pin the exact list.
-#let content-paths = paths-of-kind(resume-schema-strict, content-type)
+#let content-paths = find-paths(resume-schema-strict, content-type)
 #assert.eq(content-paths.len(), 14)
 #assert.eq(content-paths, (
   ("awards", "items", "summary"),
@@ -100,7 +100,7 @@ work[]:
 // Formats carry through to the strict schema from the faithful
 // base (translator-emitted `format: "uri"` / `format: "email"`).
 // Full URI path list pinned so a translator regression surfaces here.
-#assert.eq(paths-of-kind(resume-schema-strict, string(format: "uri")), (
+#assert.eq(find-paths(resume-schema-strict, string(format: "uri")), (
   ("$schema",),
   ("basics", "profiles", "items", "url"),
   ("basics", "url"),
@@ -114,14 +114,14 @@ work[]:
 ))
 
 #assert.eq(
-  paths-of-kind(resume-schema-strict, string(format: "email")),
+  find-paths(resume-schema-strict, string(format: "email")),
   (("basics", "email"),),
 )
 
 // Date format: only the strict schema lifts the iso8601 $ref fields.
 // Every upstream date is an iso8601 $ref now, so the faithful base
 // has none.
-#let date-paths-strict = paths-of-kind(
+#let date-paths-strict = find-paths(
   resume-schema-strict,
   string(format: "date"),
 )
@@ -130,29 +130,29 @@ work[]:
 #assert(("meta", "lastModified", 1) in date-paths-strict)
 #assert(("work", "items", "startDate") in date-paths-strict)
 #assert(("certificates", "items", "date") in date-paths-strict)
-#assert.eq(paths-of-kind(resume-schema, string(format: "date")), ())
+#assert.eq(find-paths(resume-schema, string(format: "date")), ())
 
 // iso8601 $ref fields land as patterned strings in the faithful base
 // (translator picks up upstream's `definitions/iso8601` pattern). The
 // strict schema rewrites them to date strings, so they vanish there.
 // The query is one of them, so it finds every string with that pattern.
 #let iso8601 = lens-get(resume-schema, ("work", "items", "startDate"))
-#let iso-paths-faithful = paths-of-kind(resume-schema, iso8601)
+#let iso-paths-faithful = find-paths(resume-schema, iso8601)
 #assert.eq(iso-paths-faithful.len(), 13)
 #assert(("work", "items", "startDate") in iso-paths-faithful)
 #assert(("publications", "items", "releaseDate") in iso-paths-faithful)
-#assert.eq(paths-of-kind(resume-schema-strict, iso8601), ())
+#assert.eq(find-paths(resume-schema-strict, iso8601), ())
 
 // Empty schema yields an empty result.
-#assert.eq(paths-of-kind(object((:)), string()), ())
+#assert.eq(find-paths(object((:)), string()), ())
 
 // Toy schema — confirm path tuples for a hand-built nested case.
 #assert.eq(
-  paths-of-kind(toy, string(format: "uri")),
+  find-paths(toy, string(format: "uri")),
   (("basics", "url"),),
 )
 #assert.eq(
-  paths-of-kind(toy, string()),
+  find-paths(toy, string()),
   (
     ("basics", "email"),
     ("basics", "name"),
@@ -163,7 +163,7 @@ work[]:
   ),
 )
 #assert.eq(
-  paths-of-kind(toy, string(format: "date")),
+  find-paths(toy, string(format: "date")),
   (("work", "items", "startDate"),),
 )
 
@@ -212,10 +212,10 @@ work[]:
   (resume-schema, bool-type),
   (resume-schema, one-of),
 ) {
-  let found = paths-of-kind(schema, ctor)
+  let found = find-paths(schema, ctor)
   assert(found.len() > 0, message: repr(ctor))
 }
-#assert.eq(paths-of-kind(resume-schema, string), paths-of-kind(
+#assert.eq(find-paths(resume-schema, string), find-paths(
   resume-schema,
   string(),
 ))
@@ -231,21 +231,21 @@ work[]:
   other: not-of(string()),
   cond: if-of(bool-type, then: number()),
 ))
-#assert.eq(paths-of-kind(kinds-toy, enum-of), (("fixed",), ("level",)))
+#assert.eq(find-paths(kinds-toy, enum-of), (("fixed",), ("level",)))
 // A constructor finds the nodes it builds, narrower than its kind:
 // const-of the single-value enums, any-of the inclusive unions (a
 // nullable is one), one-of the exclusive ones, nullable the nullables.
-#assert.eq(paths-of-kind(kinds-toy, const-of), (("fixed",),))
-#assert.eq(paths-of-kind(kinds-toy, any-of), (("either",), ("maybe",)))
-#assert.eq(paths-of-kind(kinds-toy, one-of), (("exactly",),))
-#assert.eq(paths-of-kind(kinds-toy, nullable), (("maybe",),))
-#assert.eq(paths-of-kind(kinds-toy, not-of), (("other",),))
-#assert.eq(paths-of-kind(kinds-toy, if-of), (("cond",),))
+#assert.eq(find-paths(kinds-toy, const-of), (("fixed",),))
+#assert.eq(find-paths(kinds-toy, any-of), (("either",), ("maybe",)))
+#assert.eq(find-paths(kinds-toy, one-of), (("exactly",),))
+#assert.eq(find-paths(kinds-toy, nullable), (("maybe",),))
+#assert.eq(find-paths(kinds-toy, not-of), (("other",),))
+#assert.eq(find-paths(kinds-toy, if-of), (("cond",),))
 
 // bool-type and null-type are leaves like any other.
 #let flags = object((flag: bool-type, marker: null-type, name: string()))
-#assert.eq(paths-of-kind(flags, bool-type), (("flag",),))
-#assert.eq(paths-of-kind(flags, null-type), (("marker",),))
+#assert.eq(find-paths(flags, bool-type), (("flag",),))
+#assert.eq(find-paths(flags, null-type), (("marker",),))
 
 // A node finds the strings that have every field it sets: string()
 // every string, formatted or patterned or not; string(format: "date")
@@ -267,7 +267,7 @@ work[]:
   (string(pattern: "^[A-Z]{3}$"), (("coded",),)),
   (string(pattern: "y"), ()),
 ) {
-  assert.eq(paths-of-kind(strings, kind), found, message: repr(kind))
+  assert.eq(find-paths(strings, kind), found, message: repr(kind))
 }
 #assert.eq(
   describe-schema(strings),
@@ -285,10 +285,10 @@ plain  string",
   high: number(minimum: 0, maximum: 9),
   other: number(minimum: 1),
 ))
-#assert.eq(paths-of-kind(numbers, number(minimum: 0)), (("high",), ("low",)))
-#assert.eq(paths-of-kind(numbers, number()).len(), 4)
+#assert.eq(find-paths(numbers, number(minimum: 0)), (("high",), ("low",)))
+#assert.eq(find-paths(numbers, number()).len(), 4)
 #assert.eq(
-  paths-of-kind(numbers, number(minimum: 0, maximum: 9)),
+  find-paths(numbers, number(minimum: 0, maximum: 9)),
   (("high",),),
 )
 
@@ -298,10 +298,10 @@ plain  string",
 // strict schema: its date member is found alongside the 13 iso8601
 // fields, and the union node itself is still found.
 #assert.eq(
-  paths-of-kind(resume-schema-strict, string(format: "date-time")),
+  find-paths(resume-schema-strict, string(format: "date-time")),
   (("meta", "lastModified", 0),),
 )
-#assert(("meta", "lastModified") in paths-of-kind(resume-schema-strict, any-of))
+#assert(("meta", "lastModified") in find-paths(resume-schema-strict, any-of))
 #assert.eq(
   lens-get(resume-schema-strict, ("meta", "lastModified", 0)).kind,
   "string",
@@ -317,7 +317,7 @@ plain  string",
 
 // `location` is one-of((str, object)): its free-text member and the
 // object member's fields are reachable.
-#let str-paths = paths-of-kind(resume-schema, string())
+#let str-paths = find-paths(resume-schema, string())
 #assert(("work", "items", "location", 0) in str-paths)
 #assert(("work", "items", "location", 1, "city") in str-paths)
 #assert.eq(
@@ -332,13 +332,13 @@ plain  string",
 ))
 #assert.eq(lens-get(union-toy, ("other", "not", "items")).kind, "number")
 #assert.eq(lens-get(union-toy, ("place", 1, "city")).kind, "string")
-#assert.eq(paths-of-kind(union-toy, string()), (
+#assert.eq(find-paths(union-toy, string()), (
   ("place", 0),
   ("place", 1, "city"),
   ("when", 0),
   ("when", 1),
 ))
-#assert.eq(paths-of-kind(union-toy, number()), (("other", "not", "items"),))
+#assert.eq(find-paths(union-toy, number()), (("other", "not", "items"),))
 
 // A conditional's condition and every branch are searched.
 #let cond-toy = object((
@@ -348,24 +348,24 @@ plain  string",
     otherwise: array-of(string(format: "date")),
   ),
 ))
-#assert.eq(paths-of-kind(cond-toy, string(format: "date")), (
+#assert.eq(find-paths(cond-toy, string(format: "date")), (
   ("a", "then", "when"),
   ("a", "else", "items"),
 ))
-#assert.eq(paths-of-kind(cond-toy, string()), (
+#assert.eq(find-paths(cond-toy, string()), (
   ("a", "if"),
   ("a", "then", "when"),
   ("a", "else", "items"),
 ))
 #assert.eq(lens-get(cond-toy, ("a", "else")).kind, "array")
-#for p in paths-of-kind(cond-toy, string(format: "date")) {
+#for p in find-paths(cond-toy, string(format: "date")) {
   assert.eq(lens-get(cond-toy, p), string(format: "date"))
 }
-// Every path paths-of-kind returns round-trips through a lens.
-#for p in paths-of-kind(union-toy, string()) {
+// Every path find-paths returns round-trips through a lens.
+#for p in find-paths(union-toy, string()) {
   assert.eq(lens-get(union-toy, p).kind, "string")
 }
-#for p in paths-of-kind(union-toy, string(format: "date")) {
+#for p in find-paths(union-toy, string(format: "date")) {
   assert.eq(lens-get(union-toy, p), string(format: "date"))
 }
 
@@ -491,19 +491,28 @@ phone → email",
   ((a: 1), null-type),
 ) {
   assert.eq(
-    paths-of-kind(
+    find-paths(
       object((a: (kind: "union", members: members, exclusive: false))),
       nullable,
     ),
     (),
   )
 }
-#assert.eq(paths-of-kind(object((a: nullable(string()))), nullable), (("a",),))
+#assert.eq(find-paths(object((a: nullable(string()))), nullable), (("a",),))
+
+// A pattern's `expected` is only its message, not part of the match: a
+// custom one and the translator's `matching "^x"` are both found.
+#let patterned = object((
+  a: string(pattern: "^x", expected: "an x"),
+  b: schema-from-json-schema((type: "string", pattern: "^x")),
+  c: string(pattern: "^y"),
+))
+#assert.eq(find-paths(patterned, string(pattern: "^x")), (("a",), ("b",)))
 // An additional schema shadowed by a literal "additionalProperties"
 // field has no path, so none is returned for it.
 #let shadowed = object(
   (additionalProperties: any-of(string(), number())),
   additional: one-of(string(), number()),
 )
-#assert.eq(paths-of-kind(shadowed, one-of), ())
-#assert.eq(paths-of-kind(shadowed, any-of), (("additionalProperties",),))
+#assert.eq(find-paths(shadowed, one-of), ())
+#assert.eq(find-paths(shadowed, any-of), (("additionalProperties",),))

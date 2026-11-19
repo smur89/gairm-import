@@ -104,7 +104,7 @@ number and `book.tags` an array of strings.
 | Constructors | `string`, `number`, `integer`, `array-of`, `object`, `map`, `any-of`, `one-of`, `not-of`, `if-of`, `nullable`, `enum-of`, `const-of` |
 | Constants | `content-type`, `bool-type`, `null-type`, `any-type` |
 | Edit | `lens-get`, `lens-put`, `lens-over`, `add-field`, `remove-field`, `set-required`, `unset-required` |
-| Inspect | `describe-schema`, `paths-of-kind` |
+| Inspect | `describe-schema`, `find-paths` |
 | Pointers | `path-to-pointer`, `pointer-to-path` |
 
 `parse` validates and coerces in one call and panics with every problem

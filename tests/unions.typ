@@ -4,10 +4,9 @@
 // first that matches; `not` passes its value through as given.
 
 #import "../lib.typ": (
-  validate, coerce, parse, schema-from-json-schema, describe-schema,
-  paths-of-kind, lens-get, lens-put, content-type, null-type, array-of, object,
-  enum-of, any-of, one-of, not-of, if-of, nullable, string, bool-type, number,
-  integer,
+  validate, coerce, parse, schema-from-json-schema, describe-schema, find-paths,
+  lens-get, lens-put, content-type, null-type, array-of, object, enum-of,
+  any-of, one-of, not-of, if-of, nullable, string, bool-type, number, integer,
 )
 
 #let T = schema-from-json-schema
@@ -350,7 +349,7 @@
   (),
 )
 
-// Lenses and paths-of-kind reach X as member 0.
+// Lenses and find-paths reach X as member 0.
 #let doc = T((
   type: "object",
   properties: (
@@ -358,7 +357,7 @@
     name: (type: ("string", "null")),
   ),
 ))
-#assert.eq(paths-of-kind(doc, string(format: "date")), (("when", 0),))
+#assert.eq(find-paths(doc, string(format: "date")), (("when", 0),))
 #assert.eq(lens-get(doc, ("when",)).kind, "union")
 #assert.eq(lens-get(doc, ("when", 0)).kind, "string")
 #assert.eq(lens-get(doc, ("when", 0)).format, "date")

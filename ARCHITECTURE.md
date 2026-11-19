@@ -19,7 +19,7 @@ internal/kinds/             # L1: constructors, formats, constraint rows, walks,
 internal/engine.typ         # L2: the one walk over schema and value
 internal/json-schema/       # L3: the JSON Schema translator
 internal/lens.typ           # L3: lens-get / lens-put / lens-over and the field edits
-internal/introspect.typ     # L3: describe-schema, paths-of-kind
+internal/introspect.typ     # L3: describe-schema, find-paths
 internal/run.typ            # L3: validate / coerce / parse and format-errors
 tests/*.typ                 # assertions, one file per public concept
 tests/panics/               # one case per place the package panics

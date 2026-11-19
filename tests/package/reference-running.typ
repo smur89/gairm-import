@@ -46,7 +46,7 @@
 )
 #assert.eq(coerce(if-of(string(), then: content-type), 3), 3)
 
-// paths-of-kind: a constructor finds the nodes it builds.
+// find-paths: a constructor finds the nodes it builds.
 #let u = object((
   a: any-of(string(), number()),
   b: one-of(string(), number()),
@@ -54,8 +54,8 @@
   d: const-of("x"),
   e: enum-of(("x", "y")),
 ))
-#assert.eq(paths-of-kind(u, any-of), (("a",), ("c",)))
-#assert.eq(paths-of-kind(u, one-of), (("b",),))
-#assert.eq(paths-of-kind(u, nullable), (("c",),))
-#assert.eq(paths-of-kind(u, const-of), (("d",),))
-#assert.eq(paths-of-kind(u, enum-of), (("d",), ("e",)))
+#assert.eq(find-paths(u, any-of), (("a",), ("c",)))
+#assert.eq(find-paths(u, one-of), (("b",),))
+#assert.eq(find-paths(u, nullable), (("c",),))
+#assert.eq(find-paths(u, const-of), (("d",),))
+#assert.eq(find-paths(u, enum-of), (("d",), ("e",)))
