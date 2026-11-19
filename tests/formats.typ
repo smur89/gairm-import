@@ -28,17 +28,20 @@
   (
     string(format: "date"),
     "ISO-8601",
-    // The three iso8601 shapes the canonical schema accepts.
-    ("2024", "2024-01", "2024-01-15", "1999-12-31"),
+    // RFC 3339's full-date: a year, month and day.
+    ("2024-01-15", "1999-12-31", "2024-02-29"),
     (
+      // A year, or a year and month, is not a full date.
+      "2024",
+      "2024-01",
       "2024/01/15",
       "jan 2024",
       "2024-1-15",
       "24-01-15",
       "",
       "2024-01-15T10:00",
-      // The canonical regex takes months 13-19 and days 32-39; these
-      // are held to real ranges, and month or day 00 is rejected.
+      // Months and days are held to real ranges, and month or day 00
+      // is rejected.
       "2024-13-15",
       "2024-00-15",
       "2024-01-00",
@@ -49,8 +52,6 @@
     string(format: "date-time"),
     "ISO-8601 datetime",
     (
-      "2024-01-15T10:00:00",
-      "2024-01-15T10:00:00.123",
       "2024-01-15T10:00:00Z",
       "2024-01-15T10:00:00.5Z",
       "2024-01-15T10:00:00+01:00",
@@ -70,6 +71,9 @@
       "2024-01-15 10:00:00", // no T
       "2024-01-15", // no time: a date can't pass as a datetime
       "2024-01-15T10:00", // no seconds
+      // No offset: RFC 3339 requires one.
+      "2024-01-15T10:00:00",
+      "2024-01-15T10:00:00.123",
       "2024-01-15T1:00:00", // 1-digit hour
       "",
       // A timezone other than `Z` or `±HH:MM`.
@@ -237,20 +241,21 @@
     string(format: "time"),
     "an ISO-8601 time",
     (
-      "10:00:00",
       "10:00:00Z",
       "00:00:00.5Z",
       "23:59:59.999+14:00",
       "10:00:00-05:30",
       // Leap second and lowercase `z`, as for string(format: "date-time").
       "23:59:60Z",
-      "23:59:60",
       "15:59:60.5-08:00",
       "01:29:60+01:30",
       "10:00:00z",
     ),
     (
       "",
+      // No offset: RFC 3339's full-time requires one.
+      "10:00:00",
+      "23:59:60",
       "10:00",
       "1:00:00",
       "24:00:00",
@@ -325,7 +330,7 @@
   )),
   (
     work: (
-      (url: "https://ok.example", startDate: "2024-01"),
+      (url: "https://ok.example", startDate: "2024-01-15"),
       (url: "nope", startDate: "2024/01/15"),
     ),
     email: "name@",
@@ -431,15 +436,11 @@
   1,
 )
 
-// Strict meta.lastModified is a date-time or date string:
-// both datetime shapes land.
+// A strict date field is a full date or a partial one: a date-only
+// datetime lands through its date member.
 #assert.eq(
-  parse(resume-schema-strict, (meta: (lastModified: moment))),
-  (meta: (lastModified: "2024-01-05T09:03:07")),
-)
-#assert.eq(
-  parse(resume-schema-strict, (meta: (lastModified: day))),
-  (meta: (lastModified: "2024-01-05")),
+  parse(resume-schema-strict, (work: ((startDate: day),))),
+  (work: ((startDate: "2024-01-05"),)),
 )
 
 // Length keywords see the converted string.

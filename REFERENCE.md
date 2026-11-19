@@ -187,15 +187,16 @@ through unchanged).
 
 ## Formats
 
-`string(format: …)` gates a string with a regex. The checks are
+`string(format: …)` gates a string with a regex. `date`, `date-time` and
+`time` are RFC 3339's, as draft 7 defines them. The others are
 deliberately permissive: they reject obvious malformations without
 claiming full RFC compliance.
 
 | `format` | Accepts | Error hint |
 |---|---|---|
-| `date` | `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, month and day in range | `an ISO-8601 date (e.g. "2024-01-15")` |
-| `date-time` | `YYYY-MM-DDTHH:MM:SS`, optional fraction and `Z` / `±HH:MM` offset | `an ISO-8601 datetime (e.g. "2024-01-15T10:00:00Z")` |
-| `time` | `HH:MM:SS`, optional fraction and `Z` / `±HH:MM` offset | `an ISO-8601 time (e.g. "10:00:00Z")` |
+| `date` | `YYYY-MM-DD`, month and day in range | `an ISO-8601 date (e.g. "2024-01-15")` |
+| `date-time` | `YYYY-MM-DDTHH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an ISO-8601 datetime (e.g. "2024-01-15T10:00:00Z")` |
+| `time` | `HH:MM:SS`, an optional fraction, then a `Z` or `±HH:MM` offset | `an ISO-8601 time (e.g. "10:00:00Z")` |
 | `uri` | any scheme, `:`, then no whitespace (`https://…`, `mailto:…`, `urn:…`) | `a URI (e.g. "https://example.com")` |
 | `email` | a local part (or a quoted one), `@`, a domain of one or more labels or an address literal (`name@[127.0.0.1]`) | `an email (e.g. "name@example.com")` |
 | `uuid` | 8-4-4-4-12 hex digits, any case | `a UUID (e.g. "123e4567-e89b-12d3-a456-426614174000")` |
@@ -205,7 +206,8 @@ claiming full RFC compliance.
 
 As in RFC 3339, `date-time` and `time` take `T` and `Z` in either case and
 a leap second (`23:59:60Z`: second 60 at minute 59, or at any minute under
-an offset with minutes).
+an offset with minutes). A partial date (`2024`, `2024-01`) or a time
+with no offset is not one of these formats; check it with a `pattern`.
 
 A miss reports `expected <hint>.` at the field's path. For `member`:
 
@@ -225,10 +227,12 @@ joined:    expected an ISO-8601 date (e.g. "2024-01-15").
 ```
 
 Data written in Typst can give a `date` field a `datetime` with a date and
-no time, and a `date-time` field one with both; it is checked and returned
-as the ISO string (`"2024-01-05"`, `"2024-01-05T09:03:07"`). A `datetime`
-of the other shape is rejected rather than truncated. Otherwise coercion
-is pass-through: a formatted value reaches the model as the same string.
+no time, and a `date-time` field one with both; it is returned as the ISO
+string (`"2024-01-05"`, `"2024-01-05T09:03:07"`). A Typst `datetime` has
+no offset, so a `date-time` one is taken as it is and modelled without
+one. A `datetime` of the other shape is rejected rather than truncated.
+Otherwise coercion is pass-through: a formatted value reaches the model
+as the same string.
 
 A `pattern` is a Typst regex, and matches anywhere in the string: anchor it
 with `^…$` for a full-string match.
