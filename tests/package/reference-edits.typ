@@ -9,7 +9,9 @@
 #assert.eq(schema-get(with-logo, ("logo",)), string(format: "uri"))
 #assert.eq(with-logo.required-keys, team.required-keys)
 // Splicing the shape into a new object drops the required keys.
-#assert("required-keys" not in object((..team.shape, logo: string(format: "uri"))))
+#assert(
+  "required-keys" not in object((..team.shape, logo: string(format: "uri"))),
+)
 
 // A role on every member, required.
 #let with-role = add-field(

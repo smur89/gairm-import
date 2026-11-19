@@ -137,8 +137,7 @@
   let off = if m != none and v != none { calc.rem(v, m) != 0 } else {
     let q = float(value) / float(mult)
     (
-      q.is-infinite()
-        or calc.abs(q - calc.round(q)) > 1e-9 * calc.abs(q)
+      q.is-infinite() or calc.abs(q - calc.round(q)) > 1e-9 * calc.abs(q)
     )
   }
   if off {
