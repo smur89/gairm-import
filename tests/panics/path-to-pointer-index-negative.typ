@@ -1,3 +1,3 @@
-// expect: path-to-pointer expected a non-negative integer
+// expect: path-to-pointer path segment must be a string or a non-negative integer (an RFC 6901 array index), got: -1.
 #import "../../lib.typ": path-to-pointer
 #path-to-pointer((-1,))

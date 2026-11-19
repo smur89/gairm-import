@@ -4,7 +4,7 @@
 // keywords. Anything not supported panics rather than silently dropping
 // the constraint; keyword.typ says which keywords those are.
 
-#import "../core/error.typ": _json-type-name
+#import "../core/error.typ": _json-type-name, _problem
 #import "../core/input.typ": _decode-input
 #import "../core/pointer.typ": _percent-decode, _read-pointer, _pointer-get
 #import "../kinds/leaf.typ": any-type, enum-of
@@ -17,9 +17,11 @@
 #import "all-of.typ": _all-of
 #import "conditional.typ": _conditional
 
-// `seen` is the chain of refs traversed so far; a repeat means a
-// cycle (e.g. `definitions.alias → alias`) — panic before Typst's
-// recursion limit fires deep in the stack.
+// `seen` is the chain of refs traversed so far; a repeat means the
+// schema contains itself — a tree that nests a tree, or an alias of an
+// alias. A translated schema is a finite tree, so it can't, and the
+// translator panics before Typst's recursion limit fires deep in the
+// stack.
 #let _resolve-ref(ref, root, seen) = {
   // `#/` is not the root: as a JSON Pointer, `/` names the key "".
   if ref == "#" {
@@ -34,11 +36,9 @@
   }
   if ref in seen {
     _bail(
-      "cyclic $ref detected: "
-        + seen.map(repr).join(" → ")
-        + " → "
-        + repr(ref)
-        + ".",
+      "recursive $ref: "
+        + (seen + (ref,)).map(repr).join(" → ")
+        + " refers back to itself. A translated schema is a finite tree, so a schema that contains itself (a tree of trees, a list of lists) cannot be translated.",
     )
   }
   // The fragment is a URI's, so it is percent-decoded into the pointer
@@ -165,7 +165,7 @@
   if "$ref" in js {
     let ref = js.at("$ref")
     if type(ref) != str {
-      _bail("\"$ref\" must be a string, got: " + repr(type(ref)) + ".")
+      _bail-problem(_problem("$ref", "a string", _json-type-name(ref)))
     }
     return _translate(
       _resolve-ref(ref, ctx.root, ctx.seen),

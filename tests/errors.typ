@@ -282,3 +282,23 @@
 #assert(many.contains("2 problems"))
 #assert(many.contains("basics.email"))
 #assert(many.contains("work[0].positon"))
+
+// ---- path rendering -----------------------------------------------------
+//
+// A key that would read ambiguously after a dot is quoted in brackets,
+// so `("a.b", "c")` and `("a", "b", "c")` never render alike.
+#assert.eq(
+  format-errors((
+    (path: ("a.b", "c"), message: "m."),
+    (path: ("a", "b", "c"), message: "m."),
+    (path: ("", 0, "x y"), message: "m."),
+    (path: ("naïve-key_1",), message: "m."),
+    (path: (), message: "m."),
+  )),
+  "gairm-import: found 5 problems in the input:\n"
+    + "  - [\"a.b\"].c: m.\n"
+    + "  - a.b.c: m.\n"
+    + "  - [\"\"][0][\"x y\"]: m.\n"
+    + "  - naïve-key_1: m.\n"
+    + "  - <root>: m.",
+)
