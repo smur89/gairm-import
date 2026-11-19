@@ -1,11 +1,11 @@
 // The public constructors of each kind, for the queries that start from
-// one (paths-of-kind) and the load-time check that no kind or
+// one (find-paths) and the load-time check that no kind or
 // constructor is missed. It sits above registry.typ and the
 // constructors' modules: the constructors check their sub-schemas
 // against the registry's kinds, so the registry cannot list them.
 //
 // Each kind maps to its constructors as (function, test) pairs:
-// paths-of-kind's query by that constructor finds the nodes of the kind
+// find-paths's query by that constructor finds the nodes of the kind
 // the test holds for (one-of the exclusive unions). A bare function is
 // a pair whose test holds for every node of the kind.
 

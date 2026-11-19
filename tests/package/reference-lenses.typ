@@ -80,12 +80,12 @@
   pattern: "^https://(corp|docs)\.example\.com/",
   expected: "a corporate URL",
 )
-#let corporate-schema = paths-of-kind(
+#let corporate-schema = find-paths(
   resume-schema,
   string(format: "uri"),
 ).fold(
   resume-schema,
   (schema, path) => lens-put(schema, path, corporate-uri),
 )
-#assert.eq(paths-of-kind(corporate-schema, string(format: "uri")), ())
+#assert.eq(find-paths(corporate-schema, string(format: "uri")), ())
 #assert.eq(lens-get(corporate-schema, ("basics", "url")), corporate-uri)

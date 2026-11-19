@@ -7,7 +7,7 @@
 // branches by "if", "then" and "else".
 
 #import "../lib.typ": (
-  lens-get, lens-put, lens-over, paths-of-kind, validate, object, array-of,
+  lens-get, lens-put, lens-over, find-paths, validate, object, array-of,
   content-type, any-of, one-of, not-of, if-of, schema-from-json-schema, string,
   number,
 )
@@ -90,13 +90,13 @@
 #assert.eq(lens-get(with-rating, language-items).shape.rating, number())
 #assert("rating" not in lens-get(resume-schema, language-items).shape)
 
-// The schema-first order pipes through `.fold`, and paths-of-kind
+// The schema-first order pipes through `.fold`, and find-paths
 // output plugs straight in.
-#let plain = paths-of-kind(resume-schema, string(format: "uri")).fold(
+#let plain = find-paths(resume-schema, string(format: "uri")).fold(
   resume-schema,
   (acc, p) => lens-put(acc, p, string()),
 )
-#assert.eq(paths-of-kind(plain, string(format: "uri")), ())
+#assert.eq(find-paths(plain, string(format: "uri")), ())
 
 // ---- union, `not` and conditional members (#164, #109) --------------------
 

@@ -5,7 +5,7 @@
 
 #import "../lib.typ": (
   string, number, integer, array-of, schema-from-json-schema, validate, coerce,
-  object, paths-of-kind, content-type, if-of,
+  object, find-paths, content-type, if-of,
 )
 
 // ---- the nodes ---------------------------------------------------------
@@ -213,6 +213,6 @@
   age: integer(minimum: 0),
   mail: string(format: "email", max-length: 254),
 ))
-#assert.eq(paths-of-kind(s, string()), (("mail",), ("name",)))
-#assert.eq(paths-of-kind(s, integer()), (("age",),))
-#assert.eq(paths-of-kind(s, string(format: "email")), (("mail",),))
+#assert.eq(find-paths(s, string()), (("mail",), ("name",)))
+#assert.eq(find-paths(s, integer()), (("age",),))
+#assert.eq(find-paths(s, string(format: "email")), (("mail",),))

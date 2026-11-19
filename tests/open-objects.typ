@@ -3,7 +3,7 @@
 
 #import "../lib.typ": (
   validate, coerce, schema-from-json-schema, object, map, array-of, lens-get,
-  lens-put, paths-of-kind, describe-schema, string, number,
+  lens-put, find-paths, describe-schema, string, number,
 )
 
 // --- map() convenience ----------------------------------------------
@@ -183,7 +183,7 @@
   (id: "x"),
 )
 
-// --- introspection: `paths-of-kind` descends into `additional` -----
+// --- introspection: `find-paths` descends into `additional` -----
 //
 // Path segment is `"additionalProperties"` (matching the JSON Schema
 // keyword name, same convention as `"items"` for arrays). The
@@ -193,7 +193,7 @@
   required-keys: ("name",),
 )
 #assert.eq(
-  paths-of-kind(tags-schema, string()),
+  find-paths(tags-schema, string()),
   (("name",), ("tags", "additionalProperties")),
 )
 // Round-trip: the segment is a real lens path.
@@ -202,7 +202,7 @@
 // Nested `additional` inside `additional` works too.
 #let nested-maps = map(map(number()))
 #assert.eq(
-  paths-of-kind(nested-maps, number()),
+  find-paths(nested-maps, number()),
   (("additionalProperties", "additionalProperties"),),
 )
 

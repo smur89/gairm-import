@@ -258,7 +258,7 @@ panics, naming the function and the segment that failed.
 `object((..resume-schema.shape, focusAreas: …))`, does not: `object()`
 rejects undeclared keys by default, so it silently closes the top level.
 
-Folding `paths-of-kind` into `lens-put` edits every node of a kind at once,
+Folding `find-paths` into `lens-put` edits every node of a kind at once,
 and covers fields a future schema adds:
 
 ```typst
@@ -266,7 +266,7 @@ and covers fields a future schema adds:
   pattern: "^https://(corp|docs)\.example\.com/",
   expected: "a corporate URL",
 )
-#let corporate-schema = paths-of-kind(resume-schema, string(format: "uri")).fold(
+#let corporate-schema = find-paths(resume-schema, string(format: "uri")).fold(
   resume-schema,
   (schema, path) => lens-put(schema, path, corporate-uri),
 )
@@ -341,7 +341,7 @@ then  string + pattern
 else  number
 ```
 
-`paths-of-kind(schema, query)` lists the path of every node matching
+`find-paths(schema, query)` lists the path of every node matching
 `query`, inside union, `not-of` and `if-of` members too, sorted as above.
 The paths use the segments under [Lenses and edits](#lenses-and-edits), so
 they work wherever a location does. A query is:
@@ -349,7 +349,9 @@ they work wherever a location does. A query is:
 - a schema node, which matches the nodes of its kind that have every field
   the query sets, with the same value: `string()` finds every string,
   `string(format: "date")` only the date strings, `number()` numbers but
-  not integers, and `number(minimum: 0)` only numbers with that minimum;
+  not integers, and `number(minimum: 0)` only numbers with that minimum.
+  A pattern's `expected` is only its message, so `string(pattern: p)`
+  finds every string with pattern `p`;
 - or a constructor, which matches the nodes it builds: `enum-of` every
   enum, `const-of` the single-value ones, `any-of` the inclusive unions
   (a nullable is one), `one-of` the exclusive ones, `nullable` the
@@ -361,9 +363,9 @@ query. An `additional` schema shadowed by a field literally named
 with `lens-over` on its object.
 
 ```typst
-#paths-of-kind(resume-schema-strict, string(format: "date"))
+#find-paths(resume-schema-strict, string(format: "date"))
 // → (("awards", "items", "date"), …, ("meta", "lastModified", 1), …)
-#paths-of-kind(member, number())
+#find-paths(member, number())
 // → (("rating",),)
 #lens-get(resume-schema-strict, ("meta", "lastModified", 0)).kind
 // → "string"
@@ -387,7 +389,7 @@ with `lens-over` on its object.
 
 An error record's `path` addresses the **data**, so its pointer is one any
 JSON Pointer tool can resolve against the document. A lens or
-`paths-of-kind` path addresses the **schema**, in this package's own
+`find-paths` path addresses the **schema**, in this package's own
 segments, and encodes segment for segment: `("basics", "email")` becomes
 `/basics/email` and `("work", "items")` becomes `/work/items`. That is
 neither a data pointer nor a JSON Schema location, which would read
