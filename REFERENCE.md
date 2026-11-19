@@ -84,7 +84,7 @@ Branch on `code`, not on the message:
 | `dependent` | A key required by another key's presence is missing | The rule broken, the trigger's entry: `(dependent-required: (card: ("billing",)))` | |
 | `enum` | Not one of the enum's values | The values | The value |
 | `format` | Not in the format's shape (date, email, …) | The format's description | The value |
-| `pattern` | Does not match the pattern | The pattern's description | The value |
+| `pattern` | Does not match the pattern | `string()`'s `expected`, else `"matching pattern"` | The value |
 | `length` | String too short or too long | The bound broken: `(min-length: 3)` or `(max-length: 80)` | The length |
 | `range` | Number out of range | The bound broken: `(minimum: 1)`, `(exclusive-minimum: 1)`, `(maximum: 10)` or `(exclusive-maximum: 10)` | The number |
 | `multiple` | Not a multiple of `multiple-of` | `(multiple-of: 0.1)` | The number |
@@ -223,18 +223,19 @@ with no offset is not one of these formats; check it with a `pattern`.
 A miss reports `expected <hint>.` at the field's path. For `member`:
 
 ```typst
-#validate(member, (
+#format-errors(validate(member, (
   name: "Ada",
   email: "ada",
   homepage: "example.com",
   joined: "2024/01/15",
-))
+)))
 ```
 
 ```text
-email:     expected an email (e.g. "name@example.com").
-homepage:  expected a URI (e.g. "https://example.com").
-joined:    expected an ISO-8601 date (e.g. "2024-01-15").
+gairm-import: found 3 problems in the input:
+  - email: expected an email (e.g. "name@example.com").
+  - homepage: expected a URI (e.g. "https://example.com").
+  - joined: expected an ISO-8601 date (e.g. "2024-01-15").
 ```
 
 Data written in Typst can give a `date` field a `datetime` with a date and
@@ -283,8 +284,9 @@ Every edit returns a new schema and leaves its input alone. The schema
 comes first, so edits chain through `.fold`. A node written by `lens-put`
 or returned by `lens-over`'s function must be a schema, and every object
 an edit touches is rebuilt through `object()`, so an edit cannot break its
-invariants. A missing path, a missing field, or adding a field that exists
-panics, naming the function and the segment that failed.
+invariants. A missing path or field, adding a field that exists,
+requiring a key a closed object does not declare, or unsetting one it
+does not require panics, naming the function and what failed.
 
 The examples edit `team`, a schema built on `member` from
 [Constructors](#constructors):
@@ -430,7 +432,8 @@ they work wherever a schema path does. A query is:
 - or a constructor, which matches the nodes it builds: `enum-of` every
   enum, `const-of` the single-value ones, `any-of` the inclusive unions
   (a nullable is one), `one-of` the exclusive ones, `nullable` the
-  nullable ones, and `not-of`, `if-of` every node of their kind.
+  nullable ones, and the rest (`string`, `boolean`, `not-of`, …) every
+  node of their kind.
 
 `object` and `array` are walked through, not searched for, and panic as a
 query. An `additional` schema shadowed by a field literally named
@@ -614,7 +617,7 @@ Where a draft 7 validator and this package disagree on the same schema:
   rejected unless it is `true` or a schema. `type: "object"` with neither
   `properties` nor `additionalProperties` panics, and an `allOf` member
   without `additionalProperties` counts as closed (except inside `if`;
-  see the translation).
+  see [Supported keywords](#supported-keywords)).
 - **Unknown keywords panic.** Draft 7 ignores a keyword it does not know;
   here it panics, so a typo cannot silently drop a constraint. So does a
   keyword that applies to none of a node's `type`s, and one whose value is

@@ -12,9 +12,9 @@ I'll acknowledge within a few days and work with you on a fix.
 
 ## Scope
 
-`gairm-import` is a Typst data-loading library — it reads a JSON file from
-disk, validates the shape against a JSON Schema the caller supplies, and
-returns a Typst dict. The most realistic attack surface is malicious input
+`gairm-import` is a Typst data-loading library: it reads a JSON document
+(a path, bytes or a Typst value), checks it against a schema the caller
+supplies, and returns Typst values. The most realistic attack surface is malicious input
 crafted to exploit a `typst` runtime bug; please report those upstream at
 [typst/typst](https://github.com/typst/typst/security). Issues *specific* to
 this package (e.g. a validation gap that lets unexpected data shapes through,

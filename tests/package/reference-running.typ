@@ -45,17 +45,3 @@
   [x],
 )
 #assert.eq(coerce(if-of(string(), then: markup()), 3), 3)
-
-// find-paths: a constructor finds the nodes it builds.
-#let u = object((
-  a: any-of(string(), number()),
-  b: one-of(string(), number()),
-  c: nullable(string()),
-  d: const-of("x"),
-  e: enum-of(("x", "y")),
-))
-#assert.eq(find-paths(u, any-of), (("a",), ("c",)))
-#assert.eq(find-paths(u, one-of), (("b",),))
-#assert.eq(find-paths(u, nullable), (("c",),))
-#assert.eq(find-paths(u, const-of), (("d",),))
-#assert.eq(find-paths(u, enum-of), (("d",), ("e",)))

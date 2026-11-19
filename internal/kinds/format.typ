@@ -189,8 +189,8 @@
 /// - max-length (int, none): The most characters (grapheme clusters)
 ///   allowed.
 /// - format (str, none): A JSON Schema format name: `"date"`,
-///   `"date-time"`, `"uri"`, `"email"`, `"uuid"`, `"hostname"`,
-///   `"ipv4"`, `"ipv6"` or `"time"`. The string must have that form.
+///   `"date-time"`, `"time"`, `"uri"`, `"email"`, `"uuid"`,
+///   `"hostname"`, `"ipv4"` or `"ipv6"`. The string must have that form.
 /// - pattern (regex, str, none): A regular expression the string must
 ///   match, anywhere in it unless anchored with `^…$`. With a `format`,
 ///   the string must have the format and match the pattern.

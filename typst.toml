@@ -4,9 +4,9 @@ version = "0.13.0"
 entrypoint = "lib.typ"
 authors = ["Shane Murphy <@smur89>"]
 license = "MIT"
-description = "Validate and coerce JSON against a JSON Schema into typed values."
+description = "Validate JSON against a JSON Schema or a schema you build, and get typed values."
 repository = "https://github.com/smur89/gairm-import"
-keywords = ["json", "json-schema", "schema", "validation", "loader"]
+keywords = ["json", "json-schema", "schema", "validation", "json-pointer"]
 categories = ["utility", "integration"]
 compiler = "0.15.0"
 # In the typst/packages submission, so the README's links to them work
