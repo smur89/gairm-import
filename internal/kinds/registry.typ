@@ -146,10 +146,17 @@
   string: _kind(
     check: _string-kind-check,
     family: "string",
-    // Stored, a pattern and its message must be values: a null one
-    // would reach `match` (string() leaves an unset one out).
+    // Stored, a pattern must be a regex, as string() stores it: `match`
+    // with a string is a substring test, so a hand-built or lens-edited
+    // string pattern would silently match as literal text. Its message
+    // must be a value: a null one would reach the error.
     fields: (
-      ("pattern", false, v => type(v) in (regex, str), "a regex or a string"),
+      (
+        "pattern",
+        false,
+        v => type(v) == regex,
+        "a regex (string() compiles a string pattern)",
+      ),
       ("expected", false, v => type(v) == str, "a string"),
     ),
     problem: s => _as-field(_string-problem(

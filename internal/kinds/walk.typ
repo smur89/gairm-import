@@ -211,17 +211,12 @@
   let type-misses(r) = r.errors.filter(e => (
     e.code == "type" and e.path == ctx.path
   ))
+  // Its result is the union's whole result: coerce models the value as
+  // that member does, so a constraint miss it ignores elsewhere it
+  // ignores here too, and a miss that leaves no model says where itself
+  // (e.g. a nested field).
   let claimed = results.filter(r => type-misses(r) == ())
-  if claimed.len() == 1 {
-    // A claimant that can't be modelled says where itself (e.g. a nested
-    // field); one that only broke a constraint gets the union's message.
-    let own = claimed.first().fatal
-    return (
-      errors: claimed.first().errors,
-      value: value,
-      fatal: if own != none { own } else { fatal },
-    )
-  }
+  if claimed.len() == 1 { return claimed.first() }
   let quantifier = if schema.exclusive { "exactly one" } else { "one" }
   let message = (
     "expected a value matching "
