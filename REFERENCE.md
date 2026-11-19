@@ -544,7 +544,8 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   node, the branches are `then` and `else` as written, of any kind. Beside
   other keywords, each branch is the `allOf` of those keywords and the
   branch, merged as above, and a missing branch is those keywords alone:
-  the node and each branch must be object schemas. A branch takes the
+  the node and each branch must be object schemas (siblings that are
+  only `type: "object"` just give each branch its type). A branch takes the
   node's `type`, and, unless it sets `additionalProperties`, the node's
   `properties` and `additionalProperties`, so `then: {required: ["b"]}`
   requires a property the node declares. `if` is only a test, so every

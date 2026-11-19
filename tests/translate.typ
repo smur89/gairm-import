@@ -593,6 +593,26 @@
   )).then,
   object((a: string(), b: number()), additional: true),
 )
+// Siblings that are only `type: "object"` add nothing to a branch, so
+// a closed branch stands alone rather than merging with an open object.
+#let closed-ab(p) = (
+  properties: ((p): (type: "string")),
+  additionalProperties: false,
+)
+#assert.eq(
+  T((
+    type: "object",
+    description: "a or b",
+    "if": (required: ("a",)),
+    then: closed-ab("a"),
+    "else": closed-ab("b"),
+  )),
+  if-of(
+    T((required: ("a",), additionalProperties: true)),
+    then: object((a: string())),
+    otherwise: object((b: string())),
+  ),
+)
 
 // `not` reads its objects open, as draft 7 does: an object with more
 // keys than the ones it names still matches, so `not` rejects it.
