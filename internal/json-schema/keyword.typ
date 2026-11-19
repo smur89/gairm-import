@@ -182,6 +182,24 @@
   ref: ". Draft 7 ignores them; move them into the referenced definition.",
 )
 
+// The `$id` on `js` that sets the base its `$ref`s resolve against, or
+// none. The translator resolves every `$ref` against the root
+// document, so below the root one would quietly pick another schema. A
+// fragment-only one names the node and changes no base.
+#let _base-id(js) = {
+  let id = if type(js) == dictionary { js.at("$id", default: none) }
+  if type(id) == str and not id.starts-with("#") { id }
+}
+
+// Bails on an embedded `$id`, `id`, found at JSON Pointer `where`.
+#let _bail-embedded-id(ctx, id, where) = _bail(
+  ctx,
+  "an embedded \"$id\" ("
+    + _json(id)
+    + if where != ctx.at { ", at " + where }
+    + ") is not supported: it changes the base of the $refs below it, which resolve against the root document here. Move the schema under the root's \"$defs\" without its \"$id\".",
+)
+
 // Bails on a keyword the translator cannot honour: a sibling beside a
 // composition keyword or `$ref` (checked before the `$ref` is resolved,
 // which would drop it), an unsupported keyword with a reason of its
@@ -231,18 +249,9 @@
       )
     }
   }
-  // An embedded `$id` sets the base the `$ref`s under it resolve
-  // against, and the translator resolves every `$ref` against the root
-  // document, so it would quietly pick another schema. A fragment-only
-  // one names the node and changes no base.
-  let id = js.at("$id", default: none)
-  if ctx.at != "" and type(id) == str and not id.starts-with("#") {
-    _bail(
-      ctx,
-      "an embedded \"$id\" ("
-        + _json(id)
-        + ") is not supported: it changes the base of the $refs below it, which resolve against the root document here. Move the schema under the root's \"$defs\" without its \"$id\".",
-    )
+  // The root's `$id` is the document's own; one below it is embedded.
+  if ctx.at != "" and _base-id(js) != none {
+    _bail-embedded-id(ctx, _base-id(js), ctx.at)
   }
   let unknown = js.keys().filter(k => _role-of(k) == "unsupported")
   if unknown.len() > 0 {

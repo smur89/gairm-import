@@ -11,10 +11,13 @@
 #let _children(s) = (_descriptor(s).children)(s)
 
 // `seg` as a node of kind `kind` reads it. An object's fields are named
-// by strings, so an int names the field it spells: a JSON Pointer reads
-// `/2024` as an int, and an object has no int children to confuse it
-// with. Given the kind alone, not the node, which a call would hash.
-#let _segment(kind, seg) = if type(seg) == int and kind == "object" {
+// by strings, so a non-negative int names the field it spells, as a
+// JSON Pointer reads `/2024` as an int; an object has no int children
+// to confuse it with. A negative int is no pointer's, and stays a bad
+// segment. Given the kind alone, not the node, which a call would hash.
+#let _segment(kind, seg) = if (
+  type(seg) == int and seg >= 0 and kind == "object"
+) {
   str(seg)
 } else { seg }
 

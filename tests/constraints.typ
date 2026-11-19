@@ -369,3 +369,5 @@
   ),
   ("range",),
 )
+// The smallest int has no absolute value, and still compares.
+#assert.eq(validate(number(maximum: 0.0), -9223372036854775807 - 1), ())

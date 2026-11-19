@@ -46,3 +46,5 @@
 #let at = pointer-to-path(path-to-pointer(find-paths(years, string()).first()))
 #assert.eq(at, (2024, "q1"))
 #assert.eq(schema-get(years, at), string())
+// A negative int is no pointer's index, so it names no field.
+#assert.eq(pointer-to-path("/-1"), ("-1",))

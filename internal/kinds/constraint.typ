@@ -101,7 +101,7 @@
 // An int or decimal a float can't stand in for exactly, as a decimal,
 // or none: a decimal always, an int only past 2^53.
 #let _unfloatable(v) = if type(v) == decimal { v } else if (
-  type(v) == int and calc.abs(v) > _float-exact
+  type(v) == int and (v > _float-exact or v < -_float-exact)
 ) { decimal(v) }
 #let _compare(a, op, b) = {
   let (m, o, c) = if type(b) == float and _unfloatable(a) != none {
