@@ -157,8 +157,8 @@
       hint: if hint { _nullable-hint(parent) },
     ))
   }
-  // A hand-built object may leave `required-keys` out, as object() never
-  // does: the edits read it with its default.
+  // `required-keys` is left out when empty, as object() leaves it: the
+  // edits read it with its default.
   let parent = (required-keys: (), ..parent)
   _set-at(schema, path, _object-with(parent, who: op, ..edit(parent)), op)
 }

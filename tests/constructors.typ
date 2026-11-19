@@ -19,7 +19,6 @@
   (
     kind: "object",
     shape: (name: (kind: "string"), age: (kind: "number")),
-    required-keys: (),
   ),
 )
 #assert.eq(

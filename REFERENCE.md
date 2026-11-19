@@ -216,7 +216,7 @@ the API, so hand-built nodes and `schema-update` functions may use them.
 | `string`, `number`, `integer`, `boolean`, `null`, `markup`, `unknown` | the constructor of that name | none; a `pattern` is stored as a `regex` |
 | `enum` | `enum-of`, `const-of` | `values`, an array |
 | `array` | `array-of` | `elem` |
-| `object` | `object`, `map` | `shape`; `required-keys` (always), `dependent-required` and `additional` only when set. `map(x)` is `shape: (:)`, `additional: x` |
+| `object` | `object`, `map` | `shape`; `required-keys`, `dependent-required` and `additional` only when set. `map(x)` is `shape: (:)`, `additional: x` |
 | `union` | `any-of`, `one-of`, `nullable` | `members`, and `exclusive`: true for `one-of`. `nullable(x)` is the members `(x, null())` |
 | `not` | `not-of` | `member` |
 | `if` | `if-of` | `cond`, and `then` / `otherwise` when set |

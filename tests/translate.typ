@@ -177,9 +177,8 @@
   (name: string(), age: integer()),
   required-keys: ("name",),
 ))
-#assert.eq(
-  T((type: "object", properties: (a: (type: "string")))).required-keys,
-  (),
+#assert(
+  "required-keys" not in T((type: "object", properties: (a: (type: "string")))),
 )
 // `properties: (:)` is the closed empty object; leaving it out is an
 // open object, which panics.
