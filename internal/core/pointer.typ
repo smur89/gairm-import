@@ -35,10 +35,10 @@
 
 #import "error.typ": _fail, _problem
 
-// Order matters: `~1` → `/` first would let an `~1` token round-
-// trip wrong (e.g. `~01` should decode to `~1`, not `/0`). Encode
-// `~` first so subsequent `/` encodes don't see the new `~0` we
-// just introduced. Decode (_read-pointer) mirrors: `~1` before `~0`.
+// Order matters. Encode `~` first, so its pass doesn't rewrite the
+// `~1` the `/` pass writes. Decode (_read-pointer) mirrors it: `~1` before
+// `~0`, so `~01` decodes to `~1`; `~0` first would turn it into `~1`
+// and then `/`.
 #let _escape-token(s) = s.replace("~", "~0").replace("/", "~1")
 
 // RFC 6901 only defines two escape sequences: `~0` and `~1`. A

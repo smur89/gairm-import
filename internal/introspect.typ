@@ -13,7 +13,7 @@
 
 #import "core/error.typ": _a, _fail, _problem, _key-label
 #import "kinds/registry.typ": _kinds, _descriptor
-#import "kinds/catalog.typ": _constructor
+#import "kinds/catalog.typ": _constructor, _constructors
 #import "kinds/structure.typ": _require-schema, _is-object
 #import "kinds/walk.typ": _kind-label
 #import "kinds/traverse.typ": _children, _paths-where
@@ -253,8 +253,11 @@
     _fail("find-paths", _problem(
       "query",
       "a schema node or a constructor of a kind it can find ("
-        + _searchable-kinds.join(", ")
-        + "); object and array are walked through, not searched for",
+        + _searchable-kinds
+          .map(k => _constructors.at(k).map(((c, _)) => repr(c)))
+          .flatten()
+          .join(", ")
+        + "); object, map and array-of are walked through, not searched for",
       q.name,
     ))
   }
