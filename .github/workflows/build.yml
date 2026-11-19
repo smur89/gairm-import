@@ -25,8 +25,8 @@ env:
   # proposes bumps (see .github/renovate.json5); reformat and update the
   # hash in the same PR.
   # renovate: datasource=github-releases depName=typstyle-rs/typstyle
-  TYPSTYLE_VERSION: v0.15.2
-  TYPSTYLE_SHA256: 4a00dc3270bbc545fb05d8d1c272f352ce68bf9e06d1cceba0126b4bcc1140ff
+  TYPSTYLE_VERSION: v0.15.3
+  TYPSTYLE_SHA256: dee2de93d6218de1fb9f071edebab2e1fb7c33bf92dfde5008f56ee3126f5143
 
 # An explicit `bash` adds `-o pipefail`, so a failure on the left of a
 # pipe (`curl | tar`, `gh pr create | tail`) fails the step.
