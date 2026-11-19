@@ -58,8 +58,9 @@ a `nullable(..)` or a conditional (the translator builds
 level is an `any-of` or `one-of`. Typst caps how deeply calls nest, and
 each level costs two calls, or four through an `any-of` or `one-of`;
 past the cap, Typst fails with `maximum function call depth exceeded`.
-`schema-from-json-schema` reads about 35 levels of nested `properties`
-or `items`, and about 17 when every level is an `anyOf`.
+`schema-from-json-schema` reads about 34 levels of nested `properties`,
+`items`, `not`, `$ref` or lone `if`, and about 17 when every level is an
+`anyOf`, an `allOf` or an `if` beside other keywords.
 
 ### Error records
 
@@ -495,8 +496,9 @@ larger numbers stay strings.
 
 `schema-from-json-schema(doc)` translates a JSON Schema document (a
 dictionary, `path(..)` or bytes) into a schema. It supports a subset of
-draft 7, and panics, naming the keyword, on anything it would otherwise
-have to drop.
+draft 7, and panics, naming the keyword and where it is (`at
+/properties/a: …`, a JSON Pointer), on anything it would otherwise have
+to drop.
 
 ```typst
 #let book-schema = schema-from-json-schema(path("book-schema.json"))
@@ -522,17 +524,20 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   under [Formats](#formats)). With both `format` and `pattern`, both
   apply.
 - Numbers: `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`
-  (as numbers, draft 7's form), `multipleOf`.
+  (as numbers, draft 7's form; draft 4's `true` / `false` panics),
+  `multipleOf`.
 - Arrays: `items` (a single schema; no `items` takes any item),
   `minItems`, `maxItems`, `uniqueItems`.
 - Objects: `properties`, `required`, `additionalProperties` (a schema,
-  `true` or `false`), `dependentRequired`, and draft 7's array form of
+  `true` or `false`; `{}` is `true`), `dependentRequired`, and draft 7's array form of
   `dependencies`, which means the same.
 - `enum` and `const` become `enum-of` and `const-of`. `type` and
   constraint keywords beside them are folded in at translate time: only
   the values that satisfy them are kept, and a keyword leaves values of
-  other types alone (`minimum` ignores a string).
+  other types alone (`minimum` ignores a string). With both, only the
+  `enum` values equal to the `const` are kept.
 - `anyOf`, `oneOf` and `not` become `any-of`, `one-of` and `not-of`.
+  `not` is only a test, so its objects are open, as in `if` (below).
 - `allOf` of object schemas is merged at translate time: the properties
   and `required` lists union, a key in two members must have the same
   schema, `additionalProperties` must agree (a member without it counts as
@@ -543,7 +548,8 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   node, the branches are `then` and `else` as written, of any kind. Beside
   other keywords, each branch is the `allOf` of those keywords and the
   branch, merged as above, and a missing branch is those keywords alone:
-  the node and each branch must be object schemas. A branch takes the
+  the node and each branch must be object schemas (siblings that are
+  only `type: "object"` just give each branch its type). A branch takes the
   node's `type`, and, unless it sets `additionalProperties`, the node's
   `properties` and `additionalProperties`, so `then: {required: ["b"]}`
   requires a property the node declares. `if` is only a test, so every
@@ -626,7 +632,7 @@ Where a draft 7 validator and this package disagree on the same schema:
   keys through unless `additionalProperties` says otherwise; here they are
   rejected unless it is `true` or a schema. `type: "object"` with neither
   `properties` nor `additionalProperties` panics, and an `allOf` member
-  without `additionalProperties` counts as closed (except inside `if`;
+  without `additionalProperties` counts as closed (except inside `if` or `not`;
   see [Supported keywords](#supported-keywords)).
 - **Unknown keywords panic.** Draft 7 ignores a keyword it does not know;
   here it panics, so a typo cannot silently drop a constraint. So does a
