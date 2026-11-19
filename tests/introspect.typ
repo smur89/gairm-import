@@ -508,3 +508,16 @@ phone → email",
 )
 #assert.eq(find-paths(shadowed, one-of), ())
 #assert.eq(find-paths(shadowed, any-of), (("additionalProperties",),))
+
+// A key that doesn't read plainly is quoted, a nullable of a nullable
+// draws as one `?`, and a dependent-required trigger with no dependents
+// is dropped (object() drops it).
+#let edge = object(
+  ("": string(), "a.b": nullable(nullable(string())), c: string()),
+  dependent-required: (c: (), "a.b": ("",)),
+)
+#assert.eq(edge.dependent-required, ("a.b": ("",)))
+#assert.eq(
+  describe-schema(edge),
+  "\"\"     string\n\"a.b\"  string?\nc      string\n\"a.b\" → \"\"",
+)

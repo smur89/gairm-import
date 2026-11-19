@@ -28,8 +28,8 @@
   let value = if type(data) in (path, bytes) { json(data) } else { data }
   if value == none and not null-ok {
     _bail(
-      none,
-      "input must not be null: the document root has to be a value the schema accepts.",
+      fn-name,
+      "data must not be null: the document root has to be a value the schema accepts.",
     )
   }
   value

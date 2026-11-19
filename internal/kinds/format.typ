@@ -181,7 +181,8 @@
 /// argument left at `none` sets nothing, so `string()` is
 /// `(kind: "string")`. Panics on a value of the wrong type, an unknown
 /// format, an `expected` without a `pattern`, or length bounds no
-/// string satisfies.
+/// string satisfies; a pattern string that is no valid regex fails with
+/// Typst's own regex error.
 ///
 /// - min-length (int, none): The fewest characters (grapheme clusters)
 ///   allowed.
@@ -226,14 +227,22 @@
 // Typst-native input for the date formats (#134): a datetime of the
 // right shape converts to the ISO string the row's regex checks, so
 // validate and coerce treat it exactly like the JSON string. Wrong
-// shape returns none — a time is never dropped to make a date fit.
+// shape returns none — a time is never dropped to make a date fit —
+// and so does a year outside RFC 3339's four digits, which the regex
+// the conversion skips would refuse.
 #let _datetime-expected(row) = (
   "a string or a datetime with a date and "
     + if row.datetime { "a time" } else { "no time" }
 )
 
 #let _from-datetime(row, value) = {
-  if value.year() != none and (value.hour() != none) == row.datetime {
+  let year = value.year()
+  if (
+    year != none
+      and year >= 0
+      and year <= 9999
+      and (value.hour() != none) == row.datetime
+  ) {
     value.display(
       "[year]-[month]-[day]"
         + if row.datetime { "T[hour]:[minute]:[second]" } else { "" },

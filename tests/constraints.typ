@@ -297,3 +297,15 @@
   validate(number(multiple-of: 2), float.nan).map(e => e.code),
   ("multiple",),
 )
+
+// ---- numbers in messages -----------------------------------------------------
+
+// An ASCII minus (`str` writes U+2212), and a float in its shortest form.
+#assert.eq(
+  validate(number(minimum: 0), -5).first().message,
+  "expected ≥ 0, got -5.",
+)
+#assert.eq(
+  validate(number(maximum: 1e299), 1e300).first().message,
+  "expected ≤ 1e299, got 1e300.",
+)

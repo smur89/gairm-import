@@ -65,9 +65,21 @@
   ((path: path, code: code, message: message, expected: expected, got: got),)
 }
 
+/// A number as a message writes it: an ASCII minus, where `str` writes
+/// U+2212, and a float in its shortest form (`1e300`, not 301 digits).
+#let _num(v) = if type(v) == float { repr(v) } else {
+  str(v).replace("\u{2212}", "-")
+}
+
 // A key that reads unambiguously after a dot: a letter or `_`, then
 // letters, digits, `_` and `-`.
 #let _plain-key = regex("^[\\p{L}_][\\p{L}\\p{N}_-]*$")
+
+/// `key` as a label shows it: as written when it reads unambiguously,
+/// quoted otherwise, so an empty or dotted key is still visible.
+#let _key-label(key) = if key.match(_plain-key) != none { key } else {
+  repr(key)
+}
 
 // A data path as a reader writes it: `work[0].name`. A key that is not
 // plain is quoted in brackets, `["a.b"].c`, so no two paths read the
@@ -78,7 +90,7 @@
   parts
     .enumerate()
     .map(((i, part)) => {
-      if type(part) == int { "[" + str(part) + "]" } else if (
+      if type(part) == int { "[" + _num(part) + "]" } else if (
         part.match(_plain-key) == none
       ) { "[" + repr(part) + "]" } else if i == 0 { part } else { "." + part }
     })
@@ -239,36 +251,59 @@
 /// Panics with the report of `errors`, as parse does on an invalid input.
 #let _panic-report(errors) = panic(_format-report(errors))
 
-// Classic two-row Levenshtein edit distance. We fold over the
-// characters of `a`, carrying the previous DP row and producing the
-// next. Each new row is itself built by folding over the characters
-// of `b`, since cell `(i, j)` depends on `(i-1, j)`, `(i, j-1)` and
-// `(i-1, j-1)`. The base row is `0..n` (cost of deleting `j` chars
-// from `b` to reach the empty prefix of `a`).
-#let _edit-distance(a, b) = {
-  let ac = a.clusters()
-  let bc = b.clusters()
-  let n = bc.len()
-  let final-row = ac
-    .enumerate()
-    .fold(range(0, n + 1), (prev, (i, ca)) => {
-      bc
-        .enumerate()
-        .fold((i + 1,), (row, (j, cb)) => {
-          let cost = if ca == cb { 0 } else { 1 }
-          (
-            row
-              + (
-                calc.min(
-                  prev.at(j + 1) + 1, // deletion
-                  row.at(j) + 1, // insertion
-                  prev.at(j) + cost, // substitution
-                ),
-              )
-          )
-        })
-    })
-  final-row.at(n)
+// Levenshtein edit distance, capped: `limit + 1` stands for anything
+// further. Only the cells within `limit` of the diagonal can hold a
+// distance within it, so a row is that band alone, and a row whose best
+// cell is past it ends the search: a long key costs linear time, not
+// quadratic. Loops, not folds: this runs once per unknown key per field.
+#let _clusters(s) = s.clusters()
+#let _edit-distance(a, b, limit) = {
+  let (ac, bc) = (_clusters(a), _clusters(b))
+  let (m, n) = (ac.len(), bc.len())
+  let far = limit + 1
+  if calc.abs(m - n) > limit { return far }
+  // Within `limit` edits of a longer `a`, one of its first `limit + 1`
+  // clusters survives unedited, within `limit` places of where it was, so
+  // it is among b's first `2 limit + 1`; the same holds at the end. A
+  // cheap test that rules out most unrelated keys before the table.
+  if m > limit {
+    let w = 2 * limit + 1
+    let head = bc.slice(0, calc.min(w, n))
+    let tail = bc.slice(calc.max(0, n - w))
+    if not ac.slice(0, limit + 1).any(c => c in head) { return far }
+    if not ac.slice(m - limit - 1).any(c => c in tail) { return far }
+  }
+  // Each row keeps only its band: row i's slot t is column
+  // j = i - limit + t, so row i - 1's slot t + 1 is the column above and
+  // slot t the one diagonally above. A column outside 0..n is `far`.
+  let w = 2 * limit + 1
+  let prev = range(w).map(t => {
+    let j = t - limit
+    if j < 0 or j > n { far } else { calc.min(j, far) }
+  })
+  for i in range(1, m + 1) {
+    let row = ()
+    let best = far
+    for t in range(w) {
+      let j = i - limit + t
+      let d = if j < 0 or j > n { far } else if j == 0 {
+        calc.min(i, far)
+      } else {
+        let cost = if ac.at(i - 1) == bc.at(j - 1) { 0 } else { 1 }
+        calc.min(
+          (if t + 1 < w { prev.at(t + 1) } else { far }) + 1, // deletion
+          (if t > 0 { row.at(t - 1) } else { far }) + 1, // insertion
+          prev.at(t) + cost, // substitution
+          far,
+        )
+      }
+      row.push(d)
+      best = calc.min(best, d)
+    }
+    if best > limit { return far }
+    prev = row
+  }
+  prev.at(n - m + limit)
 }
 
 // Pure: pick the candidate closest to `target` by edit distance, or
@@ -280,7 +315,7 @@
 #let _closest-match(target, candidates) = {
   let max-distance = if target.clusters().len() <= 3 { 1 } else { 2 }
   let best = candidates.fold(none, (acc, c) => {
-    let d = _edit-distance(target, c)
+    let d = _edit-distance(target, c, max-distance)
     if acc == none or d < acc.distance { (key: c, distance: d) } else { acc }
   })
   if best != none and best.distance <= max-distance { best.key } else { none }

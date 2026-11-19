@@ -460,3 +460,11 @@
 )
 #assert.eq(validate(year, "2023-01-05").len(), 1)
 #assert.eq(coerce(year, day), "2024-01-05")
+
+// A year outside 0-9999 is no RFC 3339 date, as the string form says.
+#assert.eq(
+  validate(string(format: "date"), datetime(year: -5, month: 1, day: 1)).map(
+    e => e.code,
+  ),
+  ("format",),
+)

@@ -6,7 +6,7 @@
 
 #import "../core/error.typ": (
   _error, _expected-got, _type-miss, _type-name-of, _json-type-name,
-  _array-problem, _fail,
+  _array-problem, _fail, _num, _problem,
 )
 #import "constraint.typ": _constraint-errors, _constrain
 
@@ -109,12 +109,16 @@
 // Mixed-type members allowed — the validator's `in` check gates on
 // equality, not type. `const` is a singleton enum.
 /// One of a fixed list of values. The values may be of mixed types.
-/// Panics if `values` is not an array.
+/// Panics if `values` is not a non-empty array.
 ///
 /// - values (array): The allowed values.
 /// -> dictionary
 #let enum-of(values) = {
-  let p = _array-problem(values, "values", "an array", "value")
+  let p = _array-problem(values, "values", "a non-empty array", "value")
+  // An empty enum takes nothing, so every value would fail it.
+  if p == none and values == () {
+    p = _problem("values", "a non-empty array", "()")
+  }
   if p != none { _fail("enum-of()", p) }
   (kind: "enum", values: values)
 }
@@ -181,7 +185,7 @@
     let errors = _error(
       ctx.path,
       "integer",
-      _expected-got("an integer", str(value)),
+      _expected-got("an integer", _num(value)),
       got: value,
     )
     let constraint-errors = _constraint-errors(

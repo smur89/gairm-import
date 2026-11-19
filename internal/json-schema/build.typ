@@ -170,11 +170,11 @@
     }
   }
   let values = if "enum" in js { js.at("enum") } else { (js.at("const"),) }
-  if type(values) != array {
+  if type(values) != array or values == () {
     _bail-problem(_problem(
       "enum",
-      "an array of values",
-      _json-type-name(values),
+      "a non-empty array of values",
+      if values == () { "[]" } else { _json-type-name(values) },
     ))
   }
   let by-type = ("string", "number", "array")
@@ -204,9 +204,7 @@
         )
     )
   })
-  // `enum: []` was always accepted; only report values that constraints
-  // eliminated.
-  if values.len() > 0 and survivors.len() == 0 {
+  if survivors.len() == 0 {
     _bail(
       "no enum/const value satisfies the accompanying type/constraints, so the schema is unsatisfiable.",
     )
