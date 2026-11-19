@@ -6,8 +6,8 @@
 // schemas. With none, the branches are T and E as they are, of any kind.
 
 #import "../kinds/structure.typ": if-of
-#import "keyword.typ": _role-of, _lone-hints
-#import "all-of.typ": _join, _restricts-extras
+#import "keyword.typ": _role-of, _lone-hints, _into
+#import "all-of.typ": _join, _nullable-of, _restricts-extras
 
 // A branch read beside its siblings, as draft 7 reads it: a branch
 // with no `type` takes the siblings', since only a value of their type
@@ -41,39 +41,64 @@
   b
 }
 
+#let _who = "the siblings of \"if\" and its branches"
+
 // The condition is only a test, so it translates as draft 7 reads it:
 // every object in it with no `additionalProperties` is open
 // (`open-objects`, build.typ), so `{properties: {country: {const:
 // "US"}}}` holds for an address with more keys than `country`. An `if`
 // with neither branch checks nothing (draft 7), so the node translates
-// without it. The siblings translate once and join each branch.
-#let _conditional(js, ctx, recur, resolve) = {
+// without it, once its condition has been checked. The siblings
+// translate once and join each branch; siblings that are only `type:
+// "object"` add nothing a branch doesn't take from _beside, so a branch
+// stands alone, as the object its siblings say it is. The branches
+// translate in a loop, not a `.map`, to spend no call depth.
+#let _conditional(js, ctx, recur) = {
   let siblings = js
     .pairs()
     .filter(((k, _)) => k != "if" and _role-of(k) != "branch")
     .to-dict()
+  let cond = recur(js.at("if"), (.._into(ctx, "if"), open-objects: true))
   if "then" not in js and "else" not in js { return recur(siblings, ctx) }
-  let cond = recur(js.at("if"), (..ctx, open-objects: true))
-  let branches = (then: "then", otherwise: "else")
-  if siblings.keys().all(k => _role-of(k) == "annotation") {
-    return if-of(
-      cond,
-      ..branches
-        .pairs()
-        .filter(((_, k)) => k in js)
-        .map(((arg, k)) => (arg, recur(js.at(k), ctx)))
-        .to-dict(),
-    )
-  }
-  let base = recur(siblings, ctx)
-  let base-restricts = _restricts-extras(siblings, resolve)
-  let branch(k) = if k not in js { base } else {
+  let plain = siblings.keys().filter(k => _role-of(k) != "annotation")
+  let lone = plain == ()
+  let typed = plain == ("type",) and siblings.type == "object"
+  let base = if not lone and not typed { recur(siblings, ctx) }
+  let base-restricts = if base != none { _restricts-extras(siblings, ctx) }
+  let parts = (:)
+  for (arg, k) in (("then", "then"), ("otherwise", "else")) {
+    if k not in js {
+      // With no branch, the siblings alone: `{type: "object"}` bails
+      // as an open object, as it does anywhere.
+      if base != none { parts.insert(arg, base) } else if typed {
+        parts.insert(arg, recur(siblings, ctx))
+      }
+      continue
+    }
+    let at = _into(ctx, k)
+    if lone {
+      parts.insert(arg, recur(js.at(k), at))
+      continue
+    }
     let b = _beside(js.at(k), siblings)
-    _join(
-      (base, recur(b, ctx)),
-      (base-restricts, _restricts-extras(b, resolve)),
-      who: "the siblings of \"if\" and its branches",
-    )
+    let node = recur(b, at)
+    if base == none {
+      // Only an object reaches the branch, so a nullable one is its
+      // object, and the merge of one member checks it is an object.
+      let x = _nullable-of(node)
+      if x != none { node = x }
+      node = _join((node,), (false,), (b,), (at,), ctx, who: _who)
+    } else {
+      node = _join(
+        (base, node),
+        (base-restricts, _restricts-extras(b, at)),
+        (siblings, b),
+        (ctx, at),
+        ctx,
+        who: _who,
+      )
+    }
+    parts.insert(arg, node)
   }
-  if-of(cond, ..branches.pairs().map(((arg, k)) => (arg, branch(k))).to-dict())
+  if-of(cond, ..parts)
 }

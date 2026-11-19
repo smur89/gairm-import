@@ -6,18 +6,111 @@
 // enum/const structural list all read this table, so a new keyword is
 // one entry here plus the code that consumes it.
 
-#import "../core/error.typ": _bail as _core-bail, _worded
+#import "../core/error.typ": (
+  _bail as _core-bail, _worded, _num, _type-name-of, _json-type-name,
+)
+#import "../core/pointer.typ": _escape-token
 #import "../kinds/constraint.typ": _constraint-rows
 
+// A control character, as a JSON string escapes it.
+#let _json-escapes = (
+  "\n": "\\n",
+  "\r": "\\r",
+  "\t": "\\t",
+  "\u{8}": "\\b",
+  "\u{c}": "\\f",
+)
+#let _json-escape(c) = _json-escapes.at(c, default: {
+  let hex = str(c.to-unicode(), base: 16)
+  "\\u" + "0" * (4 - hex.len()) + hex
+})
+
+// `v` as JSON writes it, so a message quotes the schema in its own
+// syntax: `[1]`, `null`, `{"type": "string"}`. A value JSON has no
+// syntax for (a regex, from a Typst-built schema) keeps its repr.
+#let _json(v) = if v == none { "null" } else if type(v) == bool {
+  if v { "true" } else { "false" }
+} else if type(v) in (int, float, decimal) { _num(v) } else if (
+  type(v) == str
+) {
+  (
+    "\""
+      + v
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace(regex("[\u{0}-\u{1f}]"), m => _json-escape(m.text))
+      + "\""
+  )
+} else if type(v) == array {
+  "[" + v.map(_json).join(", ", default: "") + "]"
+} else if type(v) == dictionary {
+  (
+    "{"
+      + v
+        .pairs()
+        .map(((k, x)) => _json(k) + ": " + _json(x))
+        .join(", ", default: "")
+      + "}"
+  )
+} else { repr(v) }
+
+// `ctx` one node further in: its JSON Pointer `at` with `segments`
+// (keys, or member indices) appended.
+#let _into(ctx, ..segments) = (
+  ..ctx,
+  at: ctx.at
+    + segments
+      .pos()
+      .map(s => "/" + _escape-token(str(s)))
+      .join("", default: ""),
+)
+
 // One panic prefix so every diagnostic from the translator is grep-able
-// by "schema-from-json-schema —".
-#let _bail = _core-bail.with("schema-from-json-schema —")
+// by "schema-from-json-schema —", then where in the document the node
+// it was translating is (`ctx.at`), as a JSON Pointer. A `ctx` of none
+// is the document itself, before there is a node.
+#let _bail(ctx, msg) = _core-bail(
+  "schema-from-json-schema —",
+  if ctx != none {
+    "at " + if ctx.at == "" { "the root" } else { ctx.at } + ": "
+  }
+    + msg,
+)
 
 // Bails with a constructor's problem (error.typ), its argument named by
-// the JSON keyword `keywords` maps it to, or by itself.
-#let _bail-problem(p, keywords: (:)) = {
-  if "message" in p { _bail(p.message) }
-  _bail(_worded(p, repr(keywords.at(p.arg, default: p.arg))))
+// the JSON keyword `keywords` maps it to, or by itself. A constructor
+// renders the value it `got` in Typst's terms, as a repr or a type name
+// (`integer`); given the `node` the keyword is on, the same value is
+// rendered in JSON's instead.
+#let _bail-problem(ctx, p, keywords: (:), node: (:)) = {
+  if "message" in p { _bail(ctx, p.message) }
+  let keyword = keywords.at(p.arg, default: p.arg)
+  let raw = node.at(keyword, default: (:))
+  if p.entry != none and type(raw) == dictionary {
+    raw = raw.at(p.entry, default: (:))
+  }
+  let p = if keyword not in node { p } else if p.got == repr(raw) {
+    (..p, got: _json(raw))
+  } else if p.got == _type-name-of(raw) {
+    (..p, got: _json-type-name(raw))
+  } else { p }
+  _bail(ctx, _worded(p, _json(keyword)))
+}
+
+// A composition keyword's members; each is checked as a subschema when
+// it is translated.
+#let _require-member-array(js, keyword, ctx) = {
+  let members = js.at(keyword)
+  if type(members) != array or members.len() == 0 {
+    _bail(
+      ctx,
+      _json(keyword)
+        + " must be a non-empty array of schemas, got: "
+        + _json(members)
+        + ".",
+    )
+  }
+  members
 }
 
 // The constraint family each JSON type reads its rows from: `integer`
@@ -137,7 +230,7 @@
 // own, a `then` / `else` with no `if` (draft 7 ignores them), then
 // every unknown or outside-the-subset key at once (a typo like
 // `minLenght` included: draft 7 would ignore it), then a null value.
-#let _check-keywords(js) = {
+#let _check-keywords(js, ctx) = {
   for (keyword, entry) in _keywords {
     if (
       keyword not in js
@@ -149,8 +242,9 @@
       .filter(k => k != keyword and _role-of(k) != "annotation")
     if extras.len() > 0 {
       _bail(
+        ctx,
         "sibling keywords beside "
-          + repr(keyword)
+          + _json(keyword)
           + " are not supported: "
           + extras.map(repr).join(", ")
           + _lone-hints.at(entry.role),
@@ -160,8 +254,9 @@
   for (keyword, entry) in _keywords {
     if keyword in js and "reason" in entry {
       _bail(
+        ctx,
         "unsupported JSON Schema keyword: "
-          + repr(keyword)
+          + _json(keyword)
           + ". "
           + entry.reason,
       )
@@ -170,9 +265,10 @@
   for (keyword, entry) in _keywords {
     if keyword in js and entry.role == "branch" and entry.of not in js {
       _bail(
-        repr(keyword)
+        ctx,
+        _json(keyword)
           + " has no effect without "
-          + repr(entry.of)
+          + _json(entry.of)
           + " (draft 7 ignores it), so translating would silently drop its constraints.",
       )
     }
@@ -180,6 +276,7 @@
   let unknown = js.keys().filter(k => _role-of(k) == "unsupported")
   if unknown.len() > 0 {
     _bail(
+      ctx,
       "unsupported JSON Schema keyword(s): "
         + unknown.map(repr).join(", ")
         + ". They are outside the supported subset (see REFERENCE.md); translating would silently drop their constraints.",
@@ -194,7 +291,7 @@
         and _role-of(k) != "annotation"
         and not _keywords.at(k).at("null-ok", default: false)
     ))
-  if null-key != none { _bail(repr(null-key) + " must not be null.") }
+  if null-key != none { _bail(ctx, _json(null-key) + " must not be null.") }
 }
 
 // Bails on a keyword that applies to none of a typed node's `type`
@@ -203,7 +300,7 @@
 // for an untyped node or a `type` array, where some member reads it;
 // `{type: "string", minItems: 2}` is a mistake. Keywords are grouped
 // by the types they apply to, in table order.
-#let _check-keywords-typed(js, names) = {
+#let _check-keywords-typed(js, names, ctx) = {
   let types-of(k) = _keywords.at(k).at("types", default: ())
   let stray = _keywords
     .keys()
@@ -220,9 +317,10 @@
       + " schemas"
   ))
   _bail(
+    ctx,
     lines.join("; ")
       + ", but this node's `type` is "
-      + repr(js.at("type"))
+      + _json(js.at("type"))
       + ": translating would silently drop them.",
   )
 }

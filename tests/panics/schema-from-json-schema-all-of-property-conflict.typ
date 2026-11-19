@@ -1,4 +1,4 @@
-// expect: allOf members declare conflicting schemas for key "a".
+// expect: at the root: allOf members declare conflicting schemas for key "a".
 #import "../../lib.typ": object, schema-from-json-schema
 #schema-from-json-schema((
   allOf: (

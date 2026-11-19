@@ -1,3 +1,3 @@
-// expect: "anyOf" must be a non-empty array of schemas
+// expect: "anyOf" must be a non-empty array of schemas, got: [].
 #import "../../lib.typ": schema-from-json-schema
 #schema-from-json-schema((anyOf: ()))

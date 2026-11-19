@@ -4,23 +4,58 @@
 #import "../kinds/structure.typ": object, nullable, _is-object
 #import "../kinds/walk.typ": _kind-label
 #import "../core/error.typ": _a
-#import "keyword.typ": _bail
+#import "keyword.typ": (
+  _bail, _json, _into, _require-member-array, _role-of, _lone-hints,
+)
+#import "ref.typ": _follow-refs
 
 // Whether a raw allOf member declares `additionalProperties` false or a
-// schema, through `$ref` and nested allOf. Read from the JSON because
-// the translated kind can't tell an explicit `false` from an undeclared
-// one: object() stores both as no `additional`, and the translator
-// reads an undeclared one as closed, where draft 7 reads it as open.
-// Runs after the member translated, so `resolve` (a `$ref` to its
-// target) is known to succeed without cycles.
-#let _restricts-extras(js, resolve) = {
-  if "$ref" in js {
-    return _restricts-extras(resolve(js.at("$ref")), resolve)
+// schema, through `$ref`, nested allOf, and the members of an anyOf (a
+// nullable object is `anyOf: [{…}, {type: "null"}]`). Read from the
+// JSON because the translated kind can't tell an explicit `false` from
+// an undeclared one: object() stores both as no `additional`, and the
+// translator reads an undeclared one as closed, where draft 7 reads it
+// as open. A schema that takes any value (`{}`) restricts nothing.
+// Runs after the member translated, so its `$ref`s resolve without
+// cycles.
+#let _restricts-extras(js, ctx) = {
+  let js = _follow-refs(js, ctx)
+  for keyword in ("allOf", "anyOf") {
+    if keyword in js {
+      return js.at(keyword).any(m => _restricts-extras(m, ctx))
+    }
   }
-  if "allOf" in js {
-    return js.at("allOf").any(m => _restricts-extras(m, resolve))
-  }
-  js.at("additionalProperties", default: true) != true
+  let ap = js.at("additionalProperties", default: true)
+  (
+    ap != true
+      and not (
+        type(ap) == dictionary
+          and ap.keys().all(k => _role-of(k) == "annotation")
+      )
+  )
+}
+
+// What a member that is not an object schema is, for the message: a
+// node with no `type` (`{required: ["a"]}`) translates to any JSON type,
+// so it is named by what it lacks and the keywords it has, rather than
+// by the union it became.
+#let _not-object(node, raw, ctx) = {
+  let raw = _follow-refs(raw, ctx)
+  if (
+    type(raw) != dictionary
+      or "type" in raw
+      or raw.keys().any(k => _role-of(k) in _lone-hints)
+  ) { return "got: " + _a(_kind-label(node)) + " schema" }
+  let keys = raw.keys().filter(k => _role-of(k) != "annotation")
+  (
+    "got one with no "
+      + if "properties" in raw { "\"type\": \"object\"" } else {
+        "\"type\": \"object\" or \"properties\""
+      }
+      + if keys == () { " and no keywords" } else {
+        ", only " + keys.map(_json).join(", ")
+      }
+  )
 }
 
 // Every member must translate to an object schema; shapes union (a
@@ -30,17 +65,19 @@
 // extras (`restricts`, see _restricts-extras) need identical property
 // sets. Non-object composition (e.g. string + extra constraints) stays
 // out of scope; deep-merging conflicting sub-schemas is a rabbit hole
-// the engine's flat kinds can't express. `who` names the members in
-// the messages, so a conditional's branches (conditional.typ) bail in
-// their own words.
-#let _merge-all-of(members, restricts, who) = {
-  for m in members {
+// the engine's flat kinds can't express. `raws` are the members as
+// written and `ctxs` where each is, for the messages; `ctx` is the
+// node the merge is for, and `who` names the members, so a
+// conditional's branches (conditional.typ) bail in their own words.
+#let _merge-all-of(members, restricts, raws, ctxs, ctx, who) = {
+  for (i, m) in members.enumerate() {
     if not _is-object(m) {
       _bail(
+        ctxs.at(i),
         who
-          + " must all be object schemas, got: "
-          + _a(_kind-label(m))
-          + " schema. Non-object composition is out of scope.",
+          + " must all be object schemas, "
+          + _not-object(m, raws.at(i), ctxs.at(i))
+          + ". Non-object composition is out of scope.",
       )
     }
   }
@@ -51,7 +88,8 @@
     for (key, sub) in m.shape {
       if key in shape and shape.at(key) != sub {
         _bail(
-          who + " declare conflicting schemas for key " + repr(key) + ".",
+          ctx,
+          who + " declare conflicting schemas for key " + _json(key) + ".",
         )
       }
       shape.insert(key, sub)
@@ -76,6 +114,7 @@
   for a in additionals {
     if a != additionals.at(0) {
       _bail(
+        ctx,
         who
           + " declare conflicting additionalProperties (open, closed, and typed members must all agree).",
       )
@@ -88,6 +127,7 @@
   let keys = members.map(m => m.shape.keys().sorted())
   if restricts.any(r => r) and keys.any(k => k != keys.at(0)) {
     _bail(
+      ctx,
       who
         + " with `additionalProperties: false` or a schema must all declare the same properties: draft 7 applies each member's additionalProperties to its own properties only, so a merged schema would accept keys that member rejects. Declare the properties in every member, or drop the restriction.",
     )
@@ -108,26 +148,33 @@
   }
 }
 
-// The merge of already translated `members`, each with its raw
-// member's `restricts`. A member translated from `type: ["object",
-// "null"]` is nullable(object): its object merges. A null meets allOf
-// only when every member takes it, so the merge is nullable only then.
-#let _join(members, restricts, who: "allOf members") = {
+// The merge of already translated `members` (see _merge-all-of). A
+// member translated from `type: ["object", "null"]` is
+// nullable(object): its object merges. A null meets allOf only when
+// every member takes it, so the merge is nullable only then.
+#let _join(members, restricts, raws, ctxs, ctx, who: "allOf members") = {
   let inner = members.map(m => _nullable-of(m))
   let merged = _merge-all-of(
     members.zip(inner).map(((m, x)) => if x == none { m } else { x }),
     restricts,
+    raws,
+    ctxs,
+    ctx,
     who,
   )
   if inner.all(x => x != none) { nullable(merged) } else { merged }
 }
 
-// The allOf of the schema objects `raw`, each translated by `recur`.
-#let _all-of(raw, ctx, recur, resolve) = {
-  let (members, restricts) = ((), ())
-  for m in raw {
-    members.push(recur(m, ctx))
-    restricts.push(_restricts-extras(m, resolve))
+// The allOf applicator: the node's member schemas, each translated by
+// `recur`, merged.
+#let _all-of(js, ctx, recur) = {
+  let raws = _require-member-array(js, "allOf", ctx)
+  let (members, restricts, ctxs) = ((), (), ())
+  for (i, m) in raws.enumerate() {
+    let at = _into(ctx, "allOf", i)
+    members.push(recur(m, at))
+    restricts.push(_restricts-extras(m, at))
+    ctxs.push(at)
   }
-  _join(members, restricts)
+  _join(members, restricts, raws, ctxs, ctx)
 }
