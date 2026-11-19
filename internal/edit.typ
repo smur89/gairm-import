@@ -165,18 +165,21 @@
 }
 
 // A field's own schema path, as add-field and remove-field take it,
-// split into the object's path and the field's name. Panics, naming
-// `op`, unless it ends in a name.
+// split into the object's path and the field's name. A non-negative int
+// names the field it spells, as in any schema path (traverse.typ).
+// Panics, naming `op`, unless it ends in a name.
 #let _field-path(at, op) = {
   let at = _schema-path(at, op)
-  if at == () or type(at.last()) != str {
+  let name = if at == () { none } else { at.last() }
+  if type(name) == int and name >= 0 { name = str(name) }
+  if type(name) != str {
     _fail(op, _problem(
       "path",
       "a field's path, ending in its name (a string)",
       repr(at),
     ))
   }
-  (at.slice(0, -1), at.last())
+  (at.slice(0, -1), name)
 }
 
 // Collisions panic instead of overwriting silently — for the
@@ -206,7 +209,10 @@
           + "Use schema-put / schema-update to replace an existing field.",
       )
     }
-    let edit = (shape: (..parent.shape, (key): sub-schema))
+    // Checked as schema-put checks its node, so `additional: false`
+    // closes a new object field here too.
+    let sub = _checked(sub-schema, "add-field field " + repr(key))
+    let edit = (shape: (..parent.shape, (key): sub))
     if required and key not in parent.required-keys {
       edit.required-keys = parent.required-keys + (key,)
     }

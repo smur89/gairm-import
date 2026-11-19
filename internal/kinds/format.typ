@@ -1,8 +1,9 @@
 // The string formats, one row each. A row is everything the package
 // knows about a format: its JSON Schema `format` name, which a string
-// node carries as its `format` field, the regex that gates it, the
-// hint an error shows. Only `date` also takes a Typst `datetime`
-// (below): a datetime has no offset, so it can't be a `date-time`.
+// node carries as its `format` field, the regex that gates it (and, as
+// `real`, any check a regex can't state), the hint an error shows.
+// Only `date` also takes a Typst `datetime` (below): a datetime has no
+// offset, so it can't be a `date-time`.
 // The engine's string check, string() and the translator all read this
 // table, so adding a format is one row.
 
@@ -62,9 +63,21 @@
   )
 }
 
+// A `YYYY-MM-DD` prefix is a day its month has (RFC 3339 §5.7):
+// February has a 29th only in a leap year. The regex has already
+// checked the digits, so the slices read.
+#let _days-in-month = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+#let _real-date(s) = {
+  let (y, m, d) = (int(s.slice(0, 4)), int(s.slice(5, 7)), int(s.slice(8, 10)))
+  let leap = (
+    calc.rem(y, 4) == 0 and (calc.rem(y, 100) != 0 or calc.rem(y, 400) == 0)
+  )
+  d <= _days-in-month.at(m - 1) + if m == 2 and leap { 1 } else { 0 }
+}
+
 // `date`, `date-time` and `time` are RFC 3339's `full-date`,
-// `date-time` and `full-time`, as draft 7 defines them, with months and
-// days in range (but no check that February has a 30th). The others are
+// `date-time` and `full-time`, as draft 7 defines them: a row's `real`
+// check, after its regex, rejects a day its month lacks. The others are
 // deliberately permissive: they reject obvious malformations without a
 // full RFC grammar. The hint omits the offending value — the path
 // already names the field, and the canonical example is the actionable
@@ -75,6 +88,7 @@
     pattern: regex(
       "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
     ),
+    real: _real-date,
     expected: "an RFC 3339 date (e.g. \"2024-01-15\")",
   ),
   (
@@ -82,6 +96,7 @@
     pattern: regex(
       "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])[Tt]" + _clock + "$",
     ),
+    real: _real-date,
     expected: "an RFC 3339 date-time (e.g. \"2024-01-15T10:00:00Z\")",
   ),
   (
@@ -228,11 +243,11 @@
   }
 }
 
-// The format check: the datetime conversion, then the row's regex, then
-// the node's own extra pattern, each a gate. A datetime of the wrong
-// shape is a `format` miss that leaves no string to model; a regex or
-// pattern miss still leaves the string. A converted datetime skips the
-// regex: it is a real date by construction.
+// The format check: the datetime conversion, then the row's regex and
+// `real` check, and the node's own extra pattern. A datetime of the
+// wrong shape is a `format` miss that leaves no string to model; a
+// format or pattern miss still leaves the string. A converted datetime
+// skips the regex: it is a real date by construction.
 #let _format-check(row, schema, value, ctx) = {
   if type(value) == datetime and row.format == "date" {
     let s = _from-datetime(value)
@@ -254,18 +269,25 @@
   if type(value) != str {
     return _type-miss(ctx.path, "string", value)
   }
-  if value.match(row.pattern) == none {
-    let errors = _error(
+  // The node's own pattern runs beside a format miss, as JSON Schema
+  // reports every failing keyword; neither leaves the string unmodelled.
+  let errors = if (
+    value.match(row.pattern) == none
+      or not row.at("real", default: _ => true)(value)
+  ) {
+    _error(
       ctx.path,
       "format",
       "expected " + row.expected + ".",
       expected: row.expected,
       got: value,
     )
-    return (errors: errors, value: value, fatal: none)
-  }
-  // Extra pattern gate (format + pattern).
-  (errors: _pattern-errors(schema, value, ctx.path), value: value, fatal: none)
+  } else { () }
+  (
+    errors: errors + _pattern-errors(schema, value, ctx.path),
+    value: value,
+    fatal: none,
+  )
 }
 
 // The string kind's check: its format's, when it has one, which runs

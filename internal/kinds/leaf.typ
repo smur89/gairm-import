@@ -244,11 +244,15 @@
   (errors: _pattern-errors(schema, value, ctx.path), value: value, fatal: none)
 }
 
-// Values compare as `==` does, then, on a miss, as _comparable writes
-// them, so a float meets a decimal as the bounds compare them. Messages
-// write them as JSON, the syntax of the data they came from.
+// Values compare as _comparable writes them, so a float meets a decimal,
+// and an int past 2^53 a float, as the bounds compare them: `==` would
+// round the int to the float. A string or a boolean holds no number, so
+// `==` is exact for it. Messages write values as JSON, the syntax of
+// the data they came from.
 #let _enum-check(schema, value, ctx) = {
-  if value in schema.values { return _pass(value) }
+  if type(value) in (str, bool) and value in schema.values {
+    return _pass(value)
+  }
   let v = _comparable(value)
   if schema.values.any(x => _comparable(x) == v) { return _pass(value) }
   let listed = schema.values.map(_json).join(", ")

@@ -70,3 +70,20 @@
 // `expected` names the types a non-null value could have, as a
 // nullable union's does.
 #assert.eq(validate(enum-of("x", none), 5).first().expected, "string")
+// An int past 2^53 is not the float it rounds to, nested or not, as
+// unique-items already tells them apart.
+#assert.eq(
+  validate(enum-of(9007199254740992.0), 9007199254740993).map(e => e.code),
+  ("enum",),
+)
+#assert.eq(
+  validate(enum-of(9007199254740993), 9007199254740992.0).map(e => e.code),
+  ("enum",),
+)
+#assert.eq(
+  validate(enum-of(((a: 9007199254740992.0),)), (a: 9007199254740993)).map(
+    e => e.code,
+  ),
+  ("enum",),
+)
+#assert.eq(validate(enum-of(9007199254740992.0), 9007199254740992), ())

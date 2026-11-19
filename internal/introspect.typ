@@ -117,6 +117,9 @@
           " " + r.head
         }
     ).trim(at: start)
+    // A root drawn by its mark alone (`nullable(object(..))`) is named by
+    // its kind, `object?`, so the mark has something to follow.
+    if line.starts-with("?") { line = _shown(schema).first().kind + line }
     if "text" in r { return indent + line }
     if line == "" { return _describe(r.block, indent) }
     return indent + line + ":\n" + _describe(r.block, indent + "  ")
@@ -132,7 +135,8 @@
     // additional schema, so it is drawn with that schema, among the
     // fields in key order; the additional schema's own row comes last.
     let additional = schema.at("additional", default: none)
-    let fields = children.filter(((k, ..)) => k in schema.shape)
+    // A shadowed additional schema's segment is none, and is no field.
+    let fields = children.filter(((k, ..)) => k != none and k in schema.shape)
     let undeclared = schema
       .at("required-keys", default: ())
       .filter(k => k not in schema.shape)
@@ -142,7 +146,9 @@
         _row(label, sub)
       })
     }
-    for (_, sub, label) in children.filter(((k, ..)) => k not in schema.shape) {
+    for (_, sub, label) in children.filter(((k, ..)) => (
+      k == none or k not in schema.shape
+    )) {
       rows.push(_row(label, sub))
     }
     if additional == true { rows.push((label: "*", text: "unknown")) }
