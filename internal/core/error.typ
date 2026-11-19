@@ -252,10 +252,10 @@
 #let _panic-report(errors) = panic(_format-report(errors))
 
 // Levenshtein edit distance, capped: `limit + 1` stands for anything
-// further. Only the band of cells within `limit` of the diagonal can hold
-// a distance within it, and a row whose best cell is past it ends the
-// search, so a long key or a long key list costs little more than a
-// short one. Loops, not folds: this runs once per unknown key per field.
+// further. Only the cells within `limit` of the diagonal can hold a
+// distance within it, so a row is that band alone, and a row whose best
+// cell is past it ends the search: a long key costs linear time, not
+// quadratic. Loops, not folds: this runs once per unknown key per field.
 #let _clusters(s) = s.clusters()
 #let _edit-distance(a, b, limit) = {
   let (ac, bc) = (_clusters(a), _clusters(b))
@@ -273,25 +273,37 @@
     if not ac.slice(0, limit + 1).any(c => c in head) { return far }
     if not ac.slice(m - limit - 1).any(c => c in tail) { return far }
   }
-  let prev = range(n + 1)
+  // Each row keeps only its band: row i's slot t is column
+  // j = i - limit + t, so row i - 1's slot t + 1 is the column above and
+  // slot t the one diagonally above. A column outside 0..n is `far`.
+  let w = 2 * limit + 1
+  let prev = range(w).map(t => {
+    let j = t - limit
+    if j < 0 or j > n { far } else { calc.min(j, far) }
+  })
   for i in range(1, m + 1) {
-    let row = (calc.min(i, far),) + (far,) * n
-    let best = row.at(0)
-    for j in range(calc.max(1, i - limit), calc.min(n, i + limit) + 1) {
-      let cost = if ac.at(i - 1) == bc.at(j - 1) { 0 } else { 1 }
-      let d = calc.min(
-        prev.at(j) + 1, // deletion
-        row.at(j - 1) + 1, // insertion
-        prev.at(j - 1) + cost, // substitution
-        far,
-      )
-      row.at(j) = d
+    let row = ()
+    let best = far
+    for t in range(w) {
+      let j = i - limit + t
+      let d = if j < 0 or j > n { far } else if j == 0 {
+        calc.min(i, far)
+      } else {
+        let cost = if ac.at(i - 1) == bc.at(j - 1) { 0 } else { 1 }
+        calc.min(
+          (if t + 1 < w { prev.at(t + 1) } else { far }) + 1, // deletion
+          (if t > 0 { row.at(t - 1) } else { far }) + 1, // insertion
+          prev.at(t) + cost, // substitution
+          far,
+        )
+      }
+      row.push(d)
       best = calc.min(best, d)
     }
     if best > limit { return far }
     prev = row
   }
-  prev.at(n)
+  prev.at(n - m + limit)
 }
 
 // Pure: pick the candidate closest to `target` by edit distance, or
