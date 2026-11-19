@@ -32,6 +32,11 @@
 #assert.eq(no-match.at(0).path, ())
 #assert(no-match.at(0).message.contains("none matched"))
 #assert(no-match.at(0).message.contains("string | number"))
+// A nested union reads as its members, not as "union".
+#assert.eq(
+  validate(any-of(string(), one-of(number(), boolean())), (:)).first().message,
+  "expected a value matching one of: string | (number | boolean); none matched.",
+)
 
 // A member claims a value when it has no `type` error at the union's
 // own path, read from its schema, not its error text. When one member

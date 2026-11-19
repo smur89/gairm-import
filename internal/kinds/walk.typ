@@ -18,8 +18,11 @@
 // A member's kind as union and `not` errors name it. A conditional
 // reads as its branches when both are set and agree (the translated
 // `{type: "object", if: …, then: …, else: …}` is an object either way),
-// and as `conditional` otherwise.
-#let _reported-kind(member) = if member.kind == "if" {
+// and as `conditional` otherwise. A nested union reads as its members,
+// `(number | boolean)`.
+#let _reported-kind(member) = if member.kind == "union" {
+  "(" + member.members.map(_reported-kind).join(" | ") + ")"
+} else if member.kind == "if" {
   let kinds = ("then", "otherwise").map(b => if b in member {
     _reported-kind(member.at(b))
   })
