@@ -56,8 +56,10 @@ An error record is `(path, code, message, expected, got)`:
   integer.`
 
 `path-to-pointer(record.path)` gives the record's location as a JSON
-Pointer. A schema argument that is not a schema, or a `null` document,
-panics before any validation. A string is checked as data; only when it
+Pointer. Each call checks the whole schema before it reads the data: an
+argument that is not a schema, or a hand-built node anywhere in it that
+is missing a field or holds one of the wrong shape, panics naming the
+path to that node. So does a `null` document. A string is checked as data; only when it
 ends in `.json` and the schema's root rejects its type does the call
 panic, with a hint to read the file with `path(..)`.
 

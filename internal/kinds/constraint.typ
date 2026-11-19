@@ -7,7 +7,7 @@
 // engine, the translator's reader, its allow-list and its enum/const
 // fold all read these rows, so a new keyword is one row.
 
-#import "../core/error.typ": _bail, _error, _expected-got, _problem, _fail
+#import "../core/error.typ": _error, _expected-got, _problem, _fail
 
 // Which raw values a keyword takes, as checks run in order; the first
 // that fails names what the value must be. A count may be a float with
@@ -57,11 +57,6 @@
 // 0.123...) is infinite, and no finite multiple: report it rather than
 // compare the NaN its rounding leaves.
 #let _multiple-test(mult, value) = {
-  // A schema bug, not a data error: the translator rejects it, but a
-  // hand-built node can carry it.
-  if mult <= 0 {
-    _bail(none, "multiple-of must be positive, got: " + str(mult) + ".")
-  }
   let off = if type(value) == int and type(mult) == int {
     calc.rem(value, mult) != 0
   } else {

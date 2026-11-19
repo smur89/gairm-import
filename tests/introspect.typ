@@ -482,22 +482,16 @@ phone → email",
   "sean  string\nseán  number\n名前    string",
 )
 
-// The nullable query reads a union's shape, so a hand-built member is
-// searched past, not rebuilt, and a first member of no registered kind
-// is not a nullable.
-#for members in (
-  ((kind: "money"),),
-  ((kind: "money"), null-type),
-  ((a: 1), null-type),
-) {
-  assert.eq(
-    find-paths(
-      object((a: (kind: "union", members: members, exclusive: false))),
-      nullable,
-    ),
-    (),
-  )
-}
+// A hand-built union of nullable's shape is a nullable to the query.
+#assert.eq(
+  find-paths(
+    object((
+      a: (kind: "union", members: (string(), null-type), exclusive: false),
+    )),
+    nullable,
+  ),
+  (("a",),),
+)
 #assert.eq(find-paths(object((a: nullable(string()))), nullable), (("a",),))
 
 // string(pattern:) sets no `expected`, so a query by pattern alone finds

@@ -11,9 +11,9 @@
 //           leaves no sound model, as (path, expected, got) for
 //           coerce's panic
 //
-// Only the public entry points panic on a result; the walk itself
-// panics only on a schema it cannot read (an unknown kind, which only
-// a hand-built node can carry).
+// Only the public entry points panic on a result, and they check the
+// whole schema before the walk (structure.typ's _require-schema), so the
+// walk never meets a node it cannot read.
 
 #import "core/ctx.typ": _absent
 #import "core/error.typ": _bail, _coerce-message, _panic-report
@@ -21,16 +21,7 @@
 
 #let _walk(schema, value, ctx) = {
   if _absent(value, ctx) { return (errors: (), value: none, fatal: none) }
-  let d = _kinds.at(schema.kind, default: none)
-  if d == none {
-    _bail(
-      none,
-      "unknown schema kind "
-        + repr(schema.kind)
-        + "; build schemas with the constructors.",
-    )
-  }
-  (d.walk)(schema, value, ctx, _walk)
+  (_kinds.at(schema.kind).walk)(schema, value, ctx, _walk)
 }
 
 // The entry points, each over a finished walk result, so lib.typ can
