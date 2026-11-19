@@ -411,7 +411,10 @@
   let (m, op, b) = if type(n) == decimal and type(bound) == float {
     _decimal-against(n, row.op, bound)
   } else { (n, row.op, bound) }
-  if not (_holds.at(op))(m, b) {
+  // A NaN (Typst data only: JSON has none) meets no bound, and Typst
+  // refuses to compare it.
+  let nan = type(m) == float and m.is-nan()
+  if nan or not (_holds.at(op))(m, b) {
     (
       message: _expected-got(
         measure.label + row.op + " " + str(bound),
