@@ -79,10 +79,14 @@
 
 // `at`, checked as a schema path. Panics, naming `who`, on anything
 // else: a schema by what it is rather than its repr, which can run to
-// pages, and a string with its one-key spelling.
-#let _schema-path(at, who) = {
+// pages, with the caller's `hint`, and a string with its one-key
+// spelling.
+#let _schema-path(at, who, hint: none) = {
   if _is-path(at) { return at }
   let p = _array-problem(at, "path", "an array of path segments", "key")
-  if _has-kind(at) { p.got = "a schema" }
+  if _has-kind(at) {
+    p.got = "a schema"
+    p.hint = hint
+  }
   _fail(who, p)
 }

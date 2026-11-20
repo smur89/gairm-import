@@ -54,6 +54,10 @@
   _reported-kind,
 )
 
+// Whether object `s` has a schema for the keys it doesn't declare, as a
+// map does: the one a schema path enters as "additionalProperties".
+#let _is-map(s) = type(s.at("additional", default: none)) == dictionary
+
 // X when `s` is an any-of of exactly X and a null, in either order,
 // else none. The null is known by its kind, so an annotated one counts
 // too. Any node may be asked.
@@ -302,8 +306,16 @@
         v => type(v) == dictionary,
         "a dictionary of field name to schema",
       ),
+      // Judged by `problem`; these only refuse none.
+      ("required-keys", false, v => v != none, "an array of key names"),
+      (
+        "dependent-required",
+        false,
+        v => v != none,
+        "a dictionary of key to array of keys",
+      ),
     ),
-    reads: ("required-keys", "dependent-required", "additional"),
+    reads: ("additional",),
     // object() reads `additional: false` as none and stores neither, so
     // a node never holds false, which the walk would take for a schema.
     problem: s => if s.at("additional", default: none) == false {
@@ -365,7 +377,13 @@
           "object shape",
           "Valid keys",
           s.shape.keys(),
-        ),
+        )
+          // The steps a JSON Schema user, or a map's, is likely missing.
+          + if seg == "properties" {
+            " A schema path enters a field by its bare name, with no \"properties\" segment."
+          } else if _is-map(s) {
+            " \"additionalProperties\" enters the schema for other keys."
+          } else { "" },
       )
     },
   ),
@@ -422,8 +440,12 @@
   // the labels, the path segments, say what each child is.
   "if": _kind(
     walk: _if-walk,
-    fields: (("cond", true, none, "a schema"),),
-    reads: ("then", "otherwise"),
+    // if-of() reads a none branch as no branch, and stores none.
+    fields: (
+      ("cond", true, none, "a schema"),
+      ("then", false, v => v != none, "a schema"),
+      ("otherwise", false, v => v != none, "a schema"),
+    ),
     problem: _if-problem,
     children: s => _if-present(s).map(((seg, field)) => (
       seg,

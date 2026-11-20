@@ -123,6 +123,10 @@
       "pointer",
       "\"\" or a pointer starting with \"/\"",
       repr(pointer),
+      // A $ref's URI fragment: `#/definitions/a`.
+      hint: if pointer.starts-with("#") {
+        " Drop the \"#\" a URI fragment starts with."
+      },
     ))
   }
   let read = _read-pointer(pointer)

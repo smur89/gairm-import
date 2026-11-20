@@ -203,9 +203,10 @@
 // Bails on a keyword the translator cannot honour: a sibling beside a
 // composition keyword or `$ref` (checked before the `$ref` is resolved,
 // which would drop it), an unsupported keyword with a reason of its
-// own, a `then` / `else` with no `if` (draft 7 ignores them), then
-// every unknown or outside-the-subset key at once (a typo like
-// `minLenght` included: draft 7 would ignore it), then a null value.
+// own, a `then` / `else` with no `if` (draft 7 ignores them), an
+// embedded `$id`, then every unknown or outside-the-subset key at once
+// (a typo like `minLenght` included: draft 7 would ignore it), then a
+// null value.
 #let _check-keywords(js, ctx) = {
   for (keyword, entry) in _keywords {
     if (
@@ -222,7 +223,7 @@
         "sibling keywords beside "
           + _json(keyword)
           + " are not supported: "
-          + extras.map(repr).join(", ")
+          + extras.map(_json).join(", ")
           + _lone-hints.at(entry.role),
       )
     }
@@ -258,7 +259,7 @@
     _bail(
       ctx,
       "unsupported JSON Schema keyword(s): "
-        + unknown.map(repr).join(", ")
+        + unknown.map(_json).join(", ")
         + ". They are outside the supported subset (see REFERENCE.md); translating would silently drop their constraints.",
     )
   }
@@ -291,7 +292,7 @@
   let groups = stray.map(types-of).dedup()
   let lines = groups.map(types => (
     "keyword(s) "
-      + stray.filter(k => types-of(k) == types).map(repr).join(", ")
+      + stray.filter(k => types-of(k) == types).map(_json).join(", ")
       + " are only supported on "
       + types.map(t => "`type: \"" + t + "\"`").join(" or ")
       + " schemas"

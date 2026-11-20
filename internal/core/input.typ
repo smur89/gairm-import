@@ -11,14 +11,24 @@
 // (`str-is-data` false).
 #import "error.typ": _bail
 
+// A string holding a JSON object or array: read() without
+// `encoding: none` returns the file's text.
+#let _looks-like-json(s) = s.trim().starts-with(regex("[{\\[]"))
+
 #let _path-hint(fn-name, data) = _bail(
   fn-name,
-  "does not take a string path: inside a "
-    + "package it resolves from the package, not your project. Pass path("
-    + repr(data)
-    + ") or json("
-    + repr(data)
-    + ") instead.",
+  if _looks-like-json(data) {
+    "does not take JSON text: decode it with json(bytes(..)), or read the file with read(.., encoding: none)."
+  } else {
+    let shown = repr(data)
+    (
+      "does not take a string path: inside a package it resolves from the package, not your project. Pass path("
+        + shown
+        + ") or json("
+        + shown
+        + ") instead."
+    )
+  },
 )
 
 // `null-ok` leaves a null for the caller's own type check, for a caller
@@ -40,12 +50,12 @@
 #let _looks-like-path(s) = lower(s).ends-with(".json")
 
 // Panics with the path(..) hint when `data` was a string that looks
-// like a path and the walk `r` over it found the wrong type at the
-// root: the caller meant the file, not the string.
+// like a path, or JSON text, and the walk `r` over it found the wrong
+// type at the root: the caller meant the file, not the string.
 #let _refuse-path(fn-name, data, r) = {
   if (
     type(data) == str
-      and _looks-like-path(data)
       and r.errors.any(e => e.code == "type" and e.path == ())
+      and (_looks-like-path(data) or _looks-like-json(data))
   ) { _path-hint(fn-name, data) }
 }

@@ -23,6 +23,8 @@
 #assert.eq(member, shared.member)
 
 #assert.eq(any-of(string(), number()), any-of((string(), number())))
+#assert.eq(enum-of("a", "b"), enum-of(("a", "b")))
+#assert.eq(enum-of(((1, 2),)).values, ((1, 2),))
 #assert.eq(const-of(1), enum-of((1,)))
 
 // The if-of example.
@@ -69,17 +71,8 @@
 // Mirrors REFERENCE.md, "Schema nodes": the node shapes are API.
 #assert.eq(string(pattern: "^a"), (kind: "string", pattern: regex("^a")))
 #assert.eq(array-of(string()).elem, string())
-#assert.eq(object((a: string())), (
-  kind: "object",
-  shape: (a: string()),
-  required-keys: (),
-))
-#assert.eq(map(number()), (
-  kind: "object",
-  shape: (:),
-  required-keys: (),
-  additional: number(),
-))
+#assert.eq(object((a: string())), (kind: "object", shape: (a: string())))
+#assert.eq(map(number()), (kind: "object", shape: (:), additional: number()))
 #assert.eq(nullable(string()), (
   kind: "union",
   members: (string(), null()),

@@ -96,7 +96,7 @@
     string(format: "date"),
     "format",
     (),
-    "a string or a datetime with a date and no time",
+    "a string or a datetime with a date in years 0 to 9999 and no time",
     clock,
   ),
   // pattern

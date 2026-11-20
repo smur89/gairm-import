@@ -42,7 +42,7 @@
   _require-schema, _has-kind, _is-object, _object-with, _rebuilt,
 )
 #import "kinds/walk.typ": _kind-label
-#import "kinds/registry.typ": _nullable-hint
+#import "kinds/registry.typ": _nullable-hint, _is-map
 #import "core/error.typ": (
   _a, _bail, _fail, _problem, _not-in, _require-bool, _require-key-names,
 )
@@ -77,7 +77,12 @@
 #let _subject(a, b, op) = {
   if _has-kind(a) or (_is-path(b) and not _is-path(a)) {
     _require-schema(a, op + " schema")
-    return (a, _schema-path(b, op))
+    // A schema in the path's place of an edit that writes one is likely
+    // that one, passed first.
+    let hint = if op in ("schema-put", "add-field") {
+      " The path comes before the schema to write."
+    }
+    return (a, _schema-path(b, op, hint: hint))
   }
   _bail(
     op,
@@ -145,20 +150,29 @@
 // path once, find the object at `at`, let `edit` check it and
 // return the fields to change (as object() names them), and write it
 // back rebuilt through object().
-#let _edit-object(schema, at, op, edit, hint: true) = {
+#let _edit-object(schema, at, op, edit, hint: true, takes-object: false) = {
   let (schema, path) = _subject(schema, at, op)
   let parent = _get-at(schema, path, op)
   if not _is-object(parent) {
+    // An edit that takes the object's path, given a field's.
+    let up = if takes-object and path != () { path.slice(0, -1) }
+    let above = if up != none { _get-at(schema, up, op) }
+    let field-of = (
+      above != none and _is-object(above) and path.last() in above.shape
+    )
     _fail(op, _problem(
       "the node at " + repr(path),
       "an object schema",
       _a(_kind-label(parent)) + " schema",
       // A nullable object's object is member 0, as for schema paths.
-      hint: if hint { _nullable-hint(parent) },
+      hint: if hint { _nullable-hint(parent) }
+        + if field-of {
+          " " + op + " takes the object's path: " + repr(up) + "."
+        },
     ))
   }
-  // A hand-built object may leave `required-keys` out, as object() never
-  // does: the edits read it with its default.
+  // `required-keys` is left out when empty, as object() leaves it: the
+  // edits read it with its default.
   let parent = (required-keys: (), ..parent)
   _set-at(schema, path, _object-with(parent, who: op, ..edit(parent)), op)
 }
@@ -237,7 +251,7 @@
 /// -> dictionary
 #let set-required(schema, at, keys) = {
   _require-key-names(keys, "set-required", "keys")
-  _edit-object(schema, at, "set-required", parent => {
+  _edit-object(schema, at, "set-required", takes-object: true, parent => {
     let closed = parent.at("additional", default: none) == none
     let unknown = keys.filter(k => closed and k not in parent.shape)
     if unknown.len() > 0 {
@@ -264,7 +278,7 @@
 /// -> dictionary
 #let unset-required(schema, at, keys) = {
   _require-key-names(keys, "unset-required", "keys")
-  _edit-object(schema, at, "unset-required", parent => {
+  _edit-object(schema, at, "unset-required", takes-object: true, parent => {
     let absent = keys.filter(k => k not in parent.required-keys)
     if absent.len() > 0 {
       _bail("unset-required", _not-in(
@@ -301,11 +315,16 @@
           "Valid keys",
           parent.shape.keys(),
         )
-          // A map's value schema is no field: its object drops it.
-          + if (
-            key == "additionalProperties"
-              and type(parent.at("additional", default: none)) == dictionary
-          ) {
+          // A key only required, or a map's value schema, is no field.
+          + if key in parent.required-keys {
+            (
+              " It is only required: use unset-required(s, "
+                + repr(at)
+                + ", ("
+                + repr(key)
+                + ",))."
+            )
+          } else if key == "additionalProperties" and _is-map(parent) {
             " To drop the additional schema, use schema-update on the object: o => (..o, additional: none)."
           } else { "" },
       )

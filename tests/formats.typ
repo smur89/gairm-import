@@ -447,7 +447,7 @@
 ))
 #assert.eq(
   errs.at(0).message,
-  "expected a string or a datetime with a date and no time, got datetime.",
+  "expected a string or a datetime with a date in years 0 to 9999 and no time, got datetime.",
 )
 #assert.eq(errs.at(1).message, "expected string, got datetime.")
 #assert.eq(

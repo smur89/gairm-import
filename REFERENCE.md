@@ -48,10 +48,7 @@ that is not a schema, or a hand-built node anywhere in it that is
 missing a field, holds one of the wrong shape, or breaks a rule its
 constructor enforces (bounds no value meets, a closed object requiring a
 key it does not declare), or carries a field only another kind reads,
-panics naming the path to that node. So does a `null` document. A
-string is checked as data; only when it ends in `.json` and the
-schema's root rejects its type does the call panic, with a hint to read
-the file with `path(..)`.
+panics naming the path to that node.
 
 A document may nest about 37 levels deep, about 36 when every level is
 a `nullable(..)` or a conditional (the translator builds
@@ -83,7 +80,7 @@ Branch on `code`, not on the message:
 
 | `code` | Meaning | `expected` | `got` |
 |---|---|---|---|
-| `type` | Wrong JSON type (also: an enum or union none of whose members takes that type) | The type name, or for an enum or union the names it takes joined by "or" (`"string or number"`) | The value's type name |
+| `type` | Wrong JSON type (also: an enum or union none of whose members takes that type) | The type name, or for an enum or union the names it takes, null aside, joined by "or" (`"string or number"`) | The value's type name |
 | `required` | A required key is missing | | |
 | `unknown-key` | A key the object does not declare | The valid keys | The key |
 | `dependent` | A key required by another key's presence is missing | The rule broken, the trigger's entry: `(dependent-required: (card: ("billing",)))` | |
@@ -96,7 +93,7 @@ Branch on `code`, not on the message:
 | `integer` | A fractional number where an integer is expected | | The number |
 | `items` | Too few or too many array items | The bound broken: `(min-items: 1)` or `(max-items: 5)` | The item count |
 | `unique` | Duplicate array items | | The two duplicate indices |
-| `union` | Several alternatives take the value's type but none matches, or more than one `one-of` member matches | The members' kinds, as an array (`("string (date)", "integer")`) | |
+| `union` | Several alternatives take the value's type but none matches, or more than one `one-of` member matches | The members' kinds, null aside, as an array (`("string (date)", "integer")`) | |
 | `not` | The value matches a `not-of` schema | | |
 
 `path-to-pointer(record.path)` gives the record's location as a JSON
@@ -110,7 +107,7 @@ quoting a key that is not a plain name in brackets (`["a.b"].c`,
 
 | Schema | Model |
 |---|---|
-| `string(..)` | the string. In a `date` field, a Typst `datetime` with a date and no time becomes its ISO string, and one with a time is a `format` error; in any other string field a `datetime` is a `type` error (see [Formats](#formats)) |
+| `string(..)` | the string; a Typst `datetime` only in a `date` field (see [Formats](#formats)) |
 | `markup()` | the string as Typst `content` |
 | `number(..)`, `integer(..)` | the number as given, an int, a float or a Typst `decimal`: an `integer` field keeps `1.0` as a float |
 | `boolean()`, `null()`, `enum-of(..)`, `const-of(..)` | the value as given |
@@ -166,7 +163,9 @@ end in `-of`, since `not` and `if` are Typst keywords.
   string must have the format and match the pattern.
 - `any-of` and `one-of` take their members as separate arguments or as one
   array: `any-of(a, b)` equals `any-of((a, b))`.
-- `enum-of` takes its values the same way: `enum-of("a", "b")` equals `enum-of(("a", "b"))`, and a lone array value is written `enum-of(((1, 2),))`.
+- `enum-of` takes its values the same way: `enum-of("a", "b")` equals
+  `enum-of(("a", "b"))`, and a lone array value is written
+  `enum-of(((1, 2),))`.
 - `if-of` is JSON Schema's `if` / `then` / `else`, with the else branch
   named `otherwise` (`else` is a Typst keyword). It takes `then`,
   `otherwise` or both; a branch left out accepts the value as it is. Only
@@ -216,16 +215,16 @@ the API, so hand-built nodes and `schema-update` functions may use them.
 | `string`, `number`, `integer`, `boolean`, `null`, `markup`, `unknown` | the constructor of that name | none; a `pattern` is stored as a `regex` |
 | `enum` | `enum-of`, `const-of` | `values`, an array |
 | `array` | `array-of` | `elem` |
-| `object` | `object`, `map` | `shape`; `required-keys` (always), `dependent-required` and `additional` only when set. `map(x)` is `shape: (:)`, `additional: x` |
+| `object` | `object`, `map` | `shape`; `required-keys`, `dependent-required` and `additional` only when set. `map(x)` is `shape: (:)`, `additional: x` |
 | `union` | `any-of`, `one-of`, `nullable` | `members`, and `exclusive`: true for `one-of`. `nullable(x)` is the members `(x, null())` |
 | `not` | `not-of` | `member` |
 | `if` | `if-of` | `cond`, and `then` / `otherwise` when set |
 
 A field another kind reads (`min-length` on an array), 0.x's `integer`
-on a number, `else` on an `if`, or any field set to `none`, panics at
-the schema check: leave a field out to unset it. Any other field is an
-annotation and rides along unchecked, so a misspelt one (`formt`)
-checks nothing.
+on a number, `else` on an `if`, or a field the kind reads set to `none`
+(but `additional`, where `none` means closed), panics at the schema
+check: leave a field out to unset it. Any other field is an annotation
+and rides along unchecked, so a misspelt one (`formt`) checks nothing.
 
 ## Formats
 
@@ -274,8 +273,8 @@ Data written in Typst can give a `date` field a `datetime` with a date and
 no time; it is returned as the ISO string (`"2024-01-05"`). One with a
 time, or with a year outside 0–9999, is rejected rather than truncated. A
 `date-time` field takes no `datetime`: a Typst `datetime` has no offset,
-which the format requires. Otherwise coercion is pass-through: a formatted value reaches the model
-as the same string.
+which the format requires; in any other string field it is a `type`
+error.
 
 A `pattern` is a Typst regex, and matches anywhere in the string: anchor it
 with `^…$` for a full-string match.
@@ -621,6 +620,7 @@ Each of these panics with a message naming it:
   (`{type: "string", minItems: 2}`);
 - `type: "object"` with neither `properties` nor `additionalProperties`;
   say `additionalProperties: true` for an open object;
+- `then` or `else` without `if`;
 - `null` as a keyword's value (`type: null`), except in an annotation and
   `const: null`.
 
@@ -649,7 +649,8 @@ constraint:
 
 ### Deviations from draft 7
 
-Where a draft 7 validator and this package disagree on the same schema:
+Everything under [Out of scope](#out-of-scope) panics where draft 7
+would accept or ignore it. Beyond that:
 
 - **`null` is absent by default.** A key holding `null` is treated as
   missing and dropped from the model, and a `null` array item is dropped,
@@ -657,16 +658,12 @@ Where a draft 7 validator and this package disagree on the same schema:
   7's reading. A document that is `null` panics in both modes.
 - **A missing `additionalProperties` is closed.** Draft 7 lets undeclared
   keys through unless `additionalProperties` says otherwise; here they are
-  rejected unless it is `true` or a schema. `type: "object"` with neither
-  `properties` nor `additionalProperties` panics, and an `allOf` member
-  without `additionalProperties` counts as closed (except inside `if` or `not`;
+  rejected unless it is `true` or a schema, and an `allOf` member without
+  `additionalProperties` counts as closed (except inside `if` or `not`;
   see [Supported keywords](#supported-keywords)). So `required` or
   `dependencies` naming a key a closed object doesn't declare panics:
-  declare it in `properties`.
-- **Unknown keywords panic.** Draft 7 ignores a keyword it does not know;
-  here it panics, so a typo cannot silently drop a constraint. So does a
-  keyword that applies to none of a node's `type`s, and one whose value is
-  `null`.
+  declare it in `properties`. And since a `oneOf`'s object members are
+  closed, it can pass a value that draft 7 sees matching several of them.
 - **Unknown formats panic, and known ones are asserted.** Draft 7 treats
   `format` as an annotation that a validator may check; here the nine
   formats are always checked, with permissive regexes rather than full RFC
@@ -684,7 +681,6 @@ Where a draft 7 validator and this package disagree on the same schema:
   true` and nothing declared) keeps its nulls, so there they differ.
 - **`$id` sets no base URI**, so `$ref` resolves against the document
   root only: the root's `$id` is ignored, and one below the root panics.
-  External, root, anchor and recursive `$ref`s panic.
 - **`$ref` and the composition keywords stand alone.** Draft 7 ignores a
   `$ref`'s siblings and applies a composition keyword's siblings as well;
   here a sibling that is not an annotation panics. `if` / `then` / `else`
@@ -695,15 +691,9 @@ Where a draft 7 validator and this package disagree on the same schema:
   properties, and a branch
   cannot narrow a property its node already declares. Alone on a node, the
   branches may be any schema.
-- **`then` and `else` without `if` panic**; draft 7 ignores them.
-- **`enum` and `const` are folded with their siblings** at translate time;
-  an `enum` that no value survives panics instead of rejecting every
-  value.
 - **Bounds no value meets panic** (`minLength` above `maxLength`), even
   where another `type` in the list could still pass; only an `integer`
   whose bounds hold no whole number is dropped from the list instead.
-- **Boolean schemas and the array form of `items` are not supported**,
-  except `additionalProperties: true` / `false`.
 - **`dependentRequired`**, from draft 2019-09, is accepted alongside draft
   7's array-form `dependencies`.
 

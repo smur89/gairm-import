@@ -93,7 +93,9 @@
       if required { p = _problem("field " + repr(field), must, "missing") }
     } else if ok != none and not ok(node.at(field)) {
       let v = node.at(field)
-      p = _problem("field " + repr(field), must, repr(v), hint: _none-hint(v))
+      // A field the kind requires can't be left out instead.
+      let hint = if not required { _none-hint(v) }
+      p = _problem("field " + repr(field), must, repr(v), hint: hint)
     }
     if p != none { break }
   }
@@ -355,13 +357,11 @@
   for (key, sub) in shape {
     _require-schema(sub, who + " field " + repr(key))
   }
-  let result = (
-    kind: "object",
-    shape: shape,
-    required-keys: required-keys,
-  )
-  // Optional fields are omitted when empty / `none` so existing dicts
-  // keep their shape.
+  // Every field but `shape` is omitted when empty / `none`, so an
+  // argument left out adds nothing and a hand-built object equals the
+  // built one.
+  let result = (kind: "object", shape: shape)
+  if required-keys != () { result.insert("required-keys", required-keys) }
   if dependent-required.len() > 0 {
     result.insert("dependent-required", dependent-required)
   }

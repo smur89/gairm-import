@@ -126,19 +126,18 @@
 // A value and a multiple that are each an int, a decimal or a float a
 // decimal can hold compare exactly, as decimals: calc.rem(0.3, 0.1) is
 // not 0, but the decimals 0.3 and 0.1 divide evenly. Anything else (a
-// float past ±2^96 or with more than 28 places, a NaN) compares the
-// float ratio with a tolerance relative to it. A ratio too large for a
-// float (1e308 / 0.123...) is infinite, and no finite multiple: report
-// it rather than compare the NaN its rounding leaves.
+// float past ±2^96 or with more than 28 places) compares the float
+// ratio with a tolerance relative to it. A ratio too large for a float
+// (1e308 / 0.123...) is infinite, and no finite multiple: report it
+// rather than compare the NaN its rounding leaves. A NaN or infinite
+// value never gets here: it is a `type` miss (leaf.typ).
 #let _exact(v) = if type(v) == float { _as-decimal(v) } else { v }
 #let _multiple-test(mult, value) = {
   let (m, v) = (_exact(mult), _exact(value))
   let off = if m != none and v != none { calc.rem(v, m) != 0 } else {
     let q = float(value) / float(mult)
     (
-      q.is-infinite()
-        or q.is-nan()
-        or calc.abs(q - calc.round(q)) > 1e-9 * calc.abs(q)
+      q.is-infinite() or calc.abs(q - calc.round(q)) > 1e-9 * calc.abs(q)
     )
   }
   if off {
@@ -477,10 +476,7 @@
   if "test" in row { return (row.test)(bound, value) }
   let measure = _measures.at(row.family)
   let n = (measure.of)(value)
-  // A NaN (Typst data only: JSON has none) meets no bound, and Typst
-  // refuses to compare it.
-  let nan = type(n) == float and n.is-nan()
-  if nan or not _compare(n, row.op, bound) {
+  if not _compare(n, row.op, bound) {
     (
       message: _expected-got(
         measure.label + row.op + " " + _num(bound),

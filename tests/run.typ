@@ -10,3 +10,8 @@
 
 // format-errors words an empty list as no problems, not as "found 0".
 #assert.eq(format-errors(()), "gairm-import: found no problems in the input.")
+
+// A string that reads as JSON text is still data when the root takes a
+// string; only a root type miss panics with the read() hint.
+#assert.eq(validate(string(), "{\"a\": 1}"), ())
+#assert.eq(parse(string(), "[1]"), "[1]")

@@ -96,7 +96,7 @@
 #let schema = object((
   basics: object((name: string(), email: string(), summary: string())),
 ))
-#assert.eq(schema.shape.basics.required-keys, ())
+#assert("required-keys" not in schema.shape.basics)
 
 #let strict = set-required(schema, basics, ("name", "email"))
 #assert.eq(strict.shape.basics.required-keys, ("name", "email"))
@@ -152,10 +152,10 @@
 // At the root.
 #let root-strict = set-required(schema, (), ("basics",))
 #assert.eq(root-strict.required-keys, ("basics",))
-#assert.eq(unset-required(root-strict, (), ("basics",)).required-keys, ())
+#assert("required-keys" not in unset-required(root-strict, (), ("basics",)))
 
 // The inputs are unchanged.
-#assert.eq(schema.shape.basics.required-keys, ())
+#assert("required-keys" not in schema.shape.basics)
 #assert.eq(strict.shape.basics.required-keys, ("name", "email"))
 #assert.eq(all-three.shape.basics.required-keys, ("name", "email", "summary"))
 #assert.eq(mixed.shape.basics.required-keys, ("name", "summary"))
@@ -250,3 +250,8 @@
   )),
   object((a: string())),
 )
+
+// An identity edit leaves a hand-built object as it is: object() adds no
+// empty `required-keys`.
+#let hand = (kind: "object", shape: (a: (kind: "object", shape: (:))))
+#assert.eq(schema-update(hand, (), n => n), hand)
