@@ -37,7 +37,7 @@
 // written node or any object above it, is rebuilt through object().
 // Build replacements with the constructors.
 
-#import "kinds/traverse.typ": _get-at, _set-at, _is-path, _schema-path
+#import "kinds/traverse.typ": _get-at, _set-at, _is-path, _schema-path, _segment
 #import "kinds/structure.typ": (
   _require-schema, _has-kind, _is-object, _object-with, _rebuilt,
 )
@@ -157,8 +157,12 @@
     // An edit that takes the object's path, given a field's.
     let up = if takes-object and path != () { path.slice(0, -1) }
     let above = if up != none { _get-at(schema, up, op) }
+    // Not for a nullable object, whose path is right but for the 0.
     let field-of = (
-      above != none and _is-object(above) and path.last() in above.shape
+      above != none
+        and _is-object(above)
+        and _segment(above.kind, path.last()) in above.shape
+        and _nullable-hint(parent) == none
     )
     _fail(op, _problem(
       "the node at " + repr(path),

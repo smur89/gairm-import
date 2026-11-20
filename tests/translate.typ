@@ -666,6 +666,19 @@
   codes(validate(deep-if-siblings, range(12).fold(5, (d, _) => (a: d)))),
   ((range(12).map(_ => "a"), "type"),),
 )
+// So is an `additionalProperties` schema (12 levels took 2.8 s, and
+// doubled per level, when each branch re-translated it).
+#let deep-if-additional = T(nested(12, j => (
+  type: "object",
+  additionalProperties: j,
+  "if": (required: ("a",)),
+  then: (required: ("a",)),
+)))
+#assert.eq(validate(deep-if-additional, deep-if-value), ())
+#assert.eq(
+  codes(validate(deep-if-additional, range(12).fold(5, (d, _) => (a: d)))),
+  ((range(12).map(_ => "a"), "type"),),
+)
 // A nullable branch gets them too.
 #let lent-nullable = T((
   type: "object",

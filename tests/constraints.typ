@@ -216,15 +216,17 @@
 // With several duplicate pairs, the one cited is the first item's.
 #assert.eq(validate(uniq, (1, 2, 2, 1)).map(e => e.got), ((0, 3),))
 
-// Strings take the one-pass path; it cites the same pair as the
-// equality scan, and mixed arrays still go through that scan.
+// Strings and ints take the one-pass path; it cites the same pair as
+// the equality scan, tells `"1"` from `1`, and arrays holding a float
+// still go through that scan.
 #let uniq-str = array-of(string(), unique-items: true)
 #assert.eq(validate(uniq-str, ("a", "b", "b", "a")).map(e => e.got), ((0, 3),))
 #assert.eq(validate(uniq-str, range(500).map(str)), ())
+#let uniq-any = array-of(unknown(), unique-items: true)
+#assert.eq(validate(uniq-any, ("1", 1, 2, "2")), ())
+#assert.eq(validate(uniq-any, ("1", 1, 2, "1", 1)).map(e => e.got), ((0, 3),))
 #assert.eq(
-  validate(array-of(unknown(), unique-items: true), ("1", 1, 1.0)).map(e => (
-    e.got
-  )),
+  validate(uniq-any, ("1", 1, 1.0)).map(e => e.got),
   ((1, 2),),
 )
 

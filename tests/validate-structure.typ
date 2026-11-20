@@ -86,6 +86,20 @@
 #assert(errs.at(0).message.contains("Valid keys: name, age."))
 #assert(not errs.at(0).message.contains("Did you mean"))
 
+// Past ten unknown keys the data is the wrong shape, not a typo: no
+// key gets a suggestion, a near miss included, and each lists the
+// valid keys.
+#let many = range(9).map(i => ("x" + str(i), 1)).to-dict()
+#assert(
+  validate(person, (agee: 1, ..many))
+    .at(0)
+    .message
+    .contains("Did you mean \"age\"?"),
+)
+#let errs = validate(person, (agee: 1, xa: 1, ..many))
+#assert.eq(errs.len(), 11)
+#assert(errs.all(e => e.message.contains("Valid keys: name, age.")))
+
 // Known keys recurse; unknown-key and type errors collect together.
 #assert.eq(
   at("basics", person, (name: 42, age: "old")).map(e => e.path),

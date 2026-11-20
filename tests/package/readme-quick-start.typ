@@ -26,6 +26,9 @@
   )
 
   let book = parse(book-schema, path("book.json"))
+  // The README renders it; this only checks the markup compiles.
+  let _ = [= #book.title
+    #book.author, #book.year: #book.tags.join(", ")]
   book
 }
 

@@ -150,9 +150,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions:
-      contents: write
-      pull-requests: write
+    # The action acts with RELEASE_PLEASE_TOKEN, never GITHUB_TOKEN.
+    permissions: {}
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}

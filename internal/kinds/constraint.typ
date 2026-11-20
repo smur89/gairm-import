@@ -156,17 +156,23 @@
 #let _unique-test(on, kept) = {
   if not on { return none }
   // The pair cited is the first item with a later duplicate, and that
-  // duplicate's nearest copy. Strings key a dictionary, so one
-  // right-to-left pass holding each string's nearest later index finds
-  // it. Other values compare as _comparable writes them, with `==`
-  // natively in `contains` and `position`, over a copied suffix per item.
+  // duplicate's nearest copy. Strings key a dictionary, and ints too by
+  // their repr, which tells `"1"` from `1`, so one right-to-left pass
+  // holding each key's nearest later index finds it. Other values
+  // compare as _comparable writes them, with `==` natively in `contains`
+  // and `position`, over a copied suffix per item: quadratic, but only
+  // where a float may equal an int or a decimal.
   let vals = kept.map(((_, v)) => v)
-  let (i, j) = if vals.all(v => type(v) == str) {
+  let (i, j) = if vals.all(v => type(v) in (str, int)) {
+    let keys = if vals.all(v => type(v) == str) { vals } else {
+      vals.map(repr)
+    }
     let later = (:)
     let pair = (none, none)
-    for k in range(vals.len() - 1, -1, step: -1) {
-      if vals.at(k) in later { pair = (k, later.at(vals.at(k))) }
-      later.insert(vals.at(k), k)
+    for k in range(keys.len() - 1, -1, step: -1) {
+      let key = keys.at(k)
+      if key in later { pair = (k, later.at(key)) }
+      later.insert(key, k)
     }
     pair
   } else {

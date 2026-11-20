@@ -318,11 +318,16 @@
     reads: ("additional",),
     // object() reads `additional: false` as none and stores neither, so
     // a node never holds false, which the walk would take for a schema.
-    problem: s => if s.at("additional", default: none) == false {
+    // Any other bad value is worded the same way, not as object()'s
+    // argument, which takes false.
+    problem: s => if (
+      s.at("additional", default: none) not in (none, true)
+        and type(s.additional) != dictionary
+    ) {
       _problem(
         "field \"additional\"",
         "true or a schema (leave it out to reject other keys)",
-        "false",
+        repr(s.additional),
       )
     } else {
       _as-field(_object-problem(
@@ -369,6 +374,7 @@
           + "object's `additional` to be a schema, got: "
           + repr(s.at("additional", default: none))
           + ".",
+        hint: " To set one, schema-update the object: o => (..o, additional: value).",
       )
     } else {
       (
@@ -462,6 +468,16 @@
         + _if-present(s).map(((k, _)) => repr(k)).join(", ")
         + " for an if schema",
       repr(seg),
+      hint: {
+        let part = _if-parts.find(((k, _)) => k == seg)
+        if part != none {
+          (
+            " To set it, schema-update the if-of: n => (..n, "
+              + part.last()
+              + ": value)."
+          )
+        }
+      },
     ),
   ),
 )

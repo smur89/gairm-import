@@ -40,6 +40,7 @@
     .contains("got null"),
 )
 // Key holding null, field nullable(X).
+#assert.eq(codes((name: "Ada", nickname: none), schema, false), ("required",))
 #assert.eq(coerce(nul, (a: none)), (:))
 #assert.eq(coerce(nul, (a: none), strict-null: true), (a: none))
 // Unknown key holding null.
@@ -53,10 +54,14 @@
   coerce(array-of(nullable(string())), ("x", none), strict-null: true),
   ("x", none),
 )
-// ... and counted by min-items: dropped by default, kept with strict-null.
+// ... and counted by min-items / unique-items: dropped by default, kept
+// with strict-null.
 #let two = array-of(nullable(string()), min-items: 2)
 #assert.eq(codes(("x", none), two, false), ("items",))
 #assert.eq(codes(("x", none), two, true), ())
+#let uniq = array-of(nullable(string()), unique-items: true)
+#assert.eq(codes((none, none), uniq, false), ())
+#assert.eq(codes((none, none), uniq, true), ("unique",))
 // Dependent-required trigger holding null.
 #assert.eq(codes((a: none), dep, false), ())
 #assert.eq(codes((a: none), dep, true), ("type", "dependent"))

@@ -83,14 +83,18 @@
   (errors: errors, value: model, fatal: fatal)
 }
 
+#let _suggest-limit = 10
+
 // A free-form bag's model is the value as given, nulls included.
 //
 // Keys not in the shape: with `additional: true` they pass through
 // unchecked (absent ones dropped), with an `additional` schema each is
 // walked against it, and otherwise each is an `unknown-key` error and
-// left out of the model. Absent fields are left out too. Only an absent
-// value is dropped: an object whose keys were all null stays an empty
-// dictionary, since validate counts it as present.
+// left out of the model, with a "Did you mean …?" for a near miss
+// unless the object holds more than _suggest-limit of them. Absent
+// fields are left out too. Only an absent value is dropped: an object
+// whose keys were all null stays an empty dictionary, since validate
+// counts it as present.
 #let _object-walk(schema, value, ctx, recur) = {
   if type(value) != dictionary {
     return _type-miss(ctx.path, "object", value)
@@ -99,6 +103,8 @@
   let errors = ()
   let fatal = none
   let out = (:)
+  // Set at the first unknown key: whether to suggest, and the key list.
+  let (suggest, valid) = (auto, none)
   for (key, sub-value) in value {
     if key in schema.shape or (additional != none and additional != true) {
       let sub-schema = schema.shape.at(key, default: additional)
@@ -113,14 +119,24 @@
       // 2 of a valid key, otherwise the full key list. An unknown key
       // holding null is still flagged: silently swallowing typos
       // defeats the point of strict validation.
-      let suggestion = _closest-match(key, schema.shape.keys())
+      if suggest == auto {
+        // Many unknown keys mean the wrong shape, not a typo: past a
+        // few, a suggestion helps no one, and each costs an edit
+        // distance per field.
+        suggest = (
+          value.keys().filter(k => k not in schema.shape).len()
+            <= _suggest-limit
+        )
+        valid = if schema.shape.len() == 0 {
+          "The object takes no keys."
+        } else {
+          "Valid keys: " + schema.shape.keys().map(_key-label).join(", ") + "."
+        }
+      }
+      let suggestion = if suggest { _closest-match(key, schema.shape.keys()) }
       let tail = if suggestion != none {
         "Did you mean " + repr(suggestion) + "?"
-      } else if schema.shape.len() == 0 {
-        "The object takes no keys."
-      } else {
-        "Valid keys: " + schema.shape.keys().map(_key-label).join(", ") + "."
-      }
+      } else { valid }
       errors += _error(
         ctx.path + (key,),
         "unknown-key",

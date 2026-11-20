@@ -210,3 +210,23 @@
   ).kind,
   "markup",
 )
+
+// A write into a set additional schema replaces it, and one into a field
+// literally named "additionalProperties" replaces the field, on a closed
+// object too: only an additional schema that is not set refuses a write.
+#assert.eq(
+  schema-put(
+    object((:), additional: string()),
+    ("additionalProperties",),
+    number(),
+  ),
+  object((:), additional: number()),
+)
+#assert.eq(
+  schema-put(
+    object(("additionalProperties": string())),
+    ("additionalProperties",),
+    number(),
+  ),
+  object(("additionalProperties": number())),
+)

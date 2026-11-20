@@ -40,9 +40,8 @@
 /// - data (any): The document, or where to read it: a `path` or bytes
 ///   is read as JSON, and a `path` resolves from your file. Any other
 ///   value is the document itself, whatever root the schema takes. Null
-///   panics, and so does a string ending in `.json` that the schema's
-///   root does not take, as a string path would resolve from the
-///   package: use `path(..)` or `json(..)` to read a file.
+///   panics, and so does a `.json` filename or JSON text the schema's
+///   root does not take: use `path(..)` to read a file.
 /// - strict-null (bool): Off, JSON `null` counts as an absent key. On,
 ///   `null` is a value its schema judges: `null()`, `nullable(..)`,
 ///   `unknown()` and an `enum-of(..)` or `const-of(..)` that lists

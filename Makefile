@@ -54,7 +54,8 @@ PACKAGE_CHECKS := $(addprefix check/package/,$(PACKAGE_TESTS))
 $(FIXTURE_CHECKS): check/fixture/%:
 	$(call compile-one,$*)
 
-# A panic case must FAIL to compile, and its error output must contain
+# A panic case must FAIL to compile, and its error message (the output
+# before the first source excerpt, so not the call trace) must contain
 # the text after its leading `// expect: ` line — so a panic that stops
 # firing, or fires with a different message, fails.
 $(PANIC_CHECKS): check/panic/%:
@@ -65,7 +66,7 @@ $(PANIC_CHECKS): check/panic/%:
 	msg=; \
 	if out=$$($(TYPST) compile --root $(ROOT) --format pdf "$*" /dev/null 2>&1); then \
 	  msg="compiled, expected a failure containing: $$expect"; \
-	elif ! printf '%s' "$$out" | grep -qF -- "$$expect"; then \
+	elif ! printf '%s\n' "$$out" | sed '/┌─/q' | grep -qF -- "$$expect"; then \
 	  msg="failed without: $$expect"; \
 	fi; \
 	if [ -n "$$msg" ]; then \
@@ -108,7 +109,7 @@ check: test fmt-check check-layers check-conventions ## test + fmt-check + check
 # internal/introspect.typ, import only from core/, kinds/ and the
 # engine: never each other. internal/run.typ, the run functions lib.typ
 # re-exports, is L3 too, with the same imports as edit and introspect.
-SIBLING_IMPORT := \#import +"[a-z][a-z0-9-]*\.typ"
+SIBLING_IMPORT := import +"[a-z][a-z0-9-]*\.typ"
 LAYERS := core kinds engine json-schema edit-introspect
 
 core.files := internal/core/*.typ
@@ -116,19 +117,19 @@ core.allow := $(SIBLING_IMPORT)
 core.says  := internal/core/ may import only its own siblings
 
 kinds.files := internal/kinds/*.typ
-kinds.allow := $(SIBLING_IMPORT)|\#import +"\.\./core/[a-z][a-z0-9-]*\.typ"
+kinds.allow := $(SIBLING_IMPORT)|import +"\.\./core/[a-z][a-z0-9-]*\.typ"
 kinds.says  := internal/kinds/ may import only internal/core/ and its own siblings
 
 engine.files := internal/engine.typ
-engine.allow := \#import +"(core|kinds)/[a-z][a-z0-9-]*\.typ"
+engine.allow := import +"(core|kinds)/[a-z][a-z0-9-]*\.typ"
 engine.says  := internal/engine.typ may import only internal/core/ and internal/kinds/
 
 json-schema.files := internal/json-schema/*.typ
-json-schema.allow := $(SIBLING_IMPORT)|\#import +"\.\./((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
+json-schema.allow := $(SIBLING_IMPORT)|import +"\.\./((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
 json-schema.says  := internal/json-schema/ may import only internal/core/, internal/kinds/, internal/engine.typ and its own siblings
 
 edit-introspect.files := internal/edit.typ internal/introspect.typ internal/run.typ
-edit-introspect.allow := \#import +"((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
+edit-introspect.allow := import +"((core|kinds)/[a-z][a-z0-9-]*|engine)\.typ"
 edit-introspect.says  := internal/edit.typ, internal/introspect.typ and internal/run.typ may import only internal/core/, internal/kinds/ and internal/engine.typ
 
 # Shell that sets `status=1` and prints `<check>: <message>:` and the
@@ -145,7 +146,7 @@ endef
 
 # One layer's check: its imports that its `allow` doesn't match.
 #   $(call check-layer,<row>)
-$(foreach l,$(LAYERS),$(eval $(l).find = grep -HnE '\#import +"' $$($(l).files) | grep -vE '$$($(l).allow)'))
+$(foreach l,$(LAYERS),$(eval $(l).find = grep -HnE 'import +"' $$($(l).files) | grep -vE '$$($(l).allow)'))
 define check-layer
 $(call report,check-layers,$(1).says,$(1).find)
 endef

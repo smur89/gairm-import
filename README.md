@@ -65,6 +65,9 @@ build its schema in Typst and parse it:
 )
 
 #let book = parse(book-schema, path("book.json"))
+
+= #book.title
+#book.author, #book.year: #book.tags.join(", ")
 ```
 <!-- x-release-please-end -->
 
@@ -113,11 +116,10 @@ model. All three take the schema, then the data, and `strict-null:`
 | a dictionary, such as `json("book.json")` | the document itself |
 | any other value: an array, a number, a string | the document itself, whatever root the schema takes |
 
-A string is data, not a path: inside a package it would resolve from the
-package, never your file, so a `.json`-looking string the schema rejects
-panics with a hint to use `path(..)`. `read("book.json")` without
-`encoding: none` gives the file's text, which is a string too.
-`schema-from-json-schema` takes the first three forms only.
+A string is the document, not a path: a `.json` filename or JSON text the
+schema rejects panics with a hint to use `path(..)` or
+`read(.., encoding: none)`. `schema-from-json-schema` takes the first
+three forms only.
 
 ## Errors
 
@@ -254,7 +256,8 @@ data, such as [`altacv`](https://typst.app/universe/package/altacv):
 <!-- Bump this altacv pin by hand when altacv publishes a new version: release-please only owns gairm-import's. -->
 
 ```typst
-#import "@preview/altacv:1.9.0": alta
+#import "@preview/altacv:1.9.0": alta, altacv
+#show: altacv.with()
 #alta(resume)
 ```
 
@@ -267,7 +270,7 @@ the objects, check full dates and make the free-text fields `content`.
 
 | 0.x | 1.0 |
 |---|---|
-| `parse(data, schema: s)`, and `validate`, `coerce` | `parse(s, data)`: the schema first |
+| `parse(data)`, `parse(data, schema: s)`, and `validate`, `coerce` | `parse(s, data)`: the schema first, and required |
 | `resume-schema`, `resume-schema-strict` | your own copy, translated: [Validating a JSON Resume](#validating-a-json-resume) |
 | `str-type`, `number-type`, `integer-type` | `string()`, `number()`, `integer()` |
 | `bool-type`, `null-type`, `any-type`, `content-type` | `boolean()`, `null()`, `unknown()`, `markup()` |

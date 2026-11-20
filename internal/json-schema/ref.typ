@@ -20,6 +20,14 @@
   if ref == "#" {
     _bail(ctx, "$ref \"#\" cannot reference the document root.")
   }
+  if ref.starts-with("#") and not ref.starts-with("#/") {
+    _bail(
+      ctx,
+      "$ref "
+        + _json(ref)
+        + " names an anchor, which is out of scope; reference the schema by its JSON Pointer (\"#/definitions/…\").",
+    )
+  }
   if not ref.starts-with("#/") {
     _bail(
       ctx,

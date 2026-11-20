@@ -24,7 +24,7 @@
 // What to add when a node carries a field its kind would ignore
 // (registry.typ's _foreign-fields), for the slips that have a fix.
 #let _foreign-hints = (
-  integer: " Use integer() for a whole number.",
+  integer: " Drop it: integer() builds a whole number.",
   "else": " The else branch is the field otherwise.",
   pattern: " Use string() for one.",
   format: " Use string() for one.",
@@ -57,10 +57,12 @@
 //
 // Typst memoizes a call by hashing its arguments, which visits the whole
 // subtree, so this passes the node to nothing but the descriptor's own
-// checks: the fields and rows are checked inline. It takes the node alone and builds
-// the path on the way back up, so each subtree's verdict is memoized: a
-// subtree a constructor already checked, or one shared by several
-// parents (a union that repeats a member), is checked once.
+// checks: the fields and rows are checked inline. It takes the node
+// alone and builds the path on the way back up, so a subtree's verdict
+// can be memoized: a wide subtree checked again (one a union repeats,
+// or a constructor already checked) costs little. The memo does not
+// bound the recursion, which still descends the whole depth: a schema
+// nested past about 70 levels exceeds Typst's call depth here.
 #let _schema-problem(node) = {
   let kind = if type(node) == dictionary { node.at("kind", default: none) }
   if type(kind) != str or kind not in _kinds {
