@@ -206,8 +206,8 @@ the API, so hand-built nodes and `schema-update` functions may use them.
 | `not` | `not-of` | `member` |
 | `if` | `if-of` | `cond`, and `then` / `otherwise` when set |
 
-A field another kind reads (`min-length` on an array), 0.x's `integer`
-on a number, `else` on an `if`, or a field the kind reads set to `none`
+A field another kind reads (`min-length` on an array), `integer` on a
+number, `else` on an `if`, or a field the kind reads set to `none`
 (but `additional`, where `none` means closed), panics at the schema
 check: leave a field out to unset it. Any other field is an annotation
 and rides along unchecked, so a misspelt one (`formt`) checks nothing.
