@@ -772,8 +772,12 @@
 )
 
 // `enum` beside `const` compares as enum-of() does: an int past 2^53 is
-// not the float it rounds to.
+// not the float it rounds to, but 2^53 itself is.
 #assert.eq(
-  T(json(bytes("{\"enum\": [9007199254740993, 1], \"const\": 1.0}"))),
-  enum-of((1,)),
+  T(json(
+    bytes(
+      "{\"enum\": [9007199254740993, 9007199254740992], \"const\": 9007199254740992.0}",
+    ),
+  )),
+  enum-of((9007199254740992,)),
 )

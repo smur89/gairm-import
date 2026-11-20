@@ -238,15 +238,16 @@ jobs:
     steps:
       - name: Skip if a PR for this version is already open
         id: check
-        # `--head` takes the bare branch (no `owner:` form); `--author`
-        # keeps the match to our own fork's PRs.
+        # `--head` takes the bare branch (no `owner:` form), so the
+        # result is filtered to PRs whose head is our fork.
         run: |
           existing=$(gh pr list \
             --repo "$UPSTREAM_REPO" \
             --head "${PACKAGE_NAME}-${VERSION}" \
             --author "${FORK_REPO%%/*}" \
             --state open \
-            --json url --jq '.[0].url // empty')
+            --json url,headRepositoryOwner,headRepository \
+            --jq '[.[] | select(.headRepositoryOwner.login + "/" + .headRepository.name == env.FORK_REPO)] | .[0].url // empty')
           if [ -n "$existing" ]; then
             echo "PR already open: $existing — skipping submission"
             echo "skip=true" >> "$GITHUB_OUTPUT"
