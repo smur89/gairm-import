@@ -49,7 +49,7 @@ build its schema in Typst and parse it:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.13.0": (
+#import "@preview/gairm-import:1.0.0": (
   parse, object, array-of, string, number,
 )
 
@@ -76,7 +76,7 @@ document you already have:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
+#import "@preview/gairm-import:1.0.0": parse, schema-from-json-schema
 
 #let book-schema = schema-from-json-schema(json("book-schema.json"))
 #let book = parse(book-schema, path("book.json"))
@@ -160,7 +160,7 @@ only `path` and `message`. With `book-schema` from
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.13.0": validate, coerce, format-errors
+#import "@preview/gairm-import:1.0.0": validate, coerce, format-errors
 
 #let doc = json("book.json")
 #let errors = validate(book-schema, doc)
@@ -198,7 +198,7 @@ value exactly as `X` does:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.13.0": parse, object, string, nullable
+#import "@preview/gairm-import:1.0.0": parse, object, string, nullable
 
 #let schema = object(
   (name: string(), nickname: nullable(string())),
@@ -218,7 +218,7 @@ beside your file as `resume.schema.json`, and translate it:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.13.0": parse, schema-from-json-schema
+#import "@preview/gairm-import:1.0.0": parse, schema-from-json-schema
 
 #let resume-schema = schema-from-json-schema(json("resume.schema.json"))
 #let resume = parse(resume-schema, path("resume.json"))

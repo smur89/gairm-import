@@ -24,7 +24,7 @@ The examples assume the whole package is imported:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.13.0": *
+#import "@preview/gairm-import:1.0.0": *
 ```
 <!-- x-release-please-end -->
 
@@ -677,7 +677,7 @@ translating it and the schema after:
 
 <!-- x-release-please-start-version -->
 ```typst
-#import "@preview/gairm-import:0.13.0": (
+#import "@preview/gairm-import:1.0.0": (
   parse, schema-from-json-schema, schema-put, markup,
 )
 
