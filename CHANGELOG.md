@@ -1,5 +1,150 @@
 # Changelog
 
+## [1.0.0](https://github.com/smur89/gairm-import/compare/v0.13.0...v1.0.0) (2026-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* object() and map() store required-keys only when it lists a key, as dependent-required and additional already were; read it with a default of an empty array.
+* a hand-built or edited node with a field set to none, format included, now panics at the schema check; leave the field out instead. The none of object's additional argument is unchanged.
+* number and integer reject a NaN or an infinite float with a type error that names it NaN, Infinity or -Infinity; they passed unless a bound was set.
+* a translated pattern's expected writes the pattern as JSON does, so a control character reads as \u0001.
+* a hand-built node carrying a field another kind reads, such as min-length on an array, now panics at the schema check, as does an else key on an if node (the field is otherwise).
+* a date-time field rejects a Typst datetime with a type error, since a datetime has no offset and its string failed the field's own format. A date field still takes a date-only datetime. The format error's message and expected for date, date-time and time say RFC 3339 instead of ISO-8601.
+* enum messages write values as JSON, so null rather than none; a union's expected names an enum member with its values; an enum's type expected names null only when it is the one value.
+* lens-get, lens-put and lens-over are renamed to schema-get, schema-put and schema-update, with no aliases.
+* set-required now adds keys to an object's required-keys instead of replacing them. To replace the list, use schema-update on the object and set required-keys there.
+* add-field and remove-field take the field's path, ending in its name, instead of the object's path and a separate key. Where a call passed `at` and `key`, pass `at + (key,)` alone.
+* `bool-type`, `null-type`, `any-type` and `content-type` are replaced by `boolean()`, `null()`, `unknown()` and `markup()`, and the kind names `bool`, `any` and `content` by `boolean`, `unknown` and `markup`.
+* the lens dictionary form of a location is gone; where you passed `(lens: p)`, pass the path `p` itself.
+* a `dependent` error record's `expected` is now the dependent-required entry of the key that triggered it, and its `got` is none. They were the missing key and the trigger; the missing key is still the record's path.
+* a hand-built node whose bounds no value meets, or a closed object requiring a key it does not declare, now panics at the entry point naming its path, instead of rejecting every input.
+* a `date` field rejects `YYYY` and `YYYY-MM`, and a `date-time` or `time` field rejects a value with no offset. Use a `pattern`, or `anyOf` with `format: "date"` as REFERENCE.md's stricter JSON Resume recipe does, to keep accepting them.
+* paths-of-kind is renamed find-paths.
+* validate, coerce and parse take the schema, then the data. Change `validate(data, schema: s)` to `validate(s, data)`; the old call fails with "missing argument: data".
+* find-paths, formerly paths-of-kind, queried by one-of, any-of, nullable or const-of returns only the nodes that constructor builds, and a dependent error's path is the missing key rather than the object. A key that is both required and a missing dependent gets only the required error. map takes only a schema: where you wrote `map(true)`, use an object with no fields and `additional: true`.
+* `resume-schema` and `resume-schema-strict` are removed. Translate your own copy of the JSON Resume schema with `schema-from-json-schema`, and build the stricter variant as REFERENCE.md's "A stricter JSON Resume" shows.
+* removed, with their replacements:
+    - `str-type`, `number-type`, `integer-type` → `string()`, `number()`,
+      `integer()`
+    - `date-string`, `datetime-string`, `uri-string`, `email-string`,
+      `uuid-string`, `hostname-string`, `ipv4-string`, `ipv6-string`,
+      `time-string` → `string(format: f)`, where `f` is `"date"`,
+      `"date-time"`, `"uri"`, `"email"`, `"uuid"`, `"hostname"`, `"ipv4"`,
+      `"ipv6"` or `"time"`
+    - `pattern-string(re, expected: e)` → `string(pattern: re, expected: e)`
+    - `lens(path)` → the path itself; `lens-then(a, b)` → `a + b` on the
+      paths; `kind-at(schema, at)` → `schema-get(schema, at).kind`
+    - the lens-first order `lens-get(at, schema)`, `lens-put(at, schema,
+      v)`, `lens-over(at, schema, fn)` → `schema-get`, `schema-put`,
+      `schema-update`, the schema first
+    - the `(kind: "lens", path: p)` shape → the path `p`
+    - a kind name string in `find-paths`, formerly paths-of-kind → a node or
+      a constructor
+    - hand-built `(kind: "str")`, `(kind: "pattern-string")`, `(kind:
+      "date-string")` … → `(kind: "string")` with a `pattern` or `format`
+      field
+    - a hand-built `(kind: "number", integer: true)` → `integer()`
+
+### Features
+
+* accept a decimal for the number and integer bounds and multiple-of ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* accept a Typst decimal wherever a number is expected ([0ced0f8](https://github.com/smur89/gairm-import/commit/0ced0f8792017c498bd5a1abbe5bff26b6208af3))
+* check date, date-time and time as RFC 3339, as draft 7 defines them ([0ced0f8](https://github.com/smur89/gairm-import/commit/0ced0f8792017c498bd5a1abbe5bff26b6208af3))
+* give a dependent error the rule it broke as expected ([9864679](https://github.com/smur89/gairm-import/commit/9864679986b3d29aa106a697e9a6b2df6e09f9ff))
+* give add-field and remove-field the field's own schema path ([eac7d08](https://github.com/smur89/gairm-import/commit/eac7d08bc55427e853109a433357722711bc75fc))
+* hold a hand-built schema node to its constructor's rules ([9864679](https://github.com/smur89/gairm-import/commit/9864679986b3d29aa106a697e9a6b2df6e09f9ff))
+* leave an empty required-keys out of an object node ([0c107ca](https://github.com/smur89/gairm-import/commit/0c107ca8e11a6f3c4395a91151ae17f38a4839b9))
+* let enum-of take its values as separate arguments ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* make every schema a constructor call ([9864679](https://github.com/smur89/gairm-import/commit/9864679986b3d29aa106a697e9a6b2df6e09f9ff))
+* make set-required add keys rather than replace the list ([eac7d08](https://github.com/smur89/gairm-import/commit/eac7d08bc55427e853109a433357722711bc75fc))
+* narrow find-paths constructor queries and point dependent errors at the missing key ([0c55205](https://github.com/smur89/gairm-import/commit/0c552055d2b7ad567712800d5ec86277065772f4))
+* quote a translated pattern as JSON in its expected text ([ea9bd77](https://github.com/smur89/gairm-import/commit/ea9bd7752afb20f95020b85c0347878d1ba16291))
+* refuse a hand-built node's field that only another kind reads ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* refuse a schema node field set to none, and say to leave it out ([ea9bd77](https://github.com/smur89/gairm-import/commit/ea9bd7752afb20f95020b85c0347878d1ba16291))
+* reject NaN and infinity as numbers ([ea9bd77](https://github.com/smur89/gairm-import/commit/ea9bd7752afb20f95020b85c0347878d1ba16291))
+* remove the bundled JSON Resume schemas ([3cafaa2](https://github.com/smur89/gairm-import/commit/3cafaa23a410ac64e885503a9c08ccc5fcf3e972))
+* remove the deprecated constants, lens helpers and old forms ([759a291](https://github.com/smur89/gairm-import/commit/759a29164c4a651ccb51e669489307a85aaaae4b))
+* rename paths-of-kind to find-paths, and ignore a pattern's expected text when matching ([eb3f39e](https://github.com/smur89/gairm-import/commit/eb3f39ef46005f0a627c7c5994affe4cdc2a92fc))
+* rename the lenses to schema-get, schema-put and schema-update ([eac7d08](https://github.com/smur89/gairm-import/commit/eac7d08bc55427e853109a433357722711bc75fc))
+* say where in the schema a translator panic is, and quote its values as JSON ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* settle the type names union, not and integer errors report ([#207](https://github.com/smur89/gairm-import/issues/207)) ([ad22fe5](https://github.com/smur89/gairm-import/commit/ad22fe58d25116e166df464c6bf548b9afd9bb5d))
+* take a schema path only as an array ([9864679](https://github.com/smur89/gairm-import/commit/9864679986b3d29aa106a697e9a6b2df6e09f9ff))
+* take no Typst datetime in a date-time field ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* take the schema first in validate, coerce and parse ([0c55205](https://github.com/smur89/gairm-import/commit/0c552055d2b7ad567712800d5ec86277065772f4))
+* write values as JSON in enum and union messages, and name enum members by their values ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+
+
+### Bug Fixes
+
+* check add-field's new field as schema-put checks a node, so additional false closes it ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* check an if's condition when it has no then or else ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* check the whole schema at every entry point, so a malformed node fails in the package's words ([0ced0f8](https://github.com/smur89/gairm-import/commit/0ced0f8792017c498bd5a1abbe5bff26b6208af3))
+* check unique-items on an array of integers in one pass ([3105ccb](https://github.com/smur89/gairm-import/commit/3105ccb7bb0bff2c5b6621513a9cacb0490bd6fe))
+* compare a decimal with a float bound exactly, and reject a hand-built string node whose pattern is null ([0ced0f8](https://github.com/smur89/gairm-import/commit/0ced0f8792017c498bd5a1abbe5bff26b6208af3))
+* compare a float and a decimal as one number in enums and unique-items, and a large int with a float bound exactly ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* compare enum and const as enum-of does, so an int past 2^53 is not the float it rounds to ([0c107ca](https://github.com/smur89/gairm-import/commit/0c107ca8e11a6f3c4395a91151ae17f38a4839b9))
+* draw a schema whose field named additionalProperties shadows its additional schema ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* draw an array of arrays on one row in describe-schema, with numbers as messages write them ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* draw undeclared required keys and empty objects in describe-schema ([eac7d08](https://github.com/smur89/gairm-import/commit/eac7d08bc55427e853109a433357722711bc75fc))
+* find a recursive $ref by its decoded target, so %61 and a are one ([ea9bd77](https://github.com/smur89/gairm-import/commit/ea9bd7752afb20f95020b85c0347878d1ba16291))
+* find an open Typst Universe PR on a re-run of the release job ([0c107ca](https://github.com/smur89/gairm-import/commit/0c107ca8e11a6f3c4395a91151ae17f38a4839b9))
+* harden the edges the pre-1.0 review found ([#227](https://github.com/smur89/gairm-import/issues/227)) ([3de5d30](https://github.com/smur89/gairm-import/commit/3de5d3024678e4a8913f25176ebabce4d353e44a))
+* hint swapped arguments to find-paths, and give the package's own panic for an integer segment in set-required and unset-required ([3105ccb](https://github.com/smur89/gairm-import/commit/3105ccb7bb0bff2c5b6621513a9cacb0490bd6fe))
+* hint the argument order in add-field and remove-field, a data path used as a schema path, and a map's value schema in remove-field ([ea9bd77](https://github.com/smur89/gairm-import/commit/ea9bd7752afb20f95020b85c0347878d1ba16291))
+* hint the slips the sixth review found: a map key or properties segment in a schema path, an object edit given a field's path, a key that is only required, a schema in the path's place, and a URI fragment's # ([0c107ca](https://github.com/smur89/gairm-import/commit/0c107ca8e11a6f3c4395a91151ae17f38a4839b9))
+* judge a float multiple-of exactly, as the decimal it is written as ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* judge a translated enum's array values with their null items ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* keep only the enum values equal to a const beside them ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* know a union's null member by its kind, so an annotated one counts ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* lend an if branch its siblings' type only when that type is object, so the siblings are named, not the branch ([0c107ca](https://github.com/smur89/gairm-import/commit/0c107ca8e11a6f3c4395a91151ae17f38a4839b9))
+* let a nullable or a conditional nest as deep as an object ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* let add-field and remove-field take a path ending in an int, as every schema path does ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* let an edit through nested nullable objects reach as deep as validate, less one level ([ea9bd77](https://github.com/smur89/gairm-import/commit/ea9bd7752afb20f95020b85c0347878d1ba16291))
+* let an if beside only type: "object" take closed branches ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* let coerce model a union value that several members claim, as the first one that leaves a model ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* let schema-update and schema-put close an object with additional false ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* let the object edits take a hand-built object with no required-keys ([#223](https://github.com/smur89/gairm-import/issues/223)) ([f2f3c85](https://github.com/smur89/gairm-import/commit/f2f3c85626970821ff8b87d6978b08eaedc0483d))
+* let the translator read schemas nested as deep as the walk takes them ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* make error paths unambiguous, so a key that is not a plain name reads `["a.b"].c`, and word the remaining panics like the rest ([0ced0f8](https://github.com/smur89/gairm-import/commit/0ced0f8792017c498bd5a1abbe5bff26b6208af3))
+* make unique-items fast on large arrays, align describe-schema by character, report a doubled required key once, and stop suggesting unrelated short keys ([0c55205](https://github.com/smur89/gairm-import/commit/0c552055d2b7ad567712800d5ec86277065772f4))
+* name a nested union by its members in union and not messages ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* name an if branch that is no object schema as written, not by its siblings' keywords ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* name an untyped allOf member by what it lacks, not as a union ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* name constructors in find-paths' query panic ([eac7d08](https://github.com/smur89/gairm-import/commit/eac7d08bc55427e853109a433357722711bc75fc))
+* name the value, not its type, when coerce misses an enum ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* panic on an embedded $id, and read a null-first nullable and an additionalProperties $ref to {} in allOf ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* panic with the package's own message on bad arguments to the constructors, lenses, introspection, pointers and run functions, and refuse integer bounds that leave no whole number ([0c55205](https://github.com/smur89/gairm-import/commit/0c552055d2b7ad567712800d5ec86277065772f4))
+* point at member 0 when a schema path misses a nullable's schema ([eac7d08](https://github.com/smur89/gairm-import/commit/eac7d08bc55427e853109a433357722711bc75fc))
+* read $ref "#/" as a JSON Pointer to the key "", and skip a shadowed additional schema in find-paths ([0c55205](https://github.com/smur89/gairm-import/commit/0c552055d2b7ad567712800d5ec86277065772f4))
+* read a stored pattern only as a regex, coerce a union as its sole claimant, and report a NaN against a bound ([#222](https://github.com/smur89/gairm-import/issues/222)) ([1446dce](https://github.com/smur89/gairm-import/commit/1446dce9a0de582b51ae990d4ece3dc3864f607f))
+* read additionalProperties {} as true ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* read the objects under not as open, as draft 7 does ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* read type ["object"] beside if as type "object" ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* refuse a pattern or format on a hand-built markup node ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* reject a date or date-time whose day its month lacks, such as 2023-02-29 ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* reject a hand-built conditional with neither branch at the schema check ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* report a key a hand-built object lists twice once ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* report a string's length errors beside its pattern or format miss ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* report a string's pattern miss beside its format miss ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* say how to set an object's additional schema or an if-of branch that a schema path names but the node lacks ([3105ccb](https://github.com/smur89/gairm-import/commit/3105ccb7bb0bff2c5b6621513a9cacb0490bd6fe))
+* say JSON text from read() needs encoding: none, instead of calling it a string path ([0c107ca](https://github.com/smur89/gairm-import/commit/0c107ca8e11a6f3c4395a91151ae17f38a4839b9))
+* say that draft 4's boolean exclusiveMinimum and exclusiveMaximum are not supported ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* see through a nullable anyOf when merging closed objects ([d44fbab](https://github.com/smur89/gairm-import/commit/d44fbab2fea59ab9ff95935f298acef6e053d9b5))
+* skip the "Did you mean" suggestion past ten unknown keys, and list an object's valid keys once, so a large map-shaped document validates quickly against an object ([3105ccb](https://github.com/smur89/gairm-import/commit/3105ccb7bb0bff2c5b6621513a9cacb0490bd6fe))
+* step a numeric field name through a schema path, and hint a JSON Schema document or an uncalled constructor passed as a schema ([677e859](https://github.com/smur89/gairm-import/commit/677e859ef25e4c36cd06e868cbf39222063011d4))
+* store a pattern's expected only when given, and check a find-paths query before reading it ([#221](https://github.com/smur89/gairm-import/issues/221)) ([504a27e](https://github.com/smur89/gairm-import/commit/504a27e4a0329ad6a0caba99fe7275cbe740a455))
+* suggest a rewrite that keeps their meaning for keywords beside not or $ref, and name a $ref to an anchor as one ([3105ccb](https://github.com/smur89/gairm-import/commit/3105ccb7bb0bff2c5b6621513a9cacb0490bd6fe))
+* tell an int past 2^53 from the float it rounds to in enum membership ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* translate an if beside an additionalProperties schema once per level, not once per branch ([3105ccb](https://github.com/smur89/gairm-import/commit/3105ccb7bb0bff2c5b6621513a9cacb0490bd6fe))
+* translate an if beside sibling properties without translating them again in each branch ([ea9bd77](https://github.com/smur89/gairm-import/commit/ea9bd7752afb20f95020b85c0347878d1ba16291))
+* translate schemas nested 34 levels deep, and word a required key outside properties in the translator's terms ([a13a184](https://github.com/smur89/gairm-import/commit/a13a184538685b933dafd417e7033b4f8a5a0cb5))
+* translate type ["object", "null"] beside an if with both branches, and let a null through a branch that takes its type from the siblings ([0c107ca](https://github.com/smur89/gairm-import/commit/0c107ca8e11a6f3c4395a91151ae17f38a4839b9))
+* treat an empty $id as no embedded $id ([f84a6ed](https://github.com/smur89/gairm-import/commit/f84a6edc70f0f0ff08ab7bae1090a099cbdc3659))
+* word a hand-built node's none field, bare expected and out-of-range datetime year in field terms ([0c107ca](https://github.com/smur89/gairm-import/commit/0c107ca8e11a6f3c4395a91151ae17f38a4839b9))
+* word the nullable, not-of and string pattern panics like the rest ([da8eb2e](https://github.com/smur89/gairm-import/commit/da8eb2e91cdfaacb4ff6403e19c99b93e863f6bb))
+* word the translator's panics for a const outside its enum, a schema-valued dependentRequired, a boolean dependencies entry, a document that is no object, and an anyOf, not, if or type list as an allOf or if member ([ea9bd77](https://github.com/smur89/gairm-import/commit/ea9bd7752afb20f95020b85c0347878d1ba16291))
+
 ## [0.13.0](https://github.com/smur89/gairm-import/compare/v0.12.0...v0.13.0) (2026-11-12)
 
 
