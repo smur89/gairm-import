@@ -29,7 +29,6 @@
 - [Errors](#errors)
 - [Null handling](#null-handling)
 - [Validating a JSON Resume](#validating-a-json-resume)
-- [Upgrading from 0.x](#upgrading-from-0x)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -65,6 +64,9 @@ build its schema in Typst and parse it:
 )
 
 #let book = parse(book-schema, path("book.json"))
+
+= #book.title
+#book.author, #book.year: #book.tags.join(", ")
 ```
 <!-- x-release-please-end -->
 
@@ -113,11 +115,10 @@ model. All three take the schema, then the data, and `strict-null:`
 | a dictionary, such as `json("book.json")` | the document itself |
 | any other value: an array, a number, a string | the document itself, whatever root the schema takes |
 
-A string is data, not a path: inside a package it would resolve from the
-package, never your file, so a `.json`-looking string the schema rejects
-panics with a hint to use `path(..)`. `read("book.json")` without
-`encoding: none` gives the file's text, which is a string too.
-`schema-from-json-schema` takes the first three forms only.
+A string is the document, not a path: a `.json` filename or JSON text the
+schema rejects panics with a hint to use `path(..)` or
+`read(.., encoding: none)`. `schema-from-json-schema` takes the first
+three forms only.
 
 ## Errors
 
@@ -254,7 +255,8 @@ data, such as [`altacv`](https://typst.app/universe/package/altacv):
 <!-- Bump this altacv pin by hand when altacv publishes a new version: release-please only owns gairm-import's. -->
 
 ```typst
-#import "@preview/altacv:1.9.0": alta
+#import "@preview/altacv:1.9.0": alta, altacv
+#show: altacv.with()
 #alta(resume)
 ```
 
@@ -262,38 +264,6 @@ Upstream sets `additionalProperties: true` at the top level and on every
 section's items, so a misspelt `positon` is kept rather than reported.
 [REFERENCE.md](REFERENCE.md#a-stricter-json-resume) shows how to close
 the objects, check full dates and make the free-text fields `content`.
-
-## Upgrading from 0.x
-
-| 0.x | 1.0 |
-|---|---|
-| `parse(data, schema: s)`, and `validate`, `coerce` | `parse(s, data)`: the schema first |
-| `resume-schema`, `resume-schema-strict` | your own copy, translated: [Validating a JSON Resume](#validating-a-json-resume) |
-| `str-type`, `number-type`, `integer-type` | `string()`, `number()`, `integer()` |
-| `bool-type`, `null-type`, `any-type`, `content-type` | `boolean()`, `null()`, `unknown()`, `markup()` |
-| `date-string`, `datetime-string`, `uri-string`, … | `string(format: "date")`, `string(format: "date-time")`, `string(format: "uri")`, … |
-| `pattern-string(re)` | `string(pattern: re)` |
-| `paths-of-kind`, and its kind-name query (`"date-string"`) | `find-paths`, with a constructor or node: `string(format: "date")` |
-| `paths-of-kind(s, any-of)` or `one-of` (every union), `const-of` (every enum) | `find-paths` with `any-of` (inclusive unions), `one-of` (exclusive), `enum-of` (every enum) |
-| hand-built `(kind: "str")`, `"bool"`, `"any"`, `"content"`, `"pattern-string"`, `"date-string"`, … | `string()`, `boolean()`, `unknown()`, `markup()`, `string()` with `pattern:` / `format:` |
-| hand-built `(kind: "number", integer: true)` | `integer()` |
-| `lens(p)`, `(lens: p)`, `lens-then(a, b)` | the path `p`, `a + b` |
-| `kind-at(s, at)` | `schema-get(s, at).kind` |
-| `lens-get(at, s)`, `lens-put`, `lens-over` | `schema-get(s, at)`, `schema-put`, `schema-update`: the schema first |
-| `map(true)` | `object((:), additional: true)` |
-| `add-field(s, at, key, sub)` | `add-field(s, at + (key,), sub)` |
-| `remove-field(s, at, key)` | `remove-field(s, at + (key,))` |
-| an `object` node's `required-keys`, always set | set only when not empty: read `s.at("required-keys", default: ())` |
-| `set-required(s, at, keys)` replacing the list | `set-required` adds `keys`; replace with `schema-update(s, at, o => (..o, required-keys: keys))` |
-
-Validation is stricter in places: `date` takes only `YYYY-MM-DD`,
-`date-time` and `time` need an offset, and a `date-time` takes no Typst
-`datetime`. Error records changed too: a `dependent` record's `path` is
-the missing key and its `expected` the rule broken, a union's `type`
-record names types (`"string or integer"`), and messages write values
-as JSON. The
-[release notes](https://github.com/smur89/gairm-import/releases) list
-every change.
 
 ## Contributing
 

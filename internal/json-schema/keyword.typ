@@ -107,7 +107,10 @@
   allOf: (role: "applicator"),
   anyOf: (role: "applicator"),
   oneOf: (role: "applicator"),
-  "not": (role: "applicator"),
+  "not": (
+    role: "applicator",
+    hint: ". Moving them into \"not\" would negate them; write {\"if\": <the \"not\" schema>, \"then\": {\"not\": {}}, \"else\": <the other keywords>} instead.",
+  ),
   // `if` is the one applicator that `joins` its node's other keywords
   // rather than standing alone (conditional.typ); `then` and `else` are
   // branches `of` it, read with it.
@@ -174,12 +177,13 @@
     ))
 )
 
-// What to do with siblings, per role that must stand alone: a sibling
-// `type` / `properties` / constraint would be silently ignored, and the
+// What to do with siblings, per role that must stand alone, unless the
+// keyword's entry has a `hint` of its own: a sibling `type` /
+// `properties` / constraint would be silently ignored, and the
 // translator bails rather than drops.
 #let _lone-hints = (
   applicator: ". Move them into the composition members.",
-  ref: ". Draft 7 ignores them; move them into the referenced definition.",
+  ref: ". Draft 7 ignores them; to apply them too, write {\"allOf\": [{\"$ref\": …}, {<the other keywords>}]} (an object schema), or move them into the referenced definition.",
 )
 
 // The `$id` on `js` that sets the base its `$ref`s resolve against, or
@@ -224,7 +228,7 @@
           + _json(keyword)
           + " are not supported: "
           + extras.map(_json).join(", ")
-          + _lone-hints.at(entry.role),
+          + entry.at("hint", default: _lone-hints.at(entry.role)),
       )
     }
   }

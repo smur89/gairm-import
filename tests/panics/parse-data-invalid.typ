@@ -1,3 +1,3 @@
-// expect: found 1 problem in the input:
+// expect: - name: expected string, got integer.
 #import "../../lib.typ": parse, object, string
 #parse(object((name: string())), (name: 1))

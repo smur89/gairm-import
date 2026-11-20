@@ -1,7 +1,6 @@
-// Schema-shape inspection helpers. Debugging an extension schema
-// otherwise means `repr(schema)` (noisy dict dump) or hand-walking
-// `.shape` accessors. Introspection here stays read-only; edits live
-// in edit.typ.
+// Schema-shape inspection helpers. Debugging a schema otherwise means
+// `repr(schema)` (noisy dict dump) or hand-walking `.shape` accessors.
+// Introspection here stays read-only; edits live in edit.typ.
 //
 // Paths are schema paths — `"items"` for array descent,
 // `"additionalProperties"` for the additional schema, an index for a
@@ -11,10 +10,10 @@
 // The `[]` suffix and the `*` row in `describe-schema` are
 // display-only (`*` is the conventional shorthand for "any key").
 
-#import "core/error.typ": _a, _fail, _problem, _key-label, _num
+#import "core/error.typ": _a, _bail, _fail, _problem, _key-label, _num
 #import "kinds/registry.typ": _kinds, _descriptor
 #import "kinds/catalog.typ": _constructor, _constructors
-#import "kinds/structure.typ": _require-schema, _is-object
+#import "kinds/structure.typ": _require-schema, _is-object, _has-kind
 #import "kinds/walk.typ": _kind-label
 #import "kinds/traverse.typ": _children, _paths-where
 #import "kinds/constraint.typ": _constraint-rows
@@ -248,6 +247,12 @@
 ///   node of their kind.
 /// -> array
 #let find-paths(schema, query) = {
+  if not _has-kind(schema) and _has-kind(query) {
+    _bail(
+      "find-paths",
+      "takes the schema first, then the query: find-paths(schema, query).",
+    )
+  }
   _require-schema(schema, "find-paths schema")
   // A node query is a schema like any other: a malformed one fails here,
   // in the package's words.

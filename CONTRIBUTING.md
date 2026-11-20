@@ -41,10 +41,7 @@ make help          # every target, and the variables you can override
 `check-conventions` (no test for a named kind outside `internal/kinds/`
 unless marked `// kind-check: <why>`, no `panic(` outside
 `core/error.typ`, panic cases named after an export): exactly what CI's
-`test` job runs, so a green `make check` means a green `test` check. Each
-test file is its own Make target (`check/fixture/…`, `check/panic/…`,
-`check/package/…`), so `-j` runs them in parallel and `-k` keeps going
-past a failure.
+`test` job runs, so a green `make check` means a green `test` check.
 
 **Panic cases** live in `tests/panics/`, one per place the package panics,
 named `<public-function>-<problem>.typ` (`string-min-length-negative.typ`),
@@ -76,7 +73,3 @@ release-please keeps a release PR open with the next version and
 changelog. It runs CI like any other PR, and `test` and
 `typst-package-check` must pass before it merges; merging it tags the
 release and submits it to Typst Universe.
-
-## Security
-
-See [`SECURITY.md`](https://github.com/smur89/gairm-import/blob/main/SECURITY.md) for how to report a vulnerability.

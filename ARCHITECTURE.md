@@ -51,8 +51,6 @@ their own `kind ==` ladders. Within `kinds/`, the walks (`walk.typ`) sit
 below the registry and the constructors (`structure.typ`) above it,
 since a constructor checks its sub-schemas against the registered kinds;
 `catalog.typ`, above both, lists each kind's constructors.
-`make check-conventions` rejects a test for a named kind outside
-`internal/kinds/` unless it is marked `// kind-check: <why>`.
 
 ## The walk
 
@@ -63,7 +61,8 @@ what they make of the result: `validate` returns the errors, `parse`
 panics on any, and `coerce` returns the model unless the walk reports a
 fatal error, a place the data leaves no model (an undeclared key in a
 closed object is an error to `validate` and `parse`, and dropped by
-`coerce`). All three panic before the walk on a bad argument or input. Its header explains the three parts, and
+`coerce`). All three panic on a bad argument or input, and on a
+path-like or JSON-text string the root rejects. Its header explains the three parts, and
 `core/ctx.typ`'s explains the context and how null counts as absent.
 Composite kinds recurse through the `recur` argument their `walk`
 receives.

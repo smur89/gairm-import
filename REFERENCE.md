@@ -43,22 +43,14 @@ The examples assume the whole package is imported:
 whether JSON `null` is an absent key (off) or a value (on); see
 [Null handling](README.md#null-handling).
 
-Each call checks the whole schema before it reads the data: an argument
-that is not a schema, or a hand-built node anywhere in it that is
-missing a field, holds one of the wrong shape, or breaks a rule its
-constructor enforces (bounds no value meets, a closed object requiring a
-key it does not declare), or carries a field only another kind reads,
-panics naming the path to that node.
+Each call checks the whole schema first: a non-schema argument, or a
+hand-built node that breaks its constructor's rules, panics naming its
+path.
 
-A document may nest about 37 levels deep, about 36 when every level is
-a `nullable(..)` or a conditional (the translator builds
-`type: ["object", "null"]` as a `nullable`), or about 18 when every
-level is an `any-of` or `one-of`. Typst caps how deeply calls nest, and
-each level costs two calls, or four through an `any-of` or `one-of`;
-past the cap, Typst fails with `maximum function call depth exceeded`.
-`schema-from-json-schema` reads about 34 levels of nested `properties`,
-`items`, `not`, `$ref` or lone `if`, and about 17 when every level is an
-`anyOf`, an `allOf` or an `if` beside other keywords.
+A document may nest about 37 levels deep (about 18 through `any-of` /
+`one-of`), a translated schema about 34 (17 through `anyOf` / `allOf` /
+an `if` beside other keywords), and a schema built in Typst about 70;
+past that, Typst fails with `maximum function call depth exceeded`.
 
 ### Error records
 
@@ -148,12 +140,6 @@ built.
 | `markup()` | | a string, returned as Typst `content` so it splices into markup |
 | `unknown()` | | any value, passed through unchanged (JSON Schema `{}`) |
 
-Every schema is a function call, named after the JSON Schema type it
-checks where that name is free: `string()`, `boolean()`, `null()`. A name
-Typst already uses gets another: an array is `array-of(..)`, a string
-returned as content `markup()`, any value `unknown()`. The combinators
-end in `-of`, since `not` and `if` are Typst keywords.
-
 - `min-length` and `max-length` count characters as grapheme clusters.
 - `format` takes one of the nine names under [Formats](#formats).
 - `pattern` takes a `regex` or a pattern string (an invalid one fails
@@ -220,8 +206,8 @@ the API, so hand-built nodes and `schema-update` functions may use them.
 | `not` | `not-of` | `member` |
 | `if` | `if-of` | `cond`, and `then` / `otherwise` when set |
 
-A field another kind reads (`min-length` on an array), 0.x's `integer`
-on a number, `else` on an `if`, or a field the kind reads set to `none`
+A field another kind reads (`min-length` on an array), `integer` on a
+number, `else` on an `if`, or a field the kind reads set to `none`
 (but `additional`, where `none` means closed), panics at the schema
 check: leave a field out to unset it. Any other field is an annotation
 and rides along unchecked, so a misspelt one (`formt`) checks nothing.
@@ -245,11 +231,8 @@ claiming full RFC compliance.
 | `ipv4` | a dotted quad, octets 0-255, no leading zeros | `an IPv4 address (e.g. "192.0.2.1")` |
 | `ipv6` | hex groups with `::` compression; no embedded-IPv4 tail | `an IPv6 address (e.g. "2001:db8::1")` |
 
-As in RFC 3339, `date-time` and `time` take `T` and `Z` in either case and
-a leap second (`23:59:60Z`: second 60 at minute 59, or at any minute under
-an offset with minutes; the hour is not checked). A partial date (`2024`,
-`2024-01`) or a time with no offset is not one of these formats; check it
-with a `pattern`.
+A partial date (`2024-01`) or a time with no offset is not one of these
+formats; check it with a `pattern`.
 
 A miss reports `expected <hint>.` at the field's path. For `member`:
 
@@ -503,12 +486,9 @@ with `schema-update` on its object.
 ```
 
 An error record's `path` addresses the **data**, so its pointer is one any
-JSON Pointer tool can resolve against the document. A schema path, as
-the edits and `find-paths` use, addresses the **schema**, in this package's own
-segments, and encodes segment for segment: `("basics", "email")` becomes
-`/basics/email` and `("work", "items")` becomes `/work/items`. That is
-neither a data pointer nor a JSON Schema location, which would read
-`/properties/work/items`.
+JSON Pointer tool can resolve against the document. A schema path
+encodes segment for segment (`("work", "items")` → `/work/items`):
+neither a data pointer nor a JSON Schema location.
 
 A segment that is not a `str` or a non-negative `int`, or a pointer with
 no leading `/` or a `~` escape other than `~0` and `~1`, panics.
@@ -578,7 +558,9 @@ so `schema-from-json-schema((type: "string", minLength: 3))` equals
   only `type: "object"` just give each branch its type). A branch takes the
   node's `type`, and, unless it sets `additionalProperties`, the node's
   `properties` and `additionalProperties`, so `then: {required: ["b"]}`
-  requires a property the node declares. `if` is only a test, so every
+  requires a property the node declares. A branch that is a `$ref` or a
+  composition is merged as written and borrows nothing, so it must be an
+  object schema itself. `if` is only a test, so every
   object in it without `additionalProperties` is open, as draft 7 reads
   it. `if` with neither `then` nor `else` checks nothing and is dropped.
 - `$ref` to a fragment in the same document (`#/definitions/…`,
@@ -680,22 +662,11 @@ would accept or ignore it. Beyond that:
   `{"a": 1}` are duplicates. A free-form object (`additionalProperties:
   true` and nothing declared) keeps its nulls, so there they differ.
 - **`$id` sets no base URI**, so `$ref` resolves against the document
-  root only: the root's `$id` is ignored, and one below the root panics.
-- **`$ref` and the composition keywords stand alone.** Draft 7 ignores a
-  `$ref`'s siblings and applies a composition keyword's siblings as well;
-  here a sibling that is not an annotation panics. `if` / `then` / `else`
-  take plain siblings (below), but not a `$ref` or a composition keyword.
-- **`allOf`, and `if` / `then` / `else` beside other keywords, are merged
-  at translate time**, so only object members are supported, members that
-  set `additionalProperties` to `false` or a schema must declare the same
-  properties, and a branch
-  cannot narrow a property its node already declares. Alone on a node, the
-  branches may be any schema.
+  root only: the root's `$id` is ignored, and one below the root panics
+  unless it is empty or only a fragment (`#foo`).
 - **Bounds no value meets panic** (`minLength` above `maxLength`), even
   where another `type` in the list could still pass; only an `integer`
   whose bounds hold no whole number is dropped from the list instead.
-- **`dependentRequired`**, from draft 2019-09, is accepted alongside draft
-  7's array-form `dependencies`.
 
 ### A stricter JSON Resume
 

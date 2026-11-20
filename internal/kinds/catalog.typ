@@ -60,9 +60,9 @@
   }
 }
 
-// Every kind listed here is registered, and every exported constructor
-// is listed, so a new kind can't miss its descriptor or its
-// constructors.
+// Every kind listed here is registered, every registered kind is
+// listed, and every exported constructor is listed, so a new kind can't
+// miss its descriptor or its constructors.
 // `dictionary(module)` lists a module's names.
 #let _check-coverage(kinds, constructors, modules) = {
   for kind in constructors.keys() {
@@ -71,6 +71,12 @@
       "constructors are listed for "
         + repr(kind)
         + ", which has no descriptor.",
+    )
+  }
+  for kind in kinds.keys() {
+    _internal(
+      kind in constructors,
+      "kind " + repr(kind) + " has a descriptor but no constructors listed.",
     )
   }
   for mod in modules {

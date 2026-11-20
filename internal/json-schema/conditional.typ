@@ -17,13 +17,15 @@
 // `additionalProperties` and `properties` (its own properties win, and
 // the merge then bails on any that differ). Without them the merge
 // would read `then: {required: ["b"]}` as a closed object that has no
-// `b`. A borrowed property comes as `{}` and gets the schema the
-// siblings translated to (_lend), so a nested `if` translates each
-// level once, not once per branch. Returns the branch and the borrowed
-// keys. A branch that is a `$ref` or a composition is merged as written,
-// and so is one that is no object schema (an `enum`, a `type` without
-// `object`, a keyword for another type): the merge then names it as it
-// is, rather than by keywords it took from its siblings.
+// `b`. A borrowed property comes as `{}`, and an `additionalProperties`
+// schema as `true`, and each gets the schema the siblings translated
+// to (_lend), so a nested `if` translates each level once, not once
+// per branch. Returns the branch and what it borrowed: `(keys,
+// additional)`. A branch that is a `$ref` or a composition
+// is merged as written, and so is one that is no object schema (an
+// `enum`, a `type` without `object`, a keyword for another type): the
+// merge then names it as it is, rather than by keywords it took from
+// its siblings.
 #let _types(js) = {
   let t = js.at("type", default: "object")
   if type(t) == array { t } else { (t,) }
@@ -46,9 +48,9 @@
     type(branch) != dictionary
       or branch.keys().any(k => _role-of(k) in _lone-hints)
       or not _objectish(branch)
-  ) { return (branch, ()) }
+  ) { return (branch, (keys: (), additional: false)) }
   let b = branch
-  let borrowed = ()
+  let borrowed = (keys: (), additional: false)
   // Only an object type: the merge names siblings of another type
   // themselves, not a branch that never said it.
   if "type" not in b and "type" in siblings and "object" in _types(siblings) {
@@ -56,32 +58,39 @@
   }
   if "additionalProperties" not in b {
     if "additionalProperties" in siblings {
-      b.insert("additionalProperties", siblings.additionalProperties)
+      let ap = siblings.additionalProperties
+      if type(ap) == dictionary { (borrowed.additional, ap) = (true, true) }
+      b.insert("additionalProperties", ap)
     }
     let own = b.at("properties", default: (:))
     let theirs = siblings.at("properties", default: (:))
     if (
       type(own) == dictionary and type(theirs) == dictionary and theirs != (:)
     ) {
-      borrowed = theirs.keys().filter(k => k not in own)
-      b.insert("properties", (:..borrowed.map(k => (k, (:))).to-dict(), ..own))
+      borrowed.keys = theirs.keys().filter(k => k not in own)
+      b.insert("properties", (:
+        ..borrowed.keys.map(k => (k, (:))).to-dict(),
+        ..own,
+      ))
     }
   }
   (b, borrowed)
 }
 
 // `node`, a translated branch, with the schemas of its `borrowed` keys
-// (_beside) taken from `base`, its translated siblings. Anything but an
-// object, or a nullable one, is left for the merge to name.
+// and additional schema (_beside) taken from `base`, its translated
+// siblings. Anything but an object, or a nullable one, is left for the
+// merge to name.
 #let _lend(node, base, borrowed) = {
-  if borrowed == () { return node }
+  if borrowed.keys == () and not borrowed.additional { return node }
   let from = _nullable-member(base)
   if from == none { from = base }
   let x = _nullable-member(node)
   let obj = if x == none { node } else { x }
   if not (_is-object(obj) and _is-object(from)) { return node }
+  if borrowed.additional { obj.additional = from.additional }
   let shape = obj.shape
-  for k in borrowed {
+  for k in borrowed.keys {
     if k in from.shape { shape.insert(k, from.shape.at(k)) }
   }
   obj.shape = shape
